@@ -1,0 +1,4176 @@
+{
+  "schemaVersion": "0.1.0",
+  "generatedBy": "tools/xfn_build.py",
+  "notation": "XFN (xFlare Notation)",
+  "ppq": 480,
+  "scratches": [
+    {
+      "id": "baby",
+      "name": "Baby Scratch",
+      "family": "fundamento",
+      "level": 1,
+      "hand": "baby",
+      "fader": "open",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "La madre de todos. Fader abierto, ida y vuelta constante."
+    },
+    {
+      "id": "baby-16",
+      "name": "Baby 1/16",
+      "family": "fundamento",
+      "level": 2,
+      "hand": "baby",
+      "fader": "open",
+      "div": "1/16",
+      "cycles": 8,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 120,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 240,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 360,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 600,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 720,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 840,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1080,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1200,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1320,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1560,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1680,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1800,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "Mismo gesto al doble de velocidad."
+    },
+    {
+      "id": "forward-cut",
+      "name": "Forward Cut",
+      "family": "cut",
+      "level": 1,
+      "hand": "baby",
+      "fader": "forward_cut",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 5,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 230,
+          "state": "closed"
+        },
+        {
+          "t": 480,
+          "state": "open"
+        },
+        {
+          "t": 710,
+          "state": "closed"
+        },
+        {
+          "t": 960,
+          "state": "open"
+        },
+        {
+          "t": 1190,
+          "state": "closed"
+        },
+        {
+          "t": 1440,
+          "state": "open"
+        },
+        {
+          "t": 1670,
+          "state": "closed"
+        }
+      ],
+      "notes": "Primer contacto con el fader: solo suena la ida."
+    },
+    {
+      "id": "reverse-cut",
+      "name": "Reverse Cut",
+      "family": "cut",
+      "level": 2,
+      "hand": "baby",
+      "fader": "reverse_cut",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 5,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 240,
+          "state": "open"
+        },
+        {
+          "t": 470,
+          "state": "closed"
+        },
+        {
+          "t": 720,
+          "state": "open"
+        },
+        {
+          "t": 950,
+          "state": "closed"
+        },
+        {
+          "t": 1200,
+          "state": "open"
+        },
+        {
+          "t": 1430,
+          "state": "closed"
+        },
+        {
+          "t": 1680,
+          "state": "open"
+        },
+        {
+          "t": 1910,
+          "state": "closed"
+        }
+      ],
+      "notes": "Espejo del forward cut. Cuesta mas de lo que parece."
+    },
+    {
+      "id": "stab",
+      "name": "Stab",
+      "family": "cut",
+      "level": 1,
+      "hand": "stab",
+      "fader": "forward_cut",
+      "div": "1/4",
+      "cycles": 4,
+      "technique": "indice",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 3840,
+      "clickCount": 5,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.2,
+          "curve": "acc",
+          "from": 0.0,
+          "to": 1.2
+        },
+        {
+          "t": 240,
+          "dur": 720,
+          "dir": "rev",
+          "dist": -1.2,
+          "curve": "dec",
+          "from": 1.2,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.2,
+          "curve": "acc",
+          "from": 0.0,
+          "to": 1.2
+        },
+        {
+          "t": 1200,
+          "dur": 720,
+          "dir": "rev",
+          "dist": -1.2,
+          "curve": "dec",
+          "from": 1.2,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.2,
+          "curve": "acc",
+          "from": 0.0,
+          "to": 1.2
+        },
+        {
+          "t": 2160,
+          "dur": 720,
+          "dir": "rev",
+          "dist": -1.2,
+          "curve": "dec",
+          "from": 1.2,
+          "to": 0.0
+        },
+        {
+          "t": 2880,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.2,
+          "curve": "acc",
+          "from": 0.0,
+          "to": 1.2
+        },
+        {
+          "t": 3120,
+          "dur": 720,
+          "dir": "rev",
+          "dist": -1.2,
+          "curve": "dec",
+          "from": 1.2,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 230,
+          "state": "closed"
+        },
+        {
+          "t": 960,
+          "state": "open"
+        },
+        {
+          "t": 1190,
+          "state": "closed"
+        },
+        {
+          "t": 1920,
+          "state": "open"
+        },
+        {
+          "t": 2150,
+          "state": "closed"
+        },
+        {
+          "t": 2880,
+          "state": "open"
+        },
+        {
+          "t": 3110,
+          "state": "closed"
+        }
+      ],
+      "notes": "Ataque seco. Trabaja la explosividad, no la velocidad."
+    },
+    {
+      "id": "drag",
+      "name": "Drag",
+      "family": "fundamento",
+      "level": 1,
+      "hand": "drag",
+      "fader": "open",
+      "div": "1/4",
+      "cycles": 2,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 3840,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 960,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 2880,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "Camara lenta. Es un ejercicio de control de tono."
+    },
+    {
+      "id": "tear",
+      "name": "Tear",
+      "family": "tear",
+      "level": 2,
+      "hand": "tear2",
+      "fader": "open",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 2880,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 480,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 660,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 780,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 1440,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 1620,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 1740,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 2400,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 2580,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 2700,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "La vuelta se parte en dos. Sin fader."
+    },
+    {
+      "id": "tear-3",
+      "name": "Tear de 3",
+      "family": "tear",
+      "level": 3,
+      "hand": "tear3",
+      "fader": "open",
+      "div": "1/8",
+      "cycles": 2,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 2016,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 432,
+          "dir": "fwd",
+          "dist": 3.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 3.0
+        },
+        {
+          "t": 432,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 3.0,
+          "to": 2.0
+        },
+        {
+          "t": 576,
+          "dur": 72,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 2.0,
+          "to": 2.0
+        },
+        {
+          "t": 648,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 792,
+          "dur": 72,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 864,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1008,
+          "dur": 432,
+          "dir": "fwd",
+          "dist": 3.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 3.0
+        },
+        {
+          "t": 1440,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 3.0,
+          "to": 2.0
+        },
+        {
+          "t": 1584,
+          "dur": 72,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 2.0,
+          "to": 2.0
+        },
+        {
+          "t": 1656,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 1800,
+          "dur": 72,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 1872,
+          "dur": 144,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "Tres tramos en la vuelta."
+    },
+    {
+      "id": "scribble",
+      "name": "Scribble",
+      "family": "fundamento",
+      "level": 2,
+      "hand": "scribble",
+      "fader": "open",
+      "div": "1/16",
+      "cycles": 8,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 960,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 60,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 120,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 180,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 240,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 300,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 360,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 420,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 540,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 600,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 660,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 720,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 780,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        },
+        {
+          "t": 840,
+          "dur": 60,
+          "dir": "fwd",
+          "dist": 0.35,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.35
+        },
+        {
+          "t": 900,
+          "dur": 60,
+          "dir": "rev",
+          "dist": -0.35,
+          "curve": "lin",
+          "from": 0.35,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "Tension de antebrazo, recorrido minimo."
+    },
+    {
+      "id": "transformer-2",
+      "name": "Transformer x2",
+      "family": "transformer",
+      "level": 2,
+      "hand": "drag",
+      "fader": "transformer_2",
+      "div": "1/4",
+      "cycles": 2,
+      "technique": "indice (tap)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 3840,
+      "clickCount": 9,
+      "record": [
+        {
+          "t": 0,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 960,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 2880,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 96,
+          "state": "open"
+        },
+        {
+          "t": 336,
+          "state": "closed"
+        },
+        {
+          "t": 528,
+          "state": "open"
+        },
+        {
+          "t": 768,
+          "state": "closed"
+        },
+        {
+          "t": 1056,
+          "state": "open"
+        },
+        {
+          "t": 1296,
+          "state": "closed"
+        },
+        {
+          "t": 1488,
+          "state": "open"
+        },
+        {
+          "t": 1728,
+          "state": "closed"
+        },
+        {
+          "t": 2016,
+          "state": "open"
+        },
+        {
+          "t": 2256,
+          "state": "closed"
+        },
+        {
+          "t": 2448,
+          "state": "open"
+        },
+        {
+          "t": 2688,
+          "state": "closed"
+        },
+        {
+          "t": 2976,
+          "state": "open"
+        },
+        {
+          "t": 3216,
+          "state": "closed"
+        },
+        {
+          "t": 3408,
+          "state": "open"
+        },
+        {
+          "t": 3648,
+          "state": "closed"
+        }
+      ],
+      "notes": "El disco solo hace de zumbido: manda el fader."
+    },
+    {
+      "id": "transformer-3",
+      "name": "Transformer x3",
+      "family": "transformer",
+      "level": 3,
+      "hand": "drag",
+      "fader": "transformer_3",
+      "div": "1/4",
+      "cycles": 2,
+      "technique": "indice (tap)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 3840,
+      "clickCount": 13,
+      "record": [
+        {
+          "t": 0,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 960,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 2880,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 58,
+          "state": "open"
+        },
+        {
+          "t": 230,
+          "state": "closed"
+        },
+        {
+          "t": 365,
+          "state": "open"
+        },
+        {
+          "t": 538,
+          "state": "closed"
+        },
+        {
+          "t": 672,
+          "state": "open"
+        },
+        {
+          "t": 845,
+          "state": "closed"
+        },
+        {
+          "t": 1018,
+          "state": "open"
+        },
+        {
+          "t": 1190,
+          "state": "closed"
+        },
+        {
+          "t": 1325,
+          "state": "open"
+        },
+        {
+          "t": 1498,
+          "state": "closed"
+        },
+        {
+          "t": 1632,
+          "state": "open"
+        },
+        {
+          "t": 1805,
+          "state": "closed"
+        },
+        {
+          "t": 1978,
+          "state": "open"
+        },
+        {
+          "t": 2150,
+          "state": "closed"
+        },
+        {
+          "t": 2285,
+          "state": "open"
+        },
+        {
+          "t": 2458,
+          "state": "closed"
+        },
+        {
+          "t": 2592,
+          "state": "open"
+        },
+        {
+          "t": 2765,
+          "state": "closed"
+        },
+        {
+          "t": 2938,
+          "state": "open"
+        },
+        {
+          "t": 3110,
+          "state": "closed"
+        },
+        {
+          "t": 3245,
+          "state": "open"
+        },
+        {
+          "t": 3418,
+          "state": "closed"
+        },
+        {
+          "t": 3552,
+          "state": "open"
+        },
+        {
+          "t": 3725,
+          "state": "closed"
+        }
+      ],
+      "notes": "Tres pulsos por trazo."
+    },
+    {
+      "id": "transformer-4",
+      "name": "Transformer x4",
+      "family": "transformer",
+      "level": 4,
+      "hand": "drag",
+      "fader": "transformer_4",
+      "div": "1/4",
+      "cycles": 2,
+      "technique": "indice + corazon",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 3840,
+      "clickCount": 17,
+      "record": [
+        {
+          "t": 0,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 960,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 960,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 2880,
+          "dur": 960,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 38,
+          "state": "open"
+        },
+        {
+          "t": 163,
+          "state": "closed"
+        },
+        {
+          "t": 278,
+          "state": "open"
+        },
+        {
+          "t": 403,
+          "state": "closed"
+        },
+        {
+          "t": 518,
+          "state": "open"
+        },
+        {
+          "t": 643,
+          "state": "closed"
+        },
+        {
+          "t": 758,
+          "state": "open"
+        },
+        {
+          "t": 883,
+          "state": "closed"
+        },
+        {
+          "t": 998,
+          "state": "open"
+        },
+        {
+          "t": 1123,
+          "state": "closed"
+        },
+        {
+          "t": 1238,
+          "state": "open"
+        },
+        {
+          "t": 1363,
+          "state": "closed"
+        },
+        {
+          "t": 1478,
+          "state": "open"
+        },
+        {
+          "t": 1603,
+          "state": "closed"
+        },
+        {
+          "t": 1718,
+          "state": "open"
+        },
+        {
+          "t": 1843,
+          "state": "closed"
+        },
+        {
+          "t": 1958,
+          "state": "open"
+        },
+        {
+          "t": 2083,
+          "state": "closed"
+        },
+        {
+          "t": 2198,
+          "state": "open"
+        },
+        {
+          "t": 2323,
+          "state": "closed"
+        },
+        {
+          "t": 2438,
+          "state": "open"
+        },
+        {
+          "t": 2563,
+          "state": "closed"
+        },
+        {
+          "t": 2678,
+          "state": "open"
+        },
+        {
+          "t": 2803,
+          "state": "closed"
+        },
+        {
+          "t": 2918,
+          "state": "open"
+        },
+        {
+          "t": 3043,
+          "state": "closed"
+        },
+        {
+          "t": 3158,
+          "state": "open"
+        },
+        {
+          "t": 3283,
+          "state": "closed"
+        },
+        {
+          "t": 3398,
+          "state": "open"
+        },
+        {
+          "t": 3523,
+          "state": "closed"
+        },
+        {
+          "t": 3638,
+          "state": "open"
+        },
+        {
+          "t": 3763,
+          "state": "closed"
+        }
+      ],
+      "notes": "Cuatro pulsos. Aqui empieza a doler la muneca."
+    },
+    {
+      "id": "chirp",
+      "name": "Chirp",
+      "family": "chirp",
+      "level": 3,
+      "hand": "chirp_hand",
+      "fader": "chirp",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice + pulgar",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 9,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "dec",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "dec",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "dec",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "dec",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "dec",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "dec",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "dec",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "dec",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "closed"
+        },
+        {
+          "t": 12,
+          "state": "open"
+        },
+        {
+          "t": 192,
+          "state": "closed"
+        },
+        {
+          "t": 252,
+          "state": "open"
+        },
+        {
+          "t": 432,
+          "state": "closed"
+        },
+        {
+          "t": 492,
+          "state": "open"
+        },
+        {
+          "t": 672,
+          "state": "closed"
+        },
+        {
+          "t": 732,
+          "state": "open"
+        },
+        {
+          "t": 912,
+          "state": "closed"
+        },
+        {
+          "t": 972,
+          "state": "open"
+        },
+        {
+          "t": 1152,
+          "state": "closed"
+        },
+        {
+          "t": 1212,
+          "state": "open"
+        },
+        {
+          "t": 1392,
+          "state": "closed"
+        },
+        {
+          "t": 1452,
+          "state": "open"
+        },
+        {
+          "t": 1632,
+          "state": "closed"
+        },
+        {
+          "t": 1692,
+          "state": "open"
+        },
+        {
+          "t": 1872,
+          "state": "closed"
+        }
+      ],
+      "notes": "Abrir al arrancar, cerrar al frenar. Suena a pajaro."
+    },
+    {
+      "id": "flare-1c",
+      "name": "1-Click Flare",
+      "family": "flare",
+      "level": 3,
+      "hand": "baby",
+      "fader": "flare_1c",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice (rebote)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 8,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 108,
+          "state": "closed"
+        },
+        {
+          "t": 132,
+          "state": "open"
+        },
+        {
+          "t": 348,
+          "state": "closed"
+        },
+        {
+          "t": 372,
+          "state": "open"
+        },
+        {
+          "t": 588,
+          "state": "closed"
+        },
+        {
+          "t": 612,
+          "state": "open"
+        },
+        {
+          "t": 828,
+          "state": "closed"
+        },
+        {
+          "t": 852,
+          "state": "open"
+        },
+        {
+          "t": 1068,
+          "state": "closed"
+        },
+        {
+          "t": 1092,
+          "state": "open"
+        },
+        {
+          "t": 1308,
+          "state": "closed"
+        },
+        {
+          "t": 1332,
+          "state": "open"
+        },
+        {
+          "t": 1548,
+          "state": "closed"
+        },
+        {
+          "t": 1572,
+          "state": "open"
+        },
+        {
+          "t": 1788,
+          "state": "closed"
+        },
+        {
+          "t": 1812,
+          "state": "open"
+        }
+      ],
+      "notes": "El salto de nivel: el fader interrumpe un sonido continuo."
+    },
+    {
+      "id": "flare-1c-lo",
+      "name": "Lo-1C Flare",
+      "family": "flare",
+      "level": 4,
+      "hand": "baby",
+      "fader": "flare_1c_lo",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice (rebote)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 8,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 60,
+          "state": "closed"
+        },
+        {
+          "t": 84,
+          "state": "open"
+        },
+        {
+          "t": 300,
+          "state": "closed"
+        },
+        {
+          "t": 324,
+          "state": "open"
+        },
+        {
+          "t": 540,
+          "state": "closed"
+        },
+        {
+          "t": 564,
+          "state": "open"
+        },
+        {
+          "t": 780,
+          "state": "closed"
+        },
+        {
+          "t": 804,
+          "state": "open"
+        },
+        {
+          "t": 1020,
+          "state": "closed"
+        },
+        {
+          "t": 1044,
+          "state": "open"
+        },
+        {
+          "t": 1260,
+          "state": "closed"
+        },
+        {
+          "t": 1284,
+          "state": "open"
+        },
+        {
+          "t": 1500,
+          "state": "closed"
+        },
+        {
+          "t": 1524,
+          "state": "open"
+        },
+        {
+          "t": 1740,
+          "state": "closed"
+        },
+        {
+          "t": 1764,
+          "state": "open"
+        }
+      ],
+      "notes": "Click adelantado. Cambia el groove por completo."
+    },
+    {
+      "id": "flare-1c-hi",
+      "name": "Hi-1C Flare",
+      "family": "flare",
+      "level": 4,
+      "hand": "baby",
+      "fader": "flare_1c_hi",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice (rebote)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 8,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 156,
+          "state": "closed"
+        },
+        {
+          "t": 180,
+          "state": "open"
+        },
+        {
+          "t": 396,
+          "state": "closed"
+        },
+        {
+          "t": 420,
+          "state": "open"
+        },
+        {
+          "t": 636,
+          "state": "closed"
+        },
+        {
+          "t": 660,
+          "state": "open"
+        },
+        {
+          "t": 876,
+          "state": "closed"
+        },
+        {
+          "t": 900,
+          "state": "open"
+        },
+        {
+          "t": 1116,
+          "state": "closed"
+        },
+        {
+          "t": 1140,
+          "state": "open"
+        },
+        {
+          "t": 1356,
+          "state": "closed"
+        },
+        {
+          "t": 1380,
+          "state": "open"
+        },
+        {
+          "t": 1596,
+          "state": "closed"
+        },
+        {
+          "t": 1620,
+          "state": "open"
+        },
+        {
+          "t": 1836,
+          "state": "closed"
+        },
+        {
+          "t": 1860,
+          "state": "open"
+        }
+      ],
+      "notes": "Click retrasado."
+    },
+    {
+      "id": "flare-2c",
+      "name": "2-Click Flare",
+      "family": "flare",
+      "level": 4,
+      "hand": "baby",
+      "fader": "flare_2c",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice (rebote doble)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 16,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 67,
+          "state": "closed"
+        },
+        {
+          "t": 86,
+          "state": "open"
+        },
+        {
+          "t": 149,
+          "state": "closed"
+        },
+        {
+          "t": 168,
+          "state": "open"
+        },
+        {
+          "t": 307,
+          "state": "closed"
+        },
+        {
+          "t": 326,
+          "state": "open"
+        },
+        {
+          "t": 389,
+          "state": "closed"
+        },
+        {
+          "t": 408,
+          "state": "open"
+        },
+        {
+          "t": 547,
+          "state": "closed"
+        },
+        {
+          "t": 566,
+          "state": "open"
+        },
+        {
+          "t": 629,
+          "state": "closed"
+        },
+        {
+          "t": 648,
+          "state": "open"
+        },
+        {
+          "t": 787,
+          "state": "closed"
+        },
+        {
+          "t": 806,
+          "state": "open"
+        },
+        {
+          "t": 869,
+          "state": "closed"
+        },
+        {
+          "t": 888,
+          "state": "open"
+        },
+        {
+          "t": 1027,
+          "state": "closed"
+        },
+        {
+          "t": 1046,
+          "state": "open"
+        },
+        {
+          "t": 1109,
+          "state": "closed"
+        },
+        {
+          "t": 1128,
+          "state": "open"
+        },
+        {
+          "t": 1267,
+          "state": "closed"
+        },
+        {
+          "t": 1286,
+          "state": "open"
+        },
+        {
+          "t": 1349,
+          "state": "closed"
+        },
+        {
+          "t": 1368,
+          "state": "open"
+        },
+        {
+          "t": 1507,
+          "state": "closed"
+        },
+        {
+          "t": 1526,
+          "state": "open"
+        },
+        {
+          "t": 1589,
+          "state": "closed"
+        },
+        {
+          "t": 1608,
+          "state": "open"
+        },
+        {
+          "t": 1747,
+          "state": "closed"
+        },
+        {
+          "t": 1766,
+          "state": "open"
+        },
+        {
+          "t": 1829,
+          "state": "closed"
+        },
+        {
+          "t": 1848,
+          "state": "open"
+        }
+      ],
+      "notes": "Dos clicks por trazo. El caballo de batalla."
+    },
+    {
+      "id": "flare-3c",
+      "name": "3-Click Flare",
+      "family": "flare",
+      "level": 5,
+      "hand": "baby",
+      "fader": "flare_3c",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "indice + corazon",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1440,
+      "clickCount": 18,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 48,
+          "state": "closed"
+        },
+        {
+          "t": 65,
+          "state": "open"
+        },
+        {
+          "t": 108,
+          "state": "closed"
+        },
+        {
+          "t": 125,
+          "state": "open"
+        },
+        {
+          "t": 168,
+          "state": "closed"
+        },
+        {
+          "t": 185,
+          "state": "open"
+        },
+        {
+          "t": 288,
+          "state": "closed"
+        },
+        {
+          "t": 305,
+          "state": "open"
+        },
+        {
+          "t": 348,
+          "state": "closed"
+        },
+        {
+          "t": 365,
+          "state": "open"
+        },
+        {
+          "t": 408,
+          "state": "closed"
+        },
+        {
+          "t": 425,
+          "state": "open"
+        },
+        {
+          "t": 528,
+          "state": "closed"
+        },
+        {
+          "t": 545,
+          "state": "open"
+        },
+        {
+          "t": 588,
+          "state": "closed"
+        },
+        {
+          "t": 605,
+          "state": "open"
+        },
+        {
+          "t": 648,
+          "state": "closed"
+        },
+        {
+          "t": 665,
+          "state": "open"
+        },
+        {
+          "t": 768,
+          "state": "closed"
+        },
+        {
+          "t": 785,
+          "state": "open"
+        },
+        {
+          "t": 828,
+          "state": "closed"
+        },
+        {
+          "t": 845,
+          "state": "open"
+        },
+        {
+          "t": 888,
+          "state": "closed"
+        },
+        {
+          "t": 905,
+          "state": "open"
+        },
+        {
+          "t": 1008,
+          "state": "closed"
+        },
+        {
+          "t": 1025,
+          "state": "open"
+        },
+        {
+          "t": 1068,
+          "state": "closed"
+        },
+        {
+          "t": 1085,
+          "state": "open"
+        },
+        {
+          "t": 1128,
+          "state": "closed"
+        },
+        {
+          "t": 1145,
+          "state": "open"
+        },
+        {
+          "t": 1248,
+          "state": "closed"
+        },
+        {
+          "t": 1265,
+          "state": "open"
+        },
+        {
+          "t": 1308,
+          "state": "closed"
+        },
+        {
+          "t": 1325,
+          "state": "open"
+        },
+        {
+          "t": 1368,
+          "state": "closed"
+        },
+        {
+          "t": 1385,
+          "state": "open"
+        }
+      ],
+      "notes": "Tres clicks. Requiere rebote limpio."
+    },
+    {
+      "id": "tear-flare-1c",
+      "name": "Tear Flare 1C",
+      "family": "flare",
+      "level": 4,
+      "hand": "tear2",
+      "fader": "flare_1c",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "indice (rebote)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 2880,
+      "clickCount": 9,
+      "record": [
+        {
+          "t": 0,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 480,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 660,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 780,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 1440,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 1620,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 1740,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1920,
+          "dur": 480,
+          "dir": "fwd",
+          "dist": 2.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 2.0
+        },
+        {
+          "t": 2400,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 2.0,
+          "to": 1.0
+        },
+        {
+          "t": 2580,
+          "dur": 120,
+          "dir": "hold",
+          "dist": 0.0,
+          "curve": "hold",
+          "from": 1.0,
+          "to": 1.0
+        },
+        {
+          "t": 2700,
+          "dur": 180,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "lin",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 216,
+          "state": "closed"
+        },
+        {
+          "t": 264,
+          "state": "open"
+        },
+        {
+          "t": 561,
+          "state": "closed"
+        },
+        {
+          "t": 579,
+          "state": "open"
+        },
+        {
+          "t": 861,
+          "state": "closed"
+        },
+        {
+          "t": 879,
+          "state": "open"
+        },
+        {
+          "t": 1176,
+          "state": "closed"
+        },
+        {
+          "t": 1224,
+          "state": "open"
+        },
+        {
+          "t": 1521,
+          "state": "closed"
+        },
+        {
+          "t": 1539,
+          "state": "open"
+        },
+        {
+          "t": 1821,
+          "state": "closed"
+        },
+        {
+          "t": 1839,
+          "state": "open"
+        },
+        {
+          "t": 2136,
+          "state": "closed"
+        },
+        {
+          "t": 2184,
+          "state": "open"
+        },
+        {
+          "t": 2481,
+          "state": "closed"
+        },
+        {
+          "t": 2499,
+          "state": "open"
+        },
+        {
+          "t": 2781,
+          "state": "closed"
+        },
+        {
+          "t": 2799,
+          "state": "open"
+        }
+      ],
+      "notes": "Combina la parada del tear con el click."
+    },
+    {
+      "id": "orbit-1c",
+      "name": "1-Click Orbit",
+      "family": "orbit",
+      "level": 4,
+      "hand": "baby",
+      "fader": "orbit_1c",
+      "div": "1/8",
+      "cycles": 4,
+      "technique": "indice (ida y vuelta)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1920,
+      "clickCount": 8,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1440,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1680,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 108,
+          "state": "closed"
+        },
+        {
+          "t": 132,
+          "state": "open"
+        },
+        {
+          "t": 348,
+          "state": "closed"
+        },
+        {
+          "t": 372,
+          "state": "open"
+        },
+        {
+          "t": 588,
+          "state": "closed"
+        },
+        {
+          "t": 612,
+          "state": "open"
+        },
+        {
+          "t": 828,
+          "state": "closed"
+        },
+        {
+          "t": 852,
+          "state": "open"
+        },
+        {
+          "t": 1068,
+          "state": "closed"
+        },
+        {
+          "t": 1092,
+          "state": "open"
+        },
+        {
+          "t": 1308,
+          "state": "closed"
+        },
+        {
+          "t": 1332,
+          "state": "open"
+        },
+        {
+          "t": 1548,
+          "state": "closed"
+        },
+        {
+          "t": 1572,
+          "state": "open"
+        },
+        {
+          "t": 1788,
+          "state": "closed"
+        },
+        {
+          "t": 1812,
+          "state": "open"
+        }
+      ],
+      "notes": "Flare circular: el click de vuelta con el dorso del dedo."
+    },
+    {
+      "id": "orbit-2c",
+      "name": "2-Click Orbit",
+      "family": "orbit",
+      "level": 5,
+      "hand": "baby",
+      "fader": "orbit_2c",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "indice (ida y vuelta)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1440,
+      "clickCount": 12,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 67,
+          "state": "closed"
+        },
+        {
+          "t": 86,
+          "state": "open"
+        },
+        {
+          "t": 149,
+          "state": "closed"
+        },
+        {
+          "t": 168,
+          "state": "open"
+        },
+        {
+          "t": 307,
+          "state": "closed"
+        },
+        {
+          "t": 326,
+          "state": "open"
+        },
+        {
+          "t": 389,
+          "state": "closed"
+        },
+        {
+          "t": 408,
+          "state": "open"
+        },
+        {
+          "t": 547,
+          "state": "closed"
+        },
+        {
+          "t": 566,
+          "state": "open"
+        },
+        {
+          "t": 629,
+          "state": "closed"
+        },
+        {
+          "t": 648,
+          "state": "open"
+        },
+        {
+          "t": 787,
+          "state": "closed"
+        },
+        {
+          "t": 806,
+          "state": "open"
+        },
+        {
+          "t": 869,
+          "state": "closed"
+        },
+        {
+          "t": 888,
+          "state": "open"
+        },
+        {
+          "t": 1027,
+          "state": "closed"
+        },
+        {
+          "t": 1046,
+          "state": "open"
+        },
+        {
+          "t": 1109,
+          "state": "closed"
+        },
+        {
+          "t": 1128,
+          "state": "open"
+        },
+        {
+          "t": 1267,
+          "state": "closed"
+        },
+        {
+          "t": 1286,
+          "state": "open"
+        },
+        {
+          "t": 1349,
+          "state": "closed"
+        },
+        {
+          "t": 1368,
+          "state": "open"
+        }
+      ],
+      "notes": "Cuatro clicks por ciclo sin romper el circulo."
+    },
+    {
+      "id": "twiddle",
+      "name": "Twiddle",
+      "family": "twiddle",
+      "level": 5,
+      "hand": "baby",
+      "fader": "twiddle_2c",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "indice + corazon alternos",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1440,
+      "clickCount": 12,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 67,
+          "state": "closed"
+        },
+        {
+          "t": 86,
+          "state": "open"
+        },
+        {
+          "t": 149,
+          "state": "closed"
+        },
+        {
+          "t": 168,
+          "state": "open"
+        },
+        {
+          "t": 307,
+          "state": "closed"
+        },
+        {
+          "t": 326,
+          "state": "open"
+        },
+        {
+          "t": 389,
+          "state": "closed"
+        },
+        {
+          "t": 408,
+          "state": "open"
+        },
+        {
+          "t": 547,
+          "state": "closed"
+        },
+        {
+          "t": 566,
+          "state": "open"
+        },
+        {
+          "t": 629,
+          "state": "closed"
+        },
+        {
+          "t": 648,
+          "state": "open"
+        },
+        {
+          "t": 787,
+          "state": "closed"
+        },
+        {
+          "t": 806,
+          "state": "open"
+        },
+        {
+          "t": 869,
+          "state": "closed"
+        },
+        {
+          "t": 888,
+          "state": "open"
+        },
+        {
+          "t": 1027,
+          "state": "closed"
+        },
+        {
+          "t": 1046,
+          "state": "open"
+        },
+        {
+          "t": 1109,
+          "state": "closed"
+        },
+        {
+          "t": 1128,
+          "state": "open"
+        },
+        {
+          "t": 1267,
+          "state": "closed"
+        },
+        {
+          "t": 1286,
+          "state": "open"
+        },
+        {
+          "t": 1349,
+          "state": "closed"
+        },
+        {
+          "t": 1368,
+          "state": "open"
+        }
+      ],
+      "notes": "Dibujo de 2-click pero con dos dedos alternos."
+    },
+    {
+      "id": "crab",
+      "name": "Crab",
+      "family": "crab",
+      "level": 6,
+      "hand": "baby",
+      "fader": "crab_4c",
+      "div": "1/8",
+      "cycles": 3,
+      "technique": "4 dedos contra pulgar",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1440,
+      "clickCount": 24,
+      "record": [
+        {
+          "t": 0,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 240,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 720,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 240,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1200,
+          "dur": 240,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 34,
+          "state": "closed"
+        },
+        {
+          "t": 48,
+          "state": "open"
+        },
+        {
+          "t": 82,
+          "state": "closed"
+        },
+        {
+          "t": 96,
+          "state": "open"
+        },
+        {
+          "t": 130,
+          "state": "closed"
+        },
+        {
+          "t": 144,
+          "state": "open"
+        },
+        {
+          "t": 178,
+          "state": "closed"
+        },
+        {
+          "t": 192,
+          "state": "open"
+        },
+        {
+          "t": 274,
+          "state": "closed"
+        },
+        {
+          "t": 288,
+          "state": "open"
+        },
+        {
+          "t": 322,
+          "state": "closed"
+        },
+        {
+          "t": 336,
+          "state": "open"
+        },
+        {
+          "t": 370,
+          "state": "closed"
+        },
+        {
+          "t": 384,
+          "state": "open"
+        },
+        {
+          "t": 418,
+          "state": "closed"
+        },
+        {
+          "t": 432,
+          "state": "open"
+        },
+        {
+          "t": 514,
+          "state": "closed"
+        },
+        {
+          "t": 528,
+          "state": "open"
+        },
+        {
+          "t": 562,
+          "state": "closed"
+        },
+        {
+          "t": 576,
+          "state": "open"
+        },
+        {
+          "t": 610,
+          "state": "closed"
+        },
+        {
+          "t": 624,
+          "state": "open"
+        },
+        {
+          "t": 658,
+          "state": "closed"
+        },
+        {
+          "t": 672,
+          "state": "open"
+        },
+        {
+          "t": 754,
+          "state": "closed"
+        },
+        {
+          "t": 768,
+          "state": "open"
+        },
+        {
+          "t": 802,
+          "state": "closed"
+        },
+        {
+          "t": 816,
+          "state": "open"
+        },
+        {
+          "t": 850,
+          "state": "closed"
+        },
+        {
+          "t": 864,
+          "state": "open"
+        },
+        {
+          "t": 898,
+          "state": "closed"
+        },
+        {
+          "t": 912,
+          "state": "open"
+        },
+        {
+          "t": 994,
+          "state": "closed"
+        },
+        {
+          "t": 1008,
+          "state": "open"
+        },
+        {
+          "t": 1042,
+          "state": "closed"
+        },
+        {
+          "t": 1056,
+          "state": "open"
+        },
+        {
+          "t": 1090,
+          "state": "closed"
+        },
+        {
+          "t": 1104,
+          "state": "open"
+        },
+        {
+          "t": 1138,
+          "state": "closed"
+        },
+        {
+          "t": 1152,
+          "state": "open"
+        },
+        {
+          "t": 1234,
+          "state": "closed"
+        },
+        {
+          "t": 1248,
+          "state": "open"
+        },
+        {
+          "t": 1282,
+          "state": "closed"
+        },
+        {
+          "t": 1296,
+          "state": "open"
+        },
+        {
+          "t": 1330,
+          "state": "closed"
+        },
+        {
+          "t": 1344,
+          "state": "open"
+        },
+        {
+          "t": 1378,
+          "state": "closed"
+        },
+        {
+          "t": 1392,
+          "state": "open"
+        }
+      ],
+      "notes": "Cuatro dedos contra el pulgar. El examen final del nivel medio."
+    },
+    {
+      "id": "flare-2c-16",
+      "name": "2-Click Flare 1/16",
+      "family": "flare",
+      "level": 6,
+      "hand": "baby",
+      "fader": "flare_2c",
+      "div": "1/16",
+      "cycles": 6,
+      "technique": "indice (rebote doble)",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 1440,
+      "clickCount": 24,
+      "record": [
+        {
+          "t": 0,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 120,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 240,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 360,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 480,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 600,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 720,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 840,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 960,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1080,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        },
+        {
+          "t": 1200,
+          "dur": 120,
+          "dir": "fwd",
+          "dist": 1.0,
+          "curve": "bell",
+          "from": 0.0,
+          "to": 1.0
+        },
+        {
+          "t": 1320,
+          "dur": 120,
+          "dir": "rev",
+          "dist": -1.0,
+          "curve": "bell",
+          "from": 1.0,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        },
+        {
+          "t": 34,
+          "state": "closed"
+        },
+        {
+          "t": 43,
+          "state": "open"
+        },
+        {
+          "t": 74,
+          "state": "closed"
+        },
+        {
+          "t": 84,
+          "state": "open"
+        },
+        {
+          "t": 154,
+          "state": "closed"
+        },
+        {
+          "t": 163,
+          "state": "open"
+        },
+        {
+          "t": 194,
+          "state": "closed"
+        },
+        {
+          "t": 204,
+          "state": "open"
+        },
+        {
+          "t": 274,
+          "state": "closed"
+        },
+        {
+          "t": 283,
+          "state": "open"
+        },
+        {
+          "t": 314,
+          "state": "closed"
+        },
+        {
+          "t": 324,
+          "state": "open"
+        },
+        {
+          "t": 394,
+          "state": "closed"
+        },
+        {
+          "t": 403,
+          "state": "open"
+        },
+        {
+          "t": 434,
+          "state": "closed"
+        },
+        {
+          "t": 444,
+          "state": "open"
+        },
+        {
+          "t": 514,
+          "state": "closed"
+        },
+        {
+          "t": 523,
+          "state": "open"
+        },
+        {
+          "t": 554,
+          "state": "closed"
+        },
+        {
+          "t": 564,
+          "state": "open"
+        },
+        {
+          "t": 634,
+          "state": "closed"
+        },
+        {
+          "t": 643,
+          "state": "open"
+        },
+        {
+          "t": 674,
+          "state": "closed"
+        },
+        {
+          "t": 684,
+          "state": "open"
+        },
+        {
+          "t": 754,
+          "state": "closed"
+        },
+        {
+          "t": 763,
+          "state": "open"
+        },
+        {
+          "t": 794,
+          "state": "closed"
+        },
+        {
+          "t": 804,
+          "state": "open"
+        },
+        {
+          "t": 874,
+          "state": "closed"
+        },
+        {
+          "t": 883,
+          "state": "open"
+        },
+        {
+          "t": 914,
+          "state": "closed"
+        },
+        {
+          "t": 924,
+          "state": "open"
+        },
+        {
+          "t": 994,
+          "state": "closed"
+        },
+        {
+          "t": 1003,
+          "state": "open"
+        },
+        {
+          "t": 1034,
+          "state": "closed"
+        },
+        {
+          "t": 1044,
+          "state": "open"
+        },
+        {
+          "t": 1114,
+          "state": "closed"
+        },
+        {
+          "t": 1123,
+          "state": "open"
+        },
+        {
+          "t": 1154,
+          "state": "closed"
+        },
+        {
+          "t": 1164,
+          "state": "open"
+        },
+        {
+          "t": 1234,
+          "state": "closed"
+        },
+        {
+          "t": 1243,
+          "state": "open"
+        },
+        {
+          "t": 1274,
+          "state": "closed"
+        },
+        {
+          "t": 1284,
+          "state": "open"
+        },
+        {
+          "t": 1354,
+          "state": "closed"
+        },
+        {
+          "t": 1363,
+          "state": "open"
+        },
+        {
+          "t": 1394,
+          "state": "closed"
+        },
+        {
+          "t": 1404,
+          "state": "open"
+        }
+      ],
+      "notes": "El mismo patron al doble de tempo."
+    },
+    {
+      "id": "hydroplane",
+      "name": "Hydroplane",
+      "family": "textura",
+      "level": 4,
+      "hand": "hydroplane",
+      "fader": "open",
+      "div": "1/16",
+      "cycles": 8,
+      "technique": "ninguna",
+      "ppq": 480,
+      "bpmReference": 90,
+      "lengthTicks": 480,
+      "clickCount": 0,
+      "record": [
+        {
+          "t": 0,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 30,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 60,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 90,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 120,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 150,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 180,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 210,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 240,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 270,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 300,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 330,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 360,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 390,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        },
+        {
+          "t": 420,
+          "dur": 30,
+          "dir": "fwd",
+          "dist": 0.18,
+          "curve": "lin",
+          "from": 0.0,
+          "to": 0.18
+        },
+        {
+          "t": 450,
+          "dur": 30,
+          "dir": "rev",
+          "dist": -0.18,
+          "curve": "lin",
+          "from": 0.18,
+          "to": 0.0
+        }
+      ],
+      "faderEvents": [
+        {
+          "t": 0,
+          "state": "open"
+        }
+      ],
+      "notes": "Friccion del dedo sobre el disco. Textura, no ritmo."
+    }
+  ]
+}

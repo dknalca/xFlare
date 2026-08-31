@@ -1,0 +1,944 @@
+{
+  "schemaVersion": "1.0",
+  "blocks": [
+    {
+      "id": "B0",
+      "name": "Andamiaje",
+      "goal": "Que exista el esqueleto y que `make verify` signifique algo.",
+      "phase": "now",
+      "tasks": [
+        {
+          "id": "B0.1",
+          "title": "Package.swift con los 13 targets vacios y sus targets de test",
+          "module": "-",
+          "acceptance": "`swift build` y `swift test` pasan con 13 targets vacios (12 modulos + XFTestKit); el grafo de dependencias es el de ARCHITECTURE.md seccion 2",
+          "status": "done",
+          "note": "swift build OK (13 targets + 12 de test compilan y enlazan; GRDB 6.29.3; grafo = ARCHITECTURE seccion 2). swift test VERDE: 12 tests, 0 fallos, con Xcode 14.2 / Swift 5.7.2 y via TOOLCHAINS=swift. El crash de libXCTestSwiftSupport (ADR-029) se resolvio el 2026-08-31 al completar el primer arranque de Xcode 14.2."
+        },
+        {
+          "id": "B0.2",
+          "title": "Makefile: verify, test, seal, status, golden-update",
+          "module": "-",
+          "acceptance": "`make verify` corre y sale 0",
+          "status": "done",
+          "note": "verify = build + lint + profiles-check + test-advisory; sale 0. test real y seal son estrictos y pasan (ADR-029 resuelto 2026-08-31). test-advisory se mantiene en verify como red por si otra maquina entra sin los componentes de Xcode."
+        },
+        {
+          "id": "B0.3",
+          "title": "LICENSE oficial + cabeceras en fuentes propias",
+          "module": "-",
+          "acceptance": "LICENSE descargado de gnu.org; cabecera en todo .swift/.c propio",
+          "status": "done",
+          "note": "LICENSE = gpl-3.0.txt de gnu.org (674 lineas). Proyecto GPL-3.0-only (xwax 1.8+ es GPLv3, ADR-030). SPDX GPL-3.0-only en 32 ficheros propios + Package.swift + tools/*.py. xwax vendorizado intacto sin SPDX propio."
+        },
+        {
+          "id": "B0.4",
+          "title": "tools/xf_status.py operativo sobre data/backlog.json",
+          "module": "-",
+          "acceptance": "`make status` imprime hecho / en curso / siguiente",
+          "status": "done"
+        },
+        {
+          "id": "B0.5",
+          "title": "Fijar Xcode 14.2 en el MacBook Pro 2015 con Monterey",
+          "module": "-",
+          "status": "done",
+          "acceptance": "`swift --version` da 5.7.2; `swift build` funciona desde terminal",
+          "note": "Xcode 14.2 (14C18) y Swift 5.7.2 presentes; swift build y swift test OK desde terminal. Toolchain swift.org 5.8.1 instalada como red. El bloqueo de swift test (ADR-029) se cerro el 2026-08-31 al completar el primer arranque de Xcode 14.2; no hizo falta Xcode 14.1."
+        },
+        {
+          "id": "B0.6",
+          "title": "Compilacion universal x86_64 + arm64 desde el primer dia",
+          "module": "-",
+          "status": "done",
+          "acceptance": "`lipo -archs` muestra las dos arquitecturas; no dejarlo para el final"
+        },
+        {
+          "id": "B0.7",
+          "title": "Comprobar que xwax compila para arm64 (intrinsecos SSE en lut.c/timecoder.c)",
+          "module": "CXFTimecode",
+          "status": "done",
+          "acceptance": "si hay SSE, condicionarlo por arquitectura sin tocar la logica",
+          "note": "xwax 1.10 no usa intrinsecos SSE ni -msse. timecoder.c y lut.c compilan en arm64 y x86_64 sin condicionar nada. 2 warnings -Wshorten-64-to-32 de xwax (no se tocan). docs/TIMECODE.md."
+        },
+        {
+          "id": "B0.8",
+          "title": "Goldens con redondeo a 4 decimales y tolerancia 1e-9 (ADR-028)",
+          "module": "-",
+          "status": "done",
+          "acceptance": "un golden generado en x86_64 pasa en arm64; definirlo ANTES de escribir el primer golden"
+        },
+        {
+          "id": "B0.9",
+          "title": "CI en GitHub Actions: macos-13 Intel, macos-14 arm64 y trabajo universal",
+          "module": "-",
+          "status": "wip",
+          "acceptance": ".github/workflows/ci.yml en verde; `lipo -archs` muestra las dos",
+          "note": "yaml revisado/actualizado (job universal = make universal; guard de diff en data/; swift test corre en runners Ventura+). Verde pendiente de crear el repo (git aplazado)."
+        }
+      ]
+    },
+    {
+      "id": "B1",
+      "name": "Spike de latencia",
+      "goal": "Validar barato el riesgo que puede matar el proyecto.",
+      "phase": "now",
+      "tasks": [
+        {
+          "id": "B1.1",
+          "title": "Prototipo desechable: CoreAudio passthrough a 64 frames",
+          "module": "CXFAudioCore",
+          "acceptance": "suena sin cortes 5 min",
+          "status": "wip",
+          "note": "spike en spike/b1-latency/ (fuera de Package.swift, desechable): passthrough.c + build.sh, compila universal. Una AudioUnit HAL duplex sobre el mismo dispositivo, passthrough en el callback sin ring buffer (ese es B4). Cuenta overloads/render_err/jitter, imprime PASS/FAIL. Smoke test OK en Built-in Output (64 frames, 0 overloads). Falta la corrida real de 5 min con la Rane 72 (esta maquina no tiene dispositivo duplex) y anotar en docs/TIMECODE.md 4.1."
+        },
+        {
+          "id": "B1.2",
+          "title": "Medir round-trip real por loopback en TU hardware",
+          "module": "CXFAudioCore",
+          "acceptance": "numero medido y anotado en docs/TIMECODE.md",
+          "status": "wip",
+          "note": "herramienta escrita: tools/measure_latency.py + tools/requirements.txt (numpy, sounddevice). Chirp corto por la salida + grabacion simultanea de la entrada (sd.playrec), desfase por correlacion cruzada FFT (solo numpy), N repeticiones, imprime min/mediana/media/max + jitter + veredicto vs puerta de 10 ms + linea para docs/TIMECODE.md 4.2. Sintaxis verificada. Falta correrlo: necesita el venv de tools/ y un loopback fisico."
+        },
+        {
+          "id": "B1.3",
+          "title": "Decision documentada",
+          "module": "-",
+          "acceptance": "si ≤10 ms: seguir. Si no: ADR con el plan B (buffer mayor, otra interfaz, o revisar el objetivo) ANTES de escribir nada mas",
+          "status": "todo",
+          "note": "bloqueada por los numeros de B1.2. measure_latency.py ya imprime el veredicto DENTRO/FUERA de la puerta; al tener el dato solo hay que trasladarlo aqui (y abrir ADR si sale fuera)."
+        },
+        {
+          "id": "B1.4",
+          "title": "Validar la captura del crossfader por tono piloto (ADR-021)",
+          "module": "CXFAudioCore",
+          "status": "wip",
+          "acceptance": "detectar apertura/cierre del crossfader de tu mesa con menos de 5 ms de jitter; si falla, ADR con el plan C ANTES de seguir",
+          "note": "spike en spike/b1-pilot-fader/ (desechable): pilot_fader.c + build.sh, compila universal, 0 warnings -Werror. Genera piloto 19,5 kHz a -40 dBFS (tabla precalculada), analiza la entrada con Goertzel de un bin por hop de 64 muestras, histeresis de dos umbrales, ring SPSC lock-free para los flancos. Modos --selfcheck (calibra umbrales con un cable, sin mesa) y deteccion (imprime flancos + desv. tipica vs criterio de 5 ms). Falta correrlo con la Rane 72."
+        },
+        {
+          "id": "B1.5",
+          "title": "Medir la latencia en LAS DOS maquinas y rellenar la tabla",
+          "module": "CXFAudioCore",
+          "status": "todo",
+          "acceptance": "PLATFORM_SUPPORT.md seccion 7 con numeros reales, no estimaciones",
+          "note": "misma herramienta que B1.2 (tools/measure_latency.py). Bloqueada por hardware: correrla en el MacBook Pro 2015 y en la maquina de referencia. Tabla vacia ya lista en PLATFORM_SUPPORT.md 7 y docs/TIMECODE.md 4.2."
+        },
+        {
+          "id": "B1.6",
+          "title": "Buffer adaptativo 64 -> 128 frames al detectar overloads (ADR-024)",
+          "module": "CXFAudioCore",
+          "status": "wip",
+          "acceptance": "el Intel de 2015 aguanta 5 min sin cortes",
+          "note": "logica escrita en el spike B1.1: flag --adaptive. Con >=3 overloads acumulados, el hilo main (no el RT) para la unit, sube el buffer del dispositivo a 128, reinicia contadores y arranca; lo registra y el resumen distingue PASS de PASS CON RESERVA. Falta la corrida real de 5 min en el Intel de 2015."
+        },
+        {
+          "id": "B1.7",
+          "title": "Verificar driver de audio de la mesa en Monterey",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "la Rane 72 (MK1) enumera sus canales USB en Monterey",
+          "note": "bloqueada por hardware. Herramienta lista: spike/b1-latency/passthrough --list enumera cada dispositivo con canales in/out, sample rate y buffer. Basta enchufar la mesa y comprobar que aparece con sus canales USB."
+        }
+      ]
+    },
+    {
+      "id": "B2",
+      "name": "XFClock",
+      "goal": "El reloj musical. Puro, pequeno, se sella rapido.",
+      "phase": "next",
+      "tasks": [
+        {
+          "id": "B2.1",
+          "title": "Conversiones tick / ms / hostTime con PPQ 480",
+          "module": "XFClock",
+          "acceptance": "tests de ida y vuelta sin perdida en 10.000 valores",
+          "status": "todo"
+        },
+        {
+          "id": "B2.2",
+          "title": "Transporte: play, stop, loop, cuenta atras de N compases",
+          "module": "XFClock",
+          "acceptance": "tests de estado y de limites",
+          "status": "todo"
+        },
+        {
+          "id": "B2.3",
+          "title": "ClockMap: mapear una captura a ticks",
+          "module": "XFClock",
+          "acceptance": "test con desfase y con tempo distinto",
+          "status": "todo"
+        },
+        {
+          "id": "B2.4",
+          "title": "SELLAR XFClock",
+          "module": "XFClock",
+          "acceptance": "cumple las 5 condiciones de ARCHITECTURE.md seccion 6",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B3",
+      "name": "XFNotation",
+      "goal": "El modelo XFN en Swift, validado contra la referencia Python.",
+      "phase": "next",
+      "tasks": [
+        {
+          "id": "B3.1",
+          "title": "Modelos Codable: Scratch, Exercise, Level, primitivas",
+          "module": "XFNotation",
+          "acceptance": "decodifican data/*.json sin perdida; validan contra data/schema/*.json",
+          "status": "todo"
+        },
+        {
+          "id": "B3.2",
+          "title": "Portar el compositor mano x fader de xfn_core.py a Swift",
+          "module": "XFNotation",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B3.3",
+          "title": "Golden: la libreria compilada en Swift es identica a library-v0.1.json",
+          "module": "XFNotation",
+          "acceptance": "diff vacio byte a byte sobre los 25 scratches",
+          "status": "todo"
+        },
+        {
+          "id": "B3.4",
+          "title": "Fases con tramo parcial de curva (u0/u1) y funcion de recorte",
+          "module": "XFNotation",
+          "status": "todo",
+          "acceptance": "recortar por mitad de un movimiento conserva la curva exacta, no la aproxima con rectas"
+        },
+        {
+          "id": "B3.5",
+          "title": "Transformaciones de variante: offset, amplitude, mirror, subdivision, swing",
+          "module": "XFNotation",
+          "status": "todo",
+          "acceptance": "golden contra las variantes generadas por tools/xfn_core.py"
+        },
+        {
+          "id": "B3.6",
+          "title": "Calculo de eventos evaluables y maxScore por variante",
+          "module": "XFNotation",
+          "status": "todo",
+          "acceptance": "2-Click Flare base = 3.600; su div16 = 4.800"
+        },
+        {
+          "id": "B3.7",
+          "title": "SELLAR XFNotation",
+          "module": "XFNotation",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B4",
+      "name": "CXFAudioCore",
+      "goal": "El motor de audio en serio, esta vez para quedarse.",
+      "phase": "next",
+      "tasks": [
+        {
+          "id": "B4.1",
+          "title": "Ring buffer SPSC lock-free en C",
+          "module": "CXFAudioCore",
+          "acceptance": "tests al 100%, incluido productor/consumidor concurrente",
+          "status": "todo"
+        },
+        {
+          "id": "B4.2",
+          "title": "Callback CoreAudio RT-safe, 64 frames, con thread_policy_set Y workgroup de audio",
+          "module": "CXFAudioCore",
+          "acceptance": "0 malloc/locks verificado con Instruments; el hilo se une al workgroup del dispositivo (obligatorio en Apple Silicon)",
+          "status": "todo"
+        },
+        {
+          "id": "B4.3",
+          "title": "Reproductor de sample con resampling por velocidad y direccion",
+          "module": "CXFAudioCore",
+          "acceptance": "scratch audible sin clicks ni aliasing",
+          "status": "todo"
+        },
+        {
+          "id": "B4.4",
+          "title": "Metronomo mezclado en la salida principal (ADR-007)",
+          "module": "CXFAudioCore",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B4.5",
+          "title": "PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min",
+          "module": "CXFAudioCore",
+          "acceptance": "medido y documentado en docs/TIMECODE.md",
+          "status": "todo"
+        },
+        {
+          "id": "B4.6",
+          "title": "SELLAR CXFAudioCore",
+          "module": "CXFAudioCore",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B5",
+      "name": "CXFTimecode",
+      "goal": "Leer el vinilo.",
+      "phase": "next",
+      "tasks": [
+        {
+          "id": "B5.1",
+          "title": "Vendorizar xwax INTACTO en vendor/xwax con sus cabeceras",
+          "module": "CXFTimecode",
+          "acceptance": "compila sin modificar timecoder.c ni lut.c",
+          "status": "done",
+          "note": "xwax 1.10 (GPL-3.0) en Sources/CXFTimecode/vendor/xwax/ intacto (timecoder.{c,h}, lut.{c,h}, debug.h, pitch.h). Package.swift añade vendor/xwax al headerSearchPath. SwiftPM compila timecoder.c y lut.c sin tocarlos, universal. docs/TIMECODE.md."
+        },
+        {
+          "id": "B5.2",
+          "title": "Wrapper xf_timecode en modo relativo (ADR-005)",
+          "module": "CXFTimecode",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B5.3",
+          "title": "Hamster / reverse desde el dia 1",
+          "module": "CXFTimecode",
+          "acceptance": "test con senal invertida",
+          "status": "todo"
+        },
+        {
+          "id": "B5.4",
+          "title": "Confianza de senal y recuperacion de dropout",
+          "module": "CXFTimecode",
+          "acceptance": "no se cuelga al levantar la aguja",
+          "status": "todo"
+        },
+        {
+          "id": "B5.5",
+          "title": "SELLAR CXFTimecode",
+          "module": "CXFTimecode",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B5b",
+      "name": "XFProfiles",
+      "phase": "next",
+      "goal": "Perfiles .conf por modelo de mesa. Puro parseo, se sella rapido.",
+      "tasks": [
+        {
+          "id": "B5b.1",
+          "title": "Parser INI propio, sin dependencias (ADR-019)",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "carga los 6 perfiles de profiles/ sin perdida"
+        },
+        {
+          "id": "B5b.2",
+          "title": "Resolucion de extends con deteccion de herencia circular",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "pioneer-djm-s9 resuelve heredando de la s11; un ciclo da error claro"
+        },
+        {
+          "id": "B5b.3",
+          "title": "Validacion equivalente a tools/xf_profile.py",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "mismos errores que el validador Python sobre los mismos ficheros"
+        },
+        {
+          "id": "B5b.4",
+          "title": "Autodeteccion por nombre de puerto MIDI y dispositivo de audio",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "comodines * funcionan; si hay empate, no elige, pregunta"
+        },
+        {
+          "id": "B5b.5",
+          "title": "Carga desde el bundle y desde la carpeta del usuario, con precedencia",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "segun DEVICE_PROFILES.md seccion 5"
+        },
+        {
+          "id": "B5b.6",
+          "title": "SELLAR XFProfiles",
+          "module": "XFProfiles",
+          "status": "todo",
+          "acceptance": "-"
+        }
+      ]
+    },
+    {
+      "id": "B6",
+      "name": "XFCapture",
+      "goal": "Abstraer la entrada. Aqui se desbloquea el desarrollo sin mesa.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B6.1",
+          "title": "Protocolos MotionSource y FaderSource",
+          "module": "XFCapture",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B6.2",
+          "title": "KeyboardMotionSource y KeyboardFaderSource (modo sin mesa)",
+          "module": "XFCapture",
+          "acceptance": "se puede hacer un baby scratch con el teclado",
+          "status": "todo"
+        },
+        {
+          "id": "B6.3",
+          "title": "TimecodeMotionSource sobre CXFTimecode",
+          "module": "XFCapture",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B6.4",
+          "title": "MidiFaderSource (CoreMIDI) + fallback por envolvente de audio",
+          "module": "XFCapture",
+          "acceptance": "funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo",
+          "status": "todo"
+        },
+        {
+          "id": "B6.4b",
+          "title": "AudioReturnFaderSource: tono piloto y deteccion (ADR-021)",
+          "module": "XFCapture",
+          "status": "todo",
+          "acceptance": "funciona con el perfil rane-seventy-two"
+        },
+        {
+          "id": "B6.5",
+          "title": "Binarizacion del fader con cut-in calibrado e histeresis (ADR-017)",
+          "module": "XFCapture",
+          "acceptance": "0 eventos fantasma en 1 min de fader quieto",
+          "status": "todo"
+        },
+        {
+          "id": "B6.6",
+          "title": "Formato .xfsession: grabar y reproducir + ReplaySource",
+          "module": "XFCapture",
+          "acceptance": "una sesion grabada se reproduce bit a bit igual",
+          "status": "todo"
+        },
+        {
+          "id": "B6.7",
+          "title": "SELLAR XFCapture",
+          "module": "XFCapture",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B7",
+      "name": "XFDesign + XFRender",
+      "goal": "Que se vea, y que se vea bien.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B7.1",
+          "title": "Tokens de diseno de UI_DESIGN.md seccion 2",
+          "module": "XFDesign",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B7.2",
+          "title": "Componentes base: tarjeta, boton, stepper de BPM, badge de acierto",
+          "module": "XFDesign",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B7.2b",
+          "title": "Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024)",
+          "module": "XFRender",
+          "status": "todo",
+          "acceptance": "60 fps estables en el MacBook Pro 2015 con la autopista completa"
+        },
+        {
+          "id": "B7.3",
+          "title": "Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO",
+          "module": "XFRender",
+          "acceptance": "sin deriva tras 10 min; 120 fps en ProMotion",
+          "status": "todo"
+        },
+        {
+          "id": "B7.4",
+          "title": "Capa fantasma + capa usuario + tenido por tolerancia",
+          "module": "XFRender",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B7.5",
+          "title": "Scope circular del plato (Lissajous)",
+          "module": "XFRender",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B7.6",
+          "title": "Golden tests de render en SVG",
+          "module": "XFRender",
+          "acceptance": "los 25 scratches contra Fixtures/golden/",
+          "status": "todo"
+        },
+        {
+          "id": "B7.7",
+          "title": "SELLAR XFDesign y XFRender",
+          "module": "XFDesign,XFRender",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B8",
+      "name": "XFAnalysis",
+      "goal": "El cerebro. Funciones puras, cero hardware.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B8.1",
+          "title": "Emparejado de clicks objetivo/usuario y desfase con signo",
+          "module": "XFAnalysis",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B8.2",
+          "title": "DTW de contorno de tono, afinacion relativa (ADR-005)",
+          "module": "XFAnalysis",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B8.3",
+          "title": "Consistencia (sigma) y amplitud de recorrido",
+          "module": "XFAnalysis",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B8.4",
+          "title": "Generador de diagnosticos en lenguaje natural (ADR-018)",
+          "module": "XFAnalysis",
+          "acceptance": "distingue sesgo sistematico de dispersion y lo dice distinto",
+          "status": "todo"
+        },
+        {
+          "id": "B8.5",
+          "title": "Tests de replay: good / late / sloppy por patron de nivel 1-4",
+          "module": "XFAnalysis",
+          "acceptance": "segun docs/TESTING.md",
+          "status": "todo"
+        },
+        {
+          "id": "B8.6",
+          "title": "Puntuacion por evento y total sobre maxScore",
+          "module": "XFAnalysis",
+          "status": "todo",
+          "acceptance": "docs/SCORING.md seccion 1"
+        },
+        {
+          "id": "B8.7",
+          "title": "Tres estrellas por criterios ortogonales (ADR-025)",
+          "module": "XFAnalysis",
+          "status": "todo",
+          "acceptance": "un 88% con un fallo da 1 estrella, no 2"
+        },
+        {
+          "id": "B8.8",
+          "title": "SELLAR XFAnalysis",
+          "module": "XFAnalysis",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B9",
+      "name": "XFEngine",
+      "goal": "La sesion de gimnasio.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B9.1",
+          "title": "Maquina de estados: calentamiento, series, descanso, boss, resultados",
+          "module": "XFEngine",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B9.2",
+          "title": "Escalera de BPM adaptativa (2 fallos baja, 3 aciertos sube)",
+          "module": "XFEngine",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B9.3",
+          "title": "Desbloqueo por compases consecutivos, no por media",
+          "module": "XFEngine",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B9.4",
+          "title": "SELLAR XFEngine",
+          "module": "XFEngine",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B10",
+      "name": "XFPersistence",
+      "goal": "Que el progreso sobreviva a cerrar la app.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B10.1",
+          "title": "Esquema GRDB y migraciones",
+          "module": "XFPersistence",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B10.2",
+          "title": "Historico de tomas, progreso y desbloqueos",
+          "module": "XFPersistence",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B10.3",
+          "title": "Repeticion espaciada (1, 3, 7, 21 dias)",
+          "module": "XFPersistence",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B10.4",
+          "title": "Perfiles de calibracion por dispositivo",
+          "module": "XFPersistence",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B10.6",
+          "title": "Tabla de intentos con eventScores y ruta al .xfsession",
+          "module": "XFPersistence",
+          "status": "todo",
+          "acceptance": "data/schema/attempt.schema.json"
+        },
+        {
+          "id": "B10.7",
+          "title": "Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio",
+          "module": "XFPersistence",
+          "status": "todo",
+          "acceptance": "docs/SCORING.md seccion 3"
+        },
+        {
+          "id": "B10.8",
+          "title": "Estado de dominado y desbloqueo de variantes",
+          "module": "XFPersistence",
+          "status": "todo",
+          "acceptance": "3★ base + 2★ en tres variantes"
+        },
+        {
+          "id": "B10.9",
+          "title": "SELLAR XFPersistence",
+          "module": "XFPersistence",
+          "acceptance": "-",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "B11",
+      "name": "XFApp",
+      "goal": "Las pantallas.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B11.1",
+          "title": "Asistente de calibracion de 4 pasos",
+          "module": "XFApp",
+          "acceptance": "un usuario nuevo llega a tocar sin ayuda externa",
+          "status": "todo"
+        },
+        {
+          "id": "B11.2",
+          "title": "Home: mapa de la matriz, racha, continuar",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.3",
+          "title": "Pantalla de practica (la autopista)",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.4",
+          "title": "Pantalla de resultados con diagnostico",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.5",
+          "title": "Modo libre con grabacion de los ultimos 30 s",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.6",
+          "title": "Navegador de la libreria",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.7",
+          "title": "Ajustes",
+          "module": "XFApp",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B11.8",
+          "title": "Accesibilidad: VoiceOver, alto contraste, teclado",
+          "module": "XFApp",
+          "acceptance": "segun UI_DESIGN.md seccion 4",
+          "status": "todo"
+        },
+        {
+          "id": "B11.9",
+          "title": "Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "UI_DESIGN.md 3.8"
+        },
+        {
+          "id": "B11.10",
+          "title": "Asistente de mapeo MIDI/HID con monitor en crudo",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "UI_DESIGN.md 3.9; si no llega MIDI en 5 s, propone audio_return"
+        },
+        {
+          "id": "B11.11",
+          "title": "Exportar perfil y flujo de aportacion",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "genera un .conf valido segun tools/xf_profile.py"
+        },
+        {
+          "id": "B11.12",
+          "title": "Permiso de microfono con texto honesto y pantalla de ayuda si se deniega",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "si el usuario dice que no, la app explica que hacer"
+        },
+        {
+          "id": "B11.13",
+          "title": "Resultados con estrellas y puntuacion sobre el maximo",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "las estrellas apagadas dicen que falta para conseguirlas"
+        },
+        {
+          "id": "B11.14",
+          "title": "Pantalla de progreso por ejercicio y variante",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "UI_DESIGN.md 3.4b"
+        },
+        {
+          "id": "B11.15",
+          "title": "Selector de variantes con estado de bloqueo",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "muestra la condicion de desbloqueo, no solo el candado"
+        },
+        {
+          "id": "B11.16",
+          "title": "Detectar Rosetta (sysctl.proc_translated) y avisar en calibracion",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "si esta traducido, la app lo dice y ofrece la version universal"
+        }
+      ]
+    },
+    {
+      "id": "B12",
+      "name": "Distribucion",
+      "goal": "Que lo pueda usar alguien que no seas tu.",
+      "phase": "later",
+      "tasks": [
+        {
+          "id": "B12.0",
+          "title": "Verificar binario universal y pasar la matriz de pruebas en las dos maquinas",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "PLATFORM_SUPPORT.md seccion 9 completa"
+        },
+        {
+          "id": "B12.1",
+          "title": "Firma y notarizacion",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B12.2",
+          "title": "DMG",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B12.3",
+          "title": "Formula de Homebrew",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B12.4",
+          "title": "README publico, capturas, video de 30 s",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "B12.5",
+          "title": "5 DJs probandolo y sus notas",
+          "module": "-",
+          "acceptance": "el examen de verdad",
+          "status": "todo"
+        }
+      ]
+    },
+    {
+      "id": "FUT",
+      "name": "Futuribles",
+      "goal": "No tocar hasta que la v1 este en manos de gente.",
+      "phase": "future",
+      "tasks": [
+        {
+          "id": "F.0",
+          "title": "Calentamiento adaptativo con deteccion de oxidacion (ADR-027)",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1"
+        },
+        {
+          "id": "F.0b",
+          "title": "Variantes avanzadas: encadenado, densidad creciente, rampa de tempo, un solo lado",
+          "module": "XFNotation",
+          "status": "todo",
+          "acceptance": "docs/VARIANTS.md seccion 4"
+        },
+        {
+          "id": "F.1",
+          "title": "Dos platos: juggling, chasing, notacion de doble carril",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.2",
+          "title": "Pads y sampler; scratch sobre pads",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.3",
+          "title": "Importar tus propios samples con deteccion del punto cero",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.4",
+          "title": "Exportar la toma como video vertical para compartir",
+          "module": "-",
+          "acceptance": "el bucle de crecimiento mas barato que existe",
+          "status": "todo"
+        },
+        {
+          "id": "F.5",
+          "title": "Transcribir un scratch desde audio o video a XFN",
+          "module": "-",
+          "acceptance": "la funcion asesina: apuntas a un video y te saca la notacion",
+          "status": "todo"
+        },
+        {
+          "id": "F.6",
+          "title": "Rutinas y lecciones creadas por usuarios",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.7",
+          "title": "Retos diarios",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.8",
+          "title": "Mas mesas: Pioneer S9/S11, Ecler, Omnitronic",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.9",
+          "title": "Port a Linux y Windows",
+          "module": "-",
+          "acceptance": "xwax ya es multiplataforma; lo caro es la UI",
+          "status": "todo"
+        },
+        {
+          "id": "F.10",
+          "title": "Modo profesor: dos usuarios, comparativa lado a lado",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo"
+        },
+        {
+          "id": "F.11",
+          "title": "Repositorio comunitario de perfiles con actualizacion desde la app",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "solo cuando haya suficientes perfiles verificados como para que merezca la pena"
+        }
+      ]
+    }
+  ]
+}

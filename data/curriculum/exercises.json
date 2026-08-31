@@ -1,0 +1,898 @@
+{
+  "schemaVersion": "0.1.0",
+  "exercises": [
+    {
+      "id": "ex-l1-baby",
+      "scratchId": "baby",
+      "level": "L1",
+      "name": "Fundamentos - Baby Scratch",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.8,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "La madre de todos. Fader abierto, ida y vuelta constante."
+      ]
+    },
+    {
+      "id": "ex-l1-forward-cut",
+      "scratchId": "forward-cut",
+      "level": "L1",
+      "name": "Fundamentos - Forward Cut",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.8,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Primer contacto con el fader: solo suena la ida."
+      ]
+    },
+    {
+      "id": "ex-l1-stab",
+      "scratchId": "stab",
+      "level": "L1",
+      "name": "Fundamentos - Stab",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.8,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Ataque seco. Trabaja la explosividad, no la velocidad."
+      ]
+    },
+    {
+      "id": "ex-l1-drag",
+      "scratchId": "drag",
+      "level": "L1",
+      "name": "Fundamentos - Drag",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.8,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "Camara lenta. Es un ejercicio de control de tono."
+      ]
+    },
+    {
+      "id": "ex-l2-baby-16",
+      "scratchId": "baby-16",
+      "level": "L2",
+      "name": "Control de mano - Baby 1/16",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.82,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "Mismo gesto al doble de velocidad."
+      ]
+    },
+    {
+      "id": "ex-l2-reverse-cut",
+      "scratchId": "reverse-cut",
+      "level": "L2",
+      "name": "Control de mano - Reverse Cut",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.82,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Espejo del forward cut. Cuesta mas de lo que parece."
+      ]
+    },
+    {
+      "id": "ex-l2-tear",
+      "scratchId": "tear",
+      "level": "L2",
+      "name": "Control de mano - Tear",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.82,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "La vuelta se parte en dos. Sin fader."
+      ]
+    },
+    {
+      "id": "ex-l2-scribble",
+      "scratchId": "scribble",
+      "level": "L2",
+      "name": "Control de mano - Scribble",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.82,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "Tension de antebrazo, recorrido minimo."
+      ]
+    },
+    {
+      "id": "ex-l2-transformer-2",
+      "scratchId": "transformer-2",
+      "level": "L2",
+      "name": "Control de mano - Transformer x2",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.82,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "El disco solo hace de zumbido: manda el fader."
+      ]
+    },
+    {
+      "id": "ex-l3-transformer-3",
+      "scratchId": "transformer-3",
+      "level": "L3",
+      "name": "Fader basico - Transformer x3",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Tres pulsos por trazo."
+      ]
+    },
+    {
+      "id": "ex-l3-chirp",
+      "scratchId": "chirp",
+      "level": "L3",
+      "name": "Fader basico - Chirp",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Abrir al arrancar, cerrar al frenar. Suena a pajaro."
+      ]
+    },
+    {
+      "id": "ex-l3-tear-3",
+      "scratchId": "tear-3",
+      "level": "L3",
+      "name": "Fader basico - Tear de 3",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "Tres tramos en la vuelta."
+      ]
+    },
+    {
+      "id": "ex-l3-flare-1c",
+      "scratchId": "flare-1c",
+      "level": "L3",
+      "name": "Fader basico - 1-Click Flare",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 8
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "El salto de nivel: el fader interrumpe un sonido continuo."
+      ]
+    },
+    {
+      "id": "ex-l4-flare-1c-lo",
+      "scratchId": "flare-1c-lo",
+      "level": "L4",
+      "name": "Flares - Lo-1C Flare",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Click adelantado. Cambia el groove por completo."
+      ]
+    },
+    {
+      "id": "ex-l4-flare-1c-hi",
+      "scratchId": "flare-1c-hi",
+      "level": "L4",
+      "name": "Flares - Hi-1C Flare",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Click retrasado."
+      ]
+    },
+    {
+      "id": "ex-l4-flare-2c",
+      "scratchId": "flare-2c",
+      "level": "L4",
+      "name": "Flares - 2-Click Flare",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Dos clicks por trazo. El caballo de batalla."
+      ]
+    },
+    {
+      "id": "ex-l4-orbit-1c",
+      "scratchId": "orbit-1c",
+      "level": "L4",
+      "name": "Flares - 1-Click Orbit",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Flare circular: el click de vuelta con el dorso del dedo."
+      ]
+    },
+    {
+      "id": "ex-l4-tear-flare-1c",
+      "scratchId": "tear-flare-1c",
+      "level": "L4",
+      "name": "Flares - Tear Flare 1C",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Combina la parada del tear con el click."
+      ]
+    },
+    {
+      "id": "ex-l4-transformer-4",
+      "scratchId": "transformer-4",
+      "level": "L4",
+      "name": "Flares - Transformer x4",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Cuatro pulsos. Aqui empieza a doler la muneca."
+      ]
+    },
+    {
+      "id": "ex-l4-hydroplane",
+      "scratchId": "hydroplane",
+      "level": "L4",
+      "name": "Flares - Hydroplane",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.85,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour"
+      ],
+      "coachHints": [
+        "Friccion del dedo sobre el disco. Textura, no ritmo."
+      ]
+    },
+    {
+      "id": "ex-l5-flare-3c",
+      "scratchId": "flare-3c",
+      "level": "L5",
+      "name": "Intermedio - 3-Click Flare",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.87,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Tres clicks. Requiere rebote limpio."
+      ]
+    },
+    {
+      "id": "ex-l5-orbit-2c",
+      "scratchId": "orbit-2c",
+      "level": "L5",
+      "name": "Intermedio - 2-Click Orbit",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.87,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Cuatro clicks por ciclo sin romper el circulo."
+      ]
+    },
+    {
+      "id": "ex-l5-twiddle",
+      "scratchId": "twiddle",
+      "level": "L5",
+      "name": "Intermedio - Twiddle",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.87,
+        "consecutiveBars": 12
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Dibujo de 2-click pero con dos dedos alternos."
+      ]
+    },
+    {
+      "id": "ex-l6-crab",
+      "scratchId": "crab",
+      "level": "L6",
+      "name": "Velocidad - Crab",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.88,
+        "consecutiveBars": 16
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "Cuatro dedos contra el pulgar. El examen final del nivel medio."
+      ]
+    },
+    {
+      "id": "ex-l6-flare-2c-16",
+      "scratchId": "flare-2c-16",
+      "level": "L6",
+      "name": "Velocidad - 2-Click Flare 1/16",
+      "mode": "ghost",
+      "bpmLadder": [
+        60,
+        70,
+        80,
+        90,
+        100
+      ],
+      "startBpm": 70,
+      "bars": 4,
+      "warmupBars": 2,
+      "sets": 3,
+      "tolerances": {
+        "perfect_ms": 20,
+        "great_ms": 40,
+        "good_ms": 70,
+        "late_ms": 110
+      },
+      "pass": {
+        "accuracy": 0.88,
+        "consecutiveBars": 16
+      },
+      "focus": [
+        "timing",
+        "pitchContour",
+        "clickPlacement"
+      ],
+      "coachHints": [
+        "El mismo patron al doble de tempo."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "1.0",
+  "eventValue": 100,
+  "eventTypes": {
+    "click": {
+      "desc": "Un cierre de fader del patron objetivo",
+      "windows_ms": [
+        [
+          20,
+          100
+        ],
+        [
+          40,
+          75
+        ],
+        [
+          70,
+          50
+        ],
+        [
+          110,
+          25
+        ]
+      ]
+    },
+    "pitch": {
+      "desc": "Control de contorno de tono, uno por corchea",
+      "metric": "dtw_local",
+      "bands": [
+        [
+          0.05,
+          100
+        ],
+        [
+          0.12,
+          75
+        ],
+        [
+          0.22,
+          50
+        ],
+        [
+          0.35,
+          25
+        ]
+      ]
+    },
+    "amplitude": {
+      "desc": "Recorrido de cada trazo hacia delante",
+      "metric": "rel_error",
+      "bands": [
+        [
+          0.1,
+          100
+        ],
+        [
+          0.2,
+          75
+        ],
+        [
+          0.35,
+          50
+        ],
+        [
+          0.5,
+          25
+        ]
+      ]
+    }
+  },
+  "stars": [
+    {
+      "n": 1,
+      "name": "Completado",
+      "rule": {
+        "accuracy": 0.7,
+        "finished": true
+      },
+      "msg": "Lo has hecho de principio a fin."
+    },
+    {
+      "n": 2,
+      "name": "Limpio",
+      "rule": {
+        "accuracy": 0.85,
+        "zeroEvents": 0
+      },
+      "msg": "Sin un solo fallo. Ya suena bien."
+    },
+    {
+      "n": 3,
+      "name": "Solido",
+      "rule": {
+        "accuracy": 0.95,
+        "sigma_ms": 15,
+        "atTargetBpm": true
+      },
+      "msg": "Lo dominas: preciso, regular y al tempo."
+    }
+  ],
+  "mastery": {
+    "desc": "Un ejercicio esta dominado y entra en el calentamiento",
+    "rule": {
+      "baseStars": 3,
+      "variantsWith2Stars": 3
+    }
+  },
+  "decay": {
+    "desc": "Se marca oxidado si en calentamiento baja de 2 estrellas",
+    "rule": {
+      "warmupStarsBelow": 2
+    },
+    "action": "vuelve a la rotacion de practica"
+  }
+}

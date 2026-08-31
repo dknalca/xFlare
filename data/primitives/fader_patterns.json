@@ -1,0 +1,438 @@
+{
+  "open": {
+    "name": "Abierto",
+    "level": 1,
+    "technique": "ninguna",
+    "desc": "El fader no se toca. Se oye todo el movimiento del disco.",
+    "initial": "open",
+    "per_phase": {}
+  },
+  "forward_cut": {
+    "name": "Forward Cut",
+    "level": 1,
+    "technique": "indice",
+    "desc": "Solo suena la ida. La vuelta se corta.",
+    "initial": "closed",
+    "per_phase": {
+      "fwd": [
+        [
+          0.0,
+          "open"
+        ],
+        [
+          0.96,
+          "closed"
+        ]
+      ],
+      "rev": [
+        [
+          0.0,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "reverse_cut": {
+    "name": "Reverse Cut",
+    "level": 2,
+    "technique": "indice",
+    "desc": "Solo suena la vuelta. La ida se corta.",
+    "initial": "closed",
+    "per_phase": {
+      "fwd": [
+        [
+          0.0,
+          "closed"
+        ]
+      ],
+      "rev": [
+        [
+          0.0,
+          "open"
+        ],
+        [
+          0.96,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "chirp": {
+    "name": "Chirp",
+    "level": 3,
+    "technique": "indice + pulgar",
+    "desc": "Abre al arrancar y cierra al frenar, en las dos direcciones.",
+    "initial": "closed",
+    "per_phase": {
+      "any": [
+        [
+          0.05,
+          "open"
+        ],
+        [
+          0.8,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "transformer_2": {
+    "name": "Transformer x2",
+    "level": 2,
+    "technique": "indice (tap)",
+    "desc": "Dos pulsos de apertura por trazo sobre un movimiento lento.",
+    "initial": "closed",
+    "per_phase": {
+      "any": [
+        [
+          0.1,
+          "open"
+        ],
+        [
+          0.35,
+          "closed"
+        ],
+        [
+          0.55,
+          "open"
+        ],
+        [
+          0.8,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "transformer_3": {
+    "name": "Transformer x3",
+    "level": 3,
+    "technique": "indice (tap)",
+    "desc": "Tres pulsos por trazo.",
+    "initial": "closed",
+    "per_phase": {
+      "any": [
+        [
+          0.06,
+          "open"
+        ],
+        [
+          0.24,
+          "closed"
+        ],
+        [
+          0.38,
+          "open"
+        ],
+        [
+          0.56,
+          "closed"
+        ],
+        [
+          0.7,
+          "open"
+        ],
+        [
+          0.88,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "transformer_4": {
+    "name": "Transformer x4",
+    "level": 4,
+    "technique": "indice + corazon",
+    "desc": "Cuatro pulsos por trazo. Antesala del uzi.",
+    "initial": "closed",
+    "per_phase": {
+      "any": [
+        [
+          0.04,
+          "open"
+        ],
+        [
+          0.17,
+          "closed"
+        ],
+        [
+          0.29,
+          "open"
+        ],
+        [
+          0.42,
+          "closed"
+        ],
+        [
+          0.54,
+          "open"
+        ],
+        [
+          0.67,
+          "closed"
+        ],
+        [
+          0.79,
+          "open"
+        ],
+        [
+          0.92,
+          "closed"
+        ]
+      ]
+    }
+  },
+  "flare_1c": {
+    "name": "Flare 1 click",
+    "level": 3,
+    "technique": "indice (rebote)",
+    "desc": "Fader abierto con un click (cierre breve) en mitad de cada trazo.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.45,
+          "closed"
+        ],
+        [
+          0.55,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "flare_1c_lo": {
+    "name": "Lo-1C Flare",
+    "level": 3,
+    "technique": "indice (rebote)",
+    "desc": "Un click adelantado, en la primera mitad del trazo.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.25,
+          "closed"
+        ],
+        [
+          0.35,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "flare_1c_hi": {
+    "name": "Hi-1C Flare",
+    "level": 3,
+    "technique": "indice (rebote)",
+    "desc": "Un click retrasado, en la segunda mitad del trazo.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.65,
+          "closed"
+        ],
+        [
+          0.75,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "flare_2c": {
+    "name": "Flare 2 clicks",
+    "level": 4,
+    "technique": "indice (rebote doble)",
+    "desc": "Dos clicks por trazo. El escalon clasico tras el 1-click.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.28,
+          "closed"
+        ],
+        [
+          0.36,
+          "open"
+        ],
+        [
+          0.62,
+          "closed"
+        ],
+        [
+          0.7,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "flare_3c": {
+    "name": "Flare 3 clicks",
+    "level": 5,
+    "technique": "indice + corazon",
+    "desc": "Tres clicks por trazo.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.2,
+          "closed"
+        ],
+        [
+          0.27,
+          "open"
+        ],
+        [
+          0.45,
+          "closed"
+        ],
+        [
+          0.52,
+          "open"
+        ],
+        [
+          0.7,
+          "closed"
+        ],
+        [
+          0.77,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "orbit_1c": {
+    "name": "Orbit 1 click",
+    "level": 4,
+    "technique": "indice (ida y vuelta)",
+    "desc": "Flare de 1 click con el click de vuelta dado con el reverso del dedo.",
+    "initial": "open",
+    "per_phase": {
+      "fwd": [
+        [
+          0.45,
+          "closed"
+        ],
+        [
+          0.55,
+          "open"
+        ]
+      ],
+      "rev": [
+        [
+          0.45,
+          "closed"
+        ],
+        [
+          0.55,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "orbit_2c": {
+    "name": "Orbit 2 clicks",
+    "level": 5,
+    "technique": "indice (ida y vuelta)",
+    "desc": "Orbit doble: cuatro clicks por ciclo, movimiento circular continuo.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.28,
+          "closed"
+        ],
+        [
+          0.36,
+          "open"
+        ],
+        [
+          0.62,
+          "closed"
+        ],
+        [
+          0.7,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "twiddle_2c": {
+    "name": "Twiddle",
+    "level": 5,
+    "technique": "indice + corazon alternos",
+    "desc": "Mismo dibujo que el flare de 2 clicks, pero alternando dos dedos.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.28,
+          "closed"
+        ],
+        [
+          0.36,
+          "open"
+        ],
+        [
+          0.62,
+          "closed"
+        ],
+        [
+          0.7,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  },
+  "crab_4c": {
+    "name": "Crab",
+    "level": 6,
+    "technique": "4 dedos contra pulgar",
+    "desc": "Cuatro clicks por trazo disparando dedo a dedo contra el pulgar.",
+    "initial": "open",
+    "per_phase": {
+      "any": [
+        [
+          0.14,
+          "closed"
+        ],
+        [
+          0.2,
+          "open"
+        ],
+        [
+          0.34,
+          "closed"
+        ],
+        [
+          0.4,
+          "open"
+        ],
+        [
+          0.54,
+          "closed"
+        ],
+        [
+          0.6,
+          "open"
+        ],
+        [
+          0.74,
+          "closed"
+        ],
+        [
+          0.8,
+          "open"
+        ]
+      ],
+      "hold": []
+    }
+  }
+}

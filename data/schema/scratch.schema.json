@@ -1,0 +1,134 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xflare.app/schema/scratch.schema.json",
+  "title": "XFN Scratch",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "ppq",
+    "lengthTicks",
+    "record",
+    "faderEvents"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "family": {
+      "type": "string"
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "hand": {
+      "type": "string"
+    },
+    "fader": {
+      "type": "string"
+    },
+    "div": {
+      "type": "string",
+      "pattern": "^[0-9]+/[0-9]+$"
+    },
+    "cycles": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "technique": {
+      "type": "string"
+    },
+    "ppq": {
+      "type": "integer",
+      "const": 480
+    },
+    "bpmReference": {
+      "type": "number"
+    },
+    "lengthTicks": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "clickCount": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "record": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "t",
+          "dur",
+          "dir",
+          "curve",
+          "from",
+          "to"
+        ],
+        "properties": {
+          "t": {
+            "type": "integer"
+          },
+          "dur": {
+            "type": "integer"
+          },
+          "dir": {
+            "enum": [
+              "fwd",
+              "rev",
+              "hold"
+            ]
+          },
+          "curve": {
+            "enum": [
+              "lin",
+              "bell",
+              "acc",
+              "dec",
+              "hold"
+            ]
+          },
+          "dist": {
+            "type": "number"
+          },
+          "from": {
+            "type": "number"
+          },
+          "to": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "faderEvents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "t",
+          "state"
+        ],
+        "properties": {
+          "t": {
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "open",
+              "closed"
+            ]
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}

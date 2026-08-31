@@ -1,0 +1,39 @@
+# material de referencia con copyright de terceros
+_local-reference/
+
+# macOS / Xcode
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+
+# Swift Package Manager (build local; ~1 GB, NO sincronizar ni commitear).
+# Excluir tambien de la sincronizacion de Nextcloud, no solo de git.
+.build/
+.swiftpm/
+# Package.resolved SI se versiona: fija la version exacta de GRDB.
+
+# Python (andamiaje de tools/)
+__pycache__/
+*.pyc
+.venv/
+
+# audio de pruebas y grabaciones de sesion
+*.wav
+*.aiff
+recordings/
+
+# spikes desechables de B1: el binario compilado no se versiona (el .c/.sh si)
+spike/b1-latency/passthrough
+spike/b1-pilot-fader/pilot_fader
+spike/**/*.o
+spike/**/*.dSYM/
+
+# icono: se versionan xflare.svg (fuente), xflare.icns y xflare-1024.png
+# (salida, pequena, para no obligar a regenerar). El iconset intermedio no.
+icon/xflare.iconset/
+
+# app de andamiaje empaquetada (make app)
+xFlare.app/

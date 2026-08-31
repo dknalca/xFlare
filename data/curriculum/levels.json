@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "0.1.0",
+  "tolerances": {
+    "perfect_ms": 20,
+    "great_ms": 40,
+    "good_ms": 70,
+    "late_ms": 110
+  },
+  "levels": [
+    {
+      "id": "L1",
+      "name": "Fundamentos",
+      "goal": "Que el disco y la mano vayan a tiempo sin pensar en el fader.",
+      "scratches": [
+        "baby",
+        "forward-cut",
+        "stab",
+        "drag"
+      ],
+      "unlock": {
+        "accuracy": 0.8,
+        "bpm": 80,
+        "consecutiveBars": 8
+      }
+    },
+    {
+      "id": "L2",
+      "name": "Control de mano",
+      "goal": "Partir el movimiento y sostener velocidades distintas.",
+      "scratches": [
+        "baby-16",
+        "reverse-cut",
+        "tear",
+        "scribble",
+        "transformer-2"
+      ],
+      "unlock": {
+        "accuracy": 0.82,
+        "bpm": 85,
+        "consecutiveBars": 8
+      }
+    },
+    {
+      "id": "L3",
+      "name": "Fader basico",
+      "goal": "Coordinar mano y fader en gestos independientes.",
+      "scratches": [
+        "transformer-3",
+        "chirp",
+        "tear-3",
+        "flare-1c"
+      ],
+      "unlock": {
+        "accuracy": 0.85,
+        "bpm": 90,
+        "consecutiveBars": 8
+      }
+    },
+    {
+      "id": "L4",
+      "name": "Flares",
+      "goal": "Dominar el click y su colocacion dentro del trazo.",
+      "scratches": [
+        "flare-1c-lo",
+        "flare-1c-hi",
+        "flare-2c",
+        "orbit-1c",
+        "tear-flare-1c",
+        "transformer-4",
+        "hydroplane"
+      ],
+      "unlock": {
+        "accuracy": 0.85,
+        "bpm": 95,
+        "consecutiveBars": 12
+      }
+    },
+    {
+      "id": "L5",
+      "name": "Intermedio",
+      "goal": "Multiplicar clicks sin perder el pulso.",
+      "scratches": [
+        "flare-3c",
+        "orbit-2c",
+        "twiddle"
+      ],
+      "unlock": {
+        "accuracy": 0.87,
+        "bpm": 95,
+        "consecutiveBars": 12
+      }
+    },
+    {
+      "id": "L6",
+      "name": "Velocidad",
+      "goal": "Los mismos patrones, al doble.",
+      "scratches": [
+        "crab",
+        "flare-2c-16"
+      ],
+      "unlock": {
+        "accuracy": 0.88,
+        "bpm": 100,
+        "consecutiveBars": 16
+      }
+    }
+  ]
+}

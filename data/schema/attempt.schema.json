@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xflare.app/schema/attempt.schema.json",
+  "title": "Intento",
+  "type": "object",
+  "required": [
+    "id",
+    "exerciseId",
+    "variantId",
+    "bpm",
+    "startedAt",
+    "score",
+    "maxScore",
+    "accuracy",
+    "stars"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "exerciseId": {
+      "type": "string"
+    },
+    "variantId": {
+      "type": "string"
+    },
+    "sessionId": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "ghost",
+        "free",
+        "listen",
+        "metronome",
+        "warmup"
+      ]
+    },
+    "bpm": {
+      "type": "number"
+    },
+    "startedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "durationMs": {
+      "type": "number"
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "maxScore": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "accuracy": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "stars": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "sigmaMs": {
+      "type": "number"
+    },
+    "biasMs": {
+      "type": "number"
+    },
+    "zeroEvents": {
+      "type": "integer"
+    },
+    "eventScores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "t",
+          "points"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "click",
+              "pitch",
+              "amplitude"
+            ]
+          },
+          "t": {
+            "type": "integer"
+          },
+          "points": {
+            "type": "integer"
+          },
+          "offsetMs": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "sessionFile": {
+      "type": "string",
+      "description": ".xfsession con las muestras crudas"
+    },
+    "countsForStars": {
+      "type": "boolean",
+      "description": "false en modo calentamiento"
+    }
+  }
+}

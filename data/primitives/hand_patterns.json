@@ -1,0 +1,190 @@
+{
+  "baby": {
+    "name": "Baby",
+    "level": 1,
+    "desc": "Adelante y atras simetrico, sin parar. La base de todo.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 1.0,
+        "dist": 1.0,
+        "curve": "bell"
+      },
+      {
+        "dir": "rev",
+        "units": 1.0,
+        "dist": -1.0,
+        "curve": "bell"
+      }
+    ]
+  },
+  "stab": {
+    "name": "Stab",
+    "level": 1,
+    "desc": "Empujon corto y rapido hacia delante, retorno lento.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 0.5,
+        "dist": 1.2,
+        "curve": "acc"
+      },
+      {
+        "dir": "rev",
+        "units": 1.5,
+        "dist": -1.2,
+        "curve": "dec"
+      }
+    ]
+  },
+  "drag": {
+    "name": "Drag",
+    "level": 1,
+    "desc": "Movimiento lento y controlado. Base del transformer.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 2.0,
+        "dist": 1.0,
+        "curve": "lin"
+      },
+      {
+        "dir": "rev",
+        "units": 2.0,
+        "dist": -1.0,
+        "curve": "lin"
+      }
+    ]
+  },
+  "tear2": {
+    "name": "Tear (2 partes)",
+    "level": 2,
+    "desc": "Adelante entero, vuelta partida en dos con una parada.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 2.0,
+        "dist": 2.0,
+        "curve": "bell"
+      },
+      {
+        "dir": "rev",
+        "units": 0.75,
+        "dist": -1.0,
+        "curve": "lin"
+      },
+      {
+        "dir": "hold",
+        "units": 0.5,
+        "dist": 0.0,
+        "curve": "hold"
+      },
+      {
+        "dir": "rev",
+        "units": 0.75,
+        "dist": -1.0,
+        "curve": "lin"
+      }
+    ]
+  },
+  "tear3": {
+    "name": "Tear (3 partes)",
+    "level": 3,
+    "desc": "Vuelta partida en tres tramos. Control de muneca fino.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 1.8,
+        "dist": 3.0,
+        "curve": "bell"
+      },
+      {
+        "dir": "rev",
+        "units": 0.6,
+        "dist": -1.0,
+        "curve": "lin"
+      },
+      {
+        "dir": "hold",
+        "units": 0.3,
+        "dist": 0.0,
+        "curve": "hold"
+      },
+      {
+        "dir": "rev",
+        "units": 0.6,
+        "dist": -1.0,
+        "curve": "lin"
+      },
+      {
+        "dir": "hold",
+        "units": 0.3,
+        "dist": 0.0,
+        "curve": "hold"
+      },
+      {
+        "dir": "rev",
+        "units": 0.6,
+        "dist": -1.0,
+        "curve": "lin"
+      }
+    ]
+  },
+  "scribble": {
+    "name": "Scribble",
+    "level": 2,
+    "desc": "Vibracion rapida y corta con tension de antebrazo.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 0.5,
+        "dist": 0.35,
+        "curve": "lin"
+      },
+      {
+        "dir": "rev",
+        "units": 0.5,
+        "dist": -0.35,
+        "curve": "lin"
+      }
+    ]
+  },
+  "chirp_hand": {
+    "name": "Chirp (mano)",
+    "level": 3,
+    "desc": "Como el baby pero con ataque y frenada marcados.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 1.0,
+        "dist": 1.0,
+        "curve": "dec"
+      },
+      {
+        "dir": "rev",
+        "units": 1.0,
+        "dist": -1.0,
+        "curve": "dec"
+      }
+    ]
+  },
+  "hydroplane": {
+    "name": "Hydroplane",
+    "level": 4,
+    "desc": "Dedo apoyado en el disco: friccion que genera temblor.",
+    "phases": [
+      {
+        "dir": "fwd",
+        "units": 0.25,
+        "dist": 0.18,
+        "curve": "lin"
+      },
+      {
+        "dir": "rev",
+        "units": 0.25,
+        "dist": -0.18,
+        "curve": "lin"
+      }
+    ]
+  }
+}

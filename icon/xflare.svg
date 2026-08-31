@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!--
+    Icono de xFlare. Motivo: el "cap" de un crossfader visto en 2D (planta),
+    apoyado sobre la ranura del fader. El cap vivo va en el color de acento
+    (#34E1C4, "tu fader" en docs/UI_DESIGN.md); detras, translucido, el cap
+    fantasma = el objetivo. Fondo y grises salen de los tokens de diseno.
+    Fuente editable: este .svg. El .icns se genera con icon/build-icns.sh.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#171B22"/>
+      <stop offset="1" stop-color="#0A0C0F"/>
+    </linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#66F0DC"/>
+      <stop offset="0.5" stop-color="#34E1C4"/>
+      <stop offset="1" stop-color="#1FB29C"/>
+    </linearGradient>
+  </defs>
+
+  <!-- placa redondeada de fondo -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+
+  <!-- ranura del crossfader -->
+  <rect x="182" y="466" width="660" height="92" rx="46"
+        fill="#090B0E" stroke="#2A323B" stroke-width="4"/>
+  <!-- marcas de posicion (centro y cuartos), muy tenues -->
+  <g fill="#39434E">
+    <rect x="350" y="492" width="4" height="40" rx="2"/>
+    <rect x="510" y="488" width="4" height="48" rx="2"/>
+    <rect x="670" y="492" width="4" height="40" rx="2"/>
+  </g>
+
+  <!-- cap fantasma (el objetivo) -->
+  <path transform="translate(-210,0)"
+        d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
+           L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
+        fill="#7A8794" fill-opacity="0.17"/>
+
+  <!-- sombra del cap vivo -->
+  <path transform="translate(0,12)"
+        d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
+           L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
+        fill="#000000" fill-opacity="0.20"/>
+
+  <!-- cap vivo -->
+  <path d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
+           L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
+        fill="url(#cap)" stroke="#0B0D10" stroke-opacity="0.35" stroke-width="3"/>
+  <!-- ranura de agarre / indicador de posicion en el centro del cap -->
+  <rect x="488" y="503" width="208" height="18" rx="9" fill="#0B0D10" fill-opacity="0.5"/>
+  <!-- brillo superior -->
+  <rect x="504" y="322" width="176" height="14" rx="7" fill="#FFFFFF" fill-opacity="0.26"/>
+</svg>

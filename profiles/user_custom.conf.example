@@ -1,0 +1,39 @@
+# Plantilla para tu perfil.
+#
+#   1. Copia este fichero a  ~/Library/Application Support/xFlare/profiles/
+#   2. Renombralo a  user_custom.conf  (o al nombre que quieras)
+#   3. Rellenalo con el asistente:  Ajustes -> Mi mesa -> Crear perfil
+#   4. Validalo:  python3 tools/xf_profile.py --check tu-fichero.conf
+#
+# Lo mas comodo es HEREDAR del perfil oficial de tu mesa y cambiar solo lo que
+# te falle. Asi te siguen llegando las correcciones del perfil oficial.
+
+[profile]
+id       = mi-mesa
+name     = Mi mesa
+vendor   = -
+schema   = 1
+revision = 1
+author   = tu-nombre
+verified = false
+# extends = rane-seventy-two-mkii
+
+[match]
+# midi.port    = *tu mesa*
+# audio.device = *tu mesa*
+
+[audio]
+samplerate     = 48000
+output.main.ch = 1,2
+
+[crossfader]
+method       = midi
+midi.channel = 1
+midi.cc      = 0
+midi.min     = 0
+midi.max     = 127
+midi.invert  = false
+cut_in.left     = 0.05
+cut_in.right    = 0.95
+hysteresis      = 0.03
+reverse_default = false

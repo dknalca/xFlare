@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xflare.app/schema/exercise.schema.json",
+  "title": "XFN Exercise",
+  "type": "object",
+  "required": [
+    "id",
+    "scratchId",
+    "level",
+    "bars",
+    "tolerances",
+    "pass"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "scratchId": {
+      "type": "string"
+    },
+    "level": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "mode": {
+      "enum": [
+        "ghost",
+        "free",
+        "listen",
+        "metronome"
+      ]
+    },
+    "bpmLadder": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      }
+    },
+    "startBpm": {
+      "type": "number"
+    },
+    "bars": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "warmupBars": {
+      "type": "integer"
+    },
+    "sets": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "tolerances": {
+      "type": "object",
+      "required": [
+        "perfect_ms",
+        "great_ms",
+        "good_ms",
+        "late_ms"
+      ],
+      "properties": {
+        "perfect_ms": {
+          "type": "number"
+        },
+        "great_ms": {
+          "type": "number"
+        },
+        "good_ms": {
+          "type": "number"
+        },
+        "late_ms": {
+          "type": "number"
+        }
+      }
+    },
+    "pass": {
+      "type": "object",
+      "properties": {
+        "accuracy": {
+          "type": "number"
+        },
+        "consecutiveBars": {
+          "type": "integer"
+        }
+      }
+    },
+    "focus": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "timing",
+          "pitchContour",
+          "clickPlacement",
+          "evenness",
+          "amplitude"
+        ]
+      }
+    },
+    "coachHints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
