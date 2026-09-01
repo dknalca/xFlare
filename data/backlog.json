@@ -690,7 +690,8 @@
           "title": "Perfiles de calibracion por dispositivo",
           "module": "XFPersistence",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "Record DeviceCalibration (deviceKey = UID de audio o nombre de puerto MIDI; profileId de XFProfiles; faderCutIn, faderHysteresis, hamster, latencyMs, updatedAt). XFDatabase.saveCalibration (upsert por deviceKey), calibration(deviceKey:), allCalibrations() (por fecha desc), deleteCalibration(deviceKey:). 5 tests."
         },
         {
           "id": "B10.6",
