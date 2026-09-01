@@ -743,7 +743,8 @@
           "title": "Asistente de calibracion de 4 pasos",
           "module": "XFApp",
           "acceptance": "un usuario nuevo llega a tocar sin ayuda externa",
-          "status": "todo"
+          "status": "done",
+          "note": "CalibrationWizardModel (ObservableObject, testeable): 4 pasos CalibrationStep (audio/latencia/timecode/fader, UI_DESIGN 3.1). No mide: la capa de audio reporta (reportLatency/reportTimecode/reportFaderCut) y el modelo decide readiness. LatencyVerdict (semaforo <=10 verde / <=15 ambar / >15 rojo con consejo, ADR-024); el rojo avisa pero no bloquea. result() -> DeviceCalibration para XFPersistence. Vistas SwiftUI (CalibrationWizardView + 4 paneles, macOS 11; timecode embebe ScopeView) - verificacion visual pendiente. 10 tests."
         },
         {
           "id": "B11.2",

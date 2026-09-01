@@ -102,6 +102,6 @@ let package = Package(
         .testTarget(name: "XFEngineTests",      dependencies: ["XFEngine", "XFTestKit"]),
         .testTarget(name: "XFDesignTests",      dependencies: ["XFDesign"]),
         .testTarget(name: "XFRenderTests",      dependencies: ["XFRender", "XFTestKit"]),
-        .testTarget(name: "XFAppTests",         dependencies: ["XFApp"]),
+        .testTarget(name: "XFAppTests",         dependencies: ["XFApp", "XFPersistence"]),
     ]
 )

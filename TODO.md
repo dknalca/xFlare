@@ -318,8 +318,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Las pantallas.*
 
-- [ ] **B11.1** Asistente de calibracion de 4 pasos `XFApp`
+- [x] **B11.1** Asistente de calibracion de 4 pasos `XFApp`
       - Criterio: un usuario nuevo llega a tocar sin ayuda externa
+      - Hecho (2026-09-01): `CalibrationWizardModel` (`ObservableObject`, testeable) — 4 pasos `CalibrationStep` (audio / latencia / timecode / fader, `docs/UI_DESIGN.md` §3.1). **No mide nada**: la capa de audio le reporta (`reportLatency`/`reportTimecode`/`reportFaderCut`) y el modelo decide cuando cada paso esta listo. `LatencyVerdict` (semaforo ≤10 verde / ≤15 ambar / >15 rojo con consejo — ADR-024); la latencia rojo **avisa pero no bloquea**. `result()` → `DeviceCalibration` para `XFPersistence`. Vistas SwiftUI (`CalibrationWizardView` + 4 paneles, macOS 11; el de timecode embebe `ScopeView`) — verificacion visual pendiente para cuando corra la app. 10 tests.
 - [ ] **B11.2** Home: mapa de la matriz, racha, continuar `XFApp`
       - Nota: ya existe una **maqueta inerte** en `Sources/xFlare/HomeScaffoldView.swift`
         (ejecutable `xFlare`, `make run`). Sirve de referencia visual; aquí se hace la de verdad en XFApp y se borra la maqueta.
