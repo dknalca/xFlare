@@ -66,8 +66,8 @@ struct PlatterInputView: NSViewRepresentable {
             case 0:   owner.onNudge(false)                 // A
             case 2:   owner.onNudge(true)                  // D
             case 49:  owner.onFaderClosed(true)            // Espacio
-            case 126: owner.onBPM(owner.currentBPM() + 1)  // flecha arriba
-            case 125: owner.onBPM(owner.currentBPM() - 1)  // flecha abajo
+            case 126: owner.onBPM(owner.currentBPM() + 5)  // flecha arriba
+            case 125: owner.onBPM(owner.currentBPM() - 5)  // flecha abajo
             case 53:  owner.onExit()                       // Esc
             default:  super.keyDown(with: event)
             }

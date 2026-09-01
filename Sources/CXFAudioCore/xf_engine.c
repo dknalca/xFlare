@@ -3,6 +3,7 @@
 #include "xf_player.h"
 #include "xf_rt.h"
 
+#include <math.h>
 #include <stdatomic.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,6 +42,9 @@ struct xf_engine {
     _Atomic double  bpm;
     _Atomic int     playing;      /* 0/1 */
     _Atomic double  master_gain;  /* guardado como double para simplificar */
+    _Atomic double  scratch_gain_target;  /* 0..1, solo el player de scratch */
+    double          scratch_gain_cur;     /* suavizado, solo lo toca el hilo RT */
+    double          scratch_gain_coef;    /* one-pole ~5 ms, precalculado */
 
     /* reloj musical: avanzado en RT, leido por Swift */
     _Atomic double  reported_tick;   /* tick al inicio del ultimo bloque */
@@ -108,6 +112,9 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     atomic_store(&e->bpm, 120.0);
     atomic_store(&e->playing, 0);
     atomic_store(&e->master_gain, 1.0);
+    atomic_store(&e->scratch_gain_target, 1.0);
+    e->scratch_gain_cur = 1.0;
+    e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
     atomic_store(&e->reported_tick, 0.0);
     e->capture_input = 1;
     return e;
@@ -213,6 +220,13 @@ void xf_engine_set_master_gain(xf_engine *e, float gain) {
     atomic_store(&e->master_gain, (double)gain);
 }
 
+void xf_engine_set_scratch_gain(xf_engine *e, float gain) {
+    if (!e) return;
+    if (gain < 0.0f) gain = 0.0f;
+    if (gain > 1.0f) gain = 1.0f;
+    atomic_store(&e->scratch_gain_target, (double)gain);
+}
+
 xf_ring_t   *xf_engine_input_ring(xf_engine *e) { return e ? &e->input_ring : NULL; }
 xf_metronome *xf_engine_metronome(xf_engine *e) { return e ? e->metronome : NULL; }
 
@@ -282,6 +296,18 @@ void xf_engine_render(xf_engine *e,
         xf_player_render(p, e->mono, nframes, vel);
     } else {
         memset(e->mono, 0, (size_t)nframes * sizeof(float));
+    }
+
+    /* ganancia SOLO del scratch, suavizada: el mute/fader no toca la base */
+    {
+        const double tgt  = atomic_load(&e->scratch_gain_target);
+        const double coef = e->scratch_gain_coef;
+        double g = e->scratch_gain_cur;
+        for (int n = 0; n < nframes; n++) {
+            g += (tgt - g) * coef;
+            e->mono[n] *= (float)g;
+        }
+        e->scratch_gain_cur = g;
     }
 
     xf_player *ip = atomic_load(&e->instrumental);

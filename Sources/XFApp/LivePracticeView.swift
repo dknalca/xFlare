@@ -41,7 +41,11 @@ public struct LivePracticeView: View {
         self.content = content
         self.metronomeOn = metronomeOn
         self.onExit = onExit
-        _session = StateObject(wrappedValue: PracticeSession(scratch: scratch, bpm: bpm))
+        // Arranca al tempo de la instrumental para que suene coherente desde el
+        // primer compas (el `bpm` del ejercicio manda cuando se cambie a mano).
+        _ = bpm
+        _session = StateObject(wrappedValue: PracticeSession(
+            scratch: scratch, bpm: Int(AudioAsset.instrumentalNativeBPM)))
     }
 
     public var body: some View {
@@ -57,8 +61,9 @@ public struct LivePracticeView: View {
                     onNudge: { s.nudge(forward: $0) },
                     onFaderClosed: { closed in
                         s.setFaderClosed(closed)
-                        // fader cerrado = corta el sonido del scratch
-                        engine?.setMasterGain(closed ? 0 : 1)
+                        // fader cerrado / mute = calla SOLO el scratch; la
+                        // instrumental (y el metronomo) siguen sonando.
+                        engine?.setScratchGain(closed ? 0 : 1)
                     },
                     onBPM: { bpm in
                         s.setBPM(bpm)
@@ -85,16 +90,19 @@ public struct LivePracticeView: View {
         engine.metronomeEnabled = metronomeOn
         engine.setInstrumentalGain(0.5)
         engine.setMasterGain(1)
+        engine.setScratchGain(1)
         engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
 
-        // cada paso del reloj: velocidad -> pitch/antialiasing, y ademas se
-        // ancla el cabezal a la posicion del plato para que la onda de abajo
-        // vaya pegada a la autopista (mismo origen, no dos integradores).
-        session.onAdvance = { [weak engine] platterVelocity, normPos, _ in
-            guard let engine = engine else { return }
-            engine.setVelocity(max(-8.0, min(8.0, platterVelocity * 1.6)))
-            let frames = engine.scratchFrameCount
-            if frames > 1 { engine.seekScratch(normPos * Double(frames - 1)) }
+        // cada paso del reloj: la velocidad que se manda al reproductor es la
+        // derivada EXACTA del movimiento del cabezal (fraccion util del sample),
+        // y ademas se ancla el cabezal a esa posicion. Asi la onda de abajo y la
+        // traza de la autopista no se separan (era el origen de los glitches).
+        let sr = engine.sampleRateHz
+        session.onAdvance = { [weak engine] normVel, normPos, _ in
+            guard let engine = engine, engine.scratchFrameCount > 1 else { return }
+            let usable = Double(engine.scratchFrameCount - 1) * AudioAsset.scratchUsableFraction
+            engine.setVelocity(normVel * usable / sr)   // frames de sample por frame de salida
+            engine.seekScratch(normPos * usable)
         }
 
         // decodificar los audios fuera del hilo principal (el MP3 tarda)
@@ -127,6 +135,7 @@ public struct LivePracticeView: View {
     private func stop() {
         session.onAdvance = nil
         session.stop()
+        engine?.setScratchGain(1)   // por si se salio con el fader cerrado
         engine?.stop()
         engine?.clearSample()
         engine?.clearInstrumental()

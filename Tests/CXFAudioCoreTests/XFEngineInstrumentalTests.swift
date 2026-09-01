@@ -117,6 +117,31 @@ final class XFEngineInstrumentalTests: XCTestCase {
         XCTAssertLessThan(rms(render(e, blocks: 20)), 0.01)
     }
 
+    func testElMuteDeScratchNoTocaLaBase() {
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        let loop = stable(sine(1000, frames: 4_800))
+        let scr  = stable(sine(300, frames: 4_800))
+        defer { loop.deallocate(); scr.deallocate() }
+
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 90)
+        xf_engine_load_sample(e, scr.baseAddress, Int64(scr.count))
+        xf_engine_set_transport(e, 90, 480, true)
+        xf_engine_set_velocity(e, 1.0)
+        xf_engine_set_master_gain(e, 1)
+
+        _ = render(e, blocks: 20)                          // que se estabilice
+        let both = rms(render(e, blocks: 30))
+
+        xf_engine_set_scratch_gain(e, 0)                   // mute SOLO scratch
+        _ = render(e, blocks: 20)                          // rampa de ~5 ms
+        let onlyBase = render(e, blocks: 30)
+
+        // la base sigue sonando: sube en 1 kHz, cae en 300 Hz
+        XCTAssertGreaterThan(rms(onlyBase), both * 0.4)
+        XCTAssertGreaterThan(goertzel(onlyBase, hz: 1000), goertzel(onlyBase, hz: 300) * 3)
+    }
+
     func testSwapSonandoNoRevienta() {
         let e = engine()
         defer { xf_engine_destroy(e) }

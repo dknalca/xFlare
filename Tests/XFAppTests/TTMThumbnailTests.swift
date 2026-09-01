@@ -53,15 +53,18 @@ final class TTMThumbnailTests: XCTestCase {
         }
     }
 
-    func testHomeAssemblerPoneMiniaturaSoloEnLosDosPrimerosDelNivel1() throws {
+    func testHomeAssemblerPoneMiniaturaEnTodoElNivel1() throws {
         let catalog = try CatalogLoader.load(from: RepoContentLoader())
         let db = try XFDatabase.inMemory()
         let summary = try HomeAssembler.summary(catalog: catalog, db: db)
 
         let firstLevel = try XCTUnwrap(catalog.levels.sorted { $0.id < $1.id }.first)
-        let expected = Array(firstLevel.scratches.prefix(2))
-
-        XCTAssertEqual(Set(summary.thumbnails.keys), Set(expected))
-        XCTAssertEqual(summary.thumbnails.count, 2)
+        XCTAssertEqual(Set(summary.thumbnails.keys), Set(firstLevel.scratches))
+        XCTAssertFalse(firstLevel.scratches.isEmpty)
+        // y no en niveles posteriores
+        let otherLevelScratch = catalog.levels.first { $0.id != firstLevel.id }?.scratches.first
+        if let other = otherLevelScratch {
+            XCTAssertNil(summary.thumbnails[other])
+        }
     }
 }

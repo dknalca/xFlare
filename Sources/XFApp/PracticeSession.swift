@@ -46,21 +46,26 @@ public final class PracticeSession: ObservableObject {
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
 
-    /// Se llama al final de cada paso de simulacion con (velocidad del plato,
-    /// posicion normalizada 0…1 en el rango del patron, tick). La practica lo usa
-    /// para empujar el motor de audio y tener la onda de abajo pegada a la
-    /// autopista. Opcional.
-    public var onAdvance: ((_ platterVelocity: Double,
+    /// Se llama al final de cada paso de simulacion con (velocidad normalizada
+    /// -fraccion del rango del patron por segundo-, posicion normalizada 0…1,
+    /// tick). La practica lo usa para empujar el motor de audio con la onda de
+    /// abajo pegada a la autopista (mismo origen, no dos integradores). Opcional.
+    public var onAdvance: ((_ normalizedVelocity: Double,
                             _ normalizedPosition: Double,
                             _ tick: Double) -> Void)?
+
+    private var span: Double { max(1e-9, posHi - posLo) }
 
     /// Posicion del plato como fraccion 0…1 del rango del patron: 0 = abajo
     /// (inicio del sample), 1 = arriba (final del sample).
     public var normalizedPosition: Double {
-        let span = posHi - posLo
-        guard span > 1e-9 else { return 0 }
-        return min(1, max(0, (platterPosition - posLo) / span))
+        min(1, max(0, (platterPosition - posLo) / span))
     }
+
+    /// Velocidad del plato como fraccion del rango del patron por segundo. Es la
+    /// derivada exacta de `normalizedPosition`, para que el cabezal del audio y
+    /// la traza de la autopista no se separen.
+    public var normalizedVelocity: Double { platterVelocity / span }
 
     // --- bucle ---
     private var timer: Timer?
@@ -142,7 +147,7 @@ public final class PracticeSession: ObservableObject {
             traceBuffer.removeAll { $0.tick < cutoff }
         }
 
-        onAdvance?(platterVelocity, normalizedPosition, currentTick)
+        onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
     }
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)

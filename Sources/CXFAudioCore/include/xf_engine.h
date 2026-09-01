@@ -78,6 +78,11 @@ void xf_engine_set_velocity(xf_engine *e, double velocity);
 /* Ganancia de salida (0..1). Atomica. */
 void xf_engine_set_master_gain(xf_engine *e, float gain);
 
+/* Ganancia SOLO del reproductor de scratch (0..1). La base instrumental y el
+ * metronomo no se ven afectados. Se suaviza en ~5 ms para no meter un click al
+ * pasar de 1 a 0 (fader cerrado / mute). Atomica. Por defecto 1. */
+void xf_engine_set_scratch_gain(xf_engine *e, float gain);
+
 /* ---- lo que consulta / usa Swift ---- */
 
 /* El ring de PCM de entrada: **estereo intercalado de 16 bits**. Swift lo drena

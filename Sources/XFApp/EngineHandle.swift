@@ -100,6 +100,10 @@ public final class EngineHandle {
     public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
     public func setVelocity(_ v: Double)    { xf_engine_set_velocity(engine, v) }
     public func setMasterGain(_ g: Float)   { xf_engine_set_master_gain(engine, g) }
+    /// Ganancia solo del scratch (0…1). La base instrumental no se ve afectada.
+    public func setScratchGain(_ g: Float)  { xf_engine_set_scratch_gain(engine, g) }
+
+    public var sampleRateHz: Double { sampleRate }
 
     public var tick: Double { xf_engine_tick(engine) }
     public var overloadCount: UInt64 { xf_engine_overload_count(engine) }
