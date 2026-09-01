@@ -33,6 +33,16 @@ public enum HighwaySVG {
             lines.append("<rect class=\"lane-open\" x=\"\(x)\" y=\"\(laneTop)\" width=\"\(bw)\" height=\"\(f(g.laneHeight))\" fill=\"#F2F5F7\" fill-opacity=\"0.1\"/>")
         }
 
+        // rejilla de negras y compás (ADR-038), al fondo
+        for gx in frame.beatLines {
+            let x = f(gx)
+            lines.append("<line class=\"grid-beat\" x1=\"\(x)\" y1=\"0\" x2=\"\(x)\" y2=\"\(H)\" stroke=\"#3A444F\" stroke-width=\"1\"/>")
+        }
+        for gx in frame.barLines {
+            let x = f(gx)
+            lines.append("<line class=\"grid-bar\" x1=\"\(x)\" y1=\"0\" x2=\"\(x)\" y2=\"\(H)\" stroke=\"#232A32\" stroke-width=\"2\"/>")
+        }
+
         // curva del patrón (fantasma)
         if frame.discCurve.count >= 2 {
             let pts = frame.discCurve.map { "\(f($0.x)),\(f(fy($0.y)))" }.joined(separator: " ")

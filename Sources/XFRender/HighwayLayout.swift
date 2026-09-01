@@ -82,6 +82,29 @@ public struct HighwayLayout {
         let tMin = tick(forX: 0)
         let tMax = tick(forX: g.size.width)
 
+        // --- rejilla de negras y compás (ADR-038) ---
+        // Líneas en los ticks de negra `b·ppq`. Cada una es de COMPÁS o de
+        // negra según su posición *dentro del patrón* (`wrapped`), no según la
+        // posición absoluta: así el conjunto de líneas (valores y clasificación)
+        // es idéntico en `T` y en `T + L` para cualquier longitud de patrón, y
+        // la invariancia `frame(T) == frame(T + L)` se mantiene.
+        var beatLines: [CGFloat] = []
+        var barLines: [CGFloat] = []
+        let beatsPerBar = max(1, g.beatsPerBar)
+        let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
+        let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
+        if firstBeat <= lastBeat {
+            for b in firstBeat...lastBeat {
+                let px = x(forTick: Double(b * ppq))
+                let beatInPattern = wrapped(Double(b * ppq)) / ppq
+                if beatInPattern % beatsPerBar == 0 {
+                    barLines.append(px)
+                } else {
+                    beatLines.append(px)
+                }
+            }
+        }
+
         // --- curva del disco ---
         // Anclamos la rejilla de muestreo con division *hacia abajo* (no la
         // truncada de Swift): asi el mismo tick da la misma rejilla tanto si
@@ -177,6 +200,7 @@ public struct HighwayLayout {
 
         return HighwayFrame(discCurve: curve, openMarks: open, closeMarks: close,
                             faderBands: bands, playheadX: playheadX,
-                            userSegments: userSegments, hitMarks: hitMarks)
+                            userSegments: userSegments, hitMarks: hitMarks,
+                            beatLines: beatLines, barLines: barLines)
     }
 }

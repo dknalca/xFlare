@@ -32,10 +32,13 @@ public final class HighwayScene: SKScene {
     // Nodos reutilizados fotograma a fotograma.
     private let curveNode = SKShapeNode()
     private let playheadNode = SKShapeNode()
+    private let gridLayer = SKNode()
     private let laneLayer = SKNode()
     private let marksLayer = SKNode()
     private let userLayer = SKNode()
     private let hitLayer = SKNode()
+    private var beatPool: [SKShapeNode] = []
+    private var barPool: [SKShapeNode] = []
     private var bandPool: [SKShapeNode] = []
     private var markPool: [SKShapeNode] = []
     private var userPool: [SKShapeNode] = []
@@ -48,6 +51,10 @@ public final class HighwayScene: SKScene {
     private let accentColor = SKColor(red: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 1.0)
     private let playheadColor = SKColor(red: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1.0)
     private let laneOpenColor = SKColor(red: 0xF2/255, green: 0xF5/255, blue: 0xF7/255, alpha: 0.10)
+    // Rejilla (ADR-038): la negra un pelín más clara, el compás más apagado
+    // (tokens XFColor.gridBeat / XFColor.grid de docs/UI_DESIGN.md §2).
+    private let gridBeatColor = SKColor(red: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1.0)
+    private let gridBarColor  = SKColor(red: 0x23/255, green: 0x2A/255, blue: 0x32/255, alpha: 1.0)
 
     public init(geometry: HighwayGeometry) {
         self.geometry = geometry
@@ -61,6 +68,7 @@ public final class HighwayScene: SKScene {
         playheadNode.strokeColor = playheadColor
         playheadNode.lineWidth = 1
 
+        addChild(gridLayer)      // rejilla al fondo del todo
         addChild(laneLayer)
         addChild(curveNode)      // fantasma detrás
         addChild(userLayer)      // tu curva delante
@@ -97,6 +105,10 @@ public final class HighwayScene: SKScene {
     // MARK: - pintado
 
     private func render(_ frame: HighwayFrame) {
+        // rejilla al fondo: primero negras, luego compás encima
+        drawGrid(pool: &beatPool, xs: frame.beatLines, color: gridBeatColor, width: 1)
+        drawGrid(pool: &barPool, xs: frame.barLines, color: gridBarColor, width: 2)
+
         // curva
         if frame.discCurve.count >= 2 {
             let path = CGMutablePath()
@@ -177,6 +189,22 @@ public final class HighwayScene: SKScene {
             let node = SKShapeNode()
             pool.append(node)
             parent.addChild(node)
+        }
+    }
+
+    /// Pinta líneas verticales de rejilla reutilizando su pool.
+    private func drawGrid(pool: inout [SKShapeNode], xs: [CGFloat],
+                          color: SKColor, width: CGFloat) {
+        ensurePool(&pool, count: xs.count, into: gridLayer)
+        for (i, node) in pool.enumerated() {
+            guard i < xs.count else { node.isHidden = true; continue }
+            node.isHidden = false
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: xs[i], y: 0))
+            path.addLine(to: CGPoint(x: xs[i], y: size.height))
+            node.path = path
+            node.strokeColor = color
+            node.lineWidth = width
         }
     }
 }

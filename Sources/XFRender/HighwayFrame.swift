@@ -35,9 +35,18 @@ public struct HighwayFrame: Equatable, Sendable {
     /// X de la cabeza de lectura (constante para una geometría dada).
     public var playheadX: CGFloat
 
+    /// X de las líneas de **negra** de la rejilla, de izquierda a derecha
+    /// (ADR-038). No incluye las que además son línea de compás.
+    public var beatLines: [CGFloat]
+
+    /// X de las líneas de **compás** (cada `geometry.beatsPerBar` negras),
+    /// de izquierda a derecha. Se pintan por encima de las de negra.
+    public var barLines: [CGFloat]
+
     public init(discCurve: [CGPoint], openMarks: [CGPoint], closeMarks: [CGPoint],
                 faderBands: [FaderBand], playheadX: CGFloat,
-                userSegments: [TintedPolyline] = [], hitMarks: [TintedMark] = []) {
+                userSegments: [TintedPolyline] = [], hitMarks: [TintedMark] = [],
+                beatLines: [CGFloat] = [], barLines: [CGFloat] = []) {
         self.discCurve = discCurve
         self.openMarks = openMarks
         self.closeMarks = closeMarks
@@ -45,5 +54,7 @@ public struct HighwayFrame: Equatable, Sendable {
         self.userSegments = userSegments
         self.hitMarks = hitMarks
         self.playheadX = playheadX
+        self.beatLines = beatLines
+        self.barLines = barLines
     }
 }

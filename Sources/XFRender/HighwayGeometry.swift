@@ -28,16 +28,22 @@ public struct HighwayGeometry: Equatable, Sendable {
     /// bordes.
     public var curveInset: CGFloat
 
+    /// Negras por compás para la rejilla (ADR-038). El modelo XFN no lleva
+    /// compás de tiempo; la práctica de scratch es 4/4 salvo que se diga otra cosa.
+    public var beatsPerBar: Int
+
     public init(size: CGSize,
                 playheadFraction: CGFloat = 0.30,
                 pixelsPerBeat: CGFloat = 120,
                 laneHeight: CGFloat = 40,
-                curveInset: CGFloat = 16) {
+                curveInset: CGFloat = 16,
+                beatsPerBar: Int = 4) {
         self.size = size
         self.playheadFraction = playheadFraction
         self.pixelsPerBeat = pixelsPerBeat
         self.laneHeight = laneHeight
         self.curveInset = curveInset
+        self.beatsPerBar = max(1, beatsPerBar)
     }
 
     /// X de la cabeza de lectura, en puntos.

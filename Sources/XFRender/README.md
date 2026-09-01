@@ -19,7 +19,8 @@ memoria por fotograma. Ver **ADR-036**.
 ```swift
 public struct HighwayGeometry: Equatable, Sendable {
     public init(size: CGSize, playheadFraction: CGFloat = 0.30,
-                pixelsPerBeat: CGFloat = 120, laneHeight: CGFloat = 40, curveInset: CGFloat = 16)
+                pixelsPerBeat: CGFloat = 120, laneHeight: CGFloat = 40, curveInset: CGFloat = 16,
+                beatsPerBar: Int = 4)          // rejilla: negras por compás (ADR-038)
     public var playheadX: CGFloat
     public func pixelsPerTick(ppq: Int) -> CGFloat
     public var curveBand: (bottom: CGFloat, top: CGFloat)
@@ -55,6 +56,8 @@ public struct HighwayFrame: Equatable, Sendable {
     public var userSegments: [TintedPolyline]  // tu curva, partida por nivel de acierto
     public var hitMarks: [TintedMark]        // resultado en cada click
     public var playheadX: CGFloat
+    public var beatLines: [CGFloat]          // x de las negras (ADR-038)
+    public var barLines: [CGFloat]           // x de los compases (cada beatsPerBar negras)
 }
 
 public struct FaderBand: Equatable, Sendable { public var xRange: ClosedRange<CGFloat>; public var isOpen: Bool }
