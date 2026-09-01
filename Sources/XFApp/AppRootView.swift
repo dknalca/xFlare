@@ -133,6 +133,12 @@ public struct AppRootView: View {
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
+                sampleVolume: model.settings.scratchVolume,
+                instrumentalVolume: model.settings.instrumentalVolume,
+                onVolumesChanged: { sample, instru in
+                    model.settings.scratchVolume = sample
+                    model.settings.instrumentalVolume = instru
+                },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

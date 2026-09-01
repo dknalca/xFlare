@@ -108,6 +108,8 @@ public final class EngineHandle {
     public var tick: Double { xf_engine_tick(engine) }
     public var overloadCount: UInt64 { xf_engine_overload_count(engine) }
     public var renderErrorCount: UInt64 { xf_engine_render_error_count(engine) }
+    /// Pico de salida antes de limitar. > 1 = la mezcla clipea.
+    public var outputPeak: Double { xf_engine_output_peak(engine) }
 
     public var metronomeEnabled: Bool {
         get { xf_metronome_enabled(xf_engine_metronome(engine)) }

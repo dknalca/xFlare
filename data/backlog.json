@@ -882,14 +882,15 @@
           "module": "XFApp",
           "status": "wip",
           "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run",
-          "note": "2026-09-01: parte de codigo hecha (BundleContentLoader + eleccion de loader en el @main, 4 tests). Falta el copiado fisico a Contents/Resources/, que hace el script del DMG (B12a.4)."
+          "note": "2026-09-01: BundleContentLoader + `make app` copia data/ y profiles/ a Contents/Resources/ y firma ad-hoc. Falta el DMG (hdiutil) y el binario universal para cerrar B12a."
         },
         {
           "id": "B12a.1",
           "title": "Info.plist del .app: NSMicrophoneUsageDescription, CFBundleIdentifier, version, icono",
           "module": "-",
-          "status": "todo",
-          "acceptance": "sin NSMicrophoneUsageDescription la captura de timecode falla sin decir por que"
+          "status": "wip",
+          "acceptance": "sin NSMicrophoneUsageDescription la captura de timecode falla sin decir por que",
+          "note": "Info.plist con NSMicrophoneUsageDescription ya en `make app`; falta icono definitivo."
         },
         {
           "id": "B12a.2",
@@ -902,8 +903,9 @@
           "id": "B12a.3",
           "title": "Firma ad-hoc (codesign -s -)",
           "module": "-",
-          "status": "todo",
-          "acceptance": "en Apple Silicon un .app sin ninguna firma no arranca; no se notariza"
+          "status": "wip",
+          "acceptance": "en Apple Silicon un .app sin ninguna firma no arranca; no se notariza",
+          "note": "`make app` firma ad-hoc con `codesign -s -`."
         },
         {
           "id": "B12a.4",

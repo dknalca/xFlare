@@ -30,16 +30,10 @@ public struct LibraryView: View {
                 .frame(width: 200)
             }
 
+            // lista plana: todos los trucos, sin agrupar por nivel
             ScrollView {
-                VStack(alignment: .leading, spacing: XFSpacing.lg) {
-                    ForEach(groups, id: \.level) { group in
-                        VStack(alignment: .leading, spacing: XFSpacing.xs) {
-                            Text("L\(group.level)").font(XFFont.body(13)).foregroundColor(XFColor.textMuted)
-                            ForEach(group.entries) { entry in
-                                row(entry)
-                            }
-                        }
-                    }
+                VStack(alignment: .leading, spacing: XFSpacing.xs) {
+                    ForEach(entries) { entry in row(entry) }
                 }
             }
         }
@@ -47,8 +41,8 @@ public struct LibraryView: View {
         .background(XFColor.bg)
     }
 
-    private var groups: [(level: Int, entries: [LibraryEntry])] {
-        browser.groupedByLevel(query: query, family: family)
+    private var entries: [LibraryEntry] {
+        browser.filtered(query: query, family: family).sorted { $0.name < $1.name }
     }
 
     @ViewBuilder private func row(_ e: LibraryEntry) -> some View {

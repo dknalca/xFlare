@@ -17,6 +17,12 @@ public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
     @State private var waveEnvelope: [Float] = []
+    @State private var sampleVol: Double
+    @State private var instruVol: Double
+    @State private var meterPeak: Double = 0
+    @State private var faderClosed = false
+
+    private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private let scratch: Scratch
     private let exerciseName: String
@@ -25,6 +31,7 @@ public struct LivePracticeView: View {
     private let content: ContentLoader
     private let metronomeOn: Bool
     private let onExit: () -> Void
+    private let onVolumesChanged: (_ sample: Double, _ instrumental: Double) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -33,6 +40,9 @@ public struct LivePracticeView: View {
                 engine: EngineHandle? = nil,
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
+                sampleVolume: Double = 1.0,
+                instrumentalVolume: Double = 0.3,
+                onVolumesChanged: @escaping (Double, Double) -> Void = { _, _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -40,7 +50,10 @@ public struct LivePracticeView: View {
         self.engine = engine
         self.content = content
         self.metronomeOn = metronomeOn
+        self.onVolumesChanged = onVolumesChanged
         self.onExit = onExit
+        _sampleVol = State(initialValue: sampleVolume)
+        _instruVol = State(initialValue: instrumentalVolume)
         // Arranca al tempo de la instrumental para que suene coherente desde el
         // primer compas (el `bpm` del ejercicio manda cuando se cambie a mano).
         _ = bpm
@@ -52,33 +65,94 @@ public struct LivePracticeView: View {
         let s = session
         return VStack(spacing: 0) {
             topBar
-            ZStack {
-                HighwayView(scratch: scratch, geometry: geometry,
-                            tick: { s.tick() },
-                            userTrace: { s.trace() })
-                PlatterInputView(
-                    onScroll: { s.scrollBy($0) },
-                    onNudge: { s.nudge(forward: $0) },
-                    onFaderClosed: { closed in
-                        s.setFaderClosed(closed)
-                        // fader cerrado / mute = calla SOLO el scratch; la
-                        // instrumental (y el metronomo) siguen sonando.
-                        engine?.setScratchGain(closed ? 0 : 1)
-                    },
-                    onBPM: { bpm in
-                        s.setBPM(bpm)
-                        engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
-                    },
-                    currentBPM: { s.bpm },
-                    onExit: onExit)
+            HStack(spacing: 0) {
+                ZStack {
+                    HighwayView(scratch: scratch, geometry: geometry,
+                                tick: { s.tick() },
+                                userTrace: { s.trace() })
+                    PlatterInputView(
+                        onScroll: { s.scrollBy($0) },
+                        onNudge: { s.nudge(forward: $0) },
+                        onFaderClosed: { closed in
+                            faderClosed = closed
+                            s.setFaderClosed(closed)
+                            // fader cerrado / mute = calla SOLO el scratch; la
+                            // instrumental (y el metronomo) siguen sonando.
+                            engine?.setScratchGain(closed ? 0 : Float(sampleVol))
+                        },
+                        onBPM: { bpm in
+                            s.setBPM(bpm)
+                            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+                        },
+                        currentBPM: { s.bpm },
+                        onExit: onExit)
+                }
+                rightPanel
             }
             waveStrip
             hintBar
         }
         .background(XFColor.bg)
         .foregroundColor(XFColor.text)
+        .onReceive(meterTick) { _ in meterPeak = engine?.outputPeak ?? 0 }
         .onAppear { start() }
         .onDisappear { stop() }
+    }
+
+    // MARK: - panel derecho: medidor + volumenes (provisional)
+
+    private var rightPanel: some View {
+        VStack(spacing: XFSpacing.sm) {
+            clipMeter
+            volSlider("Sample", $sampleVol) { v in
+                if !faderClosed { engine?.setScratchGain(Float(v)) }
+                onVolumesChanged(v, instruVol)
+            }
+            volSlider("Instru", $instruVol) { v in
+                engine?.setInstrumentalGain(Float(v))
+                onVolumesChanged(sampleVol, v)
+            }
+        }
+        .frame(width: 92)
+        .padding(XFSpacing.sm)
+        .background(XFColor.surface)
+    }
+
+    private var clipMeter: some View {
+        let clip = meterPeak >= 1.0
+        return VStack(spacing: 2) {
+            GeometryReader { geo in
+                let h = geo.size.height
+                let level = CGFloat(min(1.2, meterPeak)) / 1.2
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 2).fill(XFColor.bg)
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(clip ? Color(hex: 0xFF4D5E)
+                              : meterPeak > 0.8 ? Color(hex: 0xF5C542) : XFColor.accent)
+                        .frame(height: max(1, h * level))
+                }
+            }
+            .frame(height: 70)
+            Text(clip ? "CLIP" : "\(Int(meterPeak * 100))")
+                .font(XFFont.mono(9))
+                .foregroundColor(clip ? Color(hex: 0xFF4D5E) : XFColor.textMuted)
+        }
+    }
+
+    private func volSlider(_ label: String, _ value: Binding<Double>,
+                           _ apply: @escaping (Double) -> Void) -> some View {
+        VStack(spacing: 1) {
+            HStack {
+                Text(label).font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+                Text("\(Int(value.wrappedValue * 100))").font(XFFont.mono(9))
+                    .foregroundColor(XFColor.textMuted)
+            }
+            Slider(value: Binding(get: { value.wrappedValue },
+                                  set: { value.wrappedValue = $0; apply($0) }),
+                   in: 0...1)
+                .controlSize(.mini)
+        }
     }
 
     // MARK: - audio + reloj
@@ -88,9 +162,9 @@ public struct LivePracticeView: View {
         guard let engine = engine else { return }
 
         engine.metronomeEnabled = metronomeOn
-        engine.setInstrumentalGain(0.30)   // headroom: scratch + base + metronomo sin clip
+        engine.setInstrumentalGain(Float(instruVol))
         engine.setMasterGain(0.85)
-        engine.setScratchGain(1)
+        engine.setScratchGain(faderClosed ? 0 : Float(sampleVol))
         engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
 
         // cada paso del reloj: solo se manda la VELOCIDAD (derivada exacta del

@@ -44,15 +44,18 @@ run:
 	$(DEVTC) swift build --product xFlare
 	$(DEVTC) swift run xFlare
 
-# Empaqueta un xFlare.app en la raiz del repo. SIN firmar (la notarizacion es
-# B12): la 1a vez macOS dira "de un desarrollador no identificado" -> clic
-# derecho sobre la app > Abrir > Abrir. Es solo el cascaron de andamiaje.
+# Empaqueta un xFlare.app en la raiz del repo (B12a). SIN notarizar: la 1a vez
+# macOS dira "de un desarrollador no identificado" -> clic derecho sobre la app >
+# Abrir > Abrir. Copia `data/` y `profiles/` a Contents/Resources para que el
+# `.app` funcione sin el repo delante (BundleContentLoader). Firma ad-hoc para
+# que arranque en Apple Silicon.
 app: build
 	@BIN=$$($(DEVTC) swift build --show-bin-path)/xFlare; \
 	test -x "$$BIN" || (echo "  no se encuentra el binario xFlare"; exit 1); \
 	rm -rf xFlare.app; \
 	mkdir -p xFlare.app/Contents/MacOS xFlare.app/Contents/Resources; \
 	cp "$$BIN" xFlare.app/Contents/MacOS/xFlare; \
+	cp -R data profiles xFlare.app/Contents/Resources/; \
 	ICON=""; \
 	if [ -f icon/xflare.icns ]; then ICON="icon/xflare.icns"; \
 	elif [ -f icon/xflare.svg ]; then sh icon/build-icns.sh >/dev/null 2>&1 && ICON="icon/xflare.icns"; fi; \
@@ -63,17 +66,18 @@ app: build
 	  '<plist version="1.0"><dict>' \
 	  '  <key>CFBundleName</key><string>xFlare</string>' \
 	  '  <key>CFBundleDisplayName</key><string>xFlare</string>' \
-	  '  <key>CFBundleIdentifier</key><string>app.xflare.shell</string>' \
+	  '  <key>CFBundleIdentifier</key><string>app.xflare.xFlare</string>' \
 	  '  <key>CFBundleExecutable</key><string>xFlare</string>' \
 	  '  <key>CFBundleIconFile</key><string>xflare</string>' \
 	  '  <key>CFBundlePackageType</key><string>APPL</string>' \
 	  '  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>' \
-	  '  <key>CFBundleShortVersionString</key><string>0.0-andamiaje</string>' \
-	  '  <key>CFBundleVersion</key><string>0</string>' \
+	  '  <key>CFBundleShortVersionString</key><string>0.1-preview</string>' \
+	  '  <key>CFBundleVersion</key><string>1</string>' \
 	  '  <key>LSMinimumSystemVersion</key><string>11.0</string>' \
 	  '  <key>NSHighResolutionCapable</key><true/>' \
 	  '  <key>NSMicrophoneUsageDescription</key><string>xFlare necesita la entrada de audio para leer el vinilo de control.</string>' \
 	  '</dict></plist>' > xFlare.app/Contents/Info.plist; \
+	codesign --force --sign - --timestamp=none xFlare.app 2>/dev/null && echo "  firmado ad-hoc" || echo "  (codesign no disponible)"; \
 	echo "  hecho: xFlare.app$${ICON:+  (con icono)}"; \
 	echo "  abrelo: clic derecho sobre xFlare.app > Abrir > Abrir  (solo la 1a vez)"; \
 	echo "  o sin Gatekeeper:  xFlare.app/Contents/MacOS/xFlare"

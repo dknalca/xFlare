@@ -106,6 +106,10 @@ double xf_engine_scratch_playhead(const xf_engine *e);
 uint64_t xf_engine_overload_count(const xf_engine *e);
 uint64_t xf_engine_render_error_count(const xf_engine *e);
 
+/* Pico de la salida (0..~) **antes** de limitar, con decaimiento lento. Para el
+ * medidor de nivel de la UI: si pasa de 1,0, la mezcla estaba clipeando. */
+double xf_engine_output_peak(const xf_engine *e);
+
 /* ---- nucleo RT (testeable, sin CoreAudio) ---- */
 
 /* RT-SAFE: procesa un bloque.

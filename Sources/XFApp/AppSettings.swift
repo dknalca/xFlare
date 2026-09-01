@@ -16,6 +16,10 @@ public struct AppSettings: Equatable, Sendable {
     public var hamster: Bool
     public var metronomeEnabled: Bool
     public var bufferFrames: Int
+    /// Volumen del sample de scratch en la práctica (0…1).
+    public var scratchVolume: Double
+    /// Volumen de la base instrumental en la práctica (0…1).
+    public var instrumentalVolume: Double
     /// Multiplica las ventanas de tolerancia de clicks. `1.0` = estándar; subirlo
     /// afloja (para cabezotas), bajarlo aprieta.
     public var toleranceScale: Double
@@ -24,14 +28,18 @@ public struct AppSettings: Equatable, Sendable {
 
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
+        scratchVolume: 1.0, instrumentalVolume: 0.3,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false)
 
     public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
+                scratchVolume: Double = 1.0, instrumentalVolume: Double = 0.3,
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
         self.bufferFrames = AppSettings.bufferOptions.contains(bufferFrames) ? bufferFrames : 512
+        self.scratchVolume = min(1, max(0, scratchVolume))
+        self.instrumentalVolume = min(1, max(0, instrumentalVolume))
         self.toleranceScale = toleranceScale
         self.highContrast = highContrast
         self.reduceMotion = reduceMotion
@@ -44,6 +52,8 @@ public struct AppSettings: Equatable, Sendable {
         static let hamster = "hamster"
         static let metronome = "metronome.enabled"
         static let buffer = "audio.bufferFrames"
+        static let scratchVol = "audio.scratchVolume"
+        static let instrVol = "audio.instrumentalVolume"
         static let tolerance = "scoring.toleranceScale"
         static let contrast = "a11y.highContrast"
         static let motion = "a11y.reduceMotion"
@@ -60,6 +70,8 @@ public struct AppSettings: Equatable, Sendable {
             hamster: bool(Key.hamster, d.hamster),
             metronomeEnabled: bool(Key.metronome, d.metronomeEnabled),
             bufferFrames: int(Key.buffer, d.bufferFrames),
+            scratchVolume: dbl(Key.scratchVol, d.scratchVolume),
+            instrumentalVolume: dbl(Key.instrVol, d.instrumentalVolume),
             toleranceScale: max(0.5, min(2.0, dbl(Key.tolerance, d.toleranceScale))),
             highContrast: bool(Key.contrast, d.highContrast),
             reduceMotion: bool(Key.motion, d.reduceMotion))
@@ -71,6 +83,8 @@ public struct AppSettings: Equatable, Sendable {
             Key.hamster: hamster ? "1" : "0",
             Key.metronome: metronomeEnabled ? "1" : "0",
             Key.buffer: String(bufferFrames),
+            Key.scratchVol: String(scratchVolume),
+            Key.instrVol: String(instrumentalVolume),
             Key.tolerance: String(toleranceScale),
             Key.contrast: highContrast ? "1" : "0",
             Key.motion: reduceMotion ? "1" : "0",

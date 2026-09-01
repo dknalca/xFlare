@@ -6,13 +6,17 @@ vive en los módulos SPM.
 ## Ejecutar
 
 ```
-make run
-# o
-swift run xFlare
+make run          # swift run xFlare (dev, lee data/ y profiles/ del repo)
+make app          # empaqueta xFlare.app en la raiz, autocontenido y firmado ad-hoc
 ```
 
 `swift run` es CLI puro (compila + ejecuta un binario normal); **no** usa XCTest.
 Desde Xcode: abre `Package.swift`, elige el esquema **xFlare**, Run.
+
+`make app` copia `data/` y `profiles/` a `Contents/Resources/` (los lee
+`BundleContentLoader`) y firma ad-hoc (`codesign -s -`) para que arranque en
+Apple Silicon. Sin notarizar: la 1a vez, clic derecho > Abrir. Es B12a; falta
+solo el DMG (`hdiutil`) y el binario universal para publicar en Releases.
 
 ## Qué hace
 
@@ -27,12 +31,15 @@ Desde Xcode: abre `Package.swift`, elige el esquema **xFlare**, Run.
 ## Límites conocidos (para B12 / hardware)
 
 - **Contenido** (`data/`, `profiles/`): el `@main` elige el loader. Si el bundle
-  trae el catálogo → `BundleContentLoader` (`Contents/Resources/`). Si no (p. ej.
-  `swift run` en dev) → `RepoContentLoader` (repo, vía `#filePath`). El **copiado
-  físico** de `data/` y `profiles/` a `Contents/Resources/` lo hará el script de
-  empaquetado del DMG (B12a.4), no SwiftPM.
-- La pantalla de práctica dibuja la autopista sincronizada al reloj del motor,
-  pero el **bucle de sesión + scoring en vivo** necesita el callback de audio
-  corriendo → se verifica en la máquina.
-- Persistir "ajustes" y "continuar" necesita un accesor de la tabla `setting`
-  en `XFPersistence` (aditivo, pendiente).
+  trae el catálogo → `BundleContentLoader` (`Contents/Resources/`, lo pone
+  `make app`). Si no (`swift run` en dev) → `RepoContentLoader` (repo, vía
+  `#filePath`).
+- **Práctica**: hay modo rudimentario jugable con trackpad/teclado (mueve el
+  plato, suena el scratch + base instrumental, medidor de nivel, volúmenes por
+  ejercicio). El **bucle de sesión + scoring en vivo** (series, cuenta atrás,
+  `XFEngine`+`XFAnalysis`) sigue pendiente y necesita la captura de audio real.
+- **Ajustes** se persisten en un plist local (`UserDefaults` de suite
+  `app.xflare.settings`), no en la BD. Un accesor de la tabla `setting` de
+  `XFPersistence` sigue pendiente (aditivo) para unificarlo.
+- Para publicar en Releases falta: binario **universal** y el **DMG**
+  (`hdiutil`). Notarización + Homebrew = B12b (ADR-037).

@@ -149,6 +149,28 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertEqual(out.map { abs($0) }.max() ?? 0, 0, "gain 0 -> silencio")
     }
 
+    func testSoftClipYPicoDeSalida() {
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        xf_metronome_set_enabled(xf_engine_metronome(e), false)
+        // sample muy caliente + gain alto -> la mezcla se pasaria de 1.0
+        let sample = stableSample([Float](repeating: 0.95, count: 8192))
+        defer { sample.deallocate() }
+        xf_engine_load_sample(e, sample.baseAddress, Int64(sample.count))
+        xf_engine_set_velocity(e, 1.0)
+        xf_engine_set_master_gain(e, 1.5)
+
+        var acc: [Float] = []
+        for _ in 0..<40 { acc += render(e, inL: nil, inR: nil, n: 128).l }
+        let peakOut = acc.map { abs($0) }.max() ?? 0
+
+        // la salida NO recorta duro (queda por debajo de 1.0 gracias al soft-clip)
+        XCTAssertLessThan(peakOut, 1.0)
+        XCTAssertGreaterThan(peakOut, 0.7, "pero sigue sonando fuerte (rodilla suave)")
+        // el medidor reporta que la mezcla iba por encima de 1.0 (clipeaba)
+        XCTAssertGreaterThan(xf_engine_output_peak(e), 1.0)
+    }
+
     func testElMetronomoSeMezclaEnLaSalida() {
         let e = xf_engine_create(sr, 128)!
         defer { xf_engine_destroy(e) }

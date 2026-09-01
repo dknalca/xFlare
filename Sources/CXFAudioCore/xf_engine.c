@@ -45,6 +45,7 @@ struct xf_engine {
     _Atomic double  scratch_gain_target;  /* 0..1, solo el player de scratch */
     double          scratch_gain_cur;     /* suavizado, solo lo toca el hilo RT */
     double          scratch_gain_coef;    /* one-pole ~5 ms, precalculado */
+    _Atomic double  out_peak;             /* pico de salida ANTES de limitar, para la UI */
 
     /* reloj musical: avanzado en RT, leido por Swift */
     _Atomic double  reported_tick;   /* tick al inicio del ultimo bloque */
@@ -245,6 +246,9 @@ uint64_t xf_engine_overload_count(const xf_engine *e) {
 uint64_t xf_engine_render_error_count(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->render_errors) : 0;
 }
+double xf_engine_output_peak(const xf_engine *e) {
+    return e ? atomic_load(&((xf_engine *)e)->out_peak) : 0.0;
+}
 
 int xf_engine_api_version(void) { return 1; }
 
@@ -320,13 +324,29 @@ void xf_engine_render(xf_engine *e,
 
     xf_metronome_render(e->metronome, e->mono, nframes, block_start_tick, bpm);
 
+    /* Salida: soft-clip en vez de recorte duro (el recorte duro suena a
+     * crujido). Transparente hasta |s| = 0,7; por encima, rodilla suave con
+     * tanh. Ademas se guarda el pico ANTES de limitar, para el medidor de la UI
+     * (si supera 1,0, la mezcla estaba clipeando). */
+    float peak = 0.0f;
     for (int n = 0; n < nframes; n++) {
         float s = e->mono[n] * gain;
-        if (s > 1.0f) s = 1.0f;
-        else if (s < -1.0f) s = -1.0f;
+        float a = s < 0.0f ? -s : s;
+        if (a > peak) peak = a;
+
+        const float knee = 0.7f;
+        if (a > knee) {
+            float over = (a - knee) / (1.0f - knee);   /* >0 */
+            float shaped = knee + (1.0f - knee) * tanhf(over);
+            s = s < 0.0f ? -shaped : shaped;
+        }
         out_l[n] = s;
         out_r[n] = s;
     }
+    /* pico con decaimiento lento entre bloques, para que el medidor no parpadee */
+    double prev = atomic_load(&e->out_peak);
+    double decayed = prev * 0.85;
+    atomic_store(&e->out_peak, (double)peak > decayed ? (double)peak : decayed);
 }
 
 /* ================================================================== *

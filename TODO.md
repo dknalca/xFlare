@@ -251,6 +251,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: los 25 scratches contra Fixtures/golden/
       - Hecho (2026-09-01): `HighwaySVG.document(frame:geometry:)` serializa un `HighwayFrame` a SVG **determinista** (coordenadas a 4 decimales, locale C, sin `-0` — politica ADR-028; eje Y volteado). `GoldenHighwayTests` dibuja los 25 scratches de la libreria (encuadre fijo, `atTick: 0`) y compara contra `Fixtures/golden/highway/<id>.svg`; con `XF_GOLDEN_UPDATE=1` (via `make golden-update`) los regenera. 25 goldens commiteados. + 4 tests de estructura/determinismo del serializador.
 - [x] **B7.7** **SELLAR XFDesign y XFRender** `XFDesign,XFRender`
+      - Iterado (2026-09-01, feedback): **crujidos = clipping** -> soft-clip en la salida del
+        motor (transparente hasta 0,7, rodilla `tanh`), nunca recorte duro. **Medidor de
+        nivel** a la derecha en la practica (`xf_engine_output_peak`, "CLIP" si pasa de 1,0).
+        **Volumen por ejercicio**: sliders Sample/Instru en la practica ->
+        `xf_engine_set_scratch_gain`/`_set_instrumental_gain`, persistidos en `AppSettings`.
+        **Libreria plana** (sin agrupar por nivel). `make app` copia `data/`+`profiles/` a
+        `Contents/Resources/` y firma ad-hoc (B12a).
       - Re-sellado (2026-09-01, **ADR-040**): la sombra de la autopista se parte donde
         el fader esta cerrado (mute = hueco, notacion TTM; el corte lo marcan los
         circulos). Aditivo: `HighwayFrame.discSegments` (con default), pintado en
