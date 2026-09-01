@@ -535,7 +535,8 @@
           "title": "Golden tests de render en SVG",
           "module": "XFRender",
           "acceptance": "los 25 scratches contra Fixtures/golden/",
-          "status": "todo"
+          "status": "done",
+          "note": "HighwaySVG.document(frame:geometry:) serializa un HighwayFrame a SVG determinista (4 decimales, locale C, sin -0 segun ADR-028; eje Y volteado). GoldenHighwayTests dibuja los 25 scratches (encuadre fijo, atTick 0) vs Fixtures/golden/highway/<id>.svg; make golden-update (XF_GOLDEN_UPDATE=1) los regenera. 25 goldens commiteados + 4 tests del serializador."
         },
         {
           "id": "B7.7",

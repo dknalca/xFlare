@@ -6,7 +6,7 @@ import XFNotation
 /// render. Mismo truco que `XFNFixtures`: `#filePath` sube hasta la raíz del repo.
 enum RenderFixtures {
 
-    private static let repoRoot: URL = URL(fileURLWithPath: #filePath)
+    static let repoRoot: URL = URL(fileURLWithPath: #filePath)
         .deletingLastPathComponent()   // Tests/XFRenderTests
         .deletingLastPathComponent()   // Tests
         .deletingLastPathComponent()   // raíz
