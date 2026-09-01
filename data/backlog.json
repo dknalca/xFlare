@@ -674,7 +674,8 @@
           "title": "Historico de tomas, progreso y desbloqueos",
           "module": "XFPersistence",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "Records GRDB PracticeSession, Attempt (== data/schema/attempt.schema.json), AttemptEvent, VariantUnlock. XFDatabase+Attempts: saveSession, saveAttempt(_:events:), attempt(id:), events(ofAttempt:), attempts(exerciseId:variantId:limit:) y attempts(exerciseId:limit:) (historico reciente->antiguo). XFDatabase+Unlocks: markVariantUnlocked (idempotente), isVariantUnlocked, unlockedVariants. Progreso agregado = B10.7, dominado/desbloqueo = B10.8. 12 tests."
         },
         {
           "id": "B10.3",
@@ -694,8 +695,9 @@
           "id": "B10.6",
           "title": "Tabla de intentos con eventScores y ruta al .xfsession",
           "module": "XFPersistence",
-          "status": "todo",
-          "acceptance": "data/schema/attempt.schema.json"
+          "status": "done",
+          "acceptance": "data/schema/attempt.schema.json",
+          "note": "Junto con B10.2. La tabla attempt cubre todas las properties del schema; sessionFile guarda la ruta al .xfsession; eventScores son filas de AttemptEvent guardadas/ledas con saveAttempt(_:events:) / events(ofAttempt:), borrado en cascada. Round-trip verificado con todos los campos, con opcionales nil y con los 5 modos."
         },
         {
           "id": "B10.7",

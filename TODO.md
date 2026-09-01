@@ -291,11 +291,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 - [x] **B10.1** Esquema GRDB y migraciones `XFPersistence`
       - Hecho (2026-09-01): `XFDatabase` (abre el SQLite con `DatabaseQueue`, `foreignKeysEnabled`, aplica el migrador; `inMemory()` para tests; `isUpToDate()`). `Schema.migrator` con la migracion **`v1`** que crea las 10 tablas del bloque B10: `practiceSession`, `attempt` (== `data/schema/attempt.schema.json`, con `countsForStars` por defecto true — ADR-027) + `attemptEvent` (`eventScores`, `ON DELETE CASCADE`), `exerciseProgress` (== `docs/SCORING.md` §3, PK compuesta), `variantUnlock`, `exerciseMastery` (dominado/oxidado), `reviewSchedule` (repeticion espaciada 1/3/7/21 via `stage`+`dueAt`), `deviceCalibration`, `practiceDay` (racha), `setting`. Regla: una migracion publicada no se toca; los cambios van en `v2`+. El codigo de consulta tipado es B10.2+. 10 tests (tablas, columnas de attempt, FK exigida, cascada, SET NULL, idempotencia). `GRDB` añadido al target de tests.
-- [ ] **B10.2** Historico de tomas, progreso y desbloqueos `XFPersistence`
+- [x] **B10.2** Historico de tomas, progreso y desbloqueos `XFPersistence`
+      - Hecho (2026-09-01): records GRDB `PracticeSession`, `Attempt` (== `data/schema/attempt.schema.json`, `Mode` como enum), `AttemptEvent`, `VariantUnlock`. `XFDatabase+Attempts`: `saveSession`, `saveAttempt(_:events:)` (guarda intento + `eventScores` en una transaccion, reemplaza los eventos al reguardar), `attempt(id:)`, `events(ofAttempt:)`, `attempts(exerciseId:variantId:limit:)` y `attempts(exerciseId:limit:)` (histrico, del mas reciente al mas antiguo). `XFDatabase+Unlocks`: `markVariantUnlocked` (idempotente, no pisa la fecha), `isVariantUnlocked`, `unlockedVariants`. El progreso agregado es B10.7, la derivacion de dominado/desbloqueo es B10.8. 12 tests.
 - [ ] **B10.3** Repeticion espaciada (1, 3, 7, 21 dias) `XFPersistence`
 - [ ] **B10.4** Perfiles de calibracion por dispositivo `XFPersistence`
-- [ ] **B10.6** Tabla de intentos con eventScores y ruta al .xfsession `XFPersistence`
+- [x] **B10.6** Tabla de intentos con eventScores y ruta al .xfsession `XFPersistence`
       - Criterio: data/schema/attempt.schema.json
+      - Hecho (2026-09-01): junto con B10.2. La tabla `attempt` cubre todas las `properties` del schema (test `testColumnasDeAttemptCoincidenConElSchema` en B10.1); `sessionFile` guarda la ruta al `.xfsession` crudo; `eventScores` son filas de `AttemptEvent` (tipo/`t`/`points`/`offsetMs`), guardadas y ledas con `saveAttempt(_:events:)` / `events(ofAttempt:)`, borrado en cascada. Round-trip verificado con todos los campos llenos y con los opcionales a `nil`, y con los 5 modos.
 - [ ] **B10.7** Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio `XFPersistence`
       - Criterio: docs/SCORING.md seccion 3
 - [ ] **B10.8** Estado de dominado y desbloqueo de variantes `XFPersistence`
