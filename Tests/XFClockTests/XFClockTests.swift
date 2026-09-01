@@ -2,9 +2,15 @@
 import XCTest
 @testable import XFClock
 
-// Andamiaje (B0.1): solo verifica que el modulo compila y enlaza.
+/// Comprobaciones del espacio de nombres y las constantes del dominio musical.
 final class XFClockTests: XCTestCase {
-    func testScaffoldingLinks() {
-        XCTAssertEqual(XFClock.scaffoldingVersion, 0)
+
+    func testPPQEs480() {
+        // ADR-016. Hay datos serializados con este valor; no se cambia sin ADR.
+        XCTAssertEqual(XFClock.ppq, 480)
+    }
+
+    func testAPIVersionEsEstable() {
+        XCTAssertEqual(XFClock.apiVersion, 1)
     }
 }

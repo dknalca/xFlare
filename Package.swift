@@ -28,6 +28,7 @@ let package = Package(
         // ---------- CAPA 0 · tiempo real (C) ----------
         .target(name: "CXFAudioCore",
                 path: "Sources/CXFAudioCore",
+                exclude: ["README.md"],
                 cSettings: [.headerSearchPath("include")]),
 
         .target(name: "CXFTimecode",
@@ -39,16 +40,24 @@ let package = Package(
                 cSettings: [.headerSearchPath("include"),
                             .headerSearchPath("vendor/xwax")]),
 
+        // Vocabulario compartido de muestras de entrada (Swift value types).
+        // Esta en el fondo del grafo para que XFCapture (produce) y XFAnalysis
+        // (consume) no tengan que verse entre si. Ver ADR-033.
+        .target(name: "XFPrimitives", exclude: ["README.md"]),
+
         // ---------- CAPA 1 · dominio (Swift) ----------
-        .target(name: "XFClock"),
+        // `exclude: ["README.md"]` en los modulos que ya llevan su README de
+        // sellado: SPM lo trataria como recurso sin declarar y avisa.
+        .target(name: "XFClock", exclude: ["README.md"]),
 
-        .target(name: "XFNotation",       dependencies: ["XFClock"]),
+        .target(name: "XFNotation",       dependencies: ["XFClock"], exclude: ["README.md"]),
 
-        .target(name: "XFProfiles"),
+        .target(name: "XFProfiles", exclude: ["README.md"]),
 
-        .target(name: "XFCapture",        dependencies: ["XFClock", "CXFTimecode", "XFProfiles"]),
+        .target(name: "XFCapture",        dependencies: ["XFPrimitives", "XFClock", "CXFTimecode", "XFProfiles"]),
 
-        .target(name: "XFAnalysis",       dependencies: ["XFNotation", "XFClock"]),
+        .target(name: "XFAnalysis",       dependencies: ["XFPrimitives", "XFNotation", "XFClock"],
+                                          exclude: ["README.md"]),
 
         .target(name: "XFPersistence",    dependencies: ["XFNotation",
                                                          .product(name: "GRDB", package: "GRDB.swift")]),
@@ -68,7 +77,8 @@ let package = Package(
         // Ejecutable de andamiaje. Depende de XFApp solo para enlazar el grafo
         // entero y servir de prueba de humo. Su contenido (pantallas maquetadas)
         // se sustituye por la vista raiz real de XFApp en el bloque B11.
-        .executableTarget(name: "xFlare", dependencies: ["XFApp"], path: "Sources/xFlare"),
+        .executableTarget(name: "xFlare", dependencies: ["XFApp"], path: "Sources/xFlare",
+                          exclude: ["README.md"]),
 
         // ---------- utilidades de test ----------
         .target(name: "XFTestKit",        dependencies: ["XFCapture", "XFNotation"],
@@ -76,6 +86,7 @@ let package = Package(
 
         // ---------- tests: uno por modulo ----------
         .testTarget(name: "CXFAudioCoreTests",  dependencies: ["CXFAudioCore"]),
+        .testTarget(name: "XFPrimitivesTests",  dependencies: ["XFPrimitives"]),
         .testTarget(name: "CXFTimecodeTests",   dependencies: ["CXFTimecode", "XFTestKit"]),
         .testTarget(name: "XFClockTests",       dependencies: ["XFClock"]),
         .testTarget(name: "XFNotationTests",    dependencies: ["XFNotation", "XFTestKit"]),

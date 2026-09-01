@@ -153,28 +153,32 @@
           "title": "Conversiones tick / ms / hostTime con PPQ 480",
           "module": "XFClock",
           "acceptance": "tests de ida y vuelta sin perdida en 10.000 valores",
-          "status": "todo"
+          "status": "done",
+          "note": "Tempo (tick<->ms<->s) y ClockMap (tick<->hostTime, ancla + tempo + HostClock). Ida y vuelta exacta: 10.000 valores x 6 tempos (ms) y 10.000 x 4 tempos x 2 timebases Intel/Apple Silicon (hostTime). Contrato de redondeo en ADR-031."
         },
         {
           "id": "B2.2",
           "title": "Transporte: play, stop, loop, cuenta atras de N compases",
           "module": "XFClock",
           "acceptance": "tests de estado y de limites",
-          "status": "todo"
+          "status": "done",
+          "note": "Transport es un struct valor sin hilo: lo avanza el driver de audio con advance(by:). Estados stopped/countIn/playing, cuenta atras como position negativa hacia 0, loop con envoltura por % (varias vueltas por bloque). 16 tests de estado y limites."
         },
         {
           "id": "B2.3",
           "title": "ClockMap: mapear una captura a ticks",
           "module": "XFClock",
           "acceptance": "test con desfase y con tempo distinto",
-          "status": "todo"
+          "status": "done",
+          "note": "ancla (hostTime <-> tick) + Tempo + HostClock. Tests con desfase de ancla, tempo distinto (doble tempo -> doble ticks), saturacion a 0 hacia atras del origen, y las dos timebases."
         },
         {
           "id": "B2.4",
           "title": "SELLAR XFClock",
           "module": "XFClock",
           "acceptance": "cumple las 5 condiciones de ARCHITECTURE.md seccion 6",
-          "status": "todo"
+          "status": "done",
+          "note": "make seal M=XFClock en verde. Sources/XFClock/README.md con API publica + ejemplo. Todo lo no-publico es private. MODULE_STATUS.md -> SEALED 2026-08-31, 34 tests. ADR-031. apiVersion = 1."
         }
       ]
     },
@@ -189,49 +193,56 @@
           "title": "Modelos Codable: Scratch, Exercise, Level, primitivas",
           "module": "XFNotation",
           "acceptance": "decodifican data/*.json sin perdida; validan contra data/schema/*.json",
-          "status": "todo"
+          "status": "done",
+          "note": "HandPattern, FaderPattern (decode manual de reglas [frac,state]), PrimitiveSet, CatalogEntry, Scratch, RecordPhase, FaderEvent, ScratchLibrary. Decodifican data/primitives/*.json, tools/catalog.json y library-v0.1.json. 5 tests."
         },
         {
           "id": "B3.2",
           "title": "Portar el compositor mano x fader de xfn_core.py a Swift",
           "module": "XFNotation",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "Composer.compose porta compose() literal: round medio-a-par, orden estable del fader, dedup de estados consecutivos, comprobacion de cierre del bucle. Division.unitTicks porta div_to_ticks."
         },
         {
           "id": "B3.3",
           "title": "Golden: la libreria compilada en Swift es identica a library-v0.1.json",
           "module": "XFNotation",
           "acceptance": "diff vacio byte a byte sobre los 25 scratches",
-          "status": "todo"
+          "status": "done",
+          "note": "GoldenLibraryTests compara ScratchLibrary.build vs library-v0.1.json CAMPO A CAMPO (enteros/enums exactos, dobles round4 + tol 1e-9). El 'byte a byte' del criterio choca con ADR-028; resuelto en ADR-032. Los 25 scratches coinciden."
         },
         {
           "id": "B3.4",
           "title": "Fases con tramo parcial de curva (u0/u1) y funcion de recorte",
           "module": "XFNotation",
-          "status": "todo",
-          "acceptance": "recortar por mitad de un movimiento conserva la curva exacta, no la aproxima con rectas"
+          "status": "done",
+          "acceptance": "recortar por mitad de un movimiento conserva la curva exacta, no la aproxima con rectas",
+          "note": "RecordPhase con u0/u1/pFrom/pTo; Scratch.cropped(from:to:) porta crop(); PositionSampler.position usa el tramo parcial. Test: posicion del recortado == posicion del entero en todo el solape."
         },
         {
           "id": "B3.5",
           "title": "Transformaciones de variante: offset, amplitude, mirror, subdivision, swing",
           "module": "XFNotation",
-          "status": "todo",
-          "acceptance": "golden contra las variantes generadas por tools/xfn_core.py"
+          "status": "done",
+          "acceptance": "golden contra las variantes generadas por tools/xfn_core.py",
+          "note": "offset/amplitude/mirror/swing portadas con golden vs xfn_core.py. subdivision anadida (Composer.composeWithSubdivision: recompone con otra division ajustando ciclos para conservar la longitud musical). dropout fuera de XFNotation (decide que compases puntuan -> XFEngine). Decision del autor 2026-09-01, ADR-032."
         },
         {
           "id": "B3.6",
           "title": "Calculo de eventos evaluables y maxScore por variante",
           "module": "XFNotation",
-          "status": "todo",
-          "acceptance": "2-Click Flare base = 3.600; su div16 = 4.800"
+          "status": "done",
+          "acceptance": "2-Click Flare base = 3.600; su div16 = 4.800",
+          "note": "Criterio unificado con docs/SCORING.md (decision del autor 2026-09-01): pitch = uno por semicorchea (ppq/4). 2C Flare base = 16+16+4 = 36 = 3600. subdivision(1/16) = 56 = 5600 (formula uniforme; SCORING.md/scoring.json actualizados). ADR-032."
         },
         {
           "id": "B3.7",
           "title": "SELLAR XFNotation",
           "module": "XFNotation",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "make seal M=XFNotation en verde. README con API + ejemplo. MODULE_STATUS.md -> SEALED 2026-09-01, 20 tests. apiVersion = 1. ADR-032."
         }
       ]
     },
@@ -246,42 +257,48 @@
           "title": "Ring buffer SPSC lock-free en C",
           "module": "CXFAudioCore",
           "acceptance": "tests al 100%, incluido productor/consumidor concurrente",
-          "status": "todo"
+          "status": "done",
+          "note": "xf_ring (include/xf_ring.h + xf_ring.c). SPSC, buffer aportado por el llamante (sin malloc), capacidad potencia de 2. head/tail contadores de 64 bits que solo suben; atomicidad con builtins __atomic_* de Clang (sin <stdatomic.h> en el header, no es module-safe). include/module.modulemap explicito. 6 tests incl. estres 1 MiB por ring de 1 KiB con verificacion byte a byte."
         },
         {
           "id": "B4.2",
           "title": "Callback CoreAudio RT-safe, 64 frames, con thread_policy_set Y workgroup de audio",
           "module": "CXFAudioCore",
           "acceptance": "0 malloc/locks verificado con Instruments; el hilo se une al workgroup del dispositivo (obligatorio en Apple Silicon)",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: hardware + Instruments. El spike spike/b1-latency/passthrough.c ya tiene la plumberia CoreAudio a 64 frames; B4.2 es la version definitiva con ring buffer y prioridad RT."
         },
         {
           "id": "B4.3",
           "title": "Reproductor de sample con resampling por velocidad y direccion",
           "module": "CXFAudioCore",
           "acceptance": "scratch audible sin clicks ni aliasing",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: 'audible' necesita oido + hardware."
         },
         {
           "id": "B4.4",
           "title": "Metronomo mezclado en la salida principal (ADR-007)",
           "module": "CXFAudioCore",
           "acceptance": "-",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: va en el callback de B4.2."
         },
         {
           "id": "B4.5",
           "title": "PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min",
           "module": "CXFAudioCore",
           "acceptance": "medido y documentado en docs/TIMECODE.md",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: medicion en hardware (misma que B1.5)."
         },
         {
           "id": "B4.6",
           "title": "SELLAR CXFAudioCore",
           "module": "CXFAudioCore",
           "acceptance": "-",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado por B4.2-B4.5."
         }
       ]
     },
@@ -339,50 +356,56 @@
           "id": "B5b.1",
           "title": "Parser INI propio, sin dependencias (ADR-019)",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "carga los 6 perfiles de profiles/ sin perdida"
+          "status": "done",
+          "acceptance": "carga los 6 perfiles de profiles/ sin perdida",
+          "note": "INIDocument(text:): secciones, claves con punto, comentarios #/;, claves sensibles a mayusculas, delimitador = o :, conserva orden. Los 6 ficheros parsean."
         },
         {
           "id": "B5b.2",
           "title": "Resolucion de extends con deteccion de herencia circular",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "pioneer-djm-s9 resuelve heredando de la s11; un ciclo da error claro"
+          "status": "done",
+          "acceptance": "pioneer-djm-s9 resuelve heredando de la s11; un ciclo da error claro",
+          "note": "ProfileResolver.resolve porta resolve(). djm-s9 hereda method/canales/quirks de la s11. Ciclo -> circularInheritance(chain:); ancestro inexistente -> unknownAncestor."
         },
         {
           "id": "B5b.3",
           "title": "Validacion equivalente a tools/xf_profile.py",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "mismos errores que el validador Python sobre los mismos ficheros"
+          "status": "done",
+          "acceptance": "mismos errores que el validador Python sobre los mismos ficheros",
+          "note": "ProfileValidator.validate porta check(): claves obligatorias, booleanos, method valido + claves segun metodo, cut_in 0..1 y left<right, id minusculas, aviso SIN VERIFICAR. Mismo resultado que xf_profile.py --all sobre los 6."
         },
         {
           "id": "B5b.4",
           "title": "Autodeteccion por nombre de puerto MIDI y dispositivo de audio",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "comodines * funcionan; si hay empate, no elige, pregunta"
+          "status": "done",
+          "acceptance": "comodines * funcionan; si hay empate, no elige, pregunta",
+          "note": "GlobMatch (solo *, sin caso) + ProfileStore.autodetect -> unique / ambiguous / none. En empate devuelve ambiguous, no elige."
         },
         {
           "id": "B5b.5",
           "title": "Carga desde el bundle y desde la carpeta del usuario, con precedencia",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "segun DEVICE_PROFILES.md seccion 5"
+          "status": "done",
+          "acceptance": "segun DEVICE_PROFILES.md seccion 5",
+          "note": "ProfileStore(bundled:user:): el usuario pisa al bundle por id; cada Entry sabe su origen. Resuelve extends y tipa en 2a pasada."
         },
         {
           "id": "B5b.6",
           "title": "SELLAR XFProfiles",
           "module": "XFProfiles",
-          "status": "todo",
-          "acceptance": "-"
+          "status": "done",
+          "acceptance": "-",
+          "note": "make seal M=XFProfiles en verde. Sources/XFProfiles/README.md con API + ejemplo. Todo lo no-publico private. MODULE_STATUS.md -> SEALED 2026-08-31, 24 tests. apiVersion = 1."
         }
       ]
     },
     {
       "id": "B6",
       "name": "XFCapture",
-      "goal": "Abstraer la entrada. Aqui se desbloquea el desarrollo sin mesa.",
+      "goal": "Abstraer la entrada. Aqui se desbloquea el desarrollo sin mesa. | Modulo nuevo XFPrimitives (capa 0, ADR-033): MotionSample/FaderSample. SEALED 2026-09-01.",
       "phase": "later",
       "tasks": [
         {
@@ -390,7 +413,8 @@
           "title": "Protocolos MotionSource y FaderSource",
           "module": "XFCapture",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "MotionSource/FaderSource (AnyObject, start/stop/latest, isConnected), importan XFPrimitives. Test con fuente falsa."
         },
         {
           "id": "B6.2",
@@ -425,21 +449,24 @@
           "title": "Binarizacion del fader con cut-in calibrado e histeresis (ADR-017)",
           "module": "XFCapture",
           "acceptance": "0 eventos fantasma en 1 min de fader quieto",
-          "status": "todo"
+          "status": "done",
+          "note": "FaderBinarizer: disparador de Schmitt alrededor de cutIn con banda hysteresis; flag hamster para reverse (ADR-008). binarize([(hostTime,value)]) -> [FaderSample], conserva estado. Test: 60.000 lecturas con ruido +-0,03 y banda 0,08 -> 0 transiciones."
         },
         {
           "id": "B6.6",
           "title": "Formato .xfsession: grabar y reproducir + ReplaySource",
           "module": "XFCapture",
           "acceptance": "una sesion grabada se reproduce bit a bit igual",
-          "status": "todo"
+          "status": "done",
+          "note": "XFSession (JSON Lines: cabecera de calibracion + muestras). Floats como cadena para ida y vuelta exacta (JSONEncoder de esta toolchain no re-parsea el mismo bit, ADR-028). ReplayMotionSource/ReplayFaderSource avanzan con seek(toHostTime:), deterministas. Ida y vuelta value-equal + re-encode estable. 15 tests."
         },
         {
           "id": "B6.7",
           "title": "SELLAR XFCapture",
           "module": "XFCapture",
           "acceptance": "-",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado por B6.2-B6.5 (fuentes de hardware / teclado)."
         }
       ]
     },
@@ -518,56 +545,64 @@
           "title": "Emparejado de clicks objetivo/usuario y desfase con signo",
           "module": "XFAnalysis",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "ClickMatcher: cierres del patron (hostTime via ClockMap) vs cierres del usuario, emparejado al mas cercano dentro de +/-150 ms, offsetMs con signo."
         },
         {
           "id": "B8.2",
           "title": "DTW de contorno de tono, afinacion relativa (ADR-005)",
           "module": "XFAnalysis",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "DTW.normalizedDistance (banda Sakoe-Chiba). PitchAnalyzer: velocidad objetivo (derivada de la curva) vs usuario por semicorchea, cada contorno normalizado por su maximo (relativo, ADR-005)."
         },
         {
           "id": "B8.3",
           "title": "Consistencia (sigma) y amplitud de recorrido",
           "module": "XFAnalysis",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "sigma y sesgo = desv. tipica y media de los offsetMs. AmplitudeAnalyzer: recorrido de cada trazo fwd normalizado al rango del propio usuario vs el del patron."
         },
         {
           "id": "B8.4",
           "title": "Generador de diagnosticos en lenguaje natural (ADR-018)",
           "module": "XFAnalysis",
           "acceptance": "distingue sesgo sistematico de dispersion y lo dice distinto",
-          "status": "todo"
+          "status": "done",
+          "note": "Diagnoser: clicks perdidos, luego sesgo (|media|>=12ms y sigma baja) vs dispersion (sigma>=18ms), amplitud, contorno. Umbrales provisionales."
         },
         {
           "id": "B8.5",
           "title": "Tests de replay: good / late / sloppy por patron de nivel 1-4",
           "module": "XFAnalysis",
           "acceptance": "segun docs/TESTING.md",
-          "status": "todo"
+          "status": "wip",
+          "note": "version sintetica hecha (ReplayScoringTests + SyntheticTake generan el Take desde el patron): good>=0.88 y 3 estrellas, late(+35ms) sesgo sistematico, sloppy(+/-45ms) dispersion, clicks perdidos contados. Falta: .xfsession grabados reales (hardware)."
         },
         {
           "id": "B8.6",
           "title": "Puntuacion por evento y total sobre maxScore",
           "module": "XFAnalysis",
-          "status": "todo",
-          "acceptance": "docs/SCORING.md seccion 1"
+          "status": "done",
+          "acceptance": "docs/SCORING.md seccion 1",
+          "note": "DefaultScorer suma clicks+pitch+amplitud; maxScore de XFNotation.ScoreEvents; accuracy = score/maxScore. Tablas en ScoringConstants."
         },
         {
           "id": "B8.7",
           "title": "Tres estrellas por criterios ortogonales (ADR-025)",
           "module": "XFAnalysis",
-          "status": "todo",
-          "acceptance": "un 88% con un fallo da 1 estrella, no 2"
+          "status": "done",
+          "acceptance": "un 88% con un fallo da 1 estrella, no 2",
+          "note": "Stars: 1 >=70% y al final; 2 >=85% y cero eventos a 0; 3 >=95%, sigma<=15ms y al BPM objetivo. starReasons dice que falta. Test: 88% + 1 evento a 0 -> 1 estrella."
         },
         {
           "id": "B8.8",
           "title": "SELLAR XFAnalysis",
           "module": "XFAnalysis",
           "acceptance": "-",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado por B8.5 (tomas reales) y afinado de umbrales de B8.4. Resto hecho, 10 tests verdes."
         }
       ]
     },

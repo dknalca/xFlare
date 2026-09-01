@@ -1,0 +1,5 @@
+module CXFAudioCore {
+    header "xf_audio_core.h"
+    header "xf_ring.h"
+    export *
+}

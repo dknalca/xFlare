@@ -24,7 +24,7 @@
       ]
     },
     "pitch": {
-      "desc": "Control de contorno de tono, uno por corchea",
+      "desc": "Control de contorno de tono, uno por semicorchea (ppq/4)",
       "metric": "dtw_local",
       "bands": [
         [

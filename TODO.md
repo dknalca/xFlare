@@ -93,46 +93,63 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *El reloj musical. Puro, pequeno, se sella rapido.*
 
-- [ ] **B2.1** Conversiones tick / ms / hostTime con PPQ 480 `XFClock`
+- [x] **B2.1** Conversiones tick / ms / hostTime con PPQ 480 `XFClock`
       - Criterio: tests de ida y vuelta sin perdida en 10.000 valores
-- [ ] **B2.2** Transporte: play, stop, loop, cuenta atras de N compases `XFClock`
+      - Hecho: `Tempo` (tick↔ms↔s) y `ClockMap` (tick↔hostTime, ancla + tempo). Ida y vuelta exacta verificada con 10.000 valores × 6 tempos (ms) y 10.000 × 4 tempos × 2 timebases Intel/Apple Silicon (hostTime). Contrato de redondeo en ADR-031.
+- [x] **B2.2** Transporte: play, stop, loop, cuenta atras de N compases `XFClock`
       - Criterio: tests de estado y de limites
-- [ ] **B2.3** ClockMap: mapear una captura a ticks `XFClock`
+      - Hecho: `Transport` (struct valor, sin hilo: lo avanza el driver de audio con `advance(by:)`). Estados stopped/countIn/playing, cuenta atras como position negativa que sube a 0, loop con envoltura por `%` (varias vueltas por bloque). 16 tests de estado y limites (overshoot de la cuenta atras, loop con inicio desplazado, advance en stopped, etc.).
+- [x] **B2.3** ClockMap: mapear una captura a ticks `XFClock`
       - Criterio: test con desfase y con tempo distinto
-- [ ] **B2.4** **SELLAR XFClock** `XFClock`
+      - Hecho: `ClockMap` con ancla `(hostTime ↔ tick)` + `Tempo` + `HostClock`. Tests con desfase de ancla, con tempo distinto (doble tempo → doble ticks), saturacion a 0 hacia atras del origen, y las dos timebases.
+- [x] **B2.4** **SELLAR XFClock** `XFClock`
       - Criterio: cumple las 5 condiciones de ARCHITECTURE.md seccion 6
+      - Hecho: `make seal M=XFClock` en verde. `Sources/XFClock/README.md` con API publica + ejemplo. Todo lo no-publico es `private`. `docs/MODULE_STATUS.md` → SEALED 2026-08-31, 34 tests. ADR-031 registrada. `apiVersion = 1`.
 
 ## B3 — XFNotation
 
 *El modelo XFN en Swift, validado contra la referencia Python.*
 
-- [ ] **B3.1** Modelos Codable: Scratch, Exercise, Level, primitivas `XFNotation`
+- [x] **B3.1** Modelos Codable: Scratch, Exercise, Level, primitivas `XFNotation`
       - Criterio: decodifican data/*.json sin perdida; validan contra data/schema/*.json
-- [ ] **B3.2** Portar el compositor mano x fader de xfn_core.py a Swift `XFNotation`
-- [ ] **B3.3** Golden: la libreria compilada en Swift es identica a library-v0.1.json `XFNotation`
+      - Hecho: `HandPattern`, `FaderPattern` (con decode manual de las reglas `[frac, state]`), `PrimitiveSet`, `CatalogEntry`, `Scratch`, `RecordPhase`, `FaderEvent`, `ScratchLibrary`. Decodifican `data/primitives/*.json`, `tools/catalog.json` y `data/scratches/library-v0.1.json`. Tests: 5.
+- [x] **B3.2** Portar el compositor mano x fader de xfn_core.py a Swift `XFNotation`
+      - Hecho: `Composer.compose(...)` porta `compose()` literal (round medio-a-par, orden estable del fader, dedup de estados, cierre del bucle). `Division.unitTicks` porta `div_to_ticks`.
+- [x] **B3.3** Golden: la libreria compilada en Swift es identica a library-v0.1.json `XFNotation`
       - Criterio: diff vacio byte a byte sobre los 25 scratches
-- [ ] **B3.4** Fases con tramo parcial de curva (u0/u1) y funcion de recorte `XFNotation`
+      - Hecho: `GoldenLibraryTests` compone la libreria con `ScratchLibrary.build` y la compara con `library-v0.1.json` **campo a campo** (enteros/enums exactos, dobles con `round4`+tol 1e-9). El "byte a byte" de este criterio choca con **ADR-028** (prohibe byte-a-byte de floats); se resuelve en **ADR-032**. Los 25 scratches coinciden.
+- [x] **B3.4** Fases con tramo parcial de curva (u0/u1) y funcion de recorte `XFNotation`
       - Criterio: recortar por mitad de un movimiento conserva la curva exacta, no la aproxima con rectas
-- [ ] **B3.5** Transformaciones de variante: offset, amplitude, mirror, subdivision, swing `XFNotation`
+      - Hecho: `RecordPhase` lleva `u0/u1/pFrom/pTo`; `Scratch.cropped(from:to:)` porta `crop()`; `PositionSampler.position` usa el tramo parcial. Test: la posicion del scratch recortado coincide con la del entero en todo el solape.
+- [x] **B3.5** Transformaciones de variante: offset, amplitude, mirror, subdivision, swing `XFNotation`
       - Criterio: golden contra las variantes generadas por tools/xfn_core.py
-- [ ] **B3.6** Calculo de eventos evaluables y maxScore por variante `XFNotation`
+      - Hecho: `offset`, `amplitude`, `mirror`, `swing` portadas con golden contra `xfn_core.py`. **`subdivision`** añadida (`Composer.composeWithSubdivision`: recompone con otra `division` ajustando ciclos para conservar la longitud musical → el 2C Flare pasa de 4 ciclos a 8, misma longitud, doble de clicks). **`dropout`** queda fuera de XFNotation: no transforma el patron (decide que compases puntuan) → es `XFEngine`. Decision del autor 2026-09-01 (ADR-032).
+- [x] **B3.6** Calculo de eventos evaluables y maxScore por variante `XFNotation`
       - Criterio: 2-Click Flare base = 3.600; su div16 = 4.800
-- [ ] **B3.7** **SELLAR XFNotation** `XFNotation`
+      - Hecho: criterio unificado con `docs/SCORING.md` (decision del autor 2026-09-01): `pitch` = uno por **semicorchea** (`ppq/4`). 2C Flare base = 16+16+4 = 36 = **3600** ✓. `subdivision(1/16)` = 32+16+8 = 56 = **5600** (la formula es uniforme; SCORING.md y `scoring.json` actualizados — el "4800" era incoherente con su propia formula). ADR-032.
+- [x] **B3.7** **SELLAR XFNotation** `XFNotation`
+      - Hecho: `make seal M=XFNotation` en verde. `Sources/XFNotation/README.md` con API + ejemplo. Todo lo no-publico es `private`/`internal`. `docs/MODULE_STATUS.md` → SEALED 2026-09-01, 20 tests. `apiVersion = 1`. ADR-032.
 
 ## B4 — CXFAudioCore
 
 *El motor de audio en serio, esta vez para quedarse.*
 
-- [ ] **B4.1** Ring buffer SPSC lock-free en C `CXFAudioCore`
+- [x] **B4.1** Ring buffer SPSC lock-free en C `CXFAudioCore`
       - Criterio: tests al 100%, incluido productor/consumidor concurrente
+      - Hecho: `xf_ring` (`include/xf_ring.h` + `xf_ring.c`). Un productor / un consumidor, buffer aportado por el llamante (sin malloc), capacidad potencia de 2. `head`/`tail` contadores de 64 bits que solo suben; atomicidad con builtins `__atomic_*` de Clang (RELEASE/ACQUIRE) — **sin `<stdatomic.h>`** en el header (no es module-safe; rompia `import CXFAudioCore`). Se añadio `include/module.modulemap` explicito. 6 tests: orden, no-pisado, vuelta al final del buffer, reset, y estres 1 MiB por un ring de 1 KiB con productor en otro hilo y verificacion byte a byte.
 - [ ] **B4.2** Callback CoreAudio RT-safe, 64 frames, con thread_policy_set Y workgroup de audio `CXFAudioCore`
       - Criterio: 0 malloc/locks verificado con Instruments; el hilo se une al workgroup del dispositivo (obligatorio en Apple Silicon)
+      - Bloqueado: necesita hardware + Instruments (Audio System Trace). El spike `spike/b1-latency/passthrough.c` ya tiene la plumberia CoreAudio a 64 frames; B4.2 es la version definitiva con ring buffer y prioridad RT.
 - [ ] **B4.3** Reproductor de sample con resampling por velocidad y direccion `CXFAudioCore`
       - Criterio: scratch audible sin clicks ni aliasing
+      - Bloqueado: "audible" necesita oido + hardware. La logica de resampling se puede prototipar puro, pero el criterio no se puede verificar sin sonido.
 - [ ] **B4.4** Metronomo mezclado en la salida principal (ADR-007) `CXFAudioCore`
+      - Bloqueado: idem, va en el callback de B4.2.
 - [ ] **B4.5** **PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min** `CXFAudioCore`
       - Criterio: medido y documentado en docs/TIMECODE.md
+      - Bloqueado: medicion en hardware (misma que B1.5).
 - [ ] **B4.6** **SELLAR CXFAudioCore** `CXFAudioCore`
+      - Bloqueado por B4.2-B4.5.
 
 ## B5 — CXFTimecode
 
@@ -152,17 +169,23 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Perfiles .conf por modelo de mesa. Puro parseo, se sella rapido.*
 
-- [ ] **B5b.1** Parser INI propio, sin dependencias (ADR-019) `XFProfiles`
+- [x] **B5b.1** Parser INI propio, sin dependencias (ADR-019) `XFProfiles`
       - Criterio: carga los 6 perfiles de profiles/ sin perdida
-- [ ] **B5b.2** Resolucion de extends con deteccion de herencia circular `XFProfiles`
+      - Hecho: `INIDocument(text:)` — secciones, claves con punto, comentarios `#`/`;`, claves sensibles a mayusculas, delimitador `=` o `:`, conserva orden. Los 6 ficheros parsean.
+- [x] **B5b.2** Resolucion de extends con deteccion de herencia circular `XFProfiles`
       - Criterio: pioneer-djm-s9 resuelve heredando de la s11; un ciclo da error claro
-- [ ] **B5b.3** Validacion equivalente a tools/xf_profile.py `XFProfiles`
+      - Hecho: `ProfileResolver.resolve(id:in:)` porta `resolve()`. djm-s9 hereda method/canales/quirks de la s11. Ciclo -> `circularInheritance(chain:)`; ancestro inexistente -> `unknownAncestor`.
+- [x] **B5b.3** Validacion equivalente a tools/xf_profile.py `XFProfiles`
       - Criterio: mismos errores que el validador Python sobre los mismos ficheros
-- [ ] **B5b.4** Autodeteccion por nombre de puerto MIDI y dispositivo de audio `XFProfiles`
+      - Hecho: `ProfileValidator.validate(...)` porta `check()`: claves obligatorias, booleanos, `method` valido + claves segun metodo, cut_in en 0..1 y left<right, id en minusculas, aviso SIN VERIFICAR. Los 6 perfiles dan el mismo resultado que `xf_profile.py --all` (todos OK, aviso en los no verificados).
+- [x] **B5b.4** Autodeteccion por nombre de puerto MIDI y dispositivo de audio `XFProfiles`
       - Criterio: comodines * funcionan; si hay empate, no elige, pregunta
-- [ ] **B5b.5** Carga desde el bundle y desde la carpeta del usuario, con precedencia `XFProfiles`
+      - Hecho: `GlobMatch` (solo `*`, sin distinguir caso) + `ProfileStore.autodetect(...)` -> `.unique` / `.ambiguous` / `.none`. En empate devuelve `.ambiguous`, no elige.
+- [x] **B5b.5** Carga desde el bundle y desde la carpeta del usuario, con precedencia `XFProfiles`
       - Criterio: segun DEVICE_PROFILES.md seccion 5
-- [ ] **B5b.6** **SELLAR XFProfiles** `XFProfiles`
+      - Hecho: `ProfileStore(bundled:user:)` — el usuario pisa al bundle por id; cada `Entry` sabe su origen. Resuelve `extends` y tipa en una 2a pasada.
+- [x] **B5b.6** **SELLAR XFProfiles** `XFProfiles`
+      - Hecho: `make seal M=XFProfiles` en verde. `Sources/XFProfiles/README.md` con API + ejemplo. Todo lo no-publico es `private`. `docs/MODULE_STATUS.md` -> SEALED 2026-08-31, 24 tests. `apiVersion = 1`.
 
 
 ---
@@ -173,19 +196,31 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Abstraer la entrada. Aqui se desbloquea el desarrollo sin mesa.*
 
-- [ ] **B6.1** Protocolos MotionSource y FaderSource `XFCapture`
+> **Módulo nuevo `XFPrimitives` (capa 0, ADR-033):** `MotionSample` / `FaderSample`
+> movidos aquí para que `XFAnalysis` los consuma sin importar `XFCapture`.
+> **SEALED 2026-09-01**, 4 tests.
+
+- [x] **B6.1** Protocolos MotionSource y FaderSource `XFCapture`
+      - Hecho: `MotionSource` / `FaderSource` (`AnyObject`, `start()/stop()/latest()`, `isConnected`), importan `XFPrimitives`. Test con una fuente falsa conformando el protocolo.
 - [ ] **B6.2** KeyboardMotionSource y KeyboardFaderSource (modo sin mesa) `XFCapture`
       - Criterio: se puede hacer un baby scratch con el teclado
+      - Pendiente: la lógica (integrador de posición a partir de teclas mantenidas) es pura, pero el criterio es interactivo. Se hace junto al modo sin mesa de la UI.
 - [ ] **B6.3** TimecodeMotionSource sobre CXFTimecode `XFCapture`
+      - Bloqueado: necesita el wrapper de B5.2 y, para validar, señal de timecode.
 - [ ] **B6.4** MidiFaderSource (CoreMIDI) + fallback por envolvente de audio `XFCapture`
       - Criterio: funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo
+      - Bloqueado: hardware.
 - [ ] **B6.4b** AudioReturnFaderSource: tono piloto y deteccion (ADR-021) `XFCapture`
       - Criterio: funciona con el perfil rane-seventy-two
-- [ ] **B6.5** Binarizacion del fader con cut-in calibrado e histeresis (ADR-017) `XFCapture`
+      - Bloqueado: hardware. El detector Goertzel + histéresis ya está prototipado en `spike/b1-pilot-fader/`.
+- [x] **B6.5** Binarizacion del fader con cut-in calibrado e histeresis (ADR-017) `XFCapture`
       - Criterio: 0 eventos fantasma en 1 min de fader quieto
-- [ ] **B6.6** Formato .xfsession: grabar y reproducir + ReplaySource `XFCapture`
+      - Hecho: `FaderBinarizer` — disparador de Schmitt alrededor de `cutIn` con banda `hysteresis`; flag `hamster` para reverse (ADR-008). `binarize([(hostTime,value)]) -> [FaderSample]`, conserva estado entre llamadas. Test: 60.000 lecturas con ruido ±0,03 y banda 0,08 → **0 transiciones**.
+- [x] **B6.6** Formato .xfsession: grabar y reproducir + ReplaySource `XFCapture`
       - Criterio: una sesion grabada se reproduce bit a bit igual
+      - Hecho: `XFSession` (JSON Lines: cabecera de calibración + muestras). Los floats se guardan como **cadena** (`"\(x)"`) para ida y vuelta exacta — el `JSONEncoder` de esta toolchain no re-parsea el mismo bit en un `Double` (problema de ADR-028). `ReplayMotionSource` / `ReplayFaderSource` conforman los protocolos y avanzan con `seek(toHostTime:)` (reloj de audio, determinista). Ida y vuelta value-equal + re-encode estable. `clockMap` reconstruye el `ClockMap` de la toma. 15 tests.
 - [ ] **B6.7** **SELLAR XFCapture** `XFCapture`
+      - Bloqueado por B6.2-B6.5 (fuentes de hardware / teclado).
 
 ## B7 — XFDesign + XFRender
 
@@ -207,18 +242,29 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *El cerebro. Funciones puras, cero hardware.*
 
-- [ ] **B8.1** Emparejado de clicks objetivo/usuario y desfase con signo `XFAnalysis`
-- [ ] **B8.2** DTW de contorno de tono, afinacion relativa (ADR-005) `XFAnalysis`
-- [ ] **B8.3** Consistencia (sigma) y amplitud de recorrido `XFAnalysis`
-- [ ] **B8.4** Generador de diagnosticos en lenguaje natural (ADR-018) `XFAnalysis`
+> **Prerequisito hecho:** módulo `XFPrimitives` (capa 0, ADR-033) con
+> `MotionSample`/`FaderSample`, SEALED. `XFAnalysis` depende de él, no de `XFCapture`.
+
+- [x] **B8.1** Emparejado de clicks objetivo/usuario y desfase con signo `XFAnalysis`
+      - Hecho: `ClickMatcher` — cierres del patrón (en hostTime vía `ClockMap`) vs cierres del usuario (transiciones a `!isOpen`), emparejado al más cercano dentro de ±150 ms, `offsetMs` con signo (+ = tarde). `ClickOffset` por evento.
+- [x] **B8.2** DTW de contorno de tono, afinacion relativa (ADR-005) `XFAnalysis`
+      - Hecho: `DTW.normalizedDistance` (banda de Sakoe-Chiba). `PitchAnalyzer` toma la velocidad objetivo (derivada de la curva) y la del usuario en cada semicorchea, **normaliza cada contorno por su máximo** (relativo, no absoluto) y compara. `pitchDistance` en el Report + puntos locales por checkpoint.
+- [x] **B8.3** Consistencia (sigma) y amplitud de recorrido `XFAnalysis`
+      - Hecho: σ y sesgo = desviación típica y media de los `offsetMs`. `AmplitudeAnalyzer`: recorrido de cada trazo `fwd` normalizado al rango del propio usuario vs el del patrón (ADR-005).
+- [x] **B8.4** Generador de diagnosticos en lenguaje natural (ADR-018) `XFAnalysis`
       - Criterio: distingue sesgo sistematico de dispersion y lo dice distinto
-- [ ] **B8.5** Tests de replay: good / late / sloppy por patron de nivel 1-4 `XFAnalysis`
+      - Hecho: `Diagnoser` — clicks perdidos, luego **sesgo** (`|media| ≥ 12 ms` y σ baja → "llegas X ms tarde, adelanta el click") vs **dispersión** (`σ ≥ 18 ms` → "es que no llegas siempre igual, metrónomo"), amplitud, contorno. Umbrales provisionales (se afinan con tomas reales).
+- [~] **B8.5** Tests de replay: good / late / sloppy por patron de nivel 1-4 `XFAnalysis`
       - Criterio: segun docs/TESTING.md
-- [ ] **B8.6** Puntuacion por evento y total sobre maxScore `XFAnalysis`
+      - Estado: **versión sintética** hecha (`ReplayScoringTests` + `SyntheticTake` generan el `Take` desde el patrón): good → ≥0.88 y 3★, late(+35 ms) → sesgo detectado como sistemático, sloppy(±45 ms) → dispersión señalada, clicks perdidos contados. **Falta**: `.xfsession` grabados reales (hardware) — `flare-2c__good/late/sloppy`.
+- [x] **B8.6** Puntuacion por evento y total sobre maxScore `XFAnalysis`
       - Criterio: docs/SCORING.md seccion 1
-- [ ] **B8.7** Tres estrellas por criterios ortogonales (ADR-025) `XFAnalysis`
+      - Hecho: `DefaultScorer` suma clicks + pitch + amplitud; `maxScore` de `XFNotation.ScoreEvents`; `accuracy = score/maxScore`. Tablas en `ScoringConstants` (copia del contrato de `scoring.json`).
+- [x] **B8.7** Tres estrellas por criterios ortogonales (ADR-025) `XFAnalysis`
       - Criterio: un 88% con un fallo da 1 estrella, no 2
+      - Hecho: `Stars` — ★ ≥70 % y al final · ★★ ≥85 % **y cero eventos a 0** · ★★★ ≥95 %, σ ≤ 15 ms y al BPM objetivo. `starReasons` dice qué falta. Test: 88 % + 1 evento a 0 → 1★.
 - [ ] **B8.8** **SELLAR XFAnalysis** `XFAnalysis`
+      - Bloqueado por B8.5 (tomas reales) y el afinado de umbrales de B8.4 contra ellas. El resto del módulo está hecho, 10 tests en verde.
 
 ## B9 — XFEngine
 

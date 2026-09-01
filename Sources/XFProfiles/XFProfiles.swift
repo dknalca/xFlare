@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// XFProfiles — CAPA 1. Parsear y resolver los .conf de mesa (INI plano,
-// sin dependencias, ADR-019). Herencia, validacion, autodeteccion.
-// Sin hardware, sin UI. Andamiaje (B0.1): sin logica. Se implementa en B5b.
+// XFProfiles — CAPA 1. Parsea y resuelve los `.conf` de mesa: herencia
+// (`extends`), validacion y autodeteccion. Puro: sin hardware, sin UI.
+// Sin dependencias (ADR-019: INI plano parseado por codigo propio).
 
-/// Marcador del andamiaje del modulo. Se elimina al implementar B5b.
+/// Espacio de nombres y version del contrato publico de XFProfiles.
 public enum XFProfiles {
-    public static let scaffoldingVersion = 0
+    public static let apiVersion = 1
 }

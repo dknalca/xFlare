@@ -12,14 +12,25 @@ de empezar y se muestra siempre.
 | Tipo de evento | Cuantos hay | Como se puntua |
 |---|---|---|
 | `click` | uno por cierre de fader del patron | desfase con signo contra la ventana |
-| `pitch` | uno por corchea | distancia local de contorno (DTW) |
+| `pitch` | uno por **semicorchea** (`ppq/4` = 120 ticks) | distancia local de contorno (DTW) |
 | `amplitude` | uno por trazo hacia delante | error relativo de recorrido |
 
 Ventanas de click: **±20 ms → 100 · ±40 → 75 · ±70 → 50 · ±110 → 25 · fuera → 0**.
 
-Ejemplo real, 2-Click Flare base (4 compases a 1/8): 16 clicks + 16 controles de
-tono + 4 de amplitud = 36 eventos = **3.600 puntos posibles**. Su variante de doble
-tiempo tiene 32 clicks y sube a **4.800**.
+Formula exacta (la implementa `XFNotation.ScoreEvents`, criterio unificado
+2026-09-01):
+```
+clicks    = nº de eventos `closed` del patron
+pitch     = max(1, lengthTicks / (ppq/4))
+amplitude = max(1, nº de fases `fwd` del carril de disco)
+maxScore  = (clicks + pitch + amplitude) * 100
+```
+
+Ejemplo real, 2-Click Flare base (4 ciclos a 1/8, 1920 ticks = 1 compas):
+16 clicks + 16 controles de tono + 4 de amplitud = 36 eventos = **3.600 puntos
+posibles**. Su variante de doble tiempo `subdivision(1/16)` conserva la longitud
+musical y pasa a 8 ciclos: 32 clicks + 16 tono + 8 amplitud = 56 eventos =
+**5.600**.
 
 Que el maximo dependa de la variante es intencionado: un patron con el doble de
 clicks tiene el doble de oportunidades de acertar, y el porcentaje sigue siendo

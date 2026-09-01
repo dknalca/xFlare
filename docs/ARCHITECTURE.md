@@ -32,16 +32,20 @@ CAPA 2  Presentacion   +-- XFRender ----+-- XFDesign
 CAPA 1  Dominio     XFEngine
                     /    |    \
            XFAnalysis XFCapture XFPersistence   XFProfiles
-                    \    |    /
-                     XFNotation
-                         |
-                      XFClock
-                         |
+              |  \    /  |  \    /
+              |   XFNotation   XFPrimitives
+              |       |       /
+              +----- XFClock /
+                         |  /
 CAPA 0  Tiempo real  CXFTimecode --- CXFAudioCore      (C)
+                     XFPrimitives (Swift, value types compartidos)
 ```
 
 > Los dos módulos C llevan prefijo `C` (`CXFAudioCore`, `CXFTimecode`), que es la
 > convención de SwiftPM para targets en C y el nombre real en `Package.swift`.
+> `XFPrimitives` está en el fondo del grafo (Swift, sin dependencias): son los
+> `struct` de muestra que `XFCapture` produce y `XFAnalysis` consume, para que no
+> tengan que importarse entre sí (ADR-033). No es código de tiempo real.
 
 **Regla de oro: las flechas solo bajan.** Nunca hay un `import` hacia arriba ni
 lateral entre hermanos. Si dos modulos de la misma capa se necesitan, o falta un
@@ -51,6 +55,7 @@ modulo mas abajo, o el diseno esta mal.
 |---|---|---|---|---|
 | `CXFAudioCore` | C | Ring buffer SPSC, callback CoreAudio, primitivas RT-safe | — | malloc, locks, Obj-C, logs |
 | `CXFTimecode` | C | xwax vendorizado + wrapper `xf_timecode` en modo relativo | CXFAudioCore | tocar los .c de xwax |
+| `XFPrimitives` | Swift | `MotionSample` / `FaderSample`: value types de muestra compartidos | — | lógica, I/O, hardware |
 | `XFClock` | Swift | Reloj musical: ticks, PPQ 480, transporte, conversion tick↔ms↔host time | — | UI, I/O |
 | `XFNotation` | Swift | Modelo XFN, compositor mano×fader, carga de la libreria | XFClock | hardware, UI, red |
 | `XFProfiles` | Swift | Parsear y resolver los `.conf` de mesa. Herencia, validacion, autodeteccion | — | hardware, UI |
@@ -70,8 +75,10 @@ conectada** y tener tests deterministas.
 
 ```swift
 // XFCapture — la app nunca habla con hardware, habla con esto.
+// NB: MotionSample y FaderSample viven en XFPrimitives (capa 0), no aqui, para
+// que XFAnalysis pueda consumirlos sin importar XFCapture (ADR-033).
 
-public struct MotionSample: Sendable {
+public struct MotionSample: Sendable {      // en XFPrimitives
     public let hostTime: UInt64   // mach_absolute_time
     public let position: Double   // vueltas acumuladas, signo = direccion
     public let velocity: Double   // 1.0 = 33 1/3 rpm nominal
@@ -85,7 +92,7 @@ public protocol MotionSource: AnyObject {
     func latest() -> MotionSample?
 }
 
-public struct FaderSample: Sendable {
+public struct FaderSample: Sendable {        // en XFPrimitives
     public let hostTime: UInt64
     public let value: Float       // 0..1 crudo
     public let isOpen: Bool       // binarizado con el cut-in calibrado
