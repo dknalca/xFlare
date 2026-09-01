@@ -331,8 +331,10 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-01): junto con B11.13. `ResultsSummary` (puro) traduce lo que calculo `XFAnalysis` a texto: 3 filas de estrella (las apagadas con su condicion, sacada de `starReasons` por prefijo `★`/`★★`/`★★★` y sin el `Titulo:`, o la condicion por defecto si aun no toca), puntuacion `3.840 / 4.800` (millares con punto), `%`, badge Record, frases del coach en orden. `ResultsView` SwiftUI con las estrellas escalonadas. 6 tests.
 - [x] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
       - Hecho (2026-09-01): `FreeModeRecorder` (clase) — buffer rodante de `MotionSample`/`FaderSample`: al llegar una muestra tira las que caen fuera de la ventana de 30 s. No mira el reloj (el driver pasa cada muestra con su `hostTime`). `snapshot` para guardar como `.xfsession`, `durationSeconds`, `reset()`. `FreeModeView` SwiftUI (sin fantasma, indicador de grabacion, boton Guardar). 5 tests.
-- [ ] **B11.6** Navegador de la libreria `XFApp`
-- [ ] **B11.7** Ajustes `XFApp`
+- [x] **B11.6** Navegador de la libreria `XFApp`
+      - Hecho (2026-09-01): `LibraryEntry` (scratch + estado de bloqueo, `init(scratch:isUnlocked:)`) + `LibraryBrowser` (puro): `levels`/`families`, `filtered(query:level:family:onlyUnlocked:)` (busqueda por subcadena sin mayusculas ni acentos), `groupedByLevel(...)`. `LibraryView` SwiftUI con buscador y filtro de familia. 6 tests.
+- [x] **B11.7** Ajustes `XFApp`
+      - Hecho (2026-09-01): `AppSettings` (envoltorio tipado de la tabla clave/valor `setting`): hamster, metronomo, buffer 64/128, escala de tolerancia (0.5..2.0), alto contraste, reducir movimiento. `init(raw:)` tolera claves ausentes o ilegibles (caen al default) y recorta rangos; `.raw` para guardar. `SettingsView` SwiftUI (Form). Todo local (CLAUDE.md 3). 5 tests.
 - [ ] **B11.8** Accesibilidad: VoiceOver, alto contraste, teclado `XFApp`
       - Criterio: segun UI_DESIGN.md seccion 4
 - [ ] **B11.9** Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo `XFApp`

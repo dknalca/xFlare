@@ -783,14 +783,16 @@
           "title": "Navegador de la libreria",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "LibraryEntry (scratch + bloqueo) + LibraryBrowser puro: levels/families, filtered(query:level:family:onlyUnlocked:) (busqueda sin mayusculas ni acentos), groupedByLevel. LibraryView SwiftUI. 6 tests."
         },
         {
           "id": "B11.7",
           "title": "Ajustes",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "AppSettings: envoltorio tipado de la tabla setting (hamster, metronomo, buffer 64/128, toleranceScale 0.5..2.0, alto contraste, reducir movimiento). init(raw:) tolera claves ausentes/ilegibles y recorta rangos; .raw para guardar. SettingsView SwiftUI (Form). 5 tests."
         },
         {
           "id": "B11.8",
