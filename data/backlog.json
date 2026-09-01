@@ -751,7 +751,8 @@
           "title": "Home: mapa de la matriz, racha, continuar",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "MatrixCell (celda: locked/available/practiced(stars)/mastered, del estado de la variante base) + HomeSummary (celdas por nivel, racha, minutos de hoy, Continuar, masteredCount, minimo diario) + PracticeStreak (dias consecutivos, puro). HomeView SwiftUI reemplaza la maqueta de Sources/xFlare/HomeScaffoldView.swift. Datos armados por XFApp desde XFPersistence/XFNotation (glue pendiente; XFPersistence SEALED). 11 tests."
         },
         {
           "id": "B11.3",
