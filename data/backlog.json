@@ -281,8 +281,8 @@
           "title": "Metronomo mezclado en la salida principal (ADR-007)",
           "module": "CXFAudioCore",
           "acceptance": "-",
-          "status": "todo",
-          "note": "bloqueado: va en el callback de B4.2. | El spike b4-audio-sandbox ya mezcla scratch + instrumental en la salida; el metronomo es una tercera fuente."
+          "status": "done",
+          "note": "xf_metronome (C, opaco). No lleva el tiempo: xf_metronome_render(out, nframes, tick_at_start, bpm) SUMA la claqueta a out (mono), un click al cruzar cada negra; el 1er tiempo del compas acentuado (1600 vs 1000 Hz). Click = seno con ataque 1,5 ms + caida exp ~60 ms, sin reservas (regla 7). Ticks negativos tambien suenan -> claqueta de cuenta atras gratis. set_enabled = unico control (atomico); al reactivar no suelta rafaga. resync(tick) para arranque/salto sin re-disparar; loop hacia atras si dispara. 10 tests (1 click/negra, acento, silencio si off, mezcla que suma). Integracion en el callback = B4.2."
         },
         {
           "id": "B4.5",

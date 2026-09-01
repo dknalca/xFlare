@@ -2,5 +2,6 @@ module CXFAudioCore {
     header "xf_audio_core.h"
     header "xf_ring.h"
     header "xf_player.h"
+    header "xf_metronome.h"
     export *
 }

@@ -75,11 +75,46 @@ el pitch y borra el fundamental; **20 kHz a 2x -> salida casi en silencio**
 (RMS < 0,03) en vez de plegarse a 8 kHz; 15 kHz a 3x sin alias en 3 kHz; reverso,
 parada, ganancia DC unidad, sin discontinuidad entre bloques, glide de velocidad.
 
+## Hecho: `xf_metronome` — claqueta en la salida principal (B4.4)
+
+Se **mezcla en la salida principal**, no en un canal aparte (ADR-007). No lleva
+el tiempo: el callback le pasa por bloque la posicion musical de inicio (ticks) y
+el BPM.
+
+```c
+#include "xf_metronome.h"
+
+xf_metronome *xf_metronome_create(unsigned int sr);                  /* NO RT-SAFE */
+void xf_metronome_destroy(xf_metronome *m);
+void xf_metronome_set_enabled(xf_metronome *m, bool on);             /* RT-SAFE (atomica) — el unico control */
+bool xf_metronome_enabled(const xf_metronome *m);
+void xf_metronome_set_level(xf_metronome *m, float level);
+void xf_metronome_set_time_signature(xf_metronome *m, int beats_per_bar, int ppq);
+void xf_metronome_render(xf_metronome *m, float *out, int n, double tick0, double bpm); /* RT-SAFE, SUMA a out */
+void xf_metronome_resync(xf_metronome *m, double tick);             /* NO RT-SAFE */
+```
+
+- Un click al cruzar cada negra; el **primer tiempo del compas va acentuado**
+  (1600 Hz vs 1000 Hz). Click = seno con ataque de 1,5 ms y caida exponencial
+  (~60 ms), sintetizado sin reservas.
+- **Se suma** a `out` (el mixer de B4.2 hace player -> out y luego el metronomo
+  suma). Con ticks negativos suena tambien -> la claqueta de la cuenta atras del
+  transporte sale gratis.
+- Activar/desactivar es un solo control atomico; al reactivar **no suelta una
+  rafaga** (deja morir el click en curso, no acumula los perdidos).
+- `resync(tick)` no re-dispara el tiempo en curso; un salto que cambia el numero
+  de tiempo (loop del transporte hacia atras) si dispara.
+
+Tests (`XFMetronomeTests`): 1 click/negra y su espaciado, acento del 1er tiempo
+(Goertzel 1600 vs 1000), silencio absoluto si esta desactivado, mezcla que
+**suma** (fuera del click `out == preset`), cuenta atras con ticks negativos,
+el BPM cambia el espaciado, resync, salto hacia atras.
+
 ## Pendiente (necesita hardware / Instruments)
 
 - **B4.2** callback CoreAudio RT-safe a 64 frames, con `thread_policy_set` +
-  workgroup de audio.
-- **B4.4** metronomo en la salida principal (ADR-007).
+  workgroup de audio. Aqui se cablea `xf_player` + `xf_metronome` sobre el ring
+  buffer y se fija la prioridad del hilo.
 - **B4.5** PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min (medido con Instruments).
 - **B4.6** SELLAR.
 
