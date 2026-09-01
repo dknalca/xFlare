@@ -56,7 +56,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho: `Sources/XFTestKit/GoldenComparison.swift` con `Golden.round4`, `approxEqual` (tol 1e-9) y `firstMismatch`. Compila. Sus tests se escriben en B3 (donde se usan de verdad); `swift test` ya ejecuta (ADR-029 resuelto). Politica ya documentada en ADR-028 / TESTING.md / ARCHITECTURES.md.
 - [~] **B0.9** CI en GitHub Actions: macos-13 Intel, macos-14 arm64 y trabajo universal
       - Criterio: .github/workflows/ci.yml en verde; `lipo -archs` muestra las dos
-      - Estado: yaml revisado y actualizado (job universal usa `make universal`; guard de diff en `data/` tras `xfn_build`; nota de que `swift test` SI corre en runners Ventura+). **Verde pendiente de repo**: git aplazado por el autor. Se activa al crear el repo.
+      - Estado (2026-09-01): repo `dknalca/xFlare` creado y hecho **PÚBLICO** (restaura los runners macOS gratis e ilimitados que asumía el plan). En la 1ª run (commit inicial, aún privado) los jobs arm64 y universal pasaron; el job Intel `macos-13` se quedó **encolado 9 h** por el límite de minutos macOS de repo privado — resuelto al hacerlo público. Commit `3736084` con todo el trabajo de la sesión preparado en `main` (SIN pushear). **Verde pendiente de:** `git push` → run completa en verde.
 
 ## B1 — Spike de latencia
 
