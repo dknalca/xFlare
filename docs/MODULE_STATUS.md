@@ -7,7 +7,7 @@ congelado, ver `ARCHITECTURE.md` seccion 6) · `BROKEN` (regresion detectada).
 |---|---|---|---|---|---|
 | `CXFAudioCore` | 0 | WIP | — | 7 verdes | `xf_ring` SPSC lock-free hecho (B4.1). Callback CoreAudio / resampling / metronomo / puerta de latencia (B4.2-B4.5) bloqueados por hardware + Instruments |
 | `XFPrimitives` | 0 | SEALED | 2026-09-01 | 4 verdes | apiVersion 1. `MotionSample` / `FaderSample` (value types compartidos capture↔analysis). ADR-033 |
-| `CXFTimecode` | 0 | TODO | — | — | xwax vendorizado, no tocar |
+| `CXFTimecode` | 0 | WIP | — | 7 verdes | xwax 1.10 vendorizado intacto (B5.1) + wrapper `xf_timecoder` en modo relativo (B5.2), hamster/reverse (B5.3), confianza + dropout (B5.4). Tests con señal de cuadratura sintética. Falta pasar un vinilo real para sellar (B5.5) |
 | `XFClock` | 1 | SEALED | 2026-08-31 | 34 verdes | apiVersion 1. Tick/PPQ 480, Tempo, TimeSignature, HostClock, ClockMap, Transport. ADR-031 |
 | `XFNotation` | 1 | SEALED | 2026-09-01 | 20 verdes | apiVersion 1. Modelo XFN + compose (port de xfn_core.py) + crop con tramo parcial + variantes offset/amplitude/mirror/swing/subdivision + ScoreEvents (== SCORING.md) + golden vs library-v0.1.json. ADR-032 |
 | `XFProfiles` | 1 | SEALED | 2026-08-31 | 24 verdes | apiVersion 1. Parser INI propio (ADR-019), extends + herencia circular, validacion == xf_profile.py, autodeteccion con comodines, precedencia bundle/usuario |

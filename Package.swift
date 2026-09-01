@@ -34,6 +34,7 @@ let package = Package(
         .target(name: "CXFTimecode",
                 dependencies: ["CXFAudioCore"],
                 path: "Sources/CXFTimecode",
+                exclude: ["README.md"],
                 // vendor/xwax/ : timecoder.c, lut.c y sus cabeceras, de xwax 1.10,
                 // VENDORIZADOS INTACTOS (GPL-3.0-only, (c) Mark Hills). No se tocan;
                 // si hace falta adaptar algo va en xf_timecode.c. Ver docs/TIMECODE.md.

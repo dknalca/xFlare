@@ -158,12 +158,16 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B5.1** Vendorizar xwax INTACTO en vendor/xwax con sus cabeceras `CXFTimecode`
       - Criterio: compila sin modificar timecoder.c ni lut.c
       - Hecho: xwax **1.10** (GPL-3.0, ADR-030) en `Sources/CXFTimecode/vendor/xwax/`: `timecoder.{c,h}`, `lut.{c,h}`, `debug.h`, `pitch.h`, intactos. `Package.swift` añade `vendor/xwax` al headerSearchPath. SwiftPM compila `timecoder.c` y `lut.c` sin tocarlos, en x86_64 y arm64. Ver `docs/TIMECODE.md`.
-- [ ] **B5.2** Wrapper xf_timecode en modo relativo (ADR-005) `CXFTimecode`
-- [ ] **B5.3** Hamster / reverse desde el dia 1 `CXFTimecode`
+- [x] **B5.2** Wrapper xf_timecode en modo relativo (ADR-005) `CXFTimecode`
+      - Hecho: `xf_timecoder` opaco sobre `struct timecoder` de xwax. `create(def_name, sample_rate)` / `submit(pcm16 estereo)` / `velocity()` (con signo, del filtro alfa-beta `pitch_current` — no hace falta enganchar el bitstream) / `position()` (relativa, integral) / `confidence()` / `forwards()`. Header público SIN `timecoder.h` (module-safe, como `xf_ring.h`). Test: la velocidad sigue la portadora (1000 Hz → ~1.0×, 1500 → ~1.5×).
+- [x] **B5.3** Hamster / reverse desde el dia 1 `CXFTimecode`
       - Criterio: test con senal invertida
-- [ ] **B5.4** Confianza de senal y recuperacion de dropout `CXFTimecode`
+      - Hecho: señal de cuadratura invertida → dirección opuesta (velocidad de signo contrario, `forwards` flip). `set_reversed(true)` intercambia los canales antes de decodificar → invierte el signo. 2 tests.
+- [x] **B5.4** Confianza de senal y recuperacion de dropout `CXFTimecode`
       - Criterio: no se cuelga al levantar la aguja
+      - Hecho: con señal, `confidence()` > 0,5; con silencio, cae < 0,2 y la velocidad decae hacia 0 — **sin colgarse**. Ruido blanco no engancha ni dispara la velocidad. `submit` con 0 frames no revienta. `confidence` = RMS de entrada recortado, o 1.0 si xwax engancha el bitstream.
 - [ ] **B5.5** **SELLAR CXFTimecode** `CXFTimecode`
+      - Bloqueado: los tests usan señal de cuadratura **sintética** (validan el modo relativo contra el contrato de xwax). Antes de congelar hay que pasar **un vinilo de timecode real** por un interface y comprobar enganche, escala de velocidad y dropout con la aguja de verdad.
 
 ## B5b — XFProfiles
 

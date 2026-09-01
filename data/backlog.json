@@ -321,28 +321,32 @@
           "title": "Wrapper xf_timecode en modo relativo (ADR-005)",
           "module": "CXFTimecode",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "xf_timecoder opaco sobre struct timecoder de xwax. create/submit(pcm16 estereo)/velocity() (con signo, del filtro alfa-beta pitch_current)/position()/confidence()/forwards(). Header publico SIN timecoder.h (module-safe). Test: velocidad sigue la portadora (1000Hz -> ~1.0x, 1500 -> ~1.5x)."
         },
         {
           "id": "B5.3",
           "title": "Hamster / reverse desde el dia 1",
           "module": "CXFTimecode",
           "acceptance": "test con senal invertida",
-          "status": "todo"
+          "status": "done",
+          "note": "Senal de cuadratura invertida -> direccion opuesta (velocidad signo contrario, forwards flip). set_reversed(true) intercambia canales -> invierte el signo. 2 tests."
         },
         {
           "id": "B5.4",
           "title": "Confianza de senal y recuperacion de dropout",
           "module": "CXFTimecode",
           "acceptance": "no se cuelga al levantar la aguja",
-          "status": "todo"
+          "status": "done",
+          "note": "Con senal confidence>0.5; con silencio cae <0.2 y la velocidad decae hacia 0, sin colgarse. Ruido blanco no engancha ni dispara la velocidad. submit(0) no revienta."
         },
         {
           "id": "B5.5",
           "title": "SELLAR CXFTimecode",
           "module": "CXFTimecode",
           "acceptance": "-",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: tests con senal de cuadratura sintetica. Antes de sellar, pasar un vinilo de timecode real por un interface (enganche, escala de velocidad, dropout con la aguja de verdad)."
         }
       ]
     },
