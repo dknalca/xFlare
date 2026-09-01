@@ -109,6 +109,21 @@ final class BPMLadderTests: XCTestCase {
         XCTAssertEqual(l.currentBPM, 70)
     }
 
+    // MARK: - reset
+
+    func testResetVuelveAlEscalonDePartida() {
+        var l = ladder(start: 80)
+        l.record(passed: true); l.record(passed: true); l.record(passed: true)  // 80 -> 90
+        XCTAssertEqual(l.currentBPM, 90)
+        l.reset()
+        XCTAssertEqual(l.currentBPM, 80, "vuelve al startBPM, no al primer escalon")
+        // y las rachas se olvidan: hacen falta 3 aprobados nuevos
+        l.record(passed: true); l.record(passed: true)
+        XCTAssertEqual(l.currentBPM, 80)
+        l.record(passed: true)
+        XCTAssertEqual(l.currentBPM, 90)
+    }
+
     // MARK: - valor
 
     func testEsUnValor() {

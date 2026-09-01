@@ -650,7 +650,8 @@
           "title": "SELLAR XFEngine",
           "module": "XFEngine",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "Antes de sellar se anadio el facade Session (decision del autor + ADR-034): cablea SessionMachine + BPMLadder + UnlockTracker y es la unica puerta del modulo (beginSeries/recordBar(accuracy:)/endRest/recordBoss(accuracy:)/reset, con summary al final). Una serie se aprueba si TODOS sus compases llegan al umbral (streak, no media, ADR-034); minBPM solo cuenta para el desbloqueo. BPMLadder gano reset(). make seal M=XFEngine verde, README con API + ejemplo, MODULE_STATUS -> SEALED 2026-09-01, 38 tests, apiVersion = 1. ADR-034."
         }
       ]
     },

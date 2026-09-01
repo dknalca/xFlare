@@ -41,6 +41,9 @@ public struct BPMLadder: Equatable, Sendable {
     /// Escalon actual (indice en `rungs`).
     public private(set) var index: Int
 
+    // Escalon de partida, para `reset()` (nuevo intento del ejercicio).
+    private let startIndex: Int
+
     // Rachas en curso. Un aprobado pone `fails` a 0; un fallo pone `passes` a 0.
     private var passes: Int
     private var fails: Int
@@ -57,6 +60,7 @@ public struct BPMLadder: Equatable, Sendable {
         }
         self.rungs = rungs
         self.index = start
+        self.startIndex = start
         self.passes = 0
         self.fails = 0
     }
@@ -98,5 +102,13 @@ public struct BPMLadder: Equatable, Sendable {
             index -= 1
             return .down
         }
+    }
+
+    /// Vuelve al escalon de partida y olvida las rachas (nuevo intento del
+    /// ejercicio desde la pantalla de resultados).
+    public mutating func reset() {
+        index = startIndex
+        passes = 0
+        fails = 0
     }
 }

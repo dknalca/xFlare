@@ -65,7 +65,8 @@ let package = Package(
 
         .target(name: "XFEngine",         dependencies: ["XFNotation", "XFCapture",
                                                          "XFAnalysis", "XFPersistence",
-                                                         "CXFAudioCore"]),
+                                                         "CXFAudioCore"],
+                                          exclude: ["README.md"]),
 
         // ---------- CAPA 2 · presentacion ----------
         .target(name: "XFDesign", exclude: ["README.md"]),
