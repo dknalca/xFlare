@@ -85,6 +85,20 @@ final class EngineHandleTests: XCTestCase {
         _ = h.renderBlock(count: 128)                      // sin crash
     }
 
+    func testElCabezalDeScratchAvanzaYSeNormaliza() throws {
+        let h = try XCTUnwrap(EngineHandle(sampleRate: 48_000, maxFrames: 128))
+        XCTAssertEqual(h.scratchProgress, 0)
+        h.loadSample((0..<48_000).map { Float(sin(Double($0) * 0.01)) * 0.3 })
+        XCTAssertEqual(h.scratchFrameCount, 48_000)
+        h.setVelocity(1.0)
+        for _ in 0..<50 { _ = h.renderBlock(count: 128) }   // ~6400 frames
+        XCTAssertGreaterThan(h.scratchPlayhead, 100)
+        XCTAssert((0...1).contains(h.scratchProgress))
+        h.clearSample()
+        XCTAssertEqual(h.scratchFrameCount, 0)
+        XCTAssertEqual(h.scratchProgress, 0)
+    }
+
     func testStartOutputNoRevienta() throws {
         // En CI sin dispositivo de salida devolvera false; lo que importa es que
         // no crashea y que `stop` es seguro aunque no arrancara.

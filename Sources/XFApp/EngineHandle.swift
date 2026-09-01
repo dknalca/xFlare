@@ -42,6 +42,9 @@ public final class EngineHandle {
 
     /// Carga el sample de scratch (mono). Se copia a un buffer propio que vive
     /// mientras el motor lo use.
+    /// Numero de frames del sample de scratch cargado (0 si no hay).
+    public private(set) var scratchFrameCount: Int = 0
+
     public func loadSample(_ mono: [Float]) {
         let buf = UnsafeMutableBufferPointer<Float>.allocate(capacity: max(2, mono.count))
         _ = buf.initialize(from: mono)
@@ -50,6 +53,7 @@ public final class EngineHandle {
         retiredSample?.deallocate()   // el de hace 2 generaciones ya no lo usa el RT
         retiredSample = currentSample
         currentSample = buf
+        scratchFrameCount = mono.count
     }
 
     public func clearSample() {
@@ -57,6 +61,15 @@ public final class EngineHandle {
         retiredSample?.deallocate()
         retiredSample = currentSample
         currentSample = nil
+        scratchFrameCount = 0
+    }
+
+    /// Cabezal del reproductor de scratch en frames (0 si no hay sample).
+    public var scratchPlayhead: Double { xf_engine_scratch_playhead(engine) }
+
+    /// Cabezal normalizado 0…1 sobre el sample cargado.
+    public var scratchProgress: Double {
+        scratchFrameCount > 1 ? scratchPlayhead / Double(scratchFrameCount - 1) : 0
     }
 
     /// Carga la base instrumental (mono). `nativeBPM` = tempo al que se grabo;

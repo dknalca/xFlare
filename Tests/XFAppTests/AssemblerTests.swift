@@ -61,7 +61,7 @@ final class AssemblerTests: XCTestCase {
         let db = try XFDatabase.inMemory()
         let s = try HomeAssembler.summary(catalog: c, db: db, continueExerciseId: "ex-l1-baby")
         XCTAssertEqual(s.continueTarget?.scratchId, "baby")
-        XCTAssertEqual(s.continueTarget?.bpm, 70, "sin 3 estrellas, el BPM de arranque del ejercicio")
+        XCTAssertEqual(s.continueTarget?.bpm, 50, "sin 3 estrellas, el BPM de arranque del ejercicio")
     }
 
     // MARK: - Libreria

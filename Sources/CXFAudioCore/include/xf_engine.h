@@ -87,6 +87,12 @@ xf_metronome *xf_engine_metronome(xf_engine *e);
  * lee para ir sincronizada al reloj de AUDIO (no al frame). */
 double xf_engine_tick(const xf_engine *e);
 
+/* Posicion del cabezal del reproductor de scratch, en frames fraccionarios del
+ * sample cargado (0 si no hay sample). Para pintar la onda del sample con una
+ * barra que sigue donde estas scratcheando. Lectura de un `double` alineado:
+ * puede haber un desfase de un bloque, da igual para la UI. */
+double xf_engine_scratch_playhead(const xf_engine *e);
+
 /* Diagnostico (atomicas): overloads del dispositivo y fallos de `AudioUnitRender`. */
 uint64_t xf_engine_overload_count(const xf_engine *e);
 uint64_t xf_engine_render_error_count(const xf_engine *e);

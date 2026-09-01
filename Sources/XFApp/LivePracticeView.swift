@@ -16,6 +16,7 @@ import XFNotation
 public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
+    @State private var waveEnvelope: [Float] = []
 
     private let scratch: Scratch
     private let exerciseName: String
@@ -51,6 +52,12 @@ public struct LivePracticeView: View {
                 HighwayView(scratch: scratch, geometry: geometry,
                             tick: { s.tick() },
                             userTrace: { s.trace() })
+                // fader cerrado = no suena -> la autopista se oscurece
+                Rectangle()
+                    .fill(Color.black)
+                    .opacity(session.faderClosed ? 0.5 : 0)
+                    .animation(.easeOut(duration: 0.06), value: session.faderClosed)
+                    .allowsHitTesting(false)
                 PlatterInputView(
                     onScroll: { s.scrollBy($0) },
                     onNudge: { s.nudge(forward: $0) },
@@ -66,6 +73,7 @@ public struct LivePracticeView: View {
                     currentBPM: { s.bpm },
                     onExit: onExit)
             }
+            waveStrip
             hintBar
         }
         .background(XFColor.bg)
@@ -95,14 +103,23 @@ public struct LivePracticeView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
             let instrPCM   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
+            let env = scratchPCM.map { WaveformEnvelope.build($0) } ?? []
             DispatchQueue.main.async {
                 if let scratchPCM { engine.loadSample(scratchPCM) }
                 if let instrPCM {
                     engine.loadInstrumental(instrPCM, nativeBPM: AudioAsset.instrumentalNativeBPM)
                 }
+                waveEnvelope = env
                 _ = engine.startOutput()
             }
         }
+    }
+
+    private var waveStrip: some View {
+        WaveformStripView(envelope: waveEnvelope,
+                          progress: { engine?.scratchProgress ?? 0 })
+            .frame(height: 54)
+            .background(XFColor.surface)
     }
 
     private func stop() {

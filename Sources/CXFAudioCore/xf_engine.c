@@ -211,6 +211,12 @@ xf_metronome *xf_engine_metronome(xf_engine *e) { return e ? e->metronome : NULL
 double xf_engine_tick(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->reported_tick) : 0.0;
 }
+
+double xf_engine_scratch_playhead(const xf_engine *e) {
+    if (!e) return 0.0;
+    xf_player *p = atomic_load(&((xf_engine *)e)->player);
+    return p ? xf_player_playhead(p) : 0.0;
+}
 uint64_t xf_engine_overload_count(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->overloads) : 0;
 }

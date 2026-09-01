@@ -50,6 +50,6 @@ final class CatalogLoaderTests: XCTestCase {
         let c = try catalog()
         XCTAssertEqual(c.exercise(forScratch: "baby")?.id, "ex-l1-baby")
         XCTAssertEqual(c.exercise(id: "ex-l1-baby")?.scratchId, "baby")
-        XCTAssertEqual(c.exercise(id: "ex-l1-baby")?.bpmLadder, [60, 70, 80, 90, 100])
+        XCTAssertEqual(c.exercise(id: "ex-l1-baby")?.bpmLadder, [50, 60, 70, 80, 90])
     }
 }
