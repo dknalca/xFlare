@@ -634,7 +634,8 @@
           "title": "Escalera de BPM adaptativa (2 fallos baja, 3 aciertos sube)",
           "module": "XFEngine",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "BPMLadder (struct valor). rungs ascendentes (de bpmLadder de data/curriculum/exercises.json) + startBPM. record(passed:) -> Step (.hold/.up/.down): 3 aprobados seguidos suben, 2 fallos seguidos bajan; un aprobado corta la racha de fallos y viceversa. Clamp en techo/suelo y el contador se reinicia al disparar. Constantes passesToStepUp=3 / failsToStepDown=2 fijas por curriculo. 11 tests. Aun sin cablear a SessionMachine: el driver llamara a ladder.record junto a machine.completeSeries."
         },
         {
           "id": "B9.3",

@@ -278,7 +278,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 - [x] **B9.1** Maquina de estados: calentamiento, series, descanso, boss, resultados `XFEngine`
       - Hecho (2026-09-01): `SessionMachine` (struct valor, como `Transport`: sin hilo, avanza por eventos). Fases `SessionPhase` = `warmup → series(i) → rest(afterSeries:i) → … → boss → results` (`docs/CURRICULUM.md` §3); el descanso solo va entre series, la ultima entra directa al boss. Eventos `beginSeries()/completeSeries(passed:)/endRest()/completeBoss()/reset()`; llamados fuera de fase son no-op (como `Transport.advance` parado). `SessionConfig` (seriesCount 3, barsPerSeries 4). `isScored` (series+boss puntuan; warmup/rest/results no). `completeSeries` **registra** el resultado en `seriesOutcomes` pero no lo interpreta: la escalera de BPM es B9.2, el desbloqueo por compases seguidos B9.3. 8 tests.
-- [ ] **B9.2** Escalera de BPM adaptativa (2 fallos baja, 3 aciertos sube) `XFEngine`
+- [x] **B9.2** Escalera de BPM adaptativa (2 fallos baja, 3 aciertos sube) `XFEngine`
+      - Hecho (2026-09-01): `BPMLadder` (struct valor). `rungs` ascendentes (de `bpmLadder` de `data/curriculum/exercises.json`, p. ej. `[60,70,80,90,100]`) + `startBPM`. `record(passed:) -> Step` (`.hold`/`.up`/`.down`): 3 aprobados seguidos suben un escalon, 2 fallos seguidos bajan; un aprobado corta la racha de fallos y viceversa. Clamp en techo y suelo, y el contador se reinicia al disparar (no queda "armado"). Constantes `passesToStepUp=3`/`failsToStepDown=2` fijas por currículo. 11 tests. Sin cablear a `SessionMachine` todavia: el driver llamara a `ladder.record` junto a `machine.completeSeries`.
 - [ ] **B9.3** Desbloqueo por compases consecutivos, no por media `XFEngine`
 - [ ] **B9.4** **SELLAR XFEngine** `XFEngine`
 
