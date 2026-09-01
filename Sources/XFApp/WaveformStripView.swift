@@ -11,22 +11,28 @@ struct WaveformStripView: NSViewRepresentable {
 
     let envelope: [Float]
     let progress: () -> Double
+    /// `true` = fader cerrado: no está sonando, la onda y la aguja se apagan.
+    var muted: Bool = false
     /// Fracción del sample visible a lo ancho de la tira (zoom).
-    var visibleFraction: Double = 0.16
+    var visibleFraction: Double = 0.5
+    /// Dónde va la aguja (0…1). Alineada con la cabeza de lectura de la autopista.
+    var needleFraction: Double = 0.30
 
     func makeNSView(context: Context) -> StripView {
         let v = StripView()
-        v.envelope = envelope
-        v.progress = progress
-        v.visibleFraction = CGFloat(visibleFraction)
+        apply(to: v)
         v.startTicking()
         return v
     }
 
-    func updateNSView(_ nsView: StripView, context: Context) {
-        nsView.envelope = envelope
-        nsView.progress = progress
-        nsView.visibleFraction = CGFloat(visibleFraction)
+    func updateNSView(_ nsView: StripView, context: Context) { apply(to: nsView) }
+
+    private func apply(to v: StripView) {
+        v.envelope = envelope
+        v.progress = progress
+        v.muted = muted
+        v.visibleFraction = CGFloat(visibleFraction)
+        v.needleFraction = CGFloat(min(0.9, max(0.05, needleFraction)))
     }
 
     static func dismantleNSView(_ nsView: StripView, coordinator: ()) {
@@ -38,7 +44,9 @@ struct WaveformStripView: NSViewRepresentable {
 
         var envelope: [Float] = []
         var progress: () -> Double = { 0 }
-        var visibleFraction: CGFloat = 0.16
+        var muted = false
+        var visibleFraction: CGFloat = 0.5
+        var needleFraction: CGFloat = 0.30
 
         private var timer: Timer?
 
@@ -82,13 +90,14 @@ struct WaveformStripView: NSViewRepresentable {
             axis.lineWidth = 1
             axis.stroke()
 
-            // onda: por cada columna de píxel, mapea a una fracción del sample
-            wave.setStroke()
+            // onda: por cada columna de píxel, mapea a una fracción del sample.
+            // fader cerrado (muted) -> la onda se apaga.
+            (muted ? wave.withAlphaComponent(0.22) : wave).setStroke()
             let path = NSBezierPath()
             path.lineWidth = 1
             var x: CGFloat = 0
             while x <= w {
-                let frac = p + (x / w - 0.5) * visibleFraction
+                let frac = p + (x / w - needleFraction) * visibleFraction
                 if frac >= 0, frac < 1 {
                     let idx = min(envelope.count - 1, Int(frac * count))
                     let amp = CGFloat(envelope[idx]) * (half - 2)
@@ -103,7 +112,7 @@ struct WaveformStripView: NSViewRepresentable {
         }
 
         private func drawNeedle(w: CGFloat, h: CGFloat) {
-            needle.setStroke()
+            (muted ? needle.withAlphaComponent(0.3) : needle).setStroke()
             let n = NSBezierPath()
             n.move(to: CGPoint(x: w / 2, y: 0))
             n.line(to: CGPoint(x: w / 2, y: h))

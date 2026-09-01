@@ -97,6 +97,7 @@ public final class EngineHandle {
         xf_engine_set_transport(engine, bpm, Int32(ppq), playing)
     }
     public func seek(tick: Double)          { xf_engine_seek_tick(engine, tick) }
+    public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
     public func setVelocity(_ v: Double)    { xf_engine_set_velocity(engine, v) }
     public func setMasterGain(_ g: Float)   { xf_engine_set_master_gain(engine, g) }
 

@@ -52,12 +52,6 @@ public struct LivePracticeView: View {
                 HighwayView(scratch: scratch, geometry: geometry,
                             tick: { s.tick() },
                             userTrace: { s.trace() })
-                // fader cerrado = no suena -> la autopista se oscurece
-                Rectangle()
-                    .fill(Color.black)
-                    .opacity(session.faderClosed ? 0.5 : 0)
-                    .animation(.easeOut(duration: 0.06), value: session.faderClosed)
-                    .allowsHitTesting(false)
                 PlatterInputView(
                     onScroll: { s.scrollBy($0) },
                     onNudge: { s.nudge(forward: $0) },
@@ -105,7 +99,10 @@ public struct LivePracticeView: View {
             let instrPCM   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
             let env = scratchPCM.map { WaveformEnvelope.build($0) } ?? []
             DispatchQueue.main.async {
-                if let scratchPCM { engine.loadSample(scratchPCM) }
+                if let scratchPCM {
+                    engine.loadSample(scratchPCM)
+                    engine.seekScratch(0)          // el sample arranca desde el principio
+                }
                 if let instrPCM {
                     engine.loadInstrumental(instrPCM, nativeBPM: AudioAsset.instrumentalNativeBPM)
                 }
@@ -117,7 +114,9 @@ public struct LivePracticeView: View {
 
     private var waveStrip: some View {
         WaveformStripView(envelope: waveEnvelope,
-                          progress: { engine?.scratchProgress ?? 0 })
+                          progress: { engine?.scratchProgress ?? 0 },
+                          muted: session.faderClosed,
+                          visibleFraction: 0.5)
             .frame(height: 54)
             .background(XFColor.surface)
     }

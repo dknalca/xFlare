@@ -67,6 +67,10 @@ void xf_engine_set_instrumental_gain(xf_engine *e, float gain);
  * negativo). Resincroniza el metronomo. */
 void xf_engine_seek_tick(xf_engine *e, double tick);
 
+/* Coloca el cabezal del reproductor de scratch en `frame` (se satura a
+ * [0, frames-1]). Para arrancar el sample desde el principio al entrar. */
+void xf_engine_seek_scratch(xf_engine *e, double frame);
+
 /* Velocidad objetivo del plato (1.0 normal, negativo hacia atras). La pone la
  * capa de captura a partir del timecode / teclado. Atomica. */
 void xf_engine_set_velocity(xf_engine *e, double velocity);

@@ -76,6 +76,30 @@ final class XFPlayerLoopTests: XCTestCase {
         }
     }
 
+    func testPuertaPorVelocidadMataElZumbidoConElPlatoParado() {
+        let src = sine(1000, frames: 4_800)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_playhead(p, 1_200)          // en mitad del sample, no en 0
+            xf_player_set_speed_gate(p, 0.12)
+
+            // parado: casi mudo (sin puerta, aqui habria un DC audible)
+            XCTAssertLessThan(rms(render(p, nframes: 1_000, v: 0.0)[...]), 0.01)
+
+            // a media puerta: ~media amplitud
+            xf_player_set_playhead(p, 1_200)
+            let half = rms(render(p, nframes: 2_000, v: 0.06)[...])
+            // a plena velocidad: amplitud completa
+            xf_player_set_playhead(p, 1_200)
+            let full = rms(render(p, nframes: 2_000, v: 1.0)[...])
+            XCTAssertGreaterThan(full, 0.2)
+            XCTAssertLessThan(half, full * 0.75)
+            XCTAssertGreaterThan(half, full * 0.2)
+        }
+    }
+
     func testUnaVueltaEnteraReproduceElSampleCompleto() {
         // a v=1 y sin glide, `frames` muestras ≈ el sample entero
         let src = sine(1000, frames: 4_800)

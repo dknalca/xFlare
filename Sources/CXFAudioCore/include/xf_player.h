@@ -63,6 +63,12 @@ double xf_player_velocity(const xf_player *p);
  * bases instrumentales en bucle. Por defecto 0 (se satura, como el plato). */
 void xf_player_set_loop(xf_player *p, bool loop);
 
+/* NO RT-SAFE: puerta por velocidad. Si `gate_velocity > 0`, la amplitud de
+ * salida escala con `min(1, |v| / gate_velocity)`: el disco casi parado casi no
+ * suena (como un vinilo de verdad), y desaparece el zumbido de DC del cabezal
+ * quieto. `0` = desactivada (por defecto; asi la base instrumental suena plana). */
+void xf_player_set_speed_gate(xf_player *p, double gate_velocity);
+
 /* NO RT-SAFE: tiempo (ms) que tarda la velocidad en alcanzar el objetivo.
  * `0` = sin suavizado (salta). Por defecto 5 ms. */
 void xf_player_set_glide_ms(xf_player *p, double ms);

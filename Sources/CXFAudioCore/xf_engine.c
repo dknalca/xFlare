@@ -143,6 +143,8 @@ void xf_engine_load_sample(xf_engine *e, const float *sample, int64_t frames) {
     xf_player *np = (sample && frames >= 2)
         ? xf_player_create(sample, frames, (unsigned int)e->sample_rate)
         : NULL;
+    /* el plato casi parado no debe sonar (ni zumbar): puerta por velocidad */
+    if (np) xf_player_set_speed_gate(np, 0.12);
 
     /* el retiro de 2 generaciones ya no puede estar en uso por el hilo RT */
     if (e->retired_player) { xf_player_destroy(e->retired_player); }
@@ -197,6 +199,12 @@ void xf_engine_seek_tick(xf_engine *e, double tick) {
 
 void xf_engine_set_velocity(xf_engine *e, double velocity) {
     if (e) atomic_store(&e->target_velocity, velocity);
+}
+
+void xf_engine_seek_scratch(xf_engine *e, double frame) {
+    if (!e) return;
+    xf_player *p = atomic_load(&e->player);
+    if (p) xf_player_set_playhead(p, frame);
 }
 
 void xf_engine_set_master_gain(xf_engine *e, float gain) {

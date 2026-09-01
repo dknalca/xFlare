@@ -5,6 +5,7 @@ import Combine
 import QuartzCore
 import XFNotation
 import XFRender
+import XFDesign
 
 /// El motor de la practica **rudimentaria**: un reloj musical propio (sin audio)
 /// que hace correr la autopista, y un modelo de plato de juguete que el trackpad
@@ -116,8 +117,10 @@ public final class PracticeSession: ObservableObject {
         if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
         if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
 
-        // traza: un punto por fotograma, se recorta la historia vieja
-        traceBuffer.append(TracePoint(tick: currentTick, position: platterPosition, level: nil))
+        // traza: un punto por fotograma. Con el fader cerrado no suena, asi que
+        // ese tramo de la linea se pinta apagado (nivel `.miss`), no la pantalla.
+        let level: HitLevel? = faderClosed ? .miss : nil
+        traceBuffer.append(TracePoint(tick: currentTick, position: platterPosition, level: level))
         let cutoff = currentTick - historyTicks
         if traceBuffer.first?.tick ?? 0 < cutoff {
             traceBuffer.removeAll { $0.tick < cutoff }

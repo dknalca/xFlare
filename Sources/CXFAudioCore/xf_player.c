@@ -38,6 +38,7 @@ struct xf_player {
     double velocity;          /* ya suavizada */
     double glide_coef;        /* [0,1] por frame; 1.0 = sin suavizado */
     int    loop;              /* 0 = satura en los extremos; 1 = da la vuelta */
+    double speed_gate;        /* >0: amplitud ~ min(1, |v|/speed_gate). 0 = off */
 
     /* Tabla [ratio][fase][tap]. Cada kernel esta normalizado a ganancia DC 1. */
     float *table;             /* NRATIOS * PHASES * TAPS floats */
@@ -130,6 +131,10 @@ double xf_player_velocity(const xf_player *p) { return p ? p->velocity : 0.0; }
 
 void xf_player_set_loop(xf_player *p, bool loop) { if (p) p->loop = loop ? 1 : 0; }
 
+void xf_player_set_speed_gate(xf_player *p, double gate_velocity) {
+    if (p) p->speed_gate = gate_velocity > 0.0 ? gate_velocity : 0.0;
+}
+
 void xf_player_set_playhead(xf_player *p, double frame) {
     if (!p) return;
     if (frame < 0.0) frame = 0.0;
@@ -188,7 +193,14 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
             }
             acc += s * (double)k[t];
         }
-        out[n] = (float)acc;
+
+        /* puerta por velocidad: casi parado -> casi mudo (mata el zumbido de DC) */
+        double amp = 1.0;
+        if (p->speed_gate > 0.0) {
+            double g = av / p->speed_gate;
+            amp = g < 1.0 ? g : 1.0;
+        }
+        out[n] = (float)(acc * amp);
 
         /* 5) avanza el cabezal: se satura a los extremos (el plato no se sale
          *    del sample) o da la vuelta si esta en bucle. */
