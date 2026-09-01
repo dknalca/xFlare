@@ -47,8 +47,20 @@ public final class PracticeSession: ObservableObject {
     private var traceBuffer: [TracePoint] = []
 
     /// Se llama al final de cada paso de simulacion con (velocidad del plato,
-    /// tick). La practica lo usa para empujar el motor de audio. Opcional.
-    public var onAdvance: ((_ platterVelocity: Double, _ tick: Double) -> Void)?
+    /// posicion normalizada 0…1 en el rango del patron, tick). La practica lo usa
+    /// para empujar el motor de audio y tener la onda de abajo pegada a la
+    /// autopista. Opcional.
+    public var onAdvance: ((_ platterVelocity: Double,
+                            _ normalizedPosition: Double,
+                            _ tick: Double) -> Void)?
+
+    /// Posicion del plato como fraccion 0…1 del rango del patron: 0 = abajo
+    /// (inicio del sample), 1 = arriba (final del sample).
+    public var normalizedPosition: Double {
+        let span = posHi - posLo
+        guard span > 1e-9 else { return 0 }
+        return min(1, max(0, (platterPosition - posLo) / span))
+    }
 
     // --- bucle ---
     private var timer: Timer?
@@ -130,14 +142,7 @@ public final class PracticeSession: ObservableObject {
             traceBuffer.removeAll { $0.tick < cutoff }
         }
 
-        onAdvance?(platterVelocity, currentTick)
-    }
-
-    /// Velocidad del plato mapeada a la del reproductor de scratch (1.0 = pitch
-    /// normal). Rudimentaria y acotada; se afina a oido con la mesa.
-    public var scratchPlaybackVelocity: Double {
-        let scaled = platterVelocity * 1.6
-        return max(-8.0, min(8.0, scaled))
+        onAdvance?(platterVelocity, normalizedPosition, currentTick)
     }
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)

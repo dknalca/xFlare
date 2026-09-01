@@ -87,10 +87,14 @@ public struct LivePracticeView: View {
         engine.setMasterGain(1)
         engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
 
-        // cada paso del reloj empuja la velocidad del plato al reproductor
-        session.onAdvance = { [weak engine] platterVelocity, _ in
-            let v = max(-8.0, min(8.0, platterVelocity * 1.6))
-            engine?.setVelocity(v)
+        // cada paso del reloj: velocidad -> pitch/antialiasing, y ademas se
+        // ancla el cabezal a la posicion del plato para que la onda de abajo
+        // vaya pegada a la autopista (mismo origen, no dos integradores).
+        session.onAdvance = { [weak engine] platterVelocity, normPos, _ in
+            guard let engine = engine else { return }
+            engine.setVelocity(max(-8.0, min(8.0, platterVelocity * 1.6)))
+            let frames = engine.scratchFrameCount
+            if frames > 1 { engine.seekScratch(normPos * Double(frames - 1)) }
         }
 
         // decodificar los audios fuera del hilo principal (el MP3 tarda)

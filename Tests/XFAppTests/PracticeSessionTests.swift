@@ -78,6 +78,32 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertLessThan(abs(lo), 10)
     }
 
+    func testPosicionNormalizadaVaDe0a1() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        XCTAssert((0.0...1.0).contains(s.normalizedPosition))
+
+        // hasta el tope de arriba
+        for _ in 0..<300 { s.scrollBy(100); s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.normalizedPosition, 1, accuracy: 1e-6)
+        // hasta el tope de abajo
+        for _ in 0..<600 { s.scrollBy(-100); s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
+    }
+
+    func testOnAdvanceEntregaVelocidadYPosicion() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        var last: (v: Double, pos: Double, tick: Double)?
+        s.onAdvance = { v, pos, tick in last = (v, pos, tick) }
+
+        s.nudge(forward: true)
+        s.advance(by: 1.0 / 60.0)
+
+        let got = try XCTUnwrap(last)
+        XCTAssertGreaterThan(got.v, 0)
+        XCTAssert((0.0...1.0).contains(got.pos))
+        XCTAssertGreaterThan(got.tick, 0)
+    }
+
     func testLaTrazaAcumulaYRecortaLaHistoriaVieja() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 120)   // ppq 480
         for _ in 0..<600 { s.advance(by: 1.0 / 60.0) }              // 10 s -> 9600 ticks
