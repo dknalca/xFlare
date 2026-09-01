@@ -666,7 +666,8 @@
           "title": "Esquema GRDB y migraciones",
           "module": "XFPersistence",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "XFDatabase (DatabaseQueue, foreignKeysEnabled, aplica el migrador; inMemory() para tests; isUpToDate()). Schema.migrator con la migracion v1 que crea 10 tablas del bloque B10: practiceSession, attempt (== data/schema/attempt.schema.json, countsForStars default true por ADR-027) + attemptEvent (eventScores, ON DELETE CASCADE), exerciseProgress (== SCORING.md 3, PK compuesta), variantUnlock, exerciseMastery, reviewSchedule (1/3/7/21 via stage+dueAt), deviceCalibration, practiceDay, setting. Una migracion publicada no se toca; cambios en v2+. Consulta tipada = B10.2+. 10 tests. GRDB añadido al target de tests."
         },
         {
           "id": "B10.2",

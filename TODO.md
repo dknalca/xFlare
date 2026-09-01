@@ -289,7 +289,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Que el progreso sobreviva a cerrar la app.*
 
-- [ ] **B10.1** Esquema GRDB y migraciones `XFPersistence`
+- [x] **B10.1** Esquema GRDB y migraciones `XFPersistence`
+      - Hecho (2026-09-01): `XFDatabase` (abre el SQLite con `DatabaseQueue`, `foreignKeysEnabled`, aplica el migrador; `inMemory()` para tests; `isUpToDate()`). `Schema.migrator` con la migracion **`v1`** que crea las 10 tablas del bloque B10: `practiceSession`, `attempt` (== `data/schema/attempt.schema.json`, con `countsForStars` por defecto true — ADR-027) + `attemptEvent` (`eventScores`, `ON DELETE CASCADE`), `exerciseProgress` (== `docs/SCORING.md` §3, PK compuesta), `variantUnlock`, `exerciseMastery` (dominado/oxidado), `reviewSchedule` (repeticion espaciada 1/3/7/21 via `stage`+`dueAt`), `deviceCalibration`, `practiceDay` (racha), `setting`. Regla: una migracion publicada no se toca; los cambios van en `v2`+. El codigo de consulta tipado es B10.2+. 10 tests (tablas, columnas de attempt, FK exigida, cascada, SET NULL, idempotencia). `GRDB` añadido al target de tests.
 - [ ] **B10.2** Historico de tomas, progreso y desbloqueos `XFPersistence`
 - [ ] **B10.3** Repeticion espaciada (1, 3, 7, 21 dias) `XFPersistence`
 - [ ] **B10.4** Perfiles de calibracion por dispositivo `XFPersistence`
