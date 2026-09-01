@@ -5,7 +5,7 @@ congelado, ver `ARCHITECTURE.md` seccion 6) · `BROKEN` (regresion detectada).
 
 | Modulo | Capa | Estado | Sellado el | Tests | Notas |
 |---|---|---|---|---|---|
-| `CXFAudioCore` | 0 | WIP | — | 29 verdes | `xf_ring` (B4.1) + `xf_player` reproductor con resampling antialiasing (B4.3) + `xf_metronome` claqueta mezclada en la salida (B4.4, ADR-007). Callback CoreAudio + puerta de latencia (B4.2/B4.5) bloqueados por hardware + Instruments |
+| `CXFAudioCore` | 0 | WIP | — | 41 verdes | `xf_ring` (B4.1) + `xf_player` resampling antialiasing (B4.3) + `xf_metronome` (B4.4, ADR-007) + `xf_engine` motor RT + host CoreAudio (B4.2: nucleo `xf_engine_render` testeable; host con thread_policy_set + workgroup compila, sin tests) + `xf_rt`. Falta la puerta de latencia en hardware + Instruments (B4.5) para sellar (B4.6) |
 | `XFPrimitives` | 0 | SEALED | 2026-09-01 | 4 verdes | apiVersion 1. `MotionSample` / `FaderSample` (value types compartidos capture↔analysis). ADR-033 |
 | `CXFTimecode` | 0 | WIP | — | 7 verdes | xwax 1.10 vendorizado intacto (B5.1) + wrapper `xf_timecoder` en modo relativo (B5.2), hamster/reverse (B5.3), confianza + dropout (B5.4). Tests con señal de cuadratura sintética. Falta pasar un vinilo real para sellar (B5.5) |
 | `XFClock` | 1 | SEALED | 2026-08-31 | 34 verdes | apiVersion 1. Tick/PPQ 480, Tempo, TimeSignature, HostClock, ClockMap, Transport. ADR-031 |

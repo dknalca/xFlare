@@ -94,6 +94,13 @@ void xf_metronome_resync(xf_metronome *m, double tick) {
     m->last_beat = (long long)floor(tick / (double)m->ppq);
 }
 
+void xf_metronome_arm(xf_metronome *m, double tick) {
+    if (!m) return;
+    /* el tiempo que contiene `tick` SI sonara en el proximo render (util para
+     * arrancar la cuenta atras: el "1" tiene que sonar). */
+    m->last_beat = (long long)floor(tick / (double)m->ppq) - 1;
+}
+
 /* Envolvente del click en `age` frames (0..len). Ataque lineal, caida exp. */
 static inline float xf_met_env(const xf_metronome *m, int age) {
     if (age < 0 || age >= m->len_frames) return 0.0f;

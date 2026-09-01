@@ -1,6 +1,6 @@
 # CXFAudioCore
 
-**Capa 0 · C · WIP (B4.1 ring buffer + B4.3 reproductor con resampling hechos)**
+**Capa 0 · C · WIP (B4.1 ring + B4.2 motor/host + B4.3 reproductor + B4.4 metronomo; falta B4.5 puerta de latencia en hardware)**
 
 El motor de audio en tiempo real. Reglas del hilo de audio en `CLAUDE.md` §7:
 sin `malloc`/`free`, sin locks, sin Swift/ARC, sin Obj-C, sin ficheros, sin logs
@@ -110,12 +110,59 @@ Tests (`XFMetronomeTests`): 1 click/negra y su espaciado, acento del 1er tiempo
 **suma** (fuera del click `out == preset`), cuenta atras con ticks negativos,
 el BPM cambia el espaciado, resync, salto hacia atras.
 
+## Hecho: `xf_engine` — el motor RT + host CoreAudio (B4.2)
+
+Une el ring buffer (B4.1), el reproductor (B4.3) y el metronomo (B4.4) y los
+conecta a una AudioUnit HAL duplex a 64 frames. Dos partes:
+
+**Nucleo RT (`xf_engine_render`, testeable sin hardware):** dado un bloque de
+entrada del dispositivo (float no intercalado) produce la salida y mete la
+entrada en el ring como **estereo int16** para que Swift la drene (timecode,
+fader). Sintetiza la salida con `xf_player` + `xf_metronome`, aplica la ganancia
+de master y satura. Avanza el reloj musical y publica el **tick del inicio del
+bloque** (`xf_engine_tick`), que la autopista lee para ir con el reloj de AUDIO.
+No reserva memoria (regla §7); habla con Swift solo por atomicas y el ring.
+
+```c
+xf_engine *xf_engine_create(double sr, uint32_t max_frames);      /* NO RT-SAFE */
+void xf_engine_load_sample(xf_engine *, const float *mono, int64_t frames);
+void xf_engine_set_transport(xf_engine *, double bpm, int ppq, bool playing);
+void xf_engine_seek_tick(xf_engine *, double tick);
+void xf_engine_set_velocity(xf_engine *, double v);
+void xf_engine_set_master_gain(xf_engine *, float g);
+xf_ring_t    *xf_engine_input_ring(xf_engine *);   /* Swift drena PCM int16 estereo */
+xf_metronome *xf_engine_metronome(xf_engine *);
+double        xf_engine_tick(const xf_engine *);   /* RT-SAFE */
+void xf_engine_render(xf_engine *, const float *inL, const float *inR,
+                      float *outL, float *outR, int n, uint64_t host_time); /* RT-SAFE */
+```
+
+Cambiar el sample **sonando** es seguro: el puntero al reproductor es atomico y
+el anterior se retira sin `free` en el hilo RT.
+
+**Host CoreAudio (`xf_engine_start`/`xf_engine_stop`, compila; SIN tests):** abre
+la AudioUnit HAL sobre el dispositivo, fija 64 frames, instala el callback, y en
+el primer callback promociona el hilo (`xf_rt_promote_current_thread` →
+`THREAD_TIME_CONSTRAINT_POLICY`) y lo une al workgroup del dispositivo
+(`kAudioDevicePropertyIOThreadOSWorkgroup` → `os_workgroup_join`, obligatorio en
+Apple Silicon). Cuenta overloads (`kAudioDeviceProcessorOverload`) y render
+errors.
+
+`xf_rt` (`xf_rt.h`): `xf_rt_time_constraint_params(sr, frames, &period, &comp,
+&constraint)` calcula la politica (testeable) y `xf_rt_promote_current_thread`
+la aplica.
+
+Tests (`XFEngineRTTests`, `xf_rt` + `xf_engine_render`): la entrada va al ring
+como int16 estereo, sin entrada no escribe pero saca salida, `nframes` se satura
+a `max_frames`, el reproductor suena, gain 0 silencia, el metronomo se mezcla, el
+reloj musical avanza solo sonando y publica el tick del inicio del bloque, seek,
+cambio de sample sonando. Los parametros de time-constraint: `computation <=
+period`, `constraint` entre medias, escala con el buffer.
+
 ## Pendiente (necesita hardware / Instruments)
 
-- **B4.2** callback CoreAudio RT-safe a 64 frames, con `thread_policy_set` +
-  workgroup de audio. Aqui se cablea `xf_player` + `xf_metronome` sobre el ring
-  buffer y se fija la prioridad del hilo.
-- **B4.5** PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min (medido con Instruments).
+- **B4.5** PUERTA DE CALIDAD: ≤10 ms round-trip, 0 overloads en 5 min, verificar
+  con Instruments (Audio System Trace) que `xf_engine_render` no hace malloc/lock.
 - **B4.6** SELLAR.
 
 El spike desechable `spike/b1-latency/` ya prueba el passthrough a 64 frames en

@@ -47,8 +47,11 @@ void xf_metronome_render(xf_metronome *m, float *out, int nframes,
                          double tick_at_start, double bpm);
 
 /* NO RT-SAFE: reengancha el contador de tiempos a `tick` **sin disparar** el
- * tiempo actual (el siguiente cruce si). Para cuando el transporte arranca o
- * salta. */
+ * tiempo actual (el siguiente cruce si). Para un scrub a mitad de compas. */
 void xf_metronome_resync(xf_metronome *m, double tick);
+
+/* NO RT-SAFE: como `resync`, pero el tiempo que **contiene** `tick` SI sonara en
+ * el proximo render. Para arrancar la cuenta atras (el "1" tiene que sonar). */
+void xf_metronome_arm(xf_metronome *m, double tick);
 
 #endif /* XF_METRONOME_H */

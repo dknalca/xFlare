@@ -29,7 +29,12 @@ let package = Package(
         .target(name: "CXFAudioCore",
                 path: "Sources/CXFAudioCore",
                 exclude: ["README.md"],
-                cSettings: [.headerSearchPath("include")]),
+                cSettings: [.headerSearchPath("include")],
+                // El host CoreAudio de xf_engine.c (B4.2) usa estos frameworks.
+                linkerSettings: [.linkedFramework("AudioToolbox"),
+                                 .linkedFramework("AudioUnit"),
+                                 .linkedFramework("CoreAudio"),
+                                 .linkedFramework("CoreFoundation")]),
 
         .target(name: "CXFTimecode",
                 dependencies: ["CXFAudioCore"],

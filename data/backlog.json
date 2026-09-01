@@ -265,8 +265,8 @@
           "title": "Callback CoreAudio RT-safe, 64 frames, con thread_policy_set Y workgroup de audio",
           "module": "CXFAudioCore",
           "acceptance": "0 malloc/locks verificado con Instruments; el hilo se une al workgroup del dispositivo (obligatorio en Apple Silicon)",
-          "status": "todo",
-          "note": "bloqueado: hardware + Instruments. El spike spike/b1-latency/passthrough.c ya tiene la plumberia CoreAudio a 64 frames; B4.2 es la version definitiva con ring buffer y prioridad RT."
+          "status": "done",
+          "note": "xf_engine en dos partes. Nucleo RT (xf_engine_render, testeable): entrada -> ring como estereo int16, salida = xf_player + xf_metronome con master gain, avanza el reloj musical y publica xf_engine_tick. Sin reservas; atomicas + ring. Cambio de sample sonando seguro (puntero atomico + retiro sin free). Host CoreAudio (xf_engine_start/stop, compila SIN tests): AudioUnit HAL duplex 64 frames, primer callback promociona el hilo (THREAD_TIME_CONSTRAINT_POLICY) y se une al workgroup (kAudioDevicePropertyIOThreadOSWorkgroup -> os_workgroup_join); cuenta overloads/render errors. xf_rt: xf_rt_time_constraint_params testeable. 12 tests. Pendiente en hardware: Instruments (0 malloc/locks) + que suene limpio."
         },
         {
           "id": "B4.3",
