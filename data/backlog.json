@@ -519,7 +519,8 @@
           "title": "Capa fantasma + capa usuario + tenido por tolerancia",
           "module": "XFRender",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "HighwayLayout.frame(...) gana userTrace: [TracePoint] y clickHits: [ClickHit]. La curva del usuario va en el MISMO eje que el fantasma (misma positionRange) y se parte en TintedPolyline por HitLevel; nil/.perfect = acento, el resto se tiñe con HitLevel.color (UI_DESIGN 3.3), tramos con punto de corte compartido. ClickHit -> TintedMark sobre la curva del patron en la copia mas cercana a ahora, clasificado con HitLevel(absOffsetMs:). XFRender no juzga (XFAnalysis rellena los niveles). HighwayScene/HighwayView pintan las dos capas (nodos reutilizados). 8 tests."
         },
         {
           "id": "B7.5",

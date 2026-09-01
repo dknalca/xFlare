@@ -16,13 +16,19 @@ public struct HighwayView: NSViewRepresentable {
     private let scratch: Scratch
     private let geometry: HighwayGeometry
     private let tick: () -> Double
+    private let userTrace: () -> [TracePoint]
+    private let clickHits: () -> [ClickHit]
 
     public init(scratch: Scratch,
                 geometry: HighwayGeometry,
-                tick: @escaping () -> Double) {
+                tick: @escaping () -> Double,
+                userTrace: @escaping () -> [TracePoint] = { [] },
+                clickHits: @escaping () -> [ClickHit] = { [] }) {
         self.scratch = scratch
         self.geometry = geometry
         self.tick = tick
+        self.userTrace = userTrace
+        self.clickHits = clickHits
     }
 
     public func makeNSView(context: Context) -> SKView {
@@ -32,6 +38,8 @@ public struct HighwayView: NSViewRepresentable {
 
         let scene = HighwayScene(geometry: geometry)
         scene.currentTick = tick
+        scene.userTrace = userTrace
+        scene.clickHits = clickHits
         scene.load(scratch)
         context.coordinator.scene = scene
         context.coordinator.loadedId = scratch.id
@@ -42,6 +50,8 @@ public struct HighwayView: NSViewRepresentable {
     public func updateNSView(_ view: SKView, context: Context) {
         let scene = context.coordinator.scene
         scene?.currentTick = tick
+        scene?.userTrace = userTrace
+        scene?.clickHits = clickHits
         if context.coordinator.loadedId != scratch.id {
             scene?.load(scratch)
             context.coordinator.loadedId = scratch.id

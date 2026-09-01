@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import CoreGraphics
+import XFDesign
 import XFNotation
 
 /// Convierte un `Scratch` + "en qué tick estamos" en la geometría de la
@@ -46,7 +47,15 @@ public struct HighwayLayout {
     // MARK: - fotograma
 
     /// La geometría de la autopista cuando "ahora" está en `currentTick`.
-    public func frame(atTick currentTick: Double, geometry g: HighwayGeometry) -> HighwayFrame {
+    ///
+    /// - Parameters:
+    ///   - userTrace: la traza del disco del usuario (ticks **absolutos** de
+    ///     sesión), con el nivel de acierto por punto. Vacía = solo fantasma.
+    ///   - clickHits: el resultado del usuario en cada click del patrón.
+    public func frame(atTick currentTick: Double,
+                      geometry g: HighwayGeometry,
+                      userTrace: [TracePoint] = [],
+                      clickHits: [ClickHit] = []) -> HighwayFrame {
         let length = max(1, scratch.lengthTicks)
         let pxPerTick = g.pixelsPerTick(ppq: ppq)
         let playheadX = g.playheadX
@@ -127,7 +136,47 @@ public struct HighwayLayout {
             }
         }
 
+        // --- capa de usuario: traza partida en tramos por nivel de acierto ---
+        // `nil` y `.perfect` se dibujan igual (acento): la clave de tinte los junta.
+        func tintKey(_ level: HitLevel?) -> HitLevel? {
+            (level == nil || level == .perfect) ? nil : level
+        }
+        let visible = userTrace
+            .filter { $0.tick >= tMin - Double(sampleStep) && $0.tick <= tMax + Double(sampleStep) }
+            .sorted { $0.tick < $1.tick }
+            .map { (point: CGPoint(x: x(forTick: $0.tick), y: y(forPosition: $0.position)),
+                    key: tintKey($0.level)) }
+
+        var userSegments: [TintedPolyline] = []
+        var i = 0
+        while i < visible.count {
+            let key = visible[i].key
+            var pts: [CGPoint] = []
+            var j = i
+            while j < visible.count && visible[j].key == key { pts.append(visible[j].point); j += 1 }
+            if j < visible.count { pts.append(visible[j].point) }   // punto de corte compartido, sin hueco
+            if pts.count >= 2 { userSegments.append(TintedPolyline(points: pts, level: key)) }
+            i = j
+        }
+
+        // --- marcas de click con el resultado del usuario ---
+        var hitMarks: [TintedMark] = []
+        for hit in clickHits {
+            // la copia del patrón más cercana a "ahora"
+            let copy = ((currentTick - Double(hit.patternTick)) / Double(length)).rounded()
+            let absTick = Double(hit.patternTick) + copy * Double(length)
+            let wrappedTick = wrapped(Double(hit.patternTick))
+            let closes = scratch.faderEvents
+                .first { $0.t == hit.patternTick }?.state != FaderState.open
+            let p = PositionSampler.position(of: scratch, atTick: wrappedTick)
+            hitMarks.append(TintedMark(
+                point: CGPoint(x: x(forTick: absTick), y: y(forPosition: p)),
+                level: HitLevel(absOffsetMs: abs(hit.offsetMs)),
+                closes: closes))
+        }
+
         return HighwayFrame(discCurve: curve, openMarks: open, closeMarks: close,
-                            faderBands: bands, playheadX: playheadX)
+                            faderBands: bands, playheadX: playheadX,
+                            userSegments: userSegments, hitMarks: hitMarks)
     }
 }

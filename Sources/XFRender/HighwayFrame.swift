@@ -24,15 +24,26 @@ public struct HighwayFrame: Equatable, Sendable {
     /// Tramos del carril de fader visibles, de izquierda a derecha.
     public var faderBands: [FaderBand]
 
+    /// La curva del **usuario** (capa de acento), partida en tramos por el nivel
+    /// de acierto que la tiñe. Vacía si no se pasó traza (B7.4).
+    public var userSegments: [TintedPolyline]
+
+    /// Marcas de los clicks con el resultado del usuario (color + forma). Vacío
+    /// si no se pasaron `ClickHit` (B7.4).
+    public var hitMarks: [TintedMark]
+
     /// X de la cabeza de lectura (constante para una geometría dada).
     public var playheadX: CGFloat
 
     public init(discCurve: [CGPoint], openMarks: [CGPoint], closeMarks: [CGPoint],
-                faderBands: [FaderBand], playheadX: CGFloat) {
+                faderBands: [FaderBand], playheadX: CGFloat,
+                userSegments: [TintedPolyline] = [], hitMarks: [TintedMark] = []) {
         self.discCurve = discCurve
         self.openMarks = openMarks
         self.closeMarks = closeMarks
         self.faderBands = faderBands
+        self.userSegments = userSegments
+        self.hitMarks = hitMarks
         self.playheadX = playheadX
     }
 }

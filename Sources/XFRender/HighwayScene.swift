@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import SpriteKit
+import XFDesign
 import XFNotation
 
 /// La escena SpriteKit de la autopista. **Delgada a propósito**: toda la
@@ -18,6 +19,13 @@ public final class HighwayScene: SKScene {
     /// el transporte, que a su vez va con el reloj de audio.
     public var currentTick: () -> Double = { 0 }
 
+    /// Traza del disco del usuario (capa de acento). La inyecta `XFApp` con lo
+    /// que va capturando. Vacía = solo se ve el fantasma.
+    public var userTrace: () -> [TracePoint] = { [] }
+
+    /// Resultado del usuario en cada click, para las marcas teñidas.
+    public var clickHits: () -> [ClickHit] = { [] }
+
     private var layout: HighwayLayout?
     private var geometry: HighwayGeometry
 
@@ -26,13 +34,18 @@ public final class HighwayScene: SKScene {
     private let playheadNode = SKShapeNode()
     private let laneLayer = SKNode()
     private let marksLayer = SKNode()
+    private let userLayer = SKNode()
+    private let hitLayer = SKNode()
     private var bandPool: [SKShapeNode] = []
     private var markPool: [SKShapeNode] = []
+    private var userPool: [SKShapeNode] = []
+    private var hitPool: [SKShapeNode] = []
 
     // Paleta (docs/UI_DESIGN.md §2). XFDesign es SwiftUI; aquí usamos SKColor.
     private let ghostColor = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.55)
     private let openColor  = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.9)
     private let closeColor = SKColor(red: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 1.0)
+    private let accentColor = SKColor(red: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 1.0)
     private let playheadColor = SKColor(red: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1.0)
     private let laneOpenColor = SKColor(red: 0xF2/255, green: 0xF5/255, blue: 0xF7/255, alpha: 0.10)
 
@@ -49,8 +62,10 @@ public final class HighwayScene: SKScene {
         playheadNode.lineWidth = 1
 
         addChild(laneLayer)
-        addChild(curveNode)
+        addChild(curveNode)      // fantasma detrás
+        addChild(userLayer)      // tu curva delante
         addChild(marksLayer)
+        addChild(hitLayer)
         addChild(playheadNode)
     }
 
@@ -69,7 +84,14 @@ public final class HighwayScene: SKScene {
 
     public override func update(_ currentTime: TimeInterval) {
         guard let layout else { return }
-        render(layout.frame(atTick: currentTick(), geometry: geometry))
+        render(layout.frame(atTick: currentTick(), geometry: geometry,
+                            userTrace: userTrace(), clickHits: clickHits()))
+    }
+
+    /// Color de un nivel de acierto. `nil` (dentro de tolerancia) → acento.
+    private func color(for level: HitLevel?) -> SKColor {
+        guard let level else { return accentColor }
+        return SKColor(level.color)
     }
 
     // MARK: - pintado
@@ -114,6 +136,38 @@ public final class HighwayScene: SKScene {
             node.path = CGPath(ellipseIn: CGRect(x: -5, y: -5, width: 10, height: 10), transform: nil)
             node.fillColor = closes ? closeColor : .clear
             node.strokeColor = closes ? closeColor : openColor
+            node.lineWidth = 2
+        }
+
+        // capa de usuario: cada tramo con su tinte
+        ensurePool(&userPool, count: frame.userSegments.count, into: userLayer)
+        for (i, node) in userPool.enumerated() {
+            guard i < frame.userSegments.count, frame.userSegments[i].points.count >= 2 else {
+                node.isHidden = true; continue
+            }
+            let segment = frame.userSegments[i]
+            node.isHidden = false
+            node.position = .zero
+            let path = CGMutablePath()
+            path.addLines(between: segment.points)
+            node.path = path
+            node.strokeColor = color(for: segment.level)
+            node.lineWidth = 3
+            node.lineJoin = .round
+            node.fillColor = .clear
+        }
+
+        // marcas de click con el resultado del usuario (color; la forma la da
+        // XFApp con HitLevel.shape en la barra inferior)
+        ensurePool(&hitPool, count: frame.hitMarks.count, into: hitLayer)
+        for (i, node) in hitPool.enumerated() {
+            guard i < frame.hitMarks.count else { node.isHidden = true; continue }
+            let mark = frame.hitMarks[i]
+            node.isHidden = false
+            node.position = mark.point
+            node.path = CGPath(ellipseIn: CGRect(x: -6, y: -6, width: 12, height: 12), transform: nil)
+            node.strokeColor = color(for: mark.level)
+            node.fillColor = mark.closes ? color(for: mark.level) : .clear
             node.lineWidth = 2
         }
     }
