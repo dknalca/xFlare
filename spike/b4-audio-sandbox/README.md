@@ -7,6 +7,11 @@
 Simula el timecode con el **trackpad** y el corte del **crossfader** con una
 tecla, y suena: una instrumental de fondo + un sample scratcheado por el "plato".
 
+> **Estado (2026-09-01):** probado en la máquina de referencia (MacBook Pro 2015,
+> macOS 12.7). Suena, el trackpad y la tecla responden en tiempo real, se siente
+> razonable. Valida el reparto Swift (UI) + C (callback RT) + atómicas de puente
+> antes de escribir `CXFAudioCore` en serio.
+
 ## Uso
 
 ```sh
