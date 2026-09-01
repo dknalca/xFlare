@@ -759,7 +759,8 @@
           "title": "Pantalla de practica (la autopista)",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "PracticeHUD (puro) arma las 2 barras de UI_DESIGN 3.3 desde la Session: nombre, fase, BPM, % (solo si puntua y no hay cuenta atras), ultimos 5 clicks como HitLevel, una frase de feedback. PracticeView SwiftUI (Scope + HighwayView + barras, onExit=Esc). 6 tests."
         },
         {
           "id": "B11.4",

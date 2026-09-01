@@ -325,7 +325,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-01): `MatrixCell` (celda de la rejilla: locked/available/practiced(stars)/mastered, derivada del estado de la variante base) + `HomeSummary` (celdas por nivel, racha, minutos de hoy, "Continuar", masteredCount, minimo diario) + `PracticeStreak` (racha de dias consecutivos, puro: si hoy no hay practica pero ayer si, sigue viva; anteayer -> 0). `HomeView` SwiftUI reemplaza la maqueta de `Sources/xFlare/HomeScaffoldView.swift` (se borra al cablear). Los datos los arma XFApp desde XFPersistence/XFNotation (glue pendiente; XFPersistence esta SEALED, no se toca). 11 tests.
       - Nota: ya existe una **maqueta inerte** en `Sources/xFlare/HomeScaffoldView.swift`
         (ejecutable `xFlare`, `make run`). Sirve de referencia visual; aquí se hace la de verdad en XFApp y se borra la maqueta.
-- [ ] **B11.3** Pantalla de practica (la autopista) `XFApp`
+- [x] **B11.3** Pantalla de practica (la autopista) `XFApp`
+      - Hecho (2026-09-01): `PracticeHUD` (puro) arma las dos barras de UI_DESIGN 3.3 desde la `Session`: nombre, fase (Calentamiento/Serie i/N/Descanso/Boss/Resultados), BPM, `%` (solo si la fase puntua y no hay cuenta atras), ultimos 5 clicks como `HitLevel`, una sola frase de feedback. `PracticeView` SwiftUI: Scope + HighwayView + barra fina + barra de feedback, `onExit` (Esc). 6 tests.
 - [ ] **B11.4** Pantalla de resultados con diagnostico `XFApp`
 - [ ] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
 - [ ] **B11.6** Navegador de la libreria `XFApp`
