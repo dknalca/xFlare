@@ -72,12 +72,14 @@ public final class PracticeSession: ObservableObject {
     private var lastFrameTime: CFTimeInterval = 0
 
     // --- sintonia (a ojo; se afina cuando haya mesa) ---
-    /// Decaimiento exponencial de la velocidad al soltar, en 1/s. ~0,3 s de coast.
-    private let frictionPerSecond = 7.0
-    /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s.
-    private let scrollGain = 0.055
+    /// Decaimiento exponencial de la velocidad al soltar, en 1/s. Mas bajo =
+    /// rueda mas y cuesta menos llegar a los extremos del recorrido.
+    private let frictionPerSecond = 4.5
+    /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
+    /// rango util del patron es 1.0, asi que un gesto normal debe cubrirlo entero.
+    private let scrollGain = 0.11
     /// Impulso de una pulsacion de A / D, en unidades/s.
-    private let keyImpulse = 0.6
+    private let keyImpulse = 0.9
 
     public init(scratch: Scratch, bpm: Int) {
         self.ppq = Double(max(1, scratch.ppq))
@@ -88,10 +90,10 @@ public final class PracticeSession: ObservableObject {
         let range = HighwayLayout(scratch: scratch).positionRange
         self.posLo = range.lowerBound
         self.posHi = range.upperBound
-        // Arranca donde arranca el patron (tick 0), no en el centro, para que la
-        // linea del usuario y el fantasma partan del mismo punto.
-        let start = PositionSampler.position(of: scratch, atTick: 0)
-        self.platterPosition = min(max(start, range.lowerBound), range.upperBound)
+        // Arranca en el CENTRO del rango: asi se puede scratchear igual en las
+        // dos direcciones y alcanzar los dos extremos (empezar pegado a un
+        // extremo dejaba medio recorrido muerto contra la pared).
+        self.platterPosition = (range.lowerBound + range.upperBound) / 2
         self.bpm = min(220, max(40, bpm))
     }
 

@@ -67,7 +67,8 @@
         "orbit-1c",
         "tear-flare-1c",
         "transformer-4",
-        "hydroplane"
+        "hydroplane",
+        "crab"
       ],
       "unlock": {
         "accuracy": 0.85,
@@ -95,7 +96,6 @@
       "name": "Velocidad",
       "goal": "Los mismos patrones, al doble.",
       "scratches": [
-        "crab",
         "flare-2c-16"
       ],
       "unlock": {

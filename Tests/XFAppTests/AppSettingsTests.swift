@@ -11,8 +11,9 @@ final class AppSettingsTests: XCTestCase {
 
     func testIdaYVuelta() {
         var s = AppSettings.defaults
+        s.username = "dj test"
         s.hamster = true
-        s.bufferFrames = 128
+        s.bufferFrames = 256
         s.metronomeEnabled = false
         s.toleranceScale = 1.5
         s.highContrast = true
@@ -21,11 +22,11 @@ final class AppSettingsTests: XCTestCase {
 
     func testValoresIlegiblesCaenAlDefault() {
         let s = AppSettings(raw: [
-            "audio.bufferFrames": "999",          // no es 64 ni 128
+            "audio.bufferFrames": "999",          // no esta en bufferOptions
             "scoring.toleranceScale": "no-num",
             "hamster": "quizas",
         ])
-        XCTAssertEqual(s.bufferFrames, 64)
+        XCTAssertEqual(s.bufferFrames, AppSettings.defaults.bufferFrames)
         XCTAssertEqual(s.toleranceScale, 1.0)
         XCTAssertFalse(s.hamster)
     }

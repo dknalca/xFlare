@@ -13,11 +13,14 @@ public struct LibraryEntry: Equatable, Sendable, Identifiable {
     public var clickCount: Int
     public var lengthTicks: Int
     public var isUnlocked: Bool
+    /// Gráfico TTM del truco (se muestra al pinchar la fila).
+    public var thumbnail: TTMThumbnail?
 
     public var id: String { scratchId }
 
     public init(scratchId: String, name: String, family: String, level: Int,
-                technique: String, clickCount: Int, lengthTicks: Int, isUnlocked: Bool) {
+                technique: String, clickCount: Int, lengthTicks: Int, isUnlocked: Bool,
+                thumbnail: TTMThumbnail? = nil) {
         self.scratchId = scratchId
         self.name = name
         self.family = family
@@ -26,12 +29,16 @@ public struct LibraryEntry: Equatable, Sendable, Identifiable {
         self.clickCount = clickCount
         self.lengthTicks = lengthTicks
         self.isUnlocked = isUnlocked
+        self.thumbnail = thumbnail
     }
 
-    public init(scratch: Scratch, isUnlocked: Bool) {
+    /// - Parameter level: si se pasa, sustituye al nivel propio del scratch (p. ej.
+    ///   el del currículo). Si es `nil`, se usa `scratch.level`.
+    public init(scratch: Scratch, isUnlocked: Bool, level: Int? = nil) {
         self.init(scratchId: scratch.id, name: scratch.name, family: scratch.family,
-                  level: scratch.level, technique: scratch.technique,
+                  level: level ?? scratch.level, technique: scratch.technique,
                   clickCount: scratch.clickCount, lengthTicks: scratch.lengthTicks,
-                  isUnlocked: isUnlocked)
+                  isUnlocked: isUnlocked,
+                  thumbnail: TTMThumbnail.build(scratch: scratch))
     }
 }

@@ -17,12 +17,21 @@ public struct SettingsView: View {
 
     public var body: some View {
         Form {
+            Section(header: Text("Perfil")) {
+                HStack {
+                    Text("Nombre")
+                    TextField("para las estadísticas", text: bind(\.username))
+                }
+            }
             Section(header: Text("Hardware")) {
                 Toggle("Corto en reverse (hamster)", isOn: bind(\.hamster))
                 Picker("Buffer de audio", selection: bind(\.bufferFrames)) {
-                    Text("64 frames").tag(64)
-                    Text("128 frames").tag(128)
+                    ForEach(AppSettings.bufferOptions, id: \.self) { n in
+                        Text("\(n) frames").tag(n)
+                    }
                 }
+                Text("Si oyes crujidos, sube el buffer. Cambia al reiniciar la app.")
+                    .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
             }
             Section(header: Text("Sesión")) {
                 Toggle("Metrónomo", isOn: bind(\.metronomeEnabled))

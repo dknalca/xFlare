@@ -92,8 +92,16 @@ public enum LibraryAssembler {
         }
         let available = LevelGate.availableScratchIds(catalog: catalog) { starsByExercise[$0] ?? 0 }
 
+        // Nivel del CURRICULO (no el del scratch): asi el crab, que en la libreria
+        // es nivel 6, sale en el nivel donde de verdad se practica (L4).
+        func curriculumLevel(_ scratchId: String) -> Int? {
+            guard let raw = catalog.exercise(forScratch: scratchId)?.level else { return nil }
+            return Int(raw.drop(while: { !$0.isNumber }))
+        }
+
         let entries = catalog.library.scratches.map { s in
-            LibraryEntry(scratch: s, isUnlocked: available.contains(s.id))
+            LibraryEntry(scratch: s, isUnlocked: available.contains(s.id),
+                         level: curriculumLevel(s.id))
         }
         return LibraryBrowser(entries: entries)
     }

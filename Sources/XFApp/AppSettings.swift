@@ -8,6 +8,11 @@
 /// cualquier clave ausente o ilegible cae a su valor por defecto.
 public struct AppSettings: Equatable, Sendable {
 
+    /// Tamaños de buffer de audio que se ofrecen (frames @ 48 kHz).
+    public static let bufferOptions = [64, 128, 256, 512, 1024]
+
+    /// Nombre de usuario, solo para etiquetar las estadísticas locales.
+    public var username: String
     public var hamster: Bool
     public var metronomeEnabled: Bool
     public var bufferFrames: Int
@@ -18,14 +23,15 @@ public struct AppSettings: Equatable, Sendable {
     public var reduceMotion: Bool
 
     public static let defaults = AppSettings(
-        hamster: false, metronomeEnabled: true, bufferFrames: 64,
+        username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false)
 
-    public init(hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
+    public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool) {
+        self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
-        self.bufferFrames = bufferFrames
+        self.bufferFrames = AppSettings.bufferOptions.contains(bufferFrames) ? bufferFrames : 512
         self.toleranceScale = toleranceScale
         self.highContrast = highContrast
         self.reduceMotion = reduceMotion
@@ -34,6 +40,7 @@ public struct AppSettings: Equatable, Sendable {
     // MARK: - clave/valor
 
     private enum Key {
+        static let username = "user.name"
         static let hamster = "hamster"
         static let metronome = "metronome.enabled"
         static let buffer = "audio.bufferFrames"
@@ -49,9 +56,10 @@ public struct AppSettings: Equatable, Sendable {
         func dbl(_ k: String, _ fallback: Double) -> Double { raw[k].flatMap(Double.init) ?? fallback }
 
         self.init(
+            username: raw[Key.username] ?? d.username,
             hamster: bool(Key.hamster, d.hamster),
             metronomeEnabled: bool(Key.metronome, d.metronomeEnabled),
-            bufferFrames: [64, 128].contains(int(Key.buffer, d.bufferFrames)) ? int(Key.buffer, d.bufferFrames) : d.bufferFrames,
+            bufferFrames: int(Key.buffer, d.bufferFrames),
             toleranceScale: max(0.5, min(2.0, dbl(Key.tolerance, d.toleranceScale))),
             highContrast: bool(Key.contrast, d.highContrast),
             reduceMotion: bool(Key.motion, d.reduceMotion))
@@ -59,6 +67,7 @@ public struct AppSettings: Equatable, Sendable {
 
     public var raw: [String: String] {
         [
+            Key.username: username,
             Key.hamster: hamster ? "1" : "0",
             Key.metronome: metronomeEnabled ? "1" : "0",
             Key.buffer: String(bufferFrames),

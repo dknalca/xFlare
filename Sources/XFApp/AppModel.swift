@@ -35,7 +35,9 @@ public final class AppModel: ObservableObject {
     public let content: ContentLoader
 
     @Published public private(set) var screen: Screen = .home
-    @Published public var settings: AppSettings
+    @Published public var settings: AppSettings {
+        didSet { Self.persist(settings) }
+    }
     @Published public var activeProfileId: String?
     /// Ejercicio en curso para la tarjeta "Continuar" (en memoria por ahora).
     @Published public var continueExerciseId: String?
@@ -79,11 +81,13 @@ public final class AppModel: ObservableObject {
             }
             let profiles = ProfileStore(bundled: bundled, user: [])
 
-            // maxFrames holgado: el motor solo-salida fija el buffer del
-            // dispositivo a este valor y no todas las salidas aguantan 64.
+            // Ajustes: se guardan en un plist local (UserDefaults); ningun dato
+            // sale de la maquina. El buffer de audio se fija aqui, al crear el
+            // motor (cambiarlo requiere reiniciar).
+            let settings = loadSettings()
             let model = AppModel(catalog: catalog, db: db,
-                                 engine: EngineHandle(maxFrames: 512),
-                                 profiles: profiles, content: content)
+                                 engine: EngineHandle(maxFrames: settings.bufferFrames),
+                                 profiles: profiles, settings: settings, content: content)
             model.refreshHome()
             return model
         } catch {
@@ -103,6 +107,22 @@ public final class AppModel: ObservableObject {
             db: db)
         model.screen = .error(message)
         return model
+    }
+
+    // MARK: - persistencia de ajustes (plist local)
+
+    private static let settingsDefaults = UserDefaults(suiteName: "app.xflare.settings")
+
+    static func loadSettings() -> AppSettings {
+        guard let d = settingsDefaults,
+              let raw = d.dictionary(forKey: "settings") as? [String: String] else {
+            return .defaults
+        }
+        return AppSettings(raw: raw)
+    }
+
+    static func persist(_ s: AppSettings) {
+        settingsDefaults?.set(s.raw, forKey: "settings")
     }
 
     static func defaultDatabaseURL() -> URL {

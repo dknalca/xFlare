@@ -88,21 +88,22 @@ public struct LivePracticeView: View {
         guard let engine = engine else { return }
 
         engine.metronomeEnabled = metronomeOn
-        engine.setInstrumentalGain(0.5)
-        engine.setMasterGain(1)
+        engine.setInstrumentalGain(0.30)   // headroom: scratch + base + metronomo sin clip
+        engine.setMasterGain(0.85)
         engine.setScratchGain(1)
         engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
 
-        // cada paso del reloj: la velocidad que se manda al reproductor es la
-        // derivada EXACTA del movimiento del cabezal (fraccion util del sample),
-        // y ademas se ancla el cabezal a esa posicion. Asi la onda de abajo y la
-        // traza de la autopista no se separan (era el origen de los glitches).
+        // cada paso del reloj: solo se manda la VELOCIDAD (derivada exacta del
+        // movimiento del cabezal en fraccion util del sample). NO se hace
+        // `seekScratch` por fotograma: escribir el cabezal desde el hilo normal
+        // mientras el RT lo integra es una carrera y metia un click periodico.
+        // El cabezal lo integra el RT a partir de la velocidad; la onda de abajo
+        // lee ese mismo cabezal, asi que van juntas.
         let sr = engine.sampleRateHz
-        session.onAdvance = { [weak engine] normVel, normPos, _ in
+        session.onAdvance = { [weak engine] normVel, _, _ in
             guard let engine = engine, engine.scratchFrameCount > 1 else { return }
             let usable = Double(engine.scratchFrameCount - 1) * AudioAsset.scratchUsableFraction
             engine.setVelocity(normVel * usable / sr)   // frames de sample por frame de salida
-            engine.seekScratch(normPos * usable)
         }
 
         // decodificar los audios fuera del hilo principal (el MP3 tarda)
@@ -127,7 +128,7 @@ public struct LivePracticeView: View {
     private var waveStrip: some View {
         WaveformStripView(envelope: waveEnvelope,
                           progress: { engine?.scratchProgress ?? 0 },
-                          visibleFraction: 0.5)
+                          visibleFraction: 0.9)
             .frame(height: 54)
             .background(XFColor.surface)
     }

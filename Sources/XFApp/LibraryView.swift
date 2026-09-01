@@ -12,6 +12,7 @@ public struct LibraryView: View {
 
     @State private var query = ""
     @State private var family: String?
+    @State private var expandedId: String?
 
     public init(browser: LibraryBrowser, onSelect: @escaping (String) -> Void = { _ in }) {
         self.browser = browser
@@ -50,18 +51,42 @@ public struct LibraryView: View {
         browser.groupedByLevel(query: query, family: family)
     }
 
-    private func row(_ e: LibraryEntry) -> some View {
-        Button { onSelect(e.scratchId) } label: {
+    @ViewBuilder private func row(_ e: LibraryEntry) -> some View {
+        // pinchar la fila abre/cierra el dibujo TTM
+        Button { expandedId = (expandedId == e.scratchId) ? nil : e.scratchId } label: {
             HStack {
                 Text(e.name).font(XFFont.bodyMedium(13))
                 Text(e.family).font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                 Spacer()
                 Text("\(e.clickCount) clicks").font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
                 if !e.isUnlocked { Image(systemName: "lock.fill").foregroundColor(XFColor.textMuted) }
+                Image(systemName: expandedId == e.scratchId ? "chevron.up" : "chevron.down")
+                    .font(.system(size: 9)).foregroundColor(XFColor.textMuted)
             }
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
             .opacity(e.isUnlocked ? 1 : 0.5)
         }
         .buttonStyle(.plain)
+
+        if expandedId == e.scratchId {
+            VStack(alignment: .leading, spacing: XFSpacing.sm) {
+                if let thumb = e.thumbnail {
+                    TTMThumbnailView(thumbnail: thumb)
+                        .frame(height: 90)
+                        .padding(.vertical, XFSpacing.xs)
+                }
+                HStack(spacing: XFSpacing.md) {
+                    Text("L\(e.level) · \(e.technique)")
+                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                    Spacer()
+                    Button("Practicar") { onSelect(e.scratchId) }
+                        .xfButton(.filled)
+                        .disabled(!e.isUnlocked)
+                }
+            }
+            .padding(XFSpacing.sm)
+            .background(RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface))
+        }
     }
 }
