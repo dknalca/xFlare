@@ -767,7 +767,8 @@
           "title": "Pantalla de resultados con diagnostico",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "ResultsSummary (puro) traduce lo de XFAnalysis a texto: 3 filas de estrella (apagadas con condicion de starReasons por prefijo o la default), puntuacion 3.840/4.800 (millares con punto) + %, badge Record, diagnosticos en orden. ResultsView SwiftUI con estrellas escalonadas. 6 tests."
         },
         {
           "id": "B11.5",
@@ -829,8 +830,9 @@
           "id": "B11.13",
           "title": "Resultados con estrellas y puntuacion sobre el maximo",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "las estrellas apagadas dicen que falta para conseguirlas"
+          "status": "done",
+          "acceptance": "las estrellas apagadas dicen que falta para conseguirlas",
+          "note": "ResultsSummary (puro) traduce lo de XFAnalysis a texto: 3 filas de estrella (apagadas con condicion de starReasons por prefijo o la default), puntuacion 3.840/4.800 (millares con punto) + %, badge Record, diagnosticos en orden. ResultsView SwiftUI con estrellas escalonadas. 6 tests."
         },
         {
           "id": "B11.14",

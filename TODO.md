@@ -327,7 +327,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (ejecutable `xFlare`, `make run`). Sirve de referencia visual; aquí se hace la de verdad en XFApp y se borra la maqueta.
 - [x] **B11.3** Pantalla de practica (la autopista) `XFApp`
       - Hecho (2026-09-01): `PracticeHUD` (puro) arma las dos barras de UI_DESIGN 3.3 desde la `Session`: nombre, fase (Calentamiento/Serie i/N/Descanso/Boss/Resultados), BPM, `%` (solo si la fase puntua y no hay cuenta atras), ultimos 5 clicks como `HitLevel`, una sola frase de feedback. `PracticeView` SwiftUI: Scope + HighwayView + barra fina + barra de feedback, `onExit` (Esc). 6 tests.
-- [ ] **B11.4** Pantalla de resultados con diagnostico `XFApp`
+- [x] **B11.4** Pantalla de resultados con diagnostico `XFApp`
+      - Hecho (2026-09-01): junto con B11.13. `ResultsSummary` (puro) traduce lo que calculo `XFAnalysis` a texto: 3 filas de estrella (las apagadas con su condicion, sacada de `starReasons` por prefijo `★`/`★★`/`★★★` y sin el `Titulo:`, o la condicion por defecto si aun no toca), puntuacion `3.840 / 4.800` (millares con punto), `%`, badge Record, frases del coach en orden. `ResultsView` SwiftUI con las estrellas escalonadas. 6 tests.
 - [ ] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
 - [ ] **B11.6** Navegador de la libreria `XFApp`
 - [ ] **B11.7** Ajustes `XFApp`
@@ -341,8 +342,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: genera un .conf valido segun tools/xf_profile.py
 - [ ] **B11.12** Permiso de microfono con texto honesto y pantalla de ayuda si se deniega `XFApp`
       - Criterio: si el usuario dice que no, la app explica que hacer
-- [ ] **B11.13** Resultados con estrellas y puntuacion sobre el maximo `XFApp`
+- [x] **B11.13** Resultados con estrellas y puntuacion sobre el maximo `XFApp`
       - Criterio: las estrellas apagadas dicen que falta para conseguirlas
+      - Hecho (2026-09-01): cubierto por `ResultsSummary`/`ResultsView` de B11.4 — `scoreText` sobre el maximo y `StarRow.condition` no nula en cada estrella apagada.
 - [ ] **B11.14** Pantalla de progreso por ejercicio y variante `XFApp`
       - Criterio: UI_DESIGN.md 3.4b
 - [ ] **B11.15** Selector de variantes con estado de bloqueo `XFApp`
