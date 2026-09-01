@@ -830,8 +830,9 @@
           "id": "B11.12",
           "title": "Permiso de microfono con texto honesto y pantalla de ayuda si se deniega",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "si el usuario dice que no, la app explica que hacer"
+          "status": "done",
+          "acceptance": "si el usuario dice que no, la app explica que hacer",
+          "note": "MicPermission (enum) con rationale honesto, canRequest/canCapture y helpSteps (pasos de Ajustes del Sistema si esta denegado). MicPermissionView SwiftUI. 3 tests."
         },
         {
           "id": "B11.13",
@@ -845,22 +846,25 @@
           "id": "B11.14",
           "title": "Pantalla de progreso por ejercicio y variante",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "UI_DESIGN.md 3.4b"
+          "status": "done",
+          "acceptance": "UI_DESIGN.md 3.4b",
+          "note": "ExerciseProgressDisplay.build(ProgressSummary) formatea SCORING.md 3: intentos, mejor+fecha, ultima, media de 5, estrellas, mejor BPM con 3 estrellas, sesgo medio con signo, tiempo total, linea de 20. ExerciseProgressView SwiftUI con sparkline. 2 tests."
         },
         {
           "id": "B11.15",
           "title": "Selector de variantes con estado de bloqueo",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "muestra la condicion de desbloqueo, no solo el candado"
+          "status": "done",
+          "acceptance": "muestra la condicion de desbloqueo, no solo el candado",
+          "note": "VariantOption con Lock .unlocked/.locked(condition:). build(...) toma la regla de variants.json + estrellas del usuario -> condicion escrita ('estrellas en Base'). VariantPickerView SwiftUI muestra 'Necesitas ...', no solo candado. 1 test."
         },
         {
           "id": "B11.16",
           "title": "Detectar Rosetta (sysctl.proc_translated) y avisar en calibracion",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "si esta traducido, la app lo dice y ofrece la version universal"
+          "status": "done",
+          "acceptance": "si esta traducido, la app lo dice y ofrece la version universal",
+          "note": "RosettaCheck.isTranslated via sysctlbyname(sysctl.proc_translated), con translated(reader:) inyectable (1/0/-1). calibrationWarning da el texto o nil. 2 tests."
         }
       ]
     },

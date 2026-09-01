@@ -347,17 +347,21 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B11.11** Exportar perfil y flujo de aportacion `XFApp`
       - Criterio: genera un .conf valido segun tools/xf_profile.py
       - Hecho (2026-09-01): `ExportableProfile` (id que se limpia a minusculas sin espacios, method midi/audio_return/hid/none, cut-in, histeresis, claves por metodo) + `ProfileExporter` (`iniText` -> `.conf` INI, `validationErrors` que replica las reglas de `xf_profile.py`). `ProfileExportView` SwiftUI (previsualiza el .conf y los errores). 6 tests, **incluido uno end-to-end** que genera el .conf y lo pasa por `tools/xf_profile.py` de verdad -> exit 0.
-- [ ] **B11.12** Permiso de microfono con texto honesto y pantalla de ayuda si se deniega `XFApp`
+- [x] **B11.12** Permiso de microfono con texto honesto y pantalla de ayuda si se deniega `XFApp`
       - Criterio: si el usuario dice que no, la app explica que hacer
+      - Hecho (2026-09-01): `MicPermission` (enum: notDetermined/granted/denied/restricted) con `rationale` honesto ("el timecode entra como entrada de audio; macOS lo llama microfono"), `canRequest`/`canCapture`, y `helpSteps` con los pasos de Ajustes del Sistema cuando esta denegado. `MicPermissionView` SwiftUI. 3 tests.
 - [x] **B11.13** Resultados con estrellas y puntuacion sobre el maximo `XFApp`
       - Criterio: las estrellas apagadas dicen que falta para conseguirlas
       - Hecho (2026-09-01): cubierto por `ResultsSummary`/`ResultsView` de B11.4 — `scoreText` sobre el maximo y `StarRow.condition` no nula en cada estrella apagada.
-- [ ] **B11.14** Pantalla de progreso por ejercicio y variante `XFApp`
+- [x] **B11.14** Pantalla de progreso por ejercicio y variante `XFApp`
       - Criterio: UI_DESIGN.md 3.4b
-- [ ] **B11.15** Selector de variantes con estado de bloqueo `XFApp`
+      - Hecho (2026-09-01): `ExerciseProgressDisplay.build(ProgressSummary)` formatea los campos de `docs/SCORING.md` §3: intentos, mejor + fecha, ultima, media de 5, estrellas, mejor BPM con 3★, sesgo medio **con signo** (+15 ms / −8 ms), tiempo total ("1 h 13 min"), y la linea de los ultimos 20. `ExerciseProgressView` SwiftUI con sparkline. 2 tests.
+- [x] **B11.15** Selector de variantes con estado de bloqueo `XFApp`
       - Criterio: muestra la condicion de desbloqueo, no solo el candado
-- [ ] **B11.16** Detectar Rosetta (sysctl.proc_translated) y avisar en calibracion `XFApp`
+      - Hecho (2026-09-01): `VariantOption` con `Lock` = `.unlocked` / `.locked(condition:)`. `build(...)` toma la regla de `variants.json` (`requires: (variantId, stars)`) + las estrellas del usuario en esa variante y produce la condicion escrita ("★★ en Base"). `VariantPickerView` SwiftUI muestra "Necesitas ★★ en Base", no solo el candado. 1 test.
+- [x] **B11.16** Detectar Rosetta (sysctl.proc_translated) y avisar en calibracion `XFApp`
       - Criterio: si esta traducido, la app lo dice y ofrece la version universal
+      - Hecho (2026-09-01): `RosettaCheck.isTranslated` via `sysctlbyname("sysctl.proc_translated")` (con `translated(reader:)` inyectable para test: 1=traducido, 0=nativo, -1=no disponible). `calibrationWarning` da el texto ("corriendo bajo Rosetta... descarga la version universal") o `nil`. 2 tests.
 
 ## B12 — Distribucion
 
