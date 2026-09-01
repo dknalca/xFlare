@@ -799,14 +799,16 @@
           "title": "Accesibilidad: VoiceOver, alto contraste, teclado",
           "module": "XFApp",
           "acceptance": "segun UI_DESIGN.md seccion 4",
-          "status": "todo"
+          "status": "done",
+          "note": "A11y.Palette (alto contraste: ghost 60%, trazos gruesos). A11y.resultsDescription (VoiceOver: N/3 estrellas, puntuacion sin la barra, mejor marca, que falta, diagnosticos) y highwayLiveAnnouncement. Atajos de teclado en PracticeView (flechas=BPM, Esc) y ResultsView (R). 4 tests."
         },
         {
           "id": "B11.9",
           "title": "Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "UI_DESIGN.md 3.8"
+          "status": "done",
+          "acceptance": "UI_DESIGN.md 3.8",
+          "note": "MyTableRow (perfil: fuente, insignia verificado/sin verificar, calibracion, latencia) + MyTable (active, sorted=activo>verificados>resto, verifiedCount/calibratedCount). MyTableView SwiftUI (Probar/Calibrar/Usar). 3 tests."
         },
         {
           "id": "B11.10",

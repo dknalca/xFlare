@@ -56,6 +56,20 @@ public struct PracticeView: View {
             bottomBar
         }
         .background(XFColor.bg)
+        .overlay(keyboardControls)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(A11y.highwayLiveAnnouncement(
+            bar: 0, ofBars: 0, accuracyPercent: hud.accuracyPercent))
+    }
+
+    /// Atajos de teclado (`docs/UI_DESIGN.md` §4): flechas = BPM, Esc = salir.
+    private var keyboardControls: some View {
+        HStack(spacing: 0) {
+            Button("BPM +") { onBPMChange(hud.bpm + 1) }.keyboardShortcut(.upArrow, modifiers: [])
+            Button("BPM -") { onBPMChange(hud.bpm - 1) }.keyboardShortcut(.downArrow, modifiers: [])
+            Button("Salir", action: onExit).keyboardShortcut(.cancelAction)
+        }
+        .opacity(0).frame(width: 0, height: 0).accessibilityHidden(true)
     }
 
     private var topBar: some View {

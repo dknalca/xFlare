@@ -335,10 +335,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-01): `LibraryEntry` (scratch + estado de bloqueo, `init(scratch:isUnlocked:)`) + `LibraryBrowser` (puro): `levels`/`families`, `filtered(query:level:family:onlyUnlocked:)` (busqueda por subcadena sin mayusculas ni acentos), `groupedByLevel(...)`. `LibraryView` SwiftUI con buscador y filtro de familia. 6 tests.
 - [x] **B11.7** Ajustes `XFApp`
       - Hecho (2026-09-01): `AppSettings` (envoltorio tipado de la tabla clave/valor `setting`): hamster, metronomo, buffer 64/128, escala de tolerancia (0.5..2.0), alto contraste, reducir movimiento. `init(raw:)` tolera claves ausentes o ilegibles (caen al default) y recorta rangos; `.raw` para guardar. `SettingsView` SwiftUI (Form). Todo local (CLAUDE.md 3). 5 tests.
-- [ ] **B11.8** Accesibilidad: VoiceOver, alto contraste, teclado `XFApp`
+- [x] **B11.8** Accesibilidad: VoiceOver, alto contraste, teclado `XFApp`
       - Criterio: segun UI_DESIGN.md seccion 4
-- [ ] **B11.9** Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo `XFApp`
+      - Hecho (2026-09-01): `A11y.Palette` (alto contraste: ghost al 60%, trazos mas gruesos — XFDesign esta sellado, esto va encima). `A11y.resultsDescription` (resumen de resultados para VoiceOver: N/3 estrellas, puntuacion sin leer la barra, mejor marca, que falta, diagnosticos) y `highwayLiveAnnouncement` (region en vivo con el resumen de compas). Atajos de teclado en `PracticeView` (flechas=BPM, Esc=salir) y `ResultsView` (R=otra vez). 4 tests.
+- [x] **B11.9** Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo `XFApp`
       - Criterio: UI_DESIGN.md 3.8
+      - Hecho (2026-09-01): `MyTableRow` (perfil: fuente bundle/user, insignia verificado/sin verificar, si hay calibracion, latencia) + `MyTable` (`active`, `sorted` = activo primero, luego verificados, luego el resto; `verifiedCount`/`calibratedCount`). `MyTableView` SwiftUI con botones Probar / Calibrar / Usar. 3 tests.
 - [ ] **B11.10** Asistente de mapeo MIDI/HID con monitor en crudo `XFApp`
       - Criterio: UI_DESIGN.md 3.9; si no llega MIDI en 5 s, propone audio_return
 - [ ] **B11.11** Exportar perfil y flujo de aportacion `XFApp`

@@ -24,10 +24,14 @@ public struct ResultsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: XFSpacing.xl) {
                 header
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(A11y.resultsDescription(summary))
                 diagnosisBlock
                 HStack {
                     Button("Otra vez", action: onRetry).xfButton(.bordered)
+                        .keyboardShortcut("r", modifiers: [])
                     Button("Siguiente", action: onContinue).xfButton(.filled)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
             .padding(XFSpacing.xl)
