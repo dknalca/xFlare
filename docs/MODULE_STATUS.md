@@ -15,7 +15,7 @@ congelado, ver `ARCHITECTURE.md` seccion 6) · `BROKEN` (regresion detectada).
 | `XFAnalysis` | 1 | WIP | — | 10 verdes | Emparejado de clicks, DTW de contorno, sigma/sesgo, amplitud, scoring por evento (== SCORING.md), 3 estrellas (ADR-025), diagnostico NL (ADR-018). Sin sellar: B8.5 necesita `.xfsession` reales, B8.4 umbrales por afinar |
 | `XFPersistence` | 1 | TODO | — | — | |
 | `XFEngine` | 1 | TODO | — | — | |
-| `XFDesign` | 2 | TODO | — | — | |
+| `XFDesign` | 2 | WIP | — | 7 verdes | Tokens (B7.1: color, espaciado, tipografía, HitLevel) + componentes base (B7.2: XFCard, XFButtonStyle, BPMStepper, HitBadge). macOS 11. Se sella con XFRender (B7.7) |
 | `XFRender` | 2 | TODO | — | — | |
 | `XFTestKit` | — | TODO | — | — | |
 | `XFApp` | 3 | TODO | — | — | |

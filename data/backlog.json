@@ -481,14 +481,16 @@
           "title": "Tokens de diseno de UI_DESIGN.md seccion 2",
           "module": "XFDesign",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "XFColor (paleta de UI_DESIGN 2, Color(hex:)), XFSpacing (4/8/12/16/24/32/48), XFRadius (10/16/24), XFFont (title/body/mono con design .monospaced), HitLevel (color + forma por daltonismo, init(absOffsetMs:) con ventanas de SCORING.md)."
         },
         {
           "id": "B7.2",
           "title": "Componentes base: tarjeta, boton, stepper de BPM, badge de acierto",
           "module": "XFDesign",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "XFCard, XFButtonStyle (.filled/.bordered, radio 10, easeOut 180ms), BPMStepper (numero monoespaciado, respeta range), HitBadge + HitShape (circulo lleno/circulo/rombo/triangulo/cruz). 7 tests. macOS 11."
         },
         {
           "id": "B7.2b",

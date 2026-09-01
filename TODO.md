@@ -226,8 +226,10 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Que se vea, y que se vea bien.*
 
-- [ ] **B7.1** Tokens de diseno de UI_DESIGN.md seccion 2 `XFDesign`
-- [ ] **B7.2** Componentes base: tarjeta, boton, stepper de BPM, badge de acierto `XFDesign`
+- [x] **B7.1** Tokens de diseno de UI_DESIGN.md seccion 2 `XFDesign`
+      - Hecho: `XFColor` (paleta de §2, `Color(hex:)`), `XFSpacing` (4/8/12/16/24/32/48), `XFRadius` (10/16/24), `XFStroke`, `XFFont` (title/body/mono — `design: .monospaced` para cifras a ancho fijo, sin `monospacedDigit()` que es macOS 12), `HitLevel` (escala de acierto: color **+ forma** por daltonismo, `init(absOffsetMs:)` con las ventanas de SCORING.md).
+- [x] **B7.2** Componentes base: tarjeta, boton, stepper de BPM, badge de acierto `XFDesign`
+      - Hecho: `XFCard` (superficie + radio 16 + borde 1px, `raised` para modales), `XFButtonStyle` (.filled/.bordered, radio 10, easeOut 180 ms), `BPMStepper` (`‹ 80 BPM ›`, número monoespaciado, respeta `range`), `HitBadge` + `HitShape` (dibuja círculo lleno/círculo/rombo/triángulo/cruz según el nivel). 7 tests: valores de token, clasificación de `HitLevel`, formas distintas, los componentes se construyen. macOS 11.
 - [ ] **B7.2b** Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024) `XFRender`
       - Criterio: 60 fps estables en el MacBook Pro 2015 con la autopista completa
 - [ ] **B7.3** Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO `XFRender`

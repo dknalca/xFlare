@@ -67,7 +67,7 @@ let package = Package(
                                                          "CXFAudioCore"]),
 
         // ---------- CAPA 2 · presentacion ----------
-        .target(name: "XFDesign"),
+        .target(name: "XFDesign", exclude: ["README.md"]),
 
         .target(name: "XFRender",         dependencies: ["XFDesign", "XFNotation"]),
 
