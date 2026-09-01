@@ -246,7 +246,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B7.6** Golden tests de render en SVG `XFRender`
       - Criterio: los 25 scratches contra Fixtures/golden/
       - Hecho (2026-09-01): `HighwaySVG.document(frame:geometry:)` serializa un `HighwayFrame` a SVG **determinista** (coordenadas a 4 decimales, locale C, sin `-0` — politica ADR-028; eje Y volteado). `GoldenHighwayTests` dibuja los 25 scratches de la libreria (encuadre fijo, `atTick: 0`) y compara contra `Fixtures/golden/highway/<id>.svg`; con `XF_GOLDEN_UPDATE=1` (via `make golden-update`) los regenera. 25 goldens commiteados. + 4 tests de estructura/determinismo del serializador.
-- [ ] **B7.7** **SELLAR XFDesign y XFRender** `XFDesign,XFRender`
+- [x] **B7.7** **SELLAR XFDesign y XFRender** `XFDesign,XFRender`
+      - Hecho (2026-09-01): `make seal M=XFDesign` (7 tests) y `make seal M=XFRender` (34 tests) en verde. `Sources/XFRender/README.md` escrito; `Sources/XFDesign/README.md` actualizado a SEALED. `Package.swift` excluye el README de XFRender. `docs/MODULE_STATUS.md` → ambos SEALED 2026-09-01, `apiVersion = 1`. **ADR-036** (layout puro + escena delgada, sincronizacion al reloj de AUDIO, golden SVG, Lissajous reconstruido). **B7.2b** queda pendiente: es medir fps en las dos maquinas + `SKView`, aditivo, no cambia contrato.
 
 ## B8 — XFAnalysis
 

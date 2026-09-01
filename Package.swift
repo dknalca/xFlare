@@ -72,7 +72,8 @@ let package = Package(
         // ---------- CAPA 2 · presentacion ----------
         .target(name: "XFDesign", exclude: ["README.md"]),
 
-        .target(name: "XFRender",         dependencies: ["XFDesign", "XFNotation"]),
+        .target(name: "XFRender",         dependencies: ["XFDesign", "XFNotation"],
+                                          exclude: ["README.md"]),
 
         // ---------- CAPA 3 · app ----------
         .target(name: "XFApp",            dependencies: ["XFEngine", "XFRender", "XFDesign"]),

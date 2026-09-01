@@ -543,7 +543,8 @@
           "title": "SELLAR XFDesign y XFRender",
           "module": "XFDesign,XFRender",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "make seal M=XFDesign (7 tests) y make seal M=XFRender (34 tests) verdes. Sources/XFRender/README.md escrito; XFDesign README a SEALED. Package.swift excluye el README de XFRender. MODULE_STATUS -> ambos SEALED 2026-09-01, apiVersion 1. ADR-036 (layout puro + escena delgada, sincronizacion al reloj de AUDIO, golden SVG, Lissajous reconstruido). B7.2b pendiente: medir fps en hardware + SKView, aditivo."
         }
       ]
     },

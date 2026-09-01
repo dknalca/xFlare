@@ -1,6 +1,6 @@
 # XFDesign
 
-**Capa 2 · sin dependencias · WIP (B7.1 + B7.2; se sella con XFRender en B7.7)**
+**Capa 2 · sin dependencias · SEALED 2026-09-01 · `apiVersion = 1`**
 
 Tokens de diseño y componentes SwiftUI reutilizables (`docs/UI_DESIGN.md` §2).
 Sin lógica de negocio. Deployment target **macOS 11** — solo APIs de SwiftUI
