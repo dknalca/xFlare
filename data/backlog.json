@@ -441,8 +441,8 @@
           "title": "MidiFaderSource (CoreMIDI) + fallback por envolvente de audio",
           "module": "XFCapture",
           "acceptance": "funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo",
-          "status": "todo",
-          "note": "bloqueado: conectores CoreMIDI / IOHIDManager (pegamento de hardware). Ruta HID preparada: HIDCrossfaderConfig (lee hid.* del perfil via DeviceProfile.raw, sin tocar XFProfiles sellado) + HIDFaderSource (report -> 0..1 -> binariza). DEVICE_PROFILES.md 3 documenta hid.*; rane-72 y djm-s11 llevan el bloque HID comentado. 9 tests."
+          "status": "done",
+          "note": "Parte testeable + conectores. MidiCrossfaderConfig + MidiFaderSource (ingest(status:data1:data2:hostTime:), filtra CC/canal, normaliza, binariza; messages(from:) trocea el flujo con running status/SysEx/tiempo real). AudioEnvelopeFaderSource: fallback de ultimo recurso (RMS del retorno -> FaderBinarizer, sin tono piloto). MidiFaderConnector (CoreMIDI clasico, MIDIPacketList) y HIDFaderConnector (IOHIDManager) compilan pero SIN tests (necesitan el dispositivo real); la decodificacion si esta probada. 22 tests. Falta la Rane 72."
         },
         {
           "id": "B6.4b",
