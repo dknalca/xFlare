@@ -448,8 +448,9 @@
           "id": "B6.4b",
           "title": "AudioReturnFaderSource: tono piloto y deteccion (ADR-021)",
           "module": "XFCapture",
-          "status": "todo",
-          "acceptance": "funciona con el perfil rane-seventy-two"
+          "status": "done",
+          "acceptance": "funciona con el perfil rane-seventy-two",
+          "note": "AudioReturnFaderSource conforma FaderSource. submit(pcm:frames:hostTime:) (PCM estereo del retorno del master) corre Goertzel de un bin (19,5 kHz, hop 64, bin 26), normaliza contra el nivel de piloto abierto (auto-max con fuga + calibrate(openLevel:)) y pasa el valor continuo al FaderBinarizer de B6.5 que resuelve isOpen. Devuelve los flancos por hop. Guarda sobrantes entre submits; pilotLevel para un medidor. 9 tests con piloto sintetico modulado (como --selfcheck del spike): apertura/cierre, 0 fantasmas en 1 s con ruido, hamster, calibracion, hostTime por hop. Falta la Rane 72."
         },
         {
           "id": "B6.5",

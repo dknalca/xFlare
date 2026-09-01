@@ -214,9 +214,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [ ] **B6.4** MidiFaderSource (CoreMIDI) + fallback por envolvente de audio `XFCapture`
       - Criterio: funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo
       - Bloqueado: hardware (CoreMIDI). **Ruta HID preparada**: `HIDCrossfaderConfig` (lee `hid.*` del `[crossfader]` del perfil, vía `DeviceProfile.raw` — sin tocar XFProfiles, que está sellado) + `HIDFaderSource` (decodifica el input report → posición 0..1 → binariza). Falta solo el conector `IOHIDManager` (pegamento de hardware, va aquí) y el de CoreMIDI. `docs/DEVICE_PROFILES.md` §3 documenta las claves `hid.*`; los perfiles rane-72 y djm-s11 llevan el bloque HID comentado.
-- [ ] **B6.4b** AudioReturnFaderSource: tono piloto y deteccion (ADR-021) `XFCapture`
+- [x] **B6.4b** AudioReturnFaderSource: tono piloto y deteccion (ADR-021) `XFCapture`
       - Criterio: funciona con el perfil rane-seventy-two
-      - Bloqueado: hardware. El detector Goertzel + histéresis ya está prototipado en `spike/b1-pilot-fader/`.
+      - Hecho (2026-09-01): `AudioReturnFaderSource` conforma `FaderSource`. `submit(pcm:frames:hostTime:)` (PCM estereo del retorno del master, se drena del ring buffer como `TimecodeMotionSource`) corre un **Goertzel** de un bin (19,5 kHz, hop de 64 muestras, bin entero: 26), normaliza contra el nivel de piloto con el fader abierto (auto-max con fuga lenta + `calibrate(openLevel:)`), y pasa el valor continuo al `FaderBinarizer` de B6.5 (cut-in + histeresis, ADR-017) que resuelve `isOpen`. Devuelve los flancos por hop. Guarda muestras sueltas entre submits; `pilotLevel` para un medidor. 9 tests con **piloto sintetico** modulado en amplitud (como `--selfcheck` del spike): detecta apertura/cierre, 0 eventos fantasma en 1 s de fader quieto con ruido, hamster, calibracion, hostTime por hop. Falta la corrida con la Rane 72.
 - [x] **B6.5** Binarizacion del fader con cut-in calibrado e histeresis (ADR-017) `XFCapture`
       - Criterio: 0 eventos fantasma en 1 min de fader quieto
       - Hecho: `FaderBinarizer` — disparador de Schmitt alrededor de `cutIn` con banda `hysteresis`; flag `hamster` para reverse (ADR-008). `binarize([(hostTime,value)]) -> [FaderSample]`, conserva estado entre llamadas. Test: 60.000 lecturas con ruido ±0,03 y banda 0,08 → **0 transiciones**.
