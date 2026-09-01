@@ -142,9 +142,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Bloqueado: necesita hardware + Instruments (Audio System Trace). El spike `spike/b1-latency/passthrough.c` ya tiene la plumberia CoreAudio a 64 frames; B4.2 es la version definitiva con ring buffer y prioridad RT.
 - [ ] **B4.3** Reproductor de sample con resampling por velocidad y direccion `CXFAudioCore`
       - Criterio: scratch audible sin clicks ni aliasing
-      - Bloqueado: "audible" necesita oido + hardware. La logica de resampling se puede prototipar puro, pero el criterio no se puede verificar sin sonido.
+      - Bloqueado: "audible" necesita oido + hardware. **Prototipado en `spike/b4-audio-sandbox/`**: reproductor con playhead fraccionario + interpolacion lineal, velocidad y direccion desde el trackpad, corte de fader con rampa; suena una instrumental de fondo. Callback en C (reglas §7). Falta el resampling con antialiasing serio y meterlo sobre el ring buffer.
 - [ ] **B4.4** Metronomo mezclado en la salida principal (ADR-007) `CXFAudioCore`
-      - Bloqueado: idem, va en el callback de B4.2.
+      - Bloqueado: idem, va en el callback de B4.2. El spike `spike/b4-audio-sandbox/` ya mezcla dos fuentes (scratch + instrumental) en la salida principal; el metronomo es una tercera.
 - [ ] **B4.5** **PUERTA DE CALIDAD: ≤10 ms, 0 overloads en 5 min** `CXFAudioCore`
       - Criterio: medido y documentado en docs/TIMECODE.md
       - Bloqueado: medicion en hardware (misma que B1.5).

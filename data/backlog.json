@@ -274,7 +274,7 @@
           "module": "CXFAudioCore",
           "acceptance": "scratch audible sin clicks ni aliasing",
           "status": "todo",
-          "note": "bloqueado: 'audible' necesita oido + hardware."
+          "note": "bloqueado: 'audible' necesita oido + hardware. | Prototipado en spike/b4-audio-sandbox/: playhead fraccionario + interpolacion lineal, velocidad/direccion desde el trackpad, corte de fader con rampa, instrumental de fondo. Callback en C. Falta antialiasing y montarlo sobre el ring buffer."
         },
         {
           "id": "B4.4",
@@ -282,7 +282,7 @@
           "module": "CXFAudioCore",
           "acceptance": "-",
           "status": "todo",
-          "note": "bloqueado: va en el callback de B4.2."
+          "note": "bloqueado: va en el callback de B4.2. | El spike b4-audio-sandbox ya mezcla scratch + instrumental en la salida; el metronomo es una tercera fuente."
         },
         {
           "id": "B4.5",

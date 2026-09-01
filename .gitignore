@@ -25,9 +25,10 @@ __pycache__/
 *.aiff
 recordings/
 
-# spikes desechables de B1: el binario compilado no se versiona (el .c/.sh si)
+# spikes desechables: el binario compilado no se versiona (el .c/.swift/.sh si)
 spike/b1-latency/passthrough
 spike/b1-pilot-fader/pilot_fader
+spike/b4-audio-sandbox/sandbox
 spike/**/*.o
 spike/**/*.dSYM/
 
@@ -37,3 +38,6 @@ icon/xflare.iconset/
 
 # app de andamiaje empaquetada (make app)
 xFlare.app/
+
+# audio de pruebas del autor (copyright de terceros, NO se distribuye — CLAUDE.md §12)
+Audio/
