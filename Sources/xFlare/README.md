@@ -26,9 +26,11 @@ Desde Xcode: abre `Package.swift`, elige el esquema **xFlare**, Run.
 
 ## Límites conocidos (para B12 / hardware)
 
-- **En dev** el contenido se lee del **repo** (`RepoContentLoader`, vía
-  `#filePath`). Empaquetar `data/` y `profiles/` como recursos del bundle es
-  tarea del bloque de distribución (B12); ahí se cambia a `DirectoryContentLoader`.
+- **Contenido** (`data/`, `profiles/`): el `@main` elige el loader. Si el bundle
+  trae el catálogo → `BundleContentLoader` (`Contents/Resources/`). Si no (p. ej.
+  `swift run` en dev) → `RepoContentLoader` (repo, vía `#filePath`). El **copiado
+  físico** de `data/` y `profiles/` a `Contents/Resources/` lo hará el script de
+  empaquetado del DMG (B12a.4), no SwiftPM.
 - La pantalla de práctica dibuja la autopista sincronizada al reloj del motor,
   pero el **bucle de sesión + scoring en vivo** necesita el callback de audio
   corriendo → se verifica en la máquina.

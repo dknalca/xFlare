@@ -59,3 +59,44 @@ public struct DirectoryContentLoader: ContentLoader {
         return items.filter { $0.hasSuffix("." + ext) }.sorted()
     }
 }
+
+/// Lee `data/` y `profiles/` de la carpeta de recursos del **bundle de la app**
+/// (`xFlare.app/Contents/Resources/`). Es lo que usa el `.app` distribuido; en
+/// `swift run` (dev) no hay bundle con recursos y se cae a `RepoContentLoader`.
+///
+/// El copiado fisico de `data/` y `profiles/` a `Contents/Resources/` lo hace el
+/// script de empaquetado del DMG (B12a.4), no SwiftPM: los recursos de SwiftPM
+/// tienen que vivir dentro de la carpeta del target y estas no lo hacen.
+public struct BundleContentLoader: ContentLoader {
+
+    private let inner: DirectoryContentLoader
+
+    /// Ruta relativa del catalogo, la usamos como sonda de "¿hay recursos?".
+    static let catalogProbe = "data/scratches/library-v0.1.json"
+
+    /// - Parameter resourceRoot: carpeta que contiene `data/` y `profiles/`.
+    public init(resourceRoot: URL) {
+        self.inner = DirectoryContentLoader(root: resourceRoot)
+    }
+
+    /// A partir del bundle indicado (por defecto el de la app). `nil` si el
+    /// bundle no expone carpeta de recursos.
+    public init?(bundle: Bundle = .main) {
+        guard let url = bundle.resourceURL else { return nil }
+        self.init(resourceRoot: url)
+    }
+
+    public func data(_ relativePath: String) throws -> Data {
+        try inner.data(relativePath)
+    }
+
+    public func list(_ directory: String, withExtension ext: String) -> [String] {
+        inner.list(directory, withExtension: ext)
+    }
+
+    /// `true` si la carpeta de recursos trae de verdad el catalogo del producto.
+    /// El arranque de la app lo consulta para decidir entre bundle y repo.
+    public var hasCatalog: Bool {
+        (try? data(Self.catalogProbe)) != nil
+    }
+}

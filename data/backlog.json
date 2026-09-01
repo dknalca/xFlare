@@ -878,10 +878,11 @@
       "tasks": [
         {
           "id": "B12a.0",
-          "title": "Empaquetar data/ y profiles/ como recursos del bundle; Bundle.module / DirectoryContentLoader en la app",
+          "title": "Empaquetar data/ y profiles/ como recursos del bundle; BundleContentLoader en la app",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run"
+          "status": "wip",
+          "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run",
+          "note": "2026-09-01: parte de codigo hecha (BundleContentLoader + eleccion de loader en el @main, 4 tests). Falta el copiado fisico a Contents/Resources/, que hace el script del DMG (B12a.4)."
         },
         {
           "id": "B12a.1",

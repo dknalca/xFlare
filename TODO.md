@@ -377,11 +377,23 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 ### B12a — DMG sin notarizar para GitHub Releases
 
-- [ ] **B12a.0** Empaquetar recursos en el bundle
+- [~] **B12a.0** Empaquetar recursos en el bundle `XFApp`
       - `data/` y `profiles/` dejan de leerse del repo (`RepoContentLoader` via
-        `#filePath`) y pasan a recursos del bundle. En la app: `Bundle.module` /
-        `DirectoryContentLoader`. `RepoContentLoader` queda solo para tests y `swift run`.
+        `#filePath`) y pasan a recursos del bundle. En la app: `BundleContentLoader`.
+        `RepoContentLoader` queda solo para tests y `swift run`.
       - Criterio: la app arranca y monta el catalogo desde el `.app`, sin el repo delante.
+      - Hecho (2026-09-01): parte de **codigo**. `BundleContentLoader` (en
+        `ContentLoader.swift`) lee `data/`/`profiles/` de `Bundle.main.resourceURL`;
+        `hasCatalog` sondea `data/scratches/library-v0.1.json`. El `@main` de `xFlare`
+        elige: si el bundle trae el catalogo -> `BundleContentLoader`; si no
+        (p. ej. `swift run`) -> `RepoContentLoader`. 4 tests (monta una carpeta con
+        la forma de `Contents/Resources/` y comprueba que sirve el mismo catalogo
+        que el repo; carpeta vacia -> `hasCatalog == false`).
+      - **Falta**: el copiado fisico de `data/` y `profiles/` a
+        `xFlare.app/Contents/Resources/` — lo hace el script de empaquetado del DMG
+        (B12a.4), no SwiftPM (los recursos de SwiftPM tienen que vivir dentro de la
+        carpeta del target). Cerrar B12a.0 cuando exista ese script y la app
+        empaquetada arranque sin el repo delante.
 - [ ] **B12a.1** `Info.plist` del `.app`
       - `NSMicrophoneUsageDescription` (obligatorio: sin el la captura de timecode
         falla sin decir por que), `CFBundleIdentifier`, version, icono.
@@ -389,8 +401,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: PLATFORM_SUPPORT.md seccion 9 completa. ADR-028 no se relaja.
 - [ ] **B12a.3** Firma ad-hoc (`codesign -s -`)
       - En Apple Silicon un `.app` sin ninguna firma no arranca. No se notariza.
-- [ ] **B12a.4** DMG plano con el `.app` dentro
+- [ ] **B12a.4** Script de empaquetado + DMG plano con el `.app` dentro
+      - `swift build -c release --arch x86_64 --arch arm64`, montar
+        `xFlare.app/Contents/{MacOS,Resources}`, **`cp -R data profiles` a
+        `Contents/Resources/`** (lo que consume `BundleContentLoader`, B12a.0),
+        `Info.plist` (B12a.1), firma ad-hoc (B12a.3), `hdiutil` para el DMG.
       - Sin fondo ni layout. Publicado en GitHub Releases.
+      - Al cerrar esto, marcar B12a.0 como hecho (la app empaquetada arranca sin el repo).
 - [ ] **B12a.5** Nota de release
       - Rodeo de Gatekeeper (clic derecho -> Abrir, o `xattr -dr com.apple.quarantine xFlare.app`).
       - GPL-3.0: enlazar el tag exacto del fuente correspondiente.

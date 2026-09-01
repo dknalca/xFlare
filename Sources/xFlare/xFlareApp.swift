@@ -5,9 +5,10 @@
 //
 // Ejecutar:  swift run xFlare   (o abrir Package.swift en Xcode y Run)
 //
-// NOTA (B12): en dev, `AppModel.boot()` lee `data/` y `profiles/` del repo via
-// `RepoContentLoader`. El empaquetado de esos recursos en el bundle del .app es
-// tarea del bloque de distribucion.
+// CONTENIDO (`data/` y `profiles/`): el `.app` distribuido los lee de
+// `Contents/Resources/` (`BundleContentLoader`); ahi los deja el script de
+// empaquetado del DMG (B12a.4). En `swift run` no hay bundle con recursos, asi
+// que se cae a `RepoContentLoader` (lee del repo via `#filePath`).
 
 import SwiftUI
 import AppKit
@@ -29,7 +30,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct XFlareApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
-    @StateObject private var model = AppModel.boot()
+    @StateObject private var model = AppModel.boot(content: XFlareApp.contentLoader())
+
+    /// El `.app` empaquetado trae `data/` y `profiles/` en `Contents/Resources/`;
+    /// si estan, se leen de ahi. Si no (p. ej. `swift run` en dev), del repo.
+    static func contentLoader() -> ContentLoader {
+        if let bundle = BundleContentLoader(), bundle.hasCatalog {
+            return bundle
+        }
+        return RepoContentLoader()
+    }
 
     var body: some Scene {
         WindowGroup("xFlare") {
