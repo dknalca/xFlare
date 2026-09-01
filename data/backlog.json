@@ -814,15 +814,17 @@
           "id": "B11.10",
           "title": "Asistente de mapeo MIDI/HID con monitor en crudo",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "UI_DESIGN.md 3.9; si no llega MIDI en 5 s, propone audio_return"
+          "status": "done",
+          "acceptance": "UI_DESIGN.md 3.9; si no llega MIDI en 5 s, propone audio_return",
+          "note": "MidiMappingModel (ObservableObject): monitor en crudo (rawLog capado a 200), MIDI Learn del crossfader (captura el CC del siguiente Control Change), shouldSuggestAudioReturn(now:) true si >=5 s escuchando sin MIDI (ADR-021). No mira el reloj. MidiMappingView SwiftUI. 6 tests."
         },
         {
           "id": "B11.11",
           "title": "Exportar perfil y flujo de aportacion",
           "module": "XFApp",
-          "status": "todo",
-          "acceptance": "genera un .conf valido segun tools/xf_profile.py"
+          "status": "done",
+          "acceptance": "genera un .conf valido segun tools/xf_profile.py",
+          "note": "ExportableProfile (id limpio a minusculas, method midi/audio_return/hid/none, cut-in, histeresis) + ProfileExporter (iniText -> .conf, validationErrors replica xf_profile.py). ProfileExportView SwiftUI. 6 tests, uno end-to-end que pasa el .conf por tools/xf_profile.py de verdad (exit 0)."
         },
         {
           "id": "B11.12",

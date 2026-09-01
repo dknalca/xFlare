@@ -341,10 +341,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B11.9** Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo `XFApp`
       - Criterio: UI_DESIGN.md 3.8
       - Hecho (2026-09-01): `MyTableRow` (perfil: fuente bundle/user, insignia verificado/sin verificar, si hay calibracion, latencia) + `MyTable` (`active`, `sorted` = activo primero, luego verificados, luego el resto; `verifiedCount`/`calibratedCount`). `MyTableView` SwiftUI con botones Probar / Calibrar / Usar. 3 tests.
-- [ ] **B11.10** Asistente de mapeo MIDI/HID con monitor en crudo `XFApp`
+- [x] **B11.10** Asistente de mapeo MIDI/HID con monitor en crudo `XFApp`
       - Criterio: UI_DESIGN.md 3.9; si no llega MIDI en 5 s, propone audio_return
-- [ ] **B11.11** Exportar perfil y flujo de aportacion `XFApp`
+      - Hecho (2026-09-01): `MidiMappingModel` (`ObservableObject`): monitor en crudo (`rawLog` capado a 200, lo mas reciente delante), MIDI Learn del crossfader (`learn(.crossfader)` -> captura el CC del siguiente Control Change), `shouldSuggestAudioReturn(now:)` (true si llevamos >= 5 s escuchando sin ningun mensaje MIDI, ADR-021). No mira el reloj: se le pasa `now`. `MidiMappingView` SwiftUI con la tarjeta de propuesta de `audio_return`. 6 tests.
+- [x] **B11.11** Exportar perfil y flujo de aportacion `XFApp`
       - Criterio: genera un .conf valido segun tools/xf_profile.py
+      - Hecho (2026-09-01): `ExportableProfile` (id que se limpia a minusculas sin espacios, method midi/audio_return/hid/none, cut-in, histeresis, claves por metodo) + `ProfileExporter` (`iniText` -> `.conf` INI, `validationErrors` que replica las reglas de `xf_profile.py`). `ProfileExportView` SwiftUI (previsualiza el .conf y los errores). 6 tests, **incluido uno end-to-end** que genera el .conf y lo pasa por `tools/xf_profile.py` de verdad -> exit 0.
 - [ ] **B11.12** Permiso de microfono con texto honesto y pantalla de ayuda si se deniega `XFApp`
       - Criterio: si el usuario dice que no, la app explica que hacer
 - [x] **B11.13** Resultados con estrellas y puntuacion sobre el maximo `XFApp`
