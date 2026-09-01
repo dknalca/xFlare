@@ -433,7 +433,8 @@
           "title": "TimecodeMotionSource sobre CXFTimecode",
           "module": "XFCapture",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "TimecodeMotionSource envuelve un xf_timecoder (B5.2) y lo alimenta fuera del hilo de audio (CLAUDE.md 7): submit(pcm:frames:hostTime:) sella cada MotionSample con el hostTime del bloque, como Keyboard/Replay*Source. Config con format de xwax + sampleRate + hamster (ADR-008); start() lanza StartError.decoderCreationFailed; resetPosition(). Validado con senal de cuadratura sintetica (como B5.2-B5.4); vinilo real = gate de B5.5. 9 tests."
         },
         {
           "id": "B6.4",
