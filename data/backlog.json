@@ -421,7 +421,8 @@
           "title": "KeyboardMotionSource y KeyboardFaderSource (modo sin mesa)",
           "module": "XFCapture",
           "acceptance": "se puede hacer un baby scratch con el teclado",
-          "status": "todo"
+          "status": "done",
+          "note": "KeyboardMotionSource (fisica: flecha -> velocidad tiende a +-speed con accel; soltar -> 0; ambas se cancelan; posicion integra velocidad; advance(toHostTime:) determinista). KeyboardFaderSource (momentaneo: pulsado=cortado). 8 tests incl. ida-y-vuelta de baby scratch que vuelve al origen."
         },
         {
           "id": "B6.3",
@@ -435,7 +436,8 @@
           "title": "MidiFaderSource (CoreMIDI) + fallback por envolvente de audio",
           "module": "XFCapture",
           "acceptance": "funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo",
-          "status": "todo"
+          "status": "todo",
+          "note": "bloqueado: conectores CoreMIDI / IOHIDManager (pegamento de hardware). Ruta HID preparada: HIDCrossfaderConfig (lee hid.* del perfil via DeviceProfile.raw, sin tocar XFProfiles sellado) + HIDFaderSource (report -> 0..1 -> binariza). DEVICE_PROFILES.md 3 documenta hid.*; rane-72 y djm-s11 llevan el bloque HID comentado. 9 tests."
         },
         {
           "id": "B6.4b",
@@ -466,7 +468,7 @@
           "module": "XFCapture",
           "acceptance": "-",
           "status": "todo",
-          "note": "bloqueado por B6.2-B6.5 (fuentes de hardware / teclado)."
+          "note": "bloqueado por B6.3 (timecode) y B6.4/B6.4b (conectores). Hecho: protocolos, teclado, binarizador, .xfsession+replay, decodificacion HID. 32 tests."
         }
       ]
     },

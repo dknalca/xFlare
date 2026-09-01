@@ -102,9 +102,22 @@ reverse_default = true
 | `method` | `midi` `audio_return` `hid` `none` | |
 | `midi.channel` `midi.cc` `midi.min` `midi.max` `midi.invert` | | si `method = midi` |
 | `pilot.frequency` `pilot.level_db` | Hz, dBFS | si `method = audio_return` |
+| `hid.vendor_id` `hid.product_id` | hex o decimal | si `method = hid` (para casar el dispositivo) |
+| `hid.usage_page` `hid.usage` | hex | opcional, afina el emparejado IOHID |
+| `hid.report_id` | int | 0 si el dispositivo no usa report IDs |
+| `hid.byte_offset` | int | posición del valor del fader en los **datos** del report (sin el byte de report ID) |
+| `hid.byte_length` | `1` o `2` | 8 o 16 bits |
+| `hid.big_endian` | bool | orden de bytes si `byte_length = 2` (por defecto `false`) |
+| `hid.min` `hid.max` | int | rango del valor crudo → se normaliza a 0..1 |
+| `hid.invert` | bool | invierte la posición |
 | `cut_in.left` `cut_in.right` | 0..1 | Valor **por defecto**, se recalibra por usuario |
 | `hysteresis` | 0..1 | Anti-rebote |
 | `reverse_default` | bool | Hamster de fabrica |
+
+> **`method = hid`** es la ruta de respaldo de ADR-021: si la mesa (Rane 72,
+> DJM-S11) no expone el crossfader por MIDI, muchas hablan HID con Serato. Los
+> valores `hid.*` salen de leer el descriptor HID del aparato (asistente de §8, o
+> `hidutil`/`ioreg`). La lectura la implementa `XFCapture.HIDFaderSource`.
 
 ### `[linefader.deckN]`, `[transport]`, `[pads]`
 Misma logica. Los controles se escriben `tipo:canal:numero`, por ejemplo

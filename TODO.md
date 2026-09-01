@@ -202,14 +202,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 - [x] **B6.1** Protocolos MotionSource y FaderSource `XFCapture`
       - Hecho: `MotionSource` / `FaderSource` (`AnyObject`, `start()/stop()/latest()`, `isConnected`), importan `XFPrimitives`. Test con una fuente falsa conformando el protocolo.
-- [ ] **B6.2** KeyboardMotionSource y KeyboardFaderSource (modo sin mesa) `XFCapture`
+- [x] **B6.2** KeyboardMotionSource y KeyboardFaderSource (modo sin mesa) `XFCapture`
       - Criterio: se puede hacer un baby scratch con el teclado
-      - Pendiente: la lógica (integrador de posición a partir de teclas mantenidas) es pura, pero el criterio es interactivo. Se hace junto al modo sin mesa de la UI.
+      - Hecho: `KeyboardMotionSource` — física sencilla (flecha pulsada → velocidad tiende a ±speed con `accel`; al soltar → tiende a 0; ambas se cancelan), la posición integra la velocidad, avanza con `advance(toHostTime:)` (reloj de audio, determinista). `KeyboardFaderSource` — momentáneo (tecla pulsada = cortado, suelta = abierto). 8 tests incl. una **ida-y-vuelta de baby scratch** que vuelve al origen. La verificación interactiva final va con la UI del modo sin mesa (B11).
 - [ ] **B6.3** TimecodeMotionSource sobre CXFTimecode `XFCapture`
       - Bloqueado: necesita el wrapper de B5.2 y, para validar, señal de timecode.
 - [ ] **B6.4** MidiFaderSource (CoreMIDI) + fallback por envolvente de audio `XFCapture`
       - Criterio: funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo
-      - Bloqueado: hardware.
+      - Bloqueado: hardware (CoreMIDI). **Ruta HID preparada**: `HIDCrossfaderConfig` (lee `hid.*` del `[crossfader]` del perfil, vía `DeviceProfile.raw` — sin tocar XFProfiles, que está sellado) + `HIDFaderSource` (decodifica el input report → posición 0..1 → binariza). Falta solo el conector `IOHIDManager` (pegamento de hardware, va aquí) y el de CoreMIDI. `docs/DEVICE_PROFILES.md` §3 documenta las claves `hid.*`; los perfiles rane-72 y djm-s11 llevan el bloque HID comentado.
 - [ ] **B6.4b** AudioReturnFaderSource: tono piloto y deteccion (ADR-021) `XFCapture`
       - Criterio: funciona con el perfil rane-seventy-two
       - Bloqueado: hardware. El detector Goertzel + histéresis ya está prototipado en `spike/b1-pilot-fader/`.
@@ -220,7 +220,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: una sesion grabada se reproduce bit a bit igual
       - Hecho: `XFSession` (JSON Lines: cabecera de calibración + muestras). Los floats se guardan como **cadena** (`"\(x)"`) para ida y vuelta exacta — el `JSONEncoder` de esta toolchain no re-parsea el mismo bit en un `Double` (problema de ADR-028). `ReplayMotionSource` / `ReplayFaderSource` conforman los protocolos y avanzan con `seek(toHostTime:)` (reloj de audio, determinista). Ida y vuelta value-equal + re-encode estable. `clockMap` reconstruye el `ClockMap` de la toma. 15 tests.
 - [ ] **B6.7** **SELLAR XFCapture** `XFCapture`
-      - Bloqueado por B6.2-B6.5 (fuentes de hardware / teclado).
+      - Bloqueado por B6.3 (timecode), B6.4/B6.4b (conectores CoreMIDI / IOHIDManager / audio). Hecho ya: protocolos (B6.1), teclado (B6.2), binarizador (B6.5), .xfsession + replay (B6.6), decodificación HID. 32 tests.
 
 ## B7 — XFDesign + XFRender
 
