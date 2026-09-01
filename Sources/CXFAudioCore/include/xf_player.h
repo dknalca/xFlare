@@ -58,6 +58,11 @@ void xf_player_set_playhead(xf_player *p, double frame);
 /* RT-SAFE: velocidad instantanea ya suavizada. */
 double xf_player_velocity(const xf_player *p);
 
+/* NO RT-SAFE: si `loop` != 0, el cabezal da la vuelta en los extremos (modulo
+ * `frames`) en vez de saturarse, y la lectura sinc envuelve por los bordes. Para
+ * bases instrumentales en bucle. Por defecto 0 (se satura, como el plato). */
+void xf_player_set_loop(xf_player *p, bool loop);
+
 /* NO RT-SAFE: tiempo (ms) que tarda la velocidad en alcanzar el objetivo.
  * `0` = sin suavizado (salta). Por defecto 5 ms. */
 void xf_player_set_glide_ms(xf_player *p, double ms);

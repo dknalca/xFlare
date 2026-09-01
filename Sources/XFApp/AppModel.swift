@@ -30,6 +30,9 @@ public final class AppModel: ObservableObject {
     public let db: XFDatabase
     public let engine: EngineHandle?
     public let profiles: ProfileStore
+    /// De donde salen los recursos (repo en dev, bundle en el `.app`). Lo usa la
+    /// practica para cargar los audios.
+    public let content: ContentLoader
 
     @Published public private(set) var screen: Screen = .home
     @Published public var settings: AppSettings
@@ -44,12 +47,14 @@ public final class AppModel: ObservableObject {
 
     public init(catalog: Catalog, db: XFDatabase, engine: EngineHandle? = nil,
                 profiles: ProfileStore = ProfileStore(bundled: [], user: []),
-                settings: AppSettings = .defaults) {
+                settings: AppSettings = .defaults,
+                content: ContentLoader = RepoContentLoader()) {
         self.catalog = catalog
         self.db = db
         self.engine = engine
         self.profiles = profiles
         self.settings = settings
+        self.content = content
     }
 
     // MARK: - arranque
@@ -74,8 +79,11 @@ public final class AppModel: ObservableObject {
             }
             let profiles = ProfileStore(bundled: bundled, user: [])
 
-            let model = AppModel(catalog: catalog, db: db, engine: EngineHandle(),
-                                 profiles: profiles)
+            // maxFrames holgado: el motor solo-salida fija el buffer del
+            // dispositivo a este valor y no todas las salidas aguantan 64.
+            let model = AppModel(catalog: catalog, db: db,
+                                 engine: EngineHandle(maxFrames: 512),
+                                 profiles: profiles, content: content)
             model.refreshHome()
             return model
         } catch {

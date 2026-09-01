@@ -19,6 +19,7 @@ struct xf_engine {
     /* buffers preasignados (nunca se reservan en RT) */
     int16_t     *in_i16;        /* max_frames * 2 (estereo intercalado) */
     float       *mono;          /* max_frames */
+    float       *mono2;         /* max_frames — mezcla auxiliar de la instrumental */
     uint8_t     *ring_storage;
     xf_ring_t    input_ring;
 
@@ -27,6 +28,13 @@ struct xf_engine {
     /* reproductor: puntero atomico + un retiro de 1 generacion */
     _Atomic(xf_player *) player;
     xf_player           *retired_player;
+
+    /* base instrumental en bucle: mismo patron de swap que `player` */
+    _Atomic(xf_player *) instrumental;
+    xf_player           *retired_instrumental;
+    double               instr_native_bpm;   /* solo lo toca el hilo normal */
+    _Atomic double       instr_ratio;        /* bpm sesion / native_bpm */
+    _Atomic double       instr_gain;
 
     /* control desde Swift (atomico) */
     _Atomic double  target_velocity;
@@ -50,6 +58,7 @@ struct xf_engine {
     void        *workgroup;      /* os_workgroup_t, o NULL */
     unsigned char wg_token[64];  /* os_workgroup_join_token_s (tamano de sobra) */
     _Atomic int  rt_promoted;    /* 0 hasta el primer callback */
+    int          capture_input;  /* 1 = duplex; 0 = solo salida. Fijo antes de arrancar */
 };
 
 /* pow2 >= n */
@@ -75,6 +84,7 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
 
     e->in_i16 = (int16_t *)malloc((size_t)max_frames * 2 * sizeof(int16_t));
     e->mono   = (float *)malloc((size_t)max_frames * sizeof(float));
+    e->mono2  = (float *)malloc((size_t)max_frames * sizeof(float));
 
     /* ring de entrada: ~32 bloques de PCM estereo int16 */
     size_t block_bytes = (size_t)max_frames * 2 * sizeof(int16_t);
@@ -84,18 +94,22 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     e->in_scratch = (float *)malloc((size_t)max_frames * 2 * sizeof(float));
     e->metronome  = xf_metronome_create((unsigned int)sample_rate);
 
-    if (!e->in_i16 || !e->mono || !e->ring_storage || !e->in_scratch || !e->metronome ||
-        !xf_ring_init(&e->input_ring, e->ring_storage, ring_cap)) {
+    if (!e->in_i16 || !e->mono || !e->mono2 || !e->ring_storage || !e->in_scratch ||
+        !e->metronome || !xf_ring_init(&e->input_ring, e->ring_storage, ring_cap)) {
         xf_engine_destroy(e);
         return NULL;
     }
 
     atomic_store(&e->player, (xf_player *)NULL);
+    atomic_store(&e->instrumental, (xf_player *)NULL);
+    atomic_store(&e->instr_ratio, 1.0);
+    atomic_store(&e->instr_gain, 0.5);
     atomic_store(&e->target_velocity, 0.0);
     atomic_store(&e->bpm, 120.0);
     atomic_store(&e->playing, 0);
     atomic_store(&e->master_gain, 1.0);
     atomic_store(&e->reported_tick, 0.0);
+    e->capture_input = 1;
     return e;
 }
 
@@ -106,10 +120,14 @@ void xf_engine_destroy(xf_engine *e) {
     xf_player *p = atomic_load(&e->player);
     if (p) xf_player_destroy(p);
     if (e->retired_player) xf_player_destroy(e->retired_player);
+    xf_player *ip = atomic_load(&e->instrumental);
+    if (ip) xf_player_destroy(ip);
+    if (e->retired_instrumental) xf_player_destroy(e->retired_instrumental);
     if (e->metronome) xf_metronome_destroy(e->metronome);
 
     free(e->in_i16);
     free(e->mono);
+    free(e->mono2);
     free(e->ring_storage);
     free(e->in_scratch);
     free(e->in_abl);
@@ -133,9 +151,40 @@ void xf_engine_load_sample(xf_engine *e, const float *sample, int64_t frames) {
 
 void xf_engine_set_transport(xf_engine *e, double bpm, int ppq, bool playing) {
     if (!e) return;
-    if (bpm > 0.0) atomic_store(&e->bpm, bpm);
+    if (bpm > 0.0) {
+        atomic_store(&e->bpm, bpm);
+        /* la base instrumental sigue el tempo de la sesion */
+        if (e->instr_native_bpm > 0.0)
+            atomic_store(&e->instr_ratio, bpm / e->instr_native_bpm);
+    }
     if (ppq >= 1) { e->ppq = ppq; xf_metronome_set_time_signature(e->metronome, 4, ppq); }
     atomic_store(&e->playing, playing ? 1 : 0);
+}
+
+void xf_engine_load_instrumental(xf_engine *e, const float *mono, int64_t frames,
+                                 double native_bpm) {
+    if (!e) return;
+    xf_player *np = NULL;
+    if (mono && frames >= 2 && native_bpm > 0.0) {
+        np = xf_player_create(mono, frames, (unsigned int)e->sample_rate);
+        if (np) {
+            xf_player_set_loop(np, true);
+            xf_player_set_glide_ms(np, 0.0);   /* ratio constante: no hace falta glide */
+        }
+    }
+    e->instr_native_bpm = (native_bpm > 0.0 && np) ? native_bpm : 0.0;
+    double bpm = atomic_load(&e->bpm);
+    atomic_store(&e->instr_ratio, e->instr_native_bpm > 0.0 ? bpm / e->instr_native_bpm : 1.0);
+
+    if (e->retired_instrumental) xf_player_destroy(e->retired_instrumental);
+    e->retired_instrumental = atomic_exchange(&e->instrumental, np);
+}
+
+void xf_engine_set_instrumental_gain(xf_engine *e, float gain) {
+    if (!e) return;
+    if (gain < 0.0f) gain = 0.0f;
+    if (gain > 1.0f) gain = 1.0f;
+    atomic_store(&e->instr_gain, (double)gain);
 }
 
 void xf_engine_seek_tick(xf_engine *e, double tick) {
@@ -213,13 +262,22 @@ void xf_engine_render(xf_engine *e,
         if (wrote < want) atomic_fetch_add(&e->input_ring_drops, 1);
     }
 
-    /* --- salida: reproductor + metronomo --- */
+    /* --- salida: reproductor + base instrumental + metronomo --- */
     xf_player *p = atomic_load(&e->player);
     if (p) {
         xf_player_render(p, e->mono, nframes, vel);
     } else {
         memset(e->mono, 0, (size_t)nframes * sizeof(float));
     }
+
+    xf_player *ip = atomic_load(&e->instrumental);
+    if (ip) {
+        const double iratio = atomic_load(&e->instr_ratio);
+        const float  igain  = (float)atomic_load(&e->instr_gain);
+        xf_player_render(ip, e->mono2, nframes, iratio);
+        for (int n = 0; n < nframes; n++) e->mono[n] += e->mono2[n] * igain;
+    }
+
     xf_metronome_render(e->metronome, e->mono, nframes, block_start_tick, bpm);
 
     for (int n = 0; n < nframes; n++) {
@@ -260,22 +318,24 @@ static OSStatus xf_engine_render_cb(void *ref, AudioUnitRenderActionFlags *flags
         }
     }
 
-    /* 2) tirar de la entrada a la ABL preasignada */
-    AudioBufferList *inABL = (AudioBufferList *)e->in_abl;
-    for (UInt32 c = 0; c < 2; c++) {
-        inABL->mBuffers[c].mNumberChannels = 1;
-        inABL->mBuffers[c].mDataByteSize   = frames * (UInt32)sizeof(float);
-        inABL->mBuffers[c].mData           = e->in_scratch + (size_t)c * e->max_frames;
-    }
-    inABL->mNumberBuffers = 2;
-
+    /* 2) tirar de la entrada a la ABL preasignada (solo en modo duplex) */
     const float *inL = NULL, *inR = NULL;
-    OSStatus err = AudioUnitRender((AudioUnit)e->au, flags, ts, 1 /* bus entrada */, frames, inABL);
-    if (err == noErr) {
-        inL = (const float *)inABL->mBuffers[0].mData;
-        inR = (const float *)inABL->mBuffers[1].mData;
-    } else {
-        atomic_fetch_add(&e->render_errors, 1);
+    if (e->capture_input) {
+        AudioBufferList *inABL = (AudioBufferList *)e->in_abl;
+        for (UInt32 c = 0; c < 2; c++) {
+            inABL->mBuffers[c].mNumberChannels = 1;
+            inABL->mBuffers[c].mDataByteSize   = frames * (UInt32)sizeof(float);
+            inABL->mBuffers[c].mData           = e->in_scratch + (size_t)c * e->max_frames;
+        }
+        inABL->mNumberBuffers = 2;
+
+        OSStatus err = AudioUnitRender((AudioUnit)e->au, flags, ts, 1 /* bus entrada */, frames, inABL);
+        if (err == noErr) {
+            inL = (const float *)inABL->mBuffers[0].mData;
+            inR = (const float *)inABL->mBuffers[1].mData;
+        } else {
+            atomic_fetch_add(&e->render_errors, 1);
+        }
     }
 
     /* 3) nucleo RT */
@@ -320,8 +380,9 @@ static AudioDeviceID xf_engine_device_by_uid(const char *uid) {
     return dev != kAudioObjectUnknown ? dev : xf_engine_default_output_device();
 }
 
-int xf_engine_start(xf_engine *e, const char *device_uid) {
+static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_input) {
     if (!e || e->au) return -1;
+    e->capture_input = with_input ? 1 : 0;
 
     AudioDeviceID dev = xf_engine_device_by_uid(device_uid);
     if (dev == kAudioObjectUnknown) return -1;
@@ -343,9 +404,9 @@ int xf_engine_start(xf_engine *e, const char *device_uid) {
     AudioUnit unit = NULL;
     if (AudioComponentInstanceNew(comp, &unit) != noErr || !unit) return -1;
 
-    UInt32 yes = 1;
+    UInt32 yes = 1, no = 0;
     AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO,
-                         kAudioUnitScope_Input, 1, &yes, sizeof(yes));
+                         kAudioUnitScope_Input, 1, with_input ? &yes : &no, sizeof(yes));
     AudioUnitSetProperty(unit, kAudioOutputUnitProperty_EnableIO,
                          kAudioUnitScope_Output, 0, &yes, sizeof(yes));
     AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice,
@@ -361,8 +422,10 @@ int xf_engine_start(xf_engine *e, const char *device_uid) {
     fmt.mFramesPerPacket  = 1;
     fmt.mBytesPerFrame    = 4;
     fmt.mBytesPerPacket   = 4;
-    AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
-                         kAudioUnitScope_Output, 1, &fmt, sizeof(fmt));
+    if (with_input) {
+        AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
+                             kAudioUnitScope_Output, 1, &fmt, sizeof(fmt));
+    }
     AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
                          kAudioUnitScope_Input, 0, &fmt, sizeof(fmt));
 
@@ -409,15 +472,27 @@ int xf_engine_start(xf_engine *e, const char *device_uid) {
     return 0;
 }
 
+int xf_engine_start(xf_engine *e, const char *device_uid) {
+    return xf_engine_start_impl(e, device_uid, 1);
+}
+
+int xf_engine_start_output(xf_engine *e, const char *device_uid) {
+    return xf_engine_start_impl(e, device_uid, 0);
+}
+
 void xf_engine_stop(xf_engine *e) {
     if (!e || !e->au) return;
     AudioOutputUnitStop((AudioUnit)e->au);
     AudioUnitUninitialize((AudioUnit)e->au);
     AudioComponentInstanceDispose((AudioUnit)e->au);
     e->au = NULL;
+    /* El workgroup lo unio el HILO RT en el primer callback; `os_workgroup_leave`
+     * TIENE que llamarse desde ese mismo hilo y aqui estamos en el hilo normal
+     * (hacerlo aqui aborta con SIGILL). Al disponer la AudioUnit, el hilo de IO
+     * desaparece y su pertenencia se limpia sola. Solo soltamos la referencia. */
     if (e->workgroup) {
-        os_workgroup_leave((os_workgroup_t)e->workgroup,
-                           (os_workgroup_join_token_t)e->wg_token);
+        os_release(e->workgroup);
         e->workgroup = NULL;
     }
+    atomic_store(&e->rt_promoted, 0);
 }

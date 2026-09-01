@@ -11,10 +11,15 @@ public protocol ContentLoader {
     /// Nombres de fichero dentro de `directory` (p. ej. `"profiles"`) con la
     /// extension `ext`. Vacio si el directorio no existe.
     func list(_ directory: String, withExtension ext: String) -> [String]
+    /// URL en disco del recurso, si el loader es de ficheros (para APIs que
+    /// piden `URL` y no `Data`, p. ej. `AVAudioFile`). `nil` si no aplica o no
+    /// existe.
+    func url(_ relativePath: String) -> URL?
 }
 
 public extension ContentLoader {
     func list(_ directory: String, withExtension ext: String) -> [String] { [] }
+    func url(_ relativePath: String) -> URL? { nil }
 }
 
 /// Lee los ficheros directamente del repo (usando la ruta de este fichero para
@@ -41,6 +46,11 @@ public struct RepoContentLoader: ContentLoader {
         let items = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         return items.filter { $0.hasSuffix("." + ext) }.sorted()
     }
+
+    public func url(_ relativePath: String) -> URL? {
+        let u = root.appendingPathComponent(relativePath)
+        return FileManager.default.fileExists(atPath: u.path) ? u : nil
+    }
 }
 
 /// Lee de un directorio de recursos ya resuelto (el bundle de la app). Se le pasa
@@ -57,6 +67,11 @@ public struct DirectoryContentLoader: ContentLoader {
         let dir = root.appendingPathComponent(directory)
         let items = (try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? []
         return items.filter { $0.hasSuffix("." + ext) }.sorted()
+    }
+
+    public func url(_ relativePath: String) -> URL? {
+        let u = root.appendingPathComponent(relativePath)
+        return FileManager.default.fileExists(atPath: u.path) ? u : nil
     }
 }
 
@@ -93,6 +108,8 @@ public struct BundleContentLoader: ContentLoader {
     public func list(_ directory: String, withExtension ext: String) -> [String] {
         inner.list(directory, withExtension: ext)
     }
+
+    public func url(_ relativePath: String) -> URL? { inner.url(relativePath) }
 
     /// `true` si la carpeta de recursos trae de verdad el catalogo del producto.
     /// El arranque de la app lo consulta para decidir entre bundle y repo.

@@ -6,9 +6,10 @@ import XFRender
 import XFNotation
 
 /// Pantalla de practica **rudimentaria**: la autopista corre con el reloj de
-/// `PracticeSession` y el trackpad / teclado mueven el plato. Todavia **sin
-/// scoring** (necesita el callback de audio, B4.2): sirve para ver el movimiento
-/// y probar la entrada antes de tener la mesa.
+/// `PracticeSession` y el trackpad / teclado mueven el plato. Con audio: el
+/// scratch suena al mover (via `EngineHandle`) y una base instrumental corre
+/// pegada al tempo. Todavia **sin scoring** (necesita el callback de audio con
+/// captura, B4.2): sirve para practicar el gesto antes de tener la mesa.
 ///
 /// Cuando exista el bucle de sesion de verdad, esta vista se sustituye por
 /// `PracticeView` cableada a `XFEngine` + `XFAnalysis`.
@@ -19,16 +20,25 @@ public struct LivePracticeView: View {
     private let scratch: Scratch
     private let exerciseName: String
     private let geometry: HighwayGeometry
+    private let engine: EngineHandle?
+    private let content: ContentLoader
+    private let metronomeOn: Bool
     private let onExit: () -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
                 bpm: Int,
                 geometry: HighwayGeometry,
+                engine: EngineHandle? = nil,
+                content: ContentLoader = RepoContentLoader(),
+                metronomeOn: Bool = true,
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
         self.geometry = geometry
+        self.engine = engine
+        self.content = content
+        self.metronomeOn = metronomeOn
         self.onExit = onExit
         _session = StateObject(wrappedValue: PracticeSession(scratch: scratch, bpm: bpm))
     }
@@ -41,12 +51,18 @@ public struct LivePracticeView: View {
                 HighwayView(scratch: scratch, geometry: geometry,
                             tick: { s.tick() },
                             userTrace: { s.trace() })
-                // capa de entrada por encima: la autopista no tiene controles
                 PlatterInputView(
                     onScroll: { s.scrollBy($0) },
                     onNudge: { s.nudge(forward: $0) },
-                    onFaderClosed: { s.setFaderClosed($0) },
-                    onBPM: { s.setBPM($0) },
+                    onFaderClosed: { closed in
+                        s.setFaderClosed(closed)
+                        // fader cerrado = corta el sonido del scratch
+                        engine?.setMasterGain(closed ? 0 : 1)
+                    },
+                    onBPM: { bpm in
+                        s.setBPM(bpm)
+                        engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+                    },
                     currentBPM: { s.bpm },
                     onExit: onExit)
             }
@@ -54,9 +70,50 @@ public struct LivePracticeView: View {
         }
         .background(XFColor.bg)
         .foregroundColor(XFColor.text)
-        .onAppear { s.start() }
-        .onDisappear { s.stop() }
+        .onAppear { start() }
+        .onDisappear { stop() }
     }
+
+    // MARK: - audio + reloj
+
+    private func start() {
+        session.start()
+        guard let engine = engine else { return }
+
+        engine.metronomeEnabled = metronomeOn
+        engine.setInstrumentalGain(0.5)
+        engine.setMasterGain(1)
+        engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
+
+        // cada paso del reloj empuja la velocidad del plato al reproductor
+        session.onAdvance = { [weak engine] platterVelocity, _ in
+            let v = max(-8.0, min(8.0, platterVelocity * 1.6))
+            engine?.setVelocity(v)
+        }
+
+        // decodificar los audios fuera del hilo principal (el MP3 tarda)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
+            let instrPCM   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
+            DispatchQueue.main.async {
+                if let scratchPCM { engine.loadSample(scratchPCM) }
+                if let instrPCM {
+                    engine.loadInstrumental(instrPCM, nativeBPM: AudioAsset.instrumentalNativeBPM)
+                }
+                _ = engine.startOutput()
+            }
+        }
+    }
+
+    private func stop() {
+        session.onAdvance = nil
+        session.stop()
+        engine?.stop()
+        engine?.clearSample()
+        engine?.clearInstrumental()
+    }
+
+    // MARK: - chrome
 
     private var topBar: some View {
         HStack(spacing: XFSpacing.lg) {
@@ -64,7 +121,6 @@ public struct LivePracticeView: View {
                 .buttonStyle(.plain)
             Text(exerciseName).font(XFFont.bodyMedium(14))
             Spacer()
-            // indicador de crossfader
             HStack(spacing: XFSpacing.xs) {
                 Circle()
                     .fill(session.faderClosed ? XFColor.textMuted : XFColor.accent)

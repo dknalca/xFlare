@@ -45,6 +45,10 @@ public final class PracticeSession: ObservableObject {
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
 
+    /// Se llama al final de cada paso de simulacion con (velocidad del plato,
+    /// tick). La practica lo usa para empujar el motor de audio. Opcional.
+    public var onAdvance: ((_ platterVelocity: Double, _ tick: Double) -> Void)?
+
     // --- bucle ---
     private var timer: Timer?
     private var lastFrameTime: CFTimeInterval = 0
@@ -118,6 +122,15 @@ public final class PracticeSession: ObservableObject {
         if traceBuffer.first?.tick ?? 0 < cutoff {
             traceBuffer.removeAll { $0.tick < cutoff }
         }
+
+        onAdvance?(platterVelocity, currentTick)
+    }
+
+    /// Velocidad del plato mapeada a la del reproductor de scratch (1.0 = pitch
+    /// normal). Rudimentaria y acotada; se afina a oido con la mesa.
+    public var scratchPlaybackVelocity: Double {
+        let scaled = platterVelocity * 1.6
+        return max(-8.0, min(8.0, scaled))
     }
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)

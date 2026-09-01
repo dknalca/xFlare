@@ -128,6 +128,9 @@ public struct AppRootView: View {
                 exerciseName: name,
                 bpm: ex?.startBpm ?? 90,
                 geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
+                engine: model.engine,
+                content: model.content,
+                metronomeOn: model.settings.metronomeEnabled,
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

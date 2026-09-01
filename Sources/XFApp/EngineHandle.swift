@@ -18,6 +18,10 @@ public final class EngineHandle {
     private var currentSample: UnsafeMutableBufferPointer<Float>?
     private var retiredSample: UnsafeMutableBufferPointer<Float>?
 
+    // Mismos dos slots para la base instrumental.
+    private var currentInstrumental: UnsafeMutableBufferPointer<Float>?
+    private var retiredInstrumental: UnsafeMutableBufferPointer<Float>?
+
     public init?(sampleRate: Double = 48_000, maxFrames: Int = 64) {
         guard let e = xf_engine_create(sampleRate, UInt32(maxFrames)) else { return nil }
         self.engine = e
@@ -30,6 +34,8 @@ public final class EngineHandle {
         xf_engine_destroy(engine)
         currentSample?.deallocate()
         retiredSample?.deallocate()
+        currentInstrumental?.deallocate()
+        retiredInstrumental?.deallocate()
     }
 
     // MARK: - control
@@ -52,6 +58,27 @@ public final class EngineHandle {
         retiredSample = currentSample
         currentSample = nil
     }
+
+    /// Carga la base instrumental (mono). `nativeBPM` = tempo al que se grabo;
+    /// el motor la reproduce en bucle a `bpm/nativeBPM`.
+    public func loadInstrumental(_ mono: [Float], nativeBPM: Double) {
+        let buf = UnsafeMutableBufferPointer<Float>.allocate(capacity: max(2, mono.count))
+        _ = buf.initialize(from: mono)
+        xf_engine_load_instrumental(engine, buf.baseAddress, Int64(mono.count), nativeBPM)
+
+        retiredInstrumental?.deallocate()
+        retiredInstrumental = currentInstrumental
+        currentInstrumental = buf
+    }
+
+    public func clearInstrumental() {
+        xf_engine_load_instrumental(engine, nil, 0, 0)
+        retiredInstrumental?.deallocate()
+        retiredInstrumental = currentInstrumental
+        currentInstrumental = nil
+    }
+
+    public func setInstrumentalGain(_ g: Float) { xf_engine_set_instrumental_gain(engine, g) }
 
     public func setTransport(bpm: Double, ppq: Int, playing: Bool) {
         xf_engine_set_transport(engine, bpm, Int32(ppq), playing)
@@ -90,6 +117,15 @@ public final class EngineHandle {
             return deviceUID.withCString { xf_engine_start(engine, $0) == 0 }
         }
         return xf_engine_start(engine, nil) == 0
+    }
+
+    /// Arranca **solo salida** (sin capturar la entrada): para practicar con la
+    /// mesa desconectada. Suena el scratch + la base + el metronomo.
+    public func startOutput(deviceUID: String? = nil) -> Bool {
+        if let deviceUID {
+            return deviceUID.withCString { xf_engine_start_output(engine, $0) == 0 }
+        }
+        return xf_engine_start_output(engine, nil) == 0
     }
 
     public func stop() { xf_engine_stop(engine) }

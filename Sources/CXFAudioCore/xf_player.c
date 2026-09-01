@@ -37,6 +37,7 @@ struct xf_player {
     double playhead;          /* frames fraccionarios */
     double velocity;          /* ya suavizada */
     double glide_coef;        /* [0,1] por frame; 1.0 = sin suavizado */
+    int    loop;              /* 0 = satura en los extremos; 1 = da la vuelta */
 
     /* Tabla [ratio][fase][tap]. Cada kernel esta normalizado a ganancia DC 1. */
     float *table;             /* NRATIOS * PHASES * TAPS floats */
@@ -127,6 +128,8 @@ void xf_player_set_glide_ms(xf_player *p, double ms) {
 double xf_player_playhead(const xf_player *p) { return p ? p->playhead : 0.0; }
 double xf_player_velocity(const xf_player *p) { return p ? p->velocity : 0.0; }
 
+void xf_player_set_loop(xf_player *p, bool loop) { if (p) p->loop = loop ? 1 : 0; }
+
 void xf_player_set_playhead(xf_player *p, double frame) {
     if (!p) return;
     if (frame < 0.0) frame = 0.0;
@@ -170,19 +173,33 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
         const float *k =
             p->table + ((size_t)ri * XF_PLAYER_PHASES + (size_t)ph) * XF_PLAYER_TAPS;
 
-        /* 4) convolucion de TAPS puntos; fuera del sample se lee 0 (bordes) */
+        /* 4) convolucion de TAPS puntos. Fuera del sample: 0 si el cabezal se
+         *    satura, o envuelto por modulo si esta en bucle (base instrumental). */
         double acc = 0.0;
         for (int t = 0; t < XF_PLAYER_TAPS; t++) {
             int64_t si = i + (int64_t)(t - (XF_PLAYER_HALF - 1));
-            double s = (si >= 0 && si <= last) ? (double)src[si] : 0.0;
+            double s;
+            if (p->loop) {
+                si %= p->frames;
+                if (si < 0) si += p->frames;   /* modulo siempre en [0, frames) */
+                s = (double)src[si];
+            } else {
+                s = (si >= 0 && si <= last) ? (double)src[si] : 0.0;
+            }
             acc += s * (double)k[t];
         }
         out[n] = (float)acc;
 
-        /* 5) avanza el cabezal y lo satura a los extremos (el plato no puede
-         * salirse del sample) */
+        /* 5) avanza el cabezal: se satura a los extremos (el plato no se sale
+         *    del sample) o da la vuelta si esta en bucle. */
         p->playhead += v;
-        if (p->playhead < 0.0) p->playhead = 0.0;
-        if (p->playhead > (double)last) p->playhead = (double)last;
+        if (p->loop) {
+            double fr = (double)p->frames;
+            p->playhead = fmod(p->playhead, fr);
+            if (p->playhead < 0.0) p->playhead += fr;
+        } else {
+            if (p->playhead < 0.0) p->playhead = 0.0;
+            if (p->playhead > (double)last) p->playhead = (double)last;
+        }
     }
 }

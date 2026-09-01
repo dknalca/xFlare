@@ -65,4 +65,31 @@ final class EngineHandleTests: XCTestCase {
         let out = h.renderBlock(count: 64).l
         XCTAssertEqual(out.map { abs($0) }.max() ?? 0, 0)
     }
+
+    func testLaBaseInstrumentalSuenaMezclada() throws {
+        let h = try XCTUnwrap(EngineHandle(sampleRate: 48_000, maxFrames: 128))
+        h.metronomeEnabled = false
+        h.setMasterGain(1)
+        h.setInstrumentalGain(0.5)
+        h.loadInstrumental((0..<9_600).map { Float(sin(2 * .pi * 1000 * Double($0) / 48_000)) * 0.5 },
+                           nativeBPM: 90)
+        h.setTransport(bpm: 90, ppq: 480, playing: true)   // ratio 1
+
+        var acc: [Float] = []
+        for _ in 0..<60 { acc += h.renderBlock(count: 128).l }
+        XCTAssertGreaterThan(rms(Array(acc.suffix(4096))), 0.1)
+
+        h.loadInstrumental((0..<4_800).map { _ in Float.random(in: -0.1...0.1) }, nativeBPM: 90)
+        _ = h.renderBlock(count: 128)                      // swap sonando
+        h.clearInstrumental()
+        _ = h.renderBlock(count: 128)                      // sin crash
+    }
+
+    func testStartOutputNoRevienta() throws {
+        // En CI sin dispositivo de salida devolvera false; lo que importa es que
+        // no crashea y que `stop` es seguro aunque no arrancara.
+        let h = try XCTUnwrap(EngineHandle(sampleRate: 48_000, maxFrames: 512))
+        _ = h.startOutput()
+        h.stop()
+    }
 }

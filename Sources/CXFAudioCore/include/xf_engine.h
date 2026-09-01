@@ -52,6 +52,17 @@ void xf_engine_load_sample(xf_engine *e, const float *sample, int64_t frames);
 /* Fija el transporte: BPM, PPQ del patron y si esta sonando. */
 void xf_engine_set_transport(xf_engine *e, double bpm, int ppq, bool playing);
 
+/* Carga la base instrumental (PCM **mono** float, propiedad del llamante, tiene
+ * que seguir vivo). `native_bpm` es el tempo al que se grabo: el motor la
+ * reproduce en bucle a `bpm / native_bpm` para que quede pegada al tempo de la
+ * sesion (cambia de pitch, como tirar de un break en el plato). `native_bpm <= 0`
+ * o `mono == NULL` la quita. Se puede llamar sonando (swap atomico, 1 retiro). */
+void xf_engine_load_instrumental(xf_engine *e, const float *mono, int64_t frames,
+                                 double native_bpm);
+
+/* Ganancia de la base instrumental (0..1). Atomica. Por defecto 0.5. */
+void xf_engine_set_instrumental_gain(xf_engine *e, float gain);
+
 /* Coloca el reloj musical en `tick` (p. ej. el inicio de la cuenta atras, que es
  * negativo). Resincroniza el metronomo. */
 void xf_engine_seek_tick(xf_engine *e, double tick);
@@ -104,6 +115,11 @@ void xf_engine_render(xf_engine *e,
  * el de salida por defecto), fija `max_frames` como buffer, arranca. Devuelve 0
  * si todo OK, o un OSStatus/-1 si falla. */
 int xf_engine_start(xf_engine *e, const char *device_uid);
+
+/* NO RT-SAFE: como `xf_engine_start` pero **solo salida** (sin capturar la
+ * entrada del dispositivo). Para practicar con la mesa desconectada: suena el
+ * scratch y la base, y el ring de entrada queda en silencio. Devuelve 0 / -1. */
+int xf_engine_start_output(xf_engine *e, const char *device_uid);
 
 /* NO RT-SAFE: para y cierra la AudioUnit. */
 void xf_engine_stop(xf_engine *e);
