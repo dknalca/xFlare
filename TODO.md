@@ -301,8 +301,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B10.7** Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio `XFPersistence`
       - Criterio: docs/SCORING.md seccion 3
       - Hecho (2026-09-01): record `ExerciseProgress` (fila derivada por (ejercicio, variante)) + `ProgressSummary` (progreso + media de 5 + linea de 20). `XFDatabase.recomputeProgress(exerciseId:variantId:)` recalcula desde `attempt`: intentos, mejor score + su fecha, ultima + su fecha, estrellas (MAX, no baja — SCORING.md §2), `bestBpmWith3Stars`, `meanBiasMs`, `totalPracticeMs`. Solo cuentan los intentos con `countsForStars = 1` (ADR-027), salvo el tiempo total que suma todo. `progress(...)` y `progressSummary(...)` (media de los ultimos 5 y linea de los ultimos 20, del mas antiguo al mas reciente). 6 tests.
-- [ ] **B10.8** Estado de dominado y desbloqueo de variantes `XFPersistence`
+- [x] **B10.8** Estado de dominado y desbloqueo de variantes `XFPersistence`
       - Criterio: 3★ base + 2★ en tres variantes
+      - Hecho (2026-09-01): record `ExerciseMastery` (`masteredAt`/`oxidizedAt`). `XFDatabase.refreshMastery(exerciseId:baseVariantId:at:)` mira las estrellas de las filas de `exerciseProgress`: dominado = `masteryBaseStars`(3) en base **y** `masteryVariantCount`(3) variantes con >= `masteryVariantStars`(2). `masteredAt` se fija la primera vez y no se borra; `setOxidized(...)` para las recaidas en calentamiento (ADR-027 / WARMUP.md §5). `isMastered`, `mastery`, `masteredExercises` (pool del calentamiento). Desbloqueo: `evaluateUnlocks(exerciseId:rules:at:)` toma `[VariantUnlockRule]` (que el llamante construye desde `variants.json`) y marca las que ya cumplen; una pasada, sin cascada. 5 tests.
 - [ ] **B10.9** **SELLAR XFPersistence** `XFPersistence`
 
 ## B11 — XFApp

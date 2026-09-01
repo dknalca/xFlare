@@ -711,8 +711,9 @@
           "id": "B10.8",
           "title": "Estado de dominado y desbloqueo de variantes",
           "module": "XFPersistence",
-          "status": "todo",
-          "acceptance": "3★ base + 2★ en tres variantes"
+          "status": "done",
+          "acceptance": "3★ base + 2★ en tres variantes",
+          "note": "Record ExerciseMastery (masteredAt/oxidizedAt). refreshMastery(exerciseId:baseVariantId:at:) mira las estrellas de exerciseProgress: dominado = 3 en base y 3 variantes con >=2. masteredAt se fija una vez y no se borra; setOxidized(...) para recaidas en calentamiento (ADR-027/WARMUP 5). isMastered, mastery, masteredExercises. Desbloqueo: evaluateUnlocks(exerciseId:rules:at:) toma [VariantUnlockRule] (que el llamante saca de variants.json) y marca las que cumplen; una pasada sin cascada. 5 tests."
         },
         {
           "id": "B10.9",
