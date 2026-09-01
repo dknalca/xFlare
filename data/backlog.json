@@ -527,7 +527,8 @@
           "title": "Scope circular del plato (Lissajous)",
           "module": "XFRender",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "ScopeLayout (puro): ScopeReading (position/velocity/confidence) -> ScopeFigure. Lissajous reconstruido: angulo = fase acumulada (position*2pi, las portadoras crudas viven en la capa RT), radio del punto = confianza (limpia -> sobre la circunferencia; sucia -> se hunde al centro + isDegraded). El rastro (un punto por lectura, lo aporta el llamante) da direccion y velocidad. ScopeScene/ScopeView (SpriteKit/SwiftUI delgadas). 10 tests."
         },
         {
           "id": "B7.6",
