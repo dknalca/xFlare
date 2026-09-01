@@ -276,7 +276,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *La sesion de gimnasio.*
 
-- [ ] **B9.1** Maquina de estados: calentamiento, series, descanso, boss, resultados `XFEngine`
+- [x] **B9.1** Maquina de estados: calentamiento, series, descanso, boss, resultados `XFEngine`
+      - Hecho (2026-09-01): `SessionMachine` (struct valor, como `Transport`: sin hilo, avanza por eventos). Fases `SessionPhase` = `warmup → series(i) → rest(afterSeries:i) → … → boss → results` (`docs/CURRICULUM.md` §3); el descanso solo va entre series, la ultima entra directa al boss. Eventos `beginSeries()/completeSeries(passed:)/endRest()/completeBoss()/reset()`; llamados fuera de fase son no-op (como `Transport.advance` parado). `SessionConfig` (seriesCount 3, barsPerSeries 4). `isScored` (series+boss puntuan; warmup/rest/results no). `completeSeries` **registra** el resultado en `seriesOutcomes` pero no lo interpreta: la escalera de BPM es B9.2, el desbloqueo por compases seguidos B9.3. 8 tests.
 - [ ] **B9.2** Escalera de BPM adaptativa (2 fallos baja, 3 aciertos sube) `XFEngine`
 - [ ] **B9.3** Desbloqueo por compases consecutivos, no por media `XFEngine`
 - [ ] **B9.4** **SELLAR XFEngine** `XFEngine`

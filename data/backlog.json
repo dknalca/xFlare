@@ -626,7 +626,8 @@
           "title": "Maquina de estados: calentamiento, series, descanso, boss, resultados",
           "module": "XFEngine",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "SessionMachine (struct valor, como Transport: sin hilo, avanza por eventos). SessionPhase = warmup -> series(i) -> rest(afterSeries:i) -> ... -> boss -> results (CURRICULUM 3); descanso solo entre series, la ultima entra directa al boss. Eventos beginSeries/completeSeries(passed:)/endRest/completeBoss/reset; fuera de fase = no-op. SessionConfig (seriesCount 3, barsPerSeries 4). isScored (series+boss). completeSeries registra el resultado en seriesOutcomes pero no lo interpreta: escalera de BPM = B9.2, desbloqueo por compases seguidos = B9.3. 8 tests."
         },
         {
           "id": "B9.2",
