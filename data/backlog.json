@@ -273,8 +273,8 @@
           "title": "Reproductor de sample con resampling por velocidad y direccion",
           "module": "CXFAudioCore",
           "acceptance": "scratch audible sin clicks ni aliasing",
-          "status": "todo",
-          "note": "bloqueado: 'audible' necesita oido + hardware. | Prototipado en spike/b4-audio-sandbox/: playhead fraccionario + interpolacion lineal, velocidad/direccion desde el trackpad, corte de fader con rampa, instrumental de fondo. Callback en C. Falta antialiasing y montarlo sobre el ring buffer."
+          "status": "done",
+          "note": "xf_player (C, opaco): cabezal fraccionario sobre sample mono, sinc enventanado (32 taps Blackman-Harris, 512 fases) con corte que baja al subir la velocidad -> antialiasing. Tabla precalculada en create (NO RT-SAFE); render no reserva nada. Suavizado de velocidad (glide_ms) contra clicks; cabezal saturado a los extremos. Solo resamplea. 12 tests que miden el espectro (Goertzel): v=1 transparente, v=2 duplica pitch, 20 kHz a 2x -> silencio en vez de alias a 8 kHz, reverso, parada, ganancia DC 1, sin discontinuidad entre bloques. Confirmacion a oido = hardware."
         },
         {
           "id": "B4.4",
