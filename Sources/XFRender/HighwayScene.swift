@@ -30,7 +30,9 @@ public final class HighwayScene: SKScene {
     private var geometry: HighwayGeometry
 
     // Nodos reutilizados fotograma a fotograma.
-    private let curveNode = SKShapeNode()
+    private let curveNode = SKShapeNode()          // fantasma entero (patrón sin fader)
+    private let curveLayer = SKNode()              // fantasma en tramos (ADR-040)
+    private var curvePool: [SKShapeNode] = []
     private let playheadNode = SKShapeNode()
     private let gridLayer = SKNode()
     private let laneLayer = SKNode()
@@ -71,6 +73,7 @@ public final class HighwayScene: SKScene {
         addChild(gridLayer)      // rejilla al fondo del todo
         addChild(laneLayer)
         addChild(curveNode)      // fantasma detrás
+        addChild(curveLayer)     // fantasma en tramos (ADR-040)
         addChild(userLayer)      // tu curva delante
         addChild(marksLayer)
         addChild(hitLayer)
@@ -109,13 +112,20 @@ public final class HighwayScene: SKScene {
         drawGrid(pool: &beatPool, xs: frame.beatLines, color: gridBeatColor, width: 1)
         drawGrid(pool: &barPool, xs: frame.barLines, color: gridBarColor, width: 2)
 
-        // curva
-        if frame.discCurve.count >= 2 {
-            let path = CGMutablePath()
-            path.addLines(between: frame.discCurve)
-            curveNode.path = path
-        } else {
+        // curva del disco: si viene en tramos (fader cerrado -> hueco, ADR-040)
+        // se pintan esos; si no, la curva entera en un solo nodo.
+        if !frame.discSegments.isEmpty {
             curveNode.path = nil
+            drawDiscSegments(frame.discSegments)
+        } else {
+            drawDiscSegments([])            // esconde el pool
+            if frame.discCurve.count >= 2 {
+                let path = CGMutablePath()
+                path.addLines(between: frame.discCurve)
+                curveNode.path = path
+            } else {
+                curveNode.path = nil
+            }
         }
 
         // cabeza de lectura
@@ -189,6 +199,23 @@ public final class HighwayScene: SKScene {
             let node = SKShapeNode()
             pool.append(node)
             parent.addChild(node)
+        }
+    }
+
+    /// Pinta los tramos del fantasma (curva partida por el fader), reutilizando
+    /// el pool. `[]` esconde todo el pool.
+    private func drawDiscSegments(_ segments: [[CGPoint]]) {
+        ensurePool(&curvePool, count: segments.count, into: curveLayer)
+        for (i, node) in curvePool.enumerated() {
+            guard i < segments.count, segments[i].count >= 2 else { node.isHidden = true; continue }
+            node.isHidden = false
+            let path = CGMutablePath()
+            path.addLines(between: segments[i])
+            node.path = path
+            node.strokeColor = ghostColor
+            node.lineWidth = 3
+            node.lineJoin = .round
+            node.fillColor = .clear
         }
     }
 

@@ -43,10 +43,17 @@ public struct HighwayFrame: Equatable, Sendable {
     /// de izquierda a derecha. Se pintan por encima de las de negra.
     public var barLines: [CGFloat]
 
+    /// La curva del disco **partida** donde el fader está cerrado (ADR-040): un
+    /// tramo por cada intervalo con el fader abierto, entre ellos no se dibuja
+    /// nada (mute = ausencia, notación TTM). Vacío ⇒ usar `discCurve` entera
+    /// (compatibilidad: patrones sin fader, o quien no distinga tramos).
+    public var discSegments: [[CGPoint]]
+
     public init(discCurve: [CGPoint], openMarks: [CGPoint], closeMarks: [CGPoint],
                 faderBands: [FaderBand], playheadX: CGFloat,
                 userSegments: [TintedPolyline] = [], hitMarks: [TintedMark] = [],
-                beatLines: [CGFloat] = [], barLines: [CGFloat] = []) {
+                beatLines: [CGFloat] = [], barLines: [CGFloat] = [],
+                discSegments: [[CGPoint]] = []) {
         self.discCurve = discCurve
         self.openMarks = openMarks
         self.closeMarks = closeMarks
@@ -56,5 +63,6 @@ public struct HighwayFrame: Equatable, Sendable {
         self.playheadX = playheadX
         self.beatLines = beatLines
         self.barLines = barLines
+        self.discSegments = discSegments
     }
 }

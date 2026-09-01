@@ -9,13 +9,13 @@ import AVFoundation
 ///
 /// Rutas de los assets de la práctica rudimentaria:
 ///  - scratch: `Audio/Sample Scratchs/Ahh.wav`  (grabación propia del autor)
-///  - base:    `Audio/Intrumental loops/080bpm_beat1.mp3`  (loop a 80 BPM)
+///  - base:    `Audio/Intrumental loops/080bpm_beat.wav`  (loop a 80 BPM)
 /// En dev se leen del repo (`RepoContentLoader`); empaquetarlos en el `.app` es
 /// parte de B12a.
 public enum AudioAsset {
 
     public static let scratchRelPath = "Audio/Sample Scratchs/Ahh.wav"
-    public static let instrumentalRelPath = "Audio/Intrumental loops/080bpm_beat1.mp3"
+    public static let instrumentalRelPath = "Audio/Intrumental loops/080bpm_beat.wav"
     /// Tempo al que está grabado el loop instrumental (va en el nombre).
     public static let instrumentalNativeBPM: Double = 80
     /// Parte útil del sample de scratch: del principio a esta fracción. El final

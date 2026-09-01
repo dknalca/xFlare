@@ -109,13 +109,29 @@ public struct HighwayLayout {
         // Anclamos la rejilla de muestreo con division *hacia abajo* (no la
         // truncada de Swift): asi el mismo tick da la misma rejilla tanto si
         // `tMin` es negativo como positivo, y `frame(T) == frame(T + L)`.
+        //
+        // La curva se parte en `discSegments` donde el fader esta **cerrado**
+        // (ADR-040): el tramo mudo no se dibuja (ausencia = mute, notacion TTM);
+        // el corte lo marcan los circulos ○/●. La clasificacion es por `wrapped`
+        // (posicion en el patron), asi que es periodica con L y no rompe la
+        // invariancia anti-deriva.
         var curve: [CGPoint] = []
+        var discSegments: [[CGPoint]] = []
+        var seg: [CGPoint] = []
         var sample = Int((tMin / Double(sampleStep)).rounded(.down)) * sampleStep
         while Double(sample) <= tMax + Double(sampleStep) {
-            let p = PositionSampler.position(of: scratch, atTick: wrapped(Double(sample)))
-            curve.append(CGPoint(x: x(forTick: Double(sample)), y: y(forPosition: p)))
+            let w = wrapped(Double(sample))
+            let point = CGPoint(x: x(forTick: Double(sample)),
+                                y: y(forPosition: PositionSampler.position(of: scratch, atTick: w)))
+            curve.append(point)
+            if PositionSampler.faderState(of: scratch, atTick: w) == .open {
+                seg.append(point)
+            } else if !seg.isEmpty {
+                discSegments.append(seg); seg = []
+            }
             sample += sampleStep
         }
+        if !seg.isEmpty { discSegments.append(seg) }
 
         // --- marcas de fader sobre la curva (una por copia visible del patrón) ---
         var open: [CGPoint] = []
@@ -201,6 +217,7 @@ public struct HighwayLayout {
         return HighwayFrame(discCurve: curve, openMarks: open, closeMarks: close,
                             faderBands: bands, playheadX: playheadX,
                             userSegments: userSegments, hitMarks: hitMarks,
-                            beatLines: beatLines, barLines: barLines)
+                            beatLines: beatLines, barLines: barLines,
+                            discSegments: discSegments)
     }
 }

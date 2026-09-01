@@ -43,10 +43,17 @@ public enum HighwaySVG {
             lines.append("<line class=\"grid-bar\" x1=\"\(x)\" y1=\"0\" x2=\"\(x)\" y2=\"\(H)\" stroke=\"#232A32\" stroke-width=\"2\"/>")
         }
 
-        // curva del patrón (fantasma)
-        if frame.discCurve.count >= 2 {
-            let pts = frame.discCurve.map { "\(f($0.x)),\(f(fy($0.y)))" }.joined(separator: " ")
-            lines.append("<polyline class=\"ghost\" points=\"\(pts)\" fill=\"none\" stroke=\"#7A8794\" stroke-opacity=\"0.55\" stroke-width=\"3\"/>")
+        // curva del patrón (fantasma). Si viene partida por el fader (ADR-040),
+        // un <polyline> por tramo (el hueco mudo no se dibuja); si no, entera.
+        func ghostPolyline(_ pts: [CGPoint]) {
+            guard pts.count >= 2 else { return }
+            let s = pts.map { "\(f($0.x)),\(f(fy($0.y)))" }.joined(separator: " ")
+            lines.append("<polyline class=\"ghost\" points=\"\(s)\" fill=\"none\" stroke=\"#7A8794\" stroke-opacity=\"0.55\" stroke-width=\"3\"/>")
+        }
+        if frame.discSegments.isEmpty {
+            ghostPolyline(frame.discCurve)
+        } else {
+            for seg in frame.discSegments { ghostPolyline(seg) }
         }
 
         // cabeza de lectura
