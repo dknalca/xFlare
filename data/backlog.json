@@ -682,7 +682,8 @@
           "title": "Repeticion espaciada (1, 3, 7, 21 dias)",
           "module": "XFPersistence",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "Record ReviewItem (stage 0..3 -> intervalDays [1,3,7,21], dueAt, lastReviewedAt). scheduleReview(...:masteredAt:) programa el primer repaso a +1 dia (idempotente). recordReviewOutcome(...:passed:at:): aprobar sube un escalon (tope 21d), fallar vuelve al 0; crea la fila si no existe. dueReviews(asOf:) devuelve lo vencido ordenado. Dia = 86400 s exactos (determinista). 6 tests."
         },
         {
           "id": "B10.4",
