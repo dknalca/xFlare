@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// xFlare — ejecutable de la app.
+// xFlare — ejecutable de la app. Cascara fina: monta `AppModel` y `AppRootView`
+// de XFApp y ya. Toda la logica vive en los modulos SPM.
 //
-// ESTADO (andamiaje): esto es solo el CASCARON. Abre una ventana y pinta la
-// pantalla de inicio MAQUETADA, sin logica: nada responde. Las pantallas de
-// verdad se implementan en el bloque B11 (XFApp) y este `@main` pasara a
-// montar la vista raiz real de XFApp. De momento importa XFApp solo para que
-// el ejecutable enlace todo el grafo de modulos y sirva de prueba de humo.
+// Ejecutar:  swift run xFlare   (o abrir Package.swift en Xcode y Run)
 //
-// Ejecutar:  swift run xFlare      (o abrir Package.swift en Xcode y darle a Run)
+// NOTA (B12): en dev, `AppModel.boot()` lee `data/` y `profiles/` del repo via
+// `RepoContentLoader`. El empaquetado de esos recursos en el bundle del .app es
+// tarea del bloque de distribucion.
 
 import SwiftUI
 import AppKit
-import XFApp   // solo para forzar el enlace del grafo completo; aun es un stub
+import XFApp
 
 // Un ejecutable SPM no trae bundle ni Info.plist. Sin esto, la ventana puede
 // salir sin icono en el Dock ni barra de menu y sin recibir foco.
@@ -30,13 +29,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 struct XFlareApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
-    // Marcador de que el grafo enlaza. Se quita cuando XFApp tenga vista raiz.
-    private let linkedModuleVersion = XFApp.scaffoldingVersion
+    @StateObject private var model = AppModel.boot()
 
     var body: some Scene {
         WindowGroup("xFlare") {
-            HomeScaffoldView()
-                .frame(minWidth: 900, minHeight: 620)
+            AppRootView(model: model)
+                .frame(minWidth: 960, minHeight: 640)
         }
     }
 }

@@ -1,8 +1,7 @@
-# `xFlare` — ejecutable (cascarón de andamiaje)
+# `xFlare` — ejecutable de la app
 
-Abre una ventana y pinta la **pantalla de inicio maquetada** con los tokens de
-diseño reales de `docs/UI_DESIGN.md` §2. **Nada responde**: no hay lógica, no hay
-audio, no hay navegación. Es solo para poder *abrir algo* y ver la forma.
+Cáscara fina: monta `AppModel` y `AppRootView` de **XFApp** y ya. Toda la lógica
+vive en los módulos SPM.
 
 ## Ejecutar
 
@@ -13,25 +12,25 @@ swift run xFlare
 ```
 
 `swift run` es CLI puro (compila + ejecuta un binario normal); **no** usa XCTest.
-La ventana sale.
-
 Desde Xcode: abre `Package.swift`, elige el esquema **xFlare**, Run.
 
-## Qué hay aquí
+## Qué hace
 
-| Fichero | Qué es |
-|---|---|
-| `xFlareApp.swift` | `@main` SwiftUI App + `AppDelegate` que fuerza la política de activación (un ejecutable SPM no trae bundle; sin esto la ventana sale sin Dock ni foco). Importa `XFApp` solo para enlazar el grafo entero y servir de prueba de humo. |
-| `HomeScaffoldView.swift` | La maqueta: barra lateral con las secciones (Calibración, Practicar, Libre, Librería, Progreso, Mi mesa, Ajustes) + Home con tarjeta "Continuar", stats y mapa de la matriz. Tokens de color inline. |
+- `AppModel.boot()` carga el catálogo (`data/scratches/library-v0.1.json`,
+  `data/curriculum/*.json`) y los perfiles (`profiles/*.conf`), abre la base
+  SQLite en *Application Support*, y crea el motor de audio (`EngineHandle`).
+- `AppRootView` pinta la barra de navegación y la pantalla actual según
+  `AppModel.screen`: Home (matriz + racha), Librería, Mi mesa, Ajustes,
+  Calibración, Progreso, Resultados, Práctica, Modo libre.
+- Si algo falla al arrancar, la ventana abre en `.error(...)` y lo dice.
 
-## Qué NO es
+## Límites conocidos (para B12 / hardware)
 
-- **No es** el módulo `XFApp`. `XFApp` sigue siendo un stub vacío hasta el bloque
-  **B11**, donde se implementan las pantallas de verdad.
-- Cuando llegue B11, este `@main` pasará a montar la vista raíz real de `XFApp` y
-  `HomeScaffoldView.swift` se borra.
-- Los tokens de color se moverán a `XFDesign` en **B7.1**.
-
-Restricciones de plataforma vigentes: macOS 11, Swift 5.7, sin `NavigationStack`
-ni `@Observable` (`docs/PLATFORM_SUPPORT.md` §4). Esta maqueta ya las respeta
-(`NavigationView`, `SidebarListStyle()`, `LazyVGrid`).
+- **En dev** el contenido se lee del **repo** (`RepoContentLoader`, vía
+  `#filePath`). Empaquetar `data/` y `profiles/` como recursos del bundle es
+  tarea del bloque de distribución (B12); ahí se cambia a `DirectoryContentLoader`.
+- La pantalla de práctica dibuja la autopista sincronizada al reloj del motor,
+  pero el **bucle de sesión + scoring en vivo** necesita el callback de audio
+  corriendo → se verifica en la máquina.
+- Persistir "ajustes" y "continuar" necesita un accesor de la tabla `setting`
+  en `XFPersistence` (aditivo, pendiente).
