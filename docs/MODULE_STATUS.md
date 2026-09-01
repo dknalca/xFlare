@@ -5,7 +5,7 @@ congelado, ver `ARCHITECTURE.md` seccion 6) · `BROKEN` (regresion detectada).
 
 | Modulo | Capa | Estado | Sellado el | Tests | Notas |
 |---|---|---|---|---|---|
-| `CXFAudioCore` | 0 | WIP | — | 7 verdes | `xf_ring` SPSC lock-free hecho (B4.1). Callback CoreAudio / resampling / metronomo / puerta de latencia (B4.2-B4.5) bloqueados por hardware + Instruments |
+| `CXFAudioCore` | 0 | WIP | — | 19 verdes | `xf_ring` SPSC lock-free (B4.1) + `xf_player` reproductor con resampling **antialiasing** (B4.3: sinc enventanado con corte por velocidad, tabla precalculada, render sin reservas). Callback CoreAudio / metronomo / puerta de latencia (B4.2/B4.4/B4.5) bloqueados por hardware + Instruments |
 | `XFPrimitives` | 0 | SEALED | 2026-09-01 | 4 verdes | apiVersion 1. `MotionSample` / `FaderSample` (value types compartidos capture↔analysis). ADR-033 |
 | `CXFTimecode` | 0 | WIP | — | 7 verdes | xwax 1.10 vendorizado intacto (B5.1) + wrapper `xf_timecoder` en modo relativo (B5.2), hamster/reverse (B5.3), confianza + dropout (B5.4). Tests con señal de cuadratura sintética. Falta pasar un vinilo real para sellar (B5.5) |
 | `XFClock` | 1 | SEALED | 2026-08-31 | 34 verdes | apiVersion 1. Tick/PPQ 480, Tempo, TimeSignature, HostClock, ClockMap, Transport. ADR-031 |
