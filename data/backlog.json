@@ -642,7 +642,8 @@
           "title": "Desbloqueo por compases consecutivos, no por media",
           "module": "XFEngine",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "UnlockRule (accuracy 0..1 + consecutiveBars + minBPM opcional) cubre pass de ejercicio (sin BPM) y unlock de nivel (con BPM) de data/curriculum/. UnlockTracker (struct valor): record(barAccuracy:bpm:) -> Bool cuenta compases buenos seguidos; un compas por debajo del umbral o del minBPM pone currentStreak a 0 (no se hace media, ADR-025). isUnlocked se queda pegado; bestStreak y barsRemaining para la UI; reset() para nuevo intento. 10 tests. Sin cablear a SessionMachine (lo hara el driver/facade)."
         },
         {
           "id": "B9.4",
