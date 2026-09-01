@@ -23,10 +23,14 @@ public final class PracticeSession: ObservableObject {
 
     // --- constantes del patron ---
     private let ppq: Double
-    /// Rango de posicion util (el del patron, ensanchado un 25 % a cada lado)
-    /// para que la linea del usuario no se salga de la autopista.
+    /// Extremos del recorrido del PLATO. `posLo` = posicion 0 del sample (el
+    /// pico bajo del patron); `posHi` = final del sample. El pico ALTO del
+    /// patron cae en `posLo + patternSpan` (< `posHi`): el plato puede seguir
+    /// scratcheando mas alla.
     private let posLo: Double
     private let posHi: Double
+    /// Span propio del patron (pico bajo -> pico alto), en unidades de posicion.
+    private let patternSpan: Double
     /// Cuanta historia de traza guardamos, en ticks (~8 negras).
     private let historyTicks: Double
 
@@ -54,18 +58,19 @@ public final class PracticeSession: ObservableObject {
                             _ normalizedPosition: Double,
                             _ tick: Double) -> Void)?
 
-    private var span: Double { max(1e-9, posHi - posLo) }
-
-    /// Posicion del plato como fraccion 0…1 del rango del patron: 0 = abajo
-    /// (inicio del sample), 1 = arriba (final del sample).
+    /// Posicion del plato como fraccion 0…1 del **sample entero**: 0 al empezar
+    /// (posicion 0 del sample), `patternTopFraction` (2/3) cuando el patron esta
+    /// en su pico, 1 en el final del sample. Se puede llegar a 1.
     public var normalizedPosition: Double {
-        min(1, max(0, (platterPosition - posLo) / span))
+        let rel = (platterPosition - posLo) / patternSpan   // 1.0 en el pico del patron
+        return min(1, max(0, rel * AudioAsset.scratchPatternTopFraction))
     }
 
-    /// Velocidad del plato como fraccion del rango del patron por segundo. Es la
-    /// derivada exacta de `normalizedPosition`, para que el cabezal del audio y
+    /// Derivada exacta de `normalizedPosition`: para que el cabezal del audio y
     /// la traza de la autopista no se separen.
-    public var normalizedVelocity: Double { platterVelocity / span }
+    public var normalizedVelocity: Double {
+        platterVelocity / patternSpan * AudioAsset.scratchPatternTopFraction
+    }
 
     // --- bucle ---
     private var timer: Timer?
@@ -74,26 +79,34 @@ public final class PracticeSession: ObservableObject {
     // --- sintonia (a ojo; se afina cuando haya mesa) ---
     /// Decaimiento exponencial de la velocidad al soltar, en 1/s. Mas bajo =
     /// rueda mas y cuesta menos llegar a los extremos del recorrido.
-    private let frictionPerSecond = 4.5
+    private let frictionPerSecond = 2.5
     /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
-    /// rango util del patron es 1.0, asi que un gesto normal debe cubrirlo entero.
-    private let scrollGain = 0.11
+    /// recorrido del plato es ~1,5x el span del patron; un gesto normal tiene
+    /// que poder cubrirlo entero (hasta el final del sample) en las dos direcciones.
+    private let scrollGain = 0.26
     /// Impulso de una pulsacion de A / D, en unidades/s.
-    private let keyImpulse = 0.9
+    private let keyImpulse = 1.6
+
+    /// Sensibilidad del trackpad, PROVISIONAL para las pruebas sin mesa. Escala
+    /// el scroll antes de convertirlo en velocidad del plato (1.0 = base). Un
+    /// slider de la vista lo mueve en caliente porque a ojo el gesto va rapido.
+    public var scrollSensitivity: Double = 1.0
 
     public init(scratch: Scratch, bpm: Int) {
         self.ppq = Double(max(1, scratch.ppq))
         self.historyTicks = self.ppq * 8
 
-        // La traza del usuario vive en el MISMO rango que el fantasma: nunca se
-        // sale de la autopista.
+        // El patron (fantasma) va de `range.lowerBound` (pico bajo = sample 0) a
+        // `range.upperBound` (pico alto = 2/3 del sample). El PLATO puede ir mas
+        // alla del pico alto, hasta el final del sample: por eso `posHi` esta por
+        // encima de `range.upperBound`.
         let range = HighwayLayout(scratch: scratch).positionRange
+        self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
-        self.posHi = range.upperBound
-        // Arranca en el CENTRO del rango: asi se puede scratchear igual en las
-        // dos direcciones y alcanzar los dos extremos (empezar pegado a un
-        // extremo dejaba medio recorrido muerto contra la pared).
-        self.platterPosition = (range.lowerBound + range.upperBound) / 2
+        //   rel(posHi) = 1 / (2/3) = 1.5  ->  normalizedPosition(posHi) = 1.0 (final del sample)
+        self.posHi = range.lowerBound + patternSpan / AudioAsset.scratchPatternTopFraction
+        // Arranca en `posLo` = posicion 0 del sample.
+        self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
     }
 
@@ -142,6 +155,10 @@ public final class PracticeSession: ObservableObject {
 
         // traza: un punto por fotograma. Con el fader cerrado no suena, asi que
         // ese tramo de la linea se pinta apagado (nivel `.miss`), no la pantalla.
+        // La traza se pinta en unidades de posicion del patron. Si el plato se
+        // pasa del pico del patron, `platterPosition` > `posLo + patternSpan` y
+        // la autopista lo extrapola hacia el hueco de arriba (ADR-041,
+        // `geometry.patternFill`), hacia el final del sample.
         let level: HitLevel? = faderClosed ? .miss : nil
         traceBuffer.append(TracePoint(tick: currentTick, position: platterPosition, level: level))
         let cutoff = currentTick - historyTicks
@@ -161,7 +178,7 @@ public final class PracticeSession: ObservableObject {
 
     /// Scroll horizontal del trackpad. `deltaX` en puntos (signo: + = adelante).
     public func scrollBy(_ deltaX: Double) {
-        platterVelocity += deltaX * scrollGain
+        platterVelocity += deltaX * scrollGain * scrollSensitivity
     }
 
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).

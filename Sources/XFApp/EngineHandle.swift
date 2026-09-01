@@ -9,9 +9,18 @@ import CXFAudioCore
 /// el cableado sin hardware. Quien lo usa es `AppModel`.
 public final class EngineHandle {
 
-    private let engine: OpaquePointer
+    // `engine` y `maxFrames` no son `let`: `restartOutput` los cambia para poder
+    // reabrir el motor con otro tamano de buffer sin reiniciar la app.
+    private var engine: OpaquePointer
     private let sampleRate: Double
-    private let maxFrames: Int
+    private var maxFrames: Int
+
+    /// Tamano de buffer (frames) con el que esta creado el motor ahora mismo.
+    public var currentMaxFrames: Int { maxFrames }
+
+    // Se guardan para poder recargar la base al recrear el motor.
+    private var instrumentalFrameCount = 0
+    private var instrumentalNativeBPM = 0.0
 
     // Dos buffers para el sample: el actual y el que se acaba de retirar (el
     // motor puede tenerlo un bloque mas). Rotan en `loadSample`.
@@ -82,6 +91,8 @@ public final class EngineHandle {
         retiredInstrumental?.deallocate()
         retiredInstrumental = currentInstrumental
         currentInstrumental = buf
+        instrumentalFrameCount = mono.count
+        instrumentalNativeBPM = nativeBPM
     }
 
     public func clearInstrumental() {
@@ -89,6 +100,8 @@ public final class EngineHandle {
         retiredInstrumental?.deallocate()
         retiredInstrumental = currentInstrumental
         currentInstrumental = nil
+        instrumentalFrameCount = 0
+        instrumentalNativeBPM = 0
     }
 
     public func setInstrumentalGain(_ g: Float) { xf_engine_set_instrumental_gain(engine, g) }
@@ -98,6 +111,11 @@ public final class EngineHandle {
     }
     public func seek(tick: Double)          { xf_engine_seek_tick(engine, tick) }
     public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
+    /// Ancla de posicion del scratch: trim anti-deriva acotado (ADR-042), no
+    /// mueve el cabezal. `nil` = suelto.
+    public func setScratchTarget(_ frame: Double?) {
+        xf_engine_set_scratch_target(engine, frame ?? -1)
+    }
     public func setVelocity(_ v: Double)    { xf_engine_set_velocity(engine, v) }
     public func setMasterGain(_ g: Float)   { xf_engine_set_master_gain(engine, g) }
     /// Ganancia solo del scratch (0…1). La base instrumental no se ve afectada.
@@ -149,6 +167,36 @@ public final class EngineHandle {
     }
 
     public func stop() { xf_engine_stop(engine) }
+
+    /// Reabre el motor con OTRO tamano de buffer sin reiniciar la app: crea el
+    /// motor nuevo, para y destruye el viejo, **recarga** el sample y la base
+    /// desde los buffers que este `EngineHandle` ya retiene, y arranca solo-
+    /// salida. NO re-aplica ganancias / transporte / metronomo: eso lo hace quien
+    /// llama (tiene el estado de la vista). Devuelve `true` si arranco.
+    ///
+    /// El nuevo se crea **antes** de tocar el viejo: si `xf_engine_create` falla
+    /// (p. ej. sin memoria), no se cambia nada y el audio actual sigue sonando.
+    @discardableResult
+    public func restartOutput(maxFrames newMax: Int, deviceUID: String? = nil) -> Bool {
+        let clamped = max(16, min(8192, newMax))
+        guard let fresh = xf_engine_create(sampleRate, UInt32(clamped)) else { return false }
+
+        xf_engine_stop(engine)
+        xf_engine_destroy(engine)
+        engine = fresh
+        maxFrames = clamped
+
+        // recargar audio desde los buffers retenidos
+        if let s = currentSample, scratchFrameCount >= 2 {
+            xf_engine_load_sample(engine, s.baseAddress, Int64(scratchFrameCount))
+            xf_engine_seek_scratch(engine, 0)
+        }
+        if let i = currentInstrumental, instrumentalFrameCount >= 2 {
+            xf_engine_load_instrumental(engine, i.baseAddress,
+                                       Int64(instrumentalFrameCount), instrumentalNativeBPM)
+        }
+        return startOutput(deviceUID: deviceUID)
+    }
 
     // MARK: - nucleo RT (para tests / render offline; CoreAudio lo llama solo)
 

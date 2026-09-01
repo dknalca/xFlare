@@ -55,6 +55,14 @@ double xf_player_playhead(const xf_player *p);
  * (se satura a [0, frames-1]). Util al empezar un ejercicio. */
 void xf_player_set_playhead(xf_player *p, double frame);
 
+/* RT-SAFE: ancla de posicion, en forma de TRIM anti-deriva (NO es el driver del
+ * cabezal: lo es `target_velocity`). Si `frame >= 0`, cada muestra se suma a la
+ * velocidad `(frame - cabezal) * k` con k de one-pole ~250 ms, ACOTADO a
+ * +-0.015 frames/muestra (~1.5% de pitch) para que la correccion no se oiga
+ * nunca como un barrido. Sirve para que el scratch no se separe de la posicion
+ * de la autopista a la larga (ADR-042). `frame < 0` suelta el ancla. */
+void xf_player_set_target_playhead(xf_player *p, double frame);
+
 /* RT-SAFE: velocidad instantanea ya suavizada. */
 double xf_player_velocity(const xf_player *p);
 

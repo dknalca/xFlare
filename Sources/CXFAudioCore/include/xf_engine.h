@@ -71,6 +71,13 @@ void xf_engine_seek_tick(xf_engine *e, double tick);
  * [0, frames-1]). Para arrancar el sample desde el principio al entrar. */
 void xf_engine_seek_scratch(xf_engine *e, double frame);
 
+/* Ancla el cabezal de scratch a `frame` como **trim anti-deriva ACOTADO**
+ * (ADR-042): NO mueve el cabezal (lo hace `xf_engine_set_velocity`), solo evita
+ * que el scratch se separe de la posicion de la autopista a la larga, con una
+ * correccion <=1,5% de pitch que no se oye. `frame < 0` = suelta el ancla.
+ * Atomica; el trim lo aplica `xf_player_set_target_playhead` en el hilo RT. */
+void xf_engine_set_scratch_target(xf_engine *e, double frame);
+
 /* Velocidad objetivo del plato (1.0 normal, negativo hacia atras). La pone la
  * capa de captura a partir del timecode / teclado. Atomica. */
 void xf_engine_set_velocity(xf_engine *e, double velocity);

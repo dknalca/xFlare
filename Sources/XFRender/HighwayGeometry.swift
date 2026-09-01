@@ -32,18 +32,26 @@ public struct HighwayGeometry: Equatable, Sendable {
     /// compás de tiempo; la práctica de scratch es 4/4 salvo que se diga otra cosa.
     public var beatsPerBar: Int
 
+    /// Fracción de la banda vertical (medida desde abajo) que ocupa el rango de
+    /// posición del **patrón** (ADR-041). `1` = todo el alto (por defecto). `< 1`
+    /// deja hueco arriba: p. ej. `2/3` si el pico del patrón es 2/3 del sample y
+    /// se quiere sitio para dibujar el resto del recorrido por encima.
+    public var patternFill: CGFloat
+
     public init(size: CGSize,
                 playheadFraction: CGFloat = 0.30,
                 pixelsPerBeat: CGFloat = 120,
                 laneHeight: CGFloat = 40,
                 curveInset: CGFloat = 16,
-                beatsPerBar: Int = 4) {
+                beatsPerBar: Int = 4,
+                patternFill: CGFloat = 1.0) {
         self.size = size
         self.playheadFraction = playheadFraction
         self.pixelsPerBeat = pixelsPerBeat
         self.laneHeight = laneHeight
         self.curveInset = curveInset
         self.beatsPerBar = max(1, beatsPerBar)
+        self.patternFill = min(1, max(0.1, patternFill))
     }
 
     /// X de la cabeza de lectura, en puntos.

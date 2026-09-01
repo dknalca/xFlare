@@ -46,6 +46,7 @@ struct xf_engine {
     double          scratch_gain_cur;     /* suavizado, solo lo toca el hilo RT */
     double          scratch_gain_coef;    /* one-pole ~5 ms, precalculado */
     _Atomic double  out_peak;             /* pico de salida ANTES de limitar, para la UI */
+    _Atomic double  scratch_target;       /* frame objetivo del cabezal; <0 = suelto */
 
     /* reloj musical: avanzado en RT, leido por Swift */
     _Atomic double  reported_tick;   /* tick al inicio del ultimo bloque */
@@ -114,6 +115,7 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     atomic_store(&e->playing, 0);
     atomic_store(&e->master_gain, 1.0);
     atomic_store(&e->scratch_gain_target, 1.0);
+    atomic_store(&e->scratch_target, -1.0);
     e->scratch_gain_cur = 1.0;
     e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
     atomic_store(&e->reported_tick, 0.0);
@@ -215,6 +217,10 @@ void xf_engine_seek_scratch(xf_engine *e, double frame) {
     if (p) xf_player_set_playhead(p, frame);
 }
 
+void xf_engine_set_scratch_target(xf_engine *e, double frame) {
+    if (e) atomic_store(&e->scratch_target, frame);
+}
+
 void xf_engine_set_master_gain(xf_engine *e, float gain) {
     if (!e) return;
     if (gain < 0.0f) gain = 0.0f;
@@ -297,6 +303,14 @@ void xf_engine_render(xf_engine *e,
     /* --- salida: reproductor + base instrumental + metronomo --- */
     xf_player *p = atomic_load(&e->player);
     if (p) {
+        /* Ancla de posicion (ADR-042). La velocidad que manda Swift (`vel`) es el
+         * driver del cabezal; el objetivo de posicion solo aporta un TRIM
+         * anti-deriva acotado dentro del player (<=1.5% de pitch), que NO se
+         * oye. Historia: primero fue un salto de cabezal 15%/bloque (crujido),
+         * luego velocidad media de bloque (overshoot), luego one-pole rapido
+         * (barrido "laser" al perseguir los escalones de 60 Hz del objetivo).
+         * `< 0` suelta el ancla. */
+        xf_player_set_target_playhead(p, atomic_load(&e->scratch_target));
         xf_player_render(p, e->mono, nframes, vel);
     } else {
         memset(e->mono, 0, (size_t)nframes * sizeof(float));
@@ -446,6 +460,22 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
 
     AudioDeviceID dev = xf_engine_device_by_uid(device_uid);
     if (dev == kAudioObjectUnknown) return -1;
+
+    /* El motor (metronomo, tablas de resampling, ratios) esta calibrado a
+     * `e->sample_rate`. Si el dispositivo corre a otra frecuencia (44,1k es
+     * comun) todo suena desafinado y el click "raro". Forzamos el dispositivo a
+     * `e->sample_rate`; si no la acepta, seguimos y CoreAudio hara la conversion. */
+    Float64 targetSR = e->sample_rate;
+    AudioObjectPropertyAddress srAddr = {
+        kAudioDevicePropertyNominalSampleRate,
+        kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain
+    };
+    Float64 curSR = 0;
+    UInt32 srSize = sizeof(curSR);
+    if (AudioObjectGetPropertyData(dev, &srAddr, 0, NULL, &srSize, &curSR) == noErr &&
+        curSR != targetSR) {
+        AudioObjectSetPropertyData(dev, &srAddr, 0, NULL, sizeof(targetSR), &targetSR);
+    }
 
     /* buffer del dispositivo = max_frames */
     UInt32 want = e->max_frames;

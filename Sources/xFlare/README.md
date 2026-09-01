@@ -35,11 +35,15 @@ solo el DMG (`hdiutil`) y el binario universal para publicar en Releases.
   `make app`). Si no (`swift run` en dev) → `RepoContentLoader` (repo, vía
   `#filePath`).
 - **Práctica**: hay modo rudimentario jugable con trackpad/teclado (mueve el
-  plato, suena el scratch + base instrumental, medidor de nivel, volúmenes por
-  ejercicio). El **bucle de sesión + scoring en vivo** (series, cuenta atrás,
-  `XFEngine`+`XFAnalysis`) sigue pendiente y necesita la captura de audio real.
+  plato, suena el scratch + base instrumental, metrónomo con botón, medidor de
+  nivel). El panel derecho es de **pruebas**: volúmenes Sample/Instru,
+  sensibilidad del trackpad y **buffer de audio en caliente** (recrea el motor
+  sin reiniciar la app, `EngineHandle.restartOutput`). El **bucle de sesión +
+  scoring en vivo** (series, cuenta atrás, `XFEngine`+`XFAnalysis`) sigue
+  pendiente y necesita la captura de audio real.
 - **Ajustes** se persisten en un plist local (`UserDefaults` de suite
-  `app.xflare.settings`), no en la BD. Un accesor de la tabla `setting` de
-  `XFPersistence` sigue pendiente (aditivo) para unificarlo.
+  `app.xflare.settings`), no en la BD. Los volúmenes de la práctica **no** se
+  persisten a propósito (a 0 en el plist = práctica muda). Un accesor de la tabla
+  `setting` de `XFPersistence` sigue pendiente (aditivo) para unificarlo.
 - Para publicar en Releases falta: binario **universal** y el **DMG**
   (`hdiutil`). Notarización + Homebrew = B12b (ADR-037).

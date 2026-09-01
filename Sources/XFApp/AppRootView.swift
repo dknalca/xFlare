@@ -127,18 +127,19 @@ public struct AppRootView: View {
                 scratch: scratch,
                 exerciseName: name,
                 bpm: ex?.startBpm ?? 90,
-                // curveInset holgado: la curva no toca los bordes de la autopista
+                // patternFill 2/3: el patron ocupa los 2/3 de abajo de la
+                // autopista; el tercio de arriba es para pasarse del pico hacia
+                // el final del sample (ADR-041).
                 geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
-                                          curveInset: 44),
+                                          curveInset: 28,
+                                          patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
-                sampleVolume: model.settings.scratchVolume,
-                instrumentalVolume: model.settings.instrumentalVolume,
-                onVolumesChanged: { sample, instru in
-                    model.settings.scratchVolume = sample
-                    model.settings.instrumentalVolume = instru
-                },
+                bufferFrames: model.settings.bufferFrames,
+                bufferOptions: AppSettings.bufferOptions,
+                onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
+                onBufferChanged: { model.settings.bufferFrames = $0 },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

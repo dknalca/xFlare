@@ -149,6 +149,51 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertEqual(out.map { abs($0) }.max() ?? 0, 0, "gain 0 -> silencio")
     }
 
+    /// ADR-042 — el ancla NO mueve el cabezal (lo hace la velocidad): es un TRIM
+    /// anti-deriva ACOTADO. Se comprueba que (1) con velocidad coherente el
+    /// cabezal va pegado al objetivo, (2) el trim por bloque esta topado — nunca
+    /// puede sonar como un barrido — y (3) soltar el ancla lo desactiva.
+    func testElAnclaEsUnTrimAcotado() {
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        let sample = stableSample((0..<96_000).map { Float(sin(Double($0) * 0.01)) * 0.3 })
+        defer { sample.deallocate() }
+        xf_engine_load_sample(e, sample.baseAddress, Int64(sample.count))
+
+        // (1) velocidad 1.0 (pitch normal) + objetivo coherente con esa marcha:
+        //     el cabezal sigue a la velocidad y el trim apenas pinta nada.
+        xf_engine_set_velocity(e, 1.0)
+        for k in 0..<300 {
+            xf_engine_set_scratch_target(e, Double(k + 1) * 128.0)
+            _ = render(e, inL: nil, inR: nil, n: 128)
+        }
+        XCTAssertEqual(xf_engine_scratch_playhead(e), 300.0 * 128.0, accuracy: 300,
+                       "el cabezal va pegado al objetivo")
+
+        // dejar que la velocidad interna del player caiga a 0 (glide 5 ms) con
+        // el ancla suelta, para medir SOLO el trim despues.
+        xf_engine_set_velocity(e, 0)
+        xf_engine_set_scratch_target(e, -1)
+        for _ in 0..<40 { _ = render(e, inL: nil, inR: nil, n: 128) }
+
+        // (2) cabezal quieto y objetivo lejisimos: el trim esta topado a ~0.015
+        //     frames/muestra -> como mucho ~1.92 frames en un bloque de 128. Una
+        //     correccion asi no se oye como barrido de pitch.
+        xf_engine_seek_scratch(e, 0)
+        xf_engine_set_scratch_target(e, 90_000)
+        let before = xf_engine_scratch_playhead(e)
+        _ = render(e, inL: nil, inR: nil, n: 128)
+        let step = xf_engine_scratch_playhead(e) - before
+        XCTAssertGreaterThan(step, 0.0, "corrige en la direccion correcta")
+        XCTAssertLessThanOrEqual(step, 2.1, "el trim esta acotado (no barre)")
+
+        // (3) soltar el ancla (-1): sin trim, con vel 0 el cabezal se queda quieto
+        xf_engine_set_scratch_target(e, -1)
+        let m = xf_engine_scratch_playhead(e)
+        for _ in 0..<50 { _ = render(e, inL: nil, inR: nil, n: 128) }
+        XCTAssertEqual(xf_engine_scratch_playhead(e), m, accuracy: 1.0, "sin ancla no hay trim")
+    }
+
     func testSoftClipYPicoDeSalida() {
         let e = xf_engine_create(sr, 128)!
         defer { xf_engine_destroy(e) }

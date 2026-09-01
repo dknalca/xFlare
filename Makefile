@@ -56,6 +56,7 @@ app: build
 	mkdir -p xFlare.app/Contents/MacOS xFlare.app/Contents/Resources; \
 	cp "$$BIN" xFlare.app/Contents/MacOS/xFlare; \
 	cp -R data profiles xFlare.app/Contents/Resources/; \
+	[ -d Audio ] && cp -R Audio xFlare.app/Contents/Resources/ || echo "  (sin Audio/ local: la practica ira sin sonido)"; \
 	ICON=""; \
 	if [ -f icon/xflare.icns ]; then ICON="icon/xflare.icns"; \
 	elif [ -f icon/xflare.svg ]; then sh icon/build-icns.sh >/dev/null 2>&1 && ICON="icon/xflare.icns"; fi; \
@@ -77,7 +78,9 @@ app: build
 	  '  <key>NSHighResolutionCapable</key><true/>' \
 	  '  <key>NSMicrophoneUsageDescription</key><string>xFlare necesita la entrada de audio para leer el vinilo de control.</string>' \
 	  '</dict></plist>' > xFlare.app/Contents/Info.plist; \
-	codesign --force --sign - --timestamp=none xFlare.app 2>/dev/null && echo "  firmado ad-hoc" || echo "  (codesign no disponible)"; \
+	find xFlare.app -name .DS_Store -delete; \
+	xattr -cr xFlare.app 2>/dev/null || true; \
+	codesign --force --deep --sign - xFlare.app 2>/dev/null && echo "  firmado ad-hoc" || echo "  (codesign no disponible)"; \
 	echo "  hecho: xFlare.app$${ICON:+  (con icono)}"; \
 	echo "  abrelo: clic derecho sobre xFlare.app > Abrir > Abrir  (solo la 1a vez)"; \
 	echo "  o sin Gatekeeper:  xFlare.app/Contents/MacOS/xFlare"

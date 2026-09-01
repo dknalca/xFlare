@@ -18,9 +18,10 @@ public enum AudioAsset {
     public static let instrumentalRelPath = "Audio/Intrumental loops/080bpm_beat.wav"
     /// Tempo al que está grabado el loop instrumental (va en el nombre).
     public static let instrumentalNativeBPM: Double = 80
-    /// Parte útil del sample de scratch: del principio a esta fracción. El final
-    /// suele quedar casi inaudible; no se scratchea más allá de aquí.
-    public static let scratchUsableFraction: Double = 0.6
+    /// Dónde cae el **pico del patrón** dentro del sample: el punto más alto de
+    /// la curva del baby mapea a esta fracción del sample. El plato puede seguir
+    /// scratcheando más allá, hasta el final del sample.
+    public static let scratchPatternTopFraction: Double = 2.0 / 3.0
 
     /// Decodifica `url` a mono float a `sampleRate`. `nil` si no se puede abrir.
     public static func loadMono(_ url: URL, sampleRate: Double = 48_000) -> [Float]? {

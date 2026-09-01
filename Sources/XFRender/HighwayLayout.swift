@@ -69,10 +69,14 @@ public struct HighwayLayout {
 
         let (yBottom, yTop) = g.curveBand
         let span = positionRange.upperBound - positionRange.lowerBound
+        // El patron ocupa `patternFill` de la banda desde abajo (ADR-041); una
+        // posicion > `positionRange.upperBound` (la traza del usuario pasandose
+        // del patron) se extrapola hacia el hueco de arriba.
+        let patternTopY = yBottom + (yTop - yBottom) * g.patternFill
         func y(forPosition p: Double) -> CGFloat {
             guard span > 0 else { return (yBottom + yTop) / 2 }
             let n = (p - positionRange.lowerBound) / span
-            return yBottom + CGFloat(n) * (yTop - yBottom)
+            return yBottom + CGFloat(n) * (patternTopY - yBottom)
         }
         func wrapped(_ tick: Double) -> Int {
             let m = tick.truncatingRemainder(dividingBy: Double(length))

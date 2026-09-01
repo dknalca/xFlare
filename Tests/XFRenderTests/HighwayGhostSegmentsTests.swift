@@ -52,6 +52,33 @@ final class HighwayGhostSegmentsTests: XCTestCase {
         XCTAssertEqual(a, b)
     }
 
+    func testPatternFillDejaHuecoArribaYExtrapolaLaTraza() throws {
+        let s = try scratch("baby")
+        // patternFill 2/3: el patron ocupa los 2/3 de abajo de la banda
+        let g = HighwayGeometry(size: CGSize(width: 2000, height: 600),
+                                playheadFraction: 0.30, pixelsPerBeat: 120,
+                                laneHeight: 40, curveInset: 16, patternFill: 2.0/3.0)
+        let layout = HighwayLayout(scratch: s)
+        let band = g.curveBand
+        let bandH = band.top - band.bottom
+        let range = layout.positionRange
+
+        // el pico del fantasma (posicion maxima) cae a 2/3 de la banda, no arriba
+        let f = layout.frame(atTick: 0, geometry: g)
+        let ghostTopY = f.discCurve.map(\.y).max() ?? 0
+        XCTAssertEqual(Double(ghostTopY - band.bottom), Double(bandH * 2.0/3.0), accuracy: 2)
+        XCTAssertLessThan(ghostTopY, band.top - 1, "queda hueco arriba")
+
+        // una traza del usuario pasada del pico se extrapola hacia ese hueco:
+        // posicion = upper + 0.5*span  ->  y ~ tope de la banda
+        let over = range.upperBound + 0.5 * (range.upperBound - range.lowerBound)
+        let f2 = layout.frame(atTick: 0, geometry: g,
+                              userTrace: [TracePoint(tick: 0, position: over, level: nil),
+                                          TracePoint(tick: 100, position: over, level: nil)])
+        let userY = f2.userSegments.flatMap { $0.points.map(\.y) }.max() ?? 0
+        XCTAssertEqual(Double(userY - band.bottom), Double(bandH), accuracy: 3)
+    }
+
     func testTodosLosScratchesProducenAlMenosUnTramo() throws {
         for sc in try RenderFixtures.library().scratches {
             let f = HighwayLayout(scratch: sc).frame(atTick: 250, geometry: geo)

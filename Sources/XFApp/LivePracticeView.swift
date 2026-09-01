@@ -17,10 +17,18 @@ public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
     @State private var waveEnvelope: [Float] = []
-    @State private var sampleVol: Double
-    @State private var instruVol: Double
+    // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
+    // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
+    @State private var sampleVol: Double = 0.5
+    @State private var instruVol: Double = 0.5
+    // Sensibilidad del trackpad, PROVISIONAL: a ojo el gesto va rapido.
+    @State private var sensitivity: Double = 0.5
+    // Buffer de audio en caliente: al cambiarlo se reabre el motor solo.
+    @State private var bufferSel: Int
+    @State private var restarting = false
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
+    @State private var metroOn: Bool
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -30,8 +38,10 @@ public struct LivePracticeView: View {
     private let engine: EngineHandle?
     private let content: ContentLoader
     private let metronomeOn: Bool
+    private let bufferOptions: [Int]
     private let onExit: () -> Void
-    private let onVolumesChanged: (_ sample: Double, _ instrumental: Double) -> Void
+    private let onMetronomeChanged: (Bool) -> Void
+    private let onBufferChanged: (Int) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -40,9 +50,10 @@ public struct LivePracticeView: View {
                 engine: EngineHandle? = nil,
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
-                sampleVolume: Double = 1.0,
-                instrumentalVolume: Double = 0.3,
-                onVolumesChanged: @escaping (Double, Double) -> Void = { _, _ in },
+                bufferFrames: Int = 512,
+                bufferOptions: [Int] = [64, 128, 256, 512, 1024, 2048],
+                onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
+                onBufferChanged: @escaping (Int) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -50,10 +61,12 @@ public struct LivePracticeView: View {
         self.engine = engine
         self.content = content
         self.metronomeOn = metronomeOn
-        self.onVolumesChanged = onVolumesChanged
+        self.bufferOptions = bufferOptions
+        self.onMetronomeChanged = onMetronomeChanged
+        self.onBufferChanged = onBufferChanged
         self.onExit = onExit
-        _sampleVol = State(initialValue: sampleVolume)
-        _instruVol = State(initialValue: instrumentalVolume)
+        _metroOn = State(initialValue: metronomeOn)
+        _bufferSel = State(initialValue: bufferFrames)
         // Arranca al tempo de la instrumental para que suene coherente desde el
         // primer compas (el `bpm` del ejercicio manda cuando se cambie a mano).
         _ = bpm
@@ -106,16 +119,53 @@ public struct LivePracticeView: View {
             clipMeter
             volSlider("Sample", $sampleVol) { v in
                 if !faderClosed { engine?.setScratchGain(Float(v)) }
-                onVolumesChanged(v, instruVol)
             }
             volSlider("Instru", $instruVol) { v in
                 engine?.setInstrumentalGain(Float(v))
-                onVolumesChanged(sampleVol, v)
             }
+            volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
+                session.scrollSensitivity = v
+            }
+            bufferControl
         }
-        .frame(width: 92)
+        .frame(width: 108)
         .padding(XFSpacing.sm)
         .background(XFColor.surface)
+    }
+
+    /// Cambia el buffer de audio en caliente: reabre el motor solo (sin
+    /// reiniciar la app) para poder ver si el tamano de buffer es lo que hace
+    /// que el sonido crepite. PROVISIONAL, panel de pruebas.
+    private var bufferControl: some View {
+        VStack(spacing: 2) {
+            HStack {
+                Text("Buffer").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+                if restarting {
+                    Text("…").font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
+                }
+            }
+            Picker("", selection: $bufferSel) {
+                ForEach(bufferOptions, id: \.self) { Text("\($0)").tag($0) }
+            }
+            .labelsHidden()
+            .controlSize(.mini)
+            .disabled(restarting)
+            .onChange(of: bufferSel) { newVal in
+                guard let engine = engine, newVal != engine.currentMaxFrames else { return }
+                restarting = true
+                // se aplaza un tick para que el spinner pinte antes del reinicio
+                // (parar + recrear + recargar bloquea unas decenas de ms)
+                DispatchQueue.main.async {
+                    engine.restartOutput(maxFrames: newVal)
+                    applyEngineParams()
+                    let applied = engine.currentMaxFrames
+                    onBufferChanged(applied)
+                    if applied != newVal { bufferSel = applied }   // el motor no acepto el pedido
+                    restarting = false
+                }
+            }
+        }
     }
 
     private var clipMeter: some View {
@@ -140,6 +190,7 @@ public struct LivePracticeView: View {
     }
 
     private func volSlider(_ label: String, _ value: Binding<Double>,
+                           range: ClosedRange<Double> = 0...1,
                            _ apply: @escaping (Double) -> Void) -> some View {
         VStack(spacing: 1) {
             HStack {
@@ -150,34 +201,43 @@ public struct LivePracticeView: View {
             }
             Slider(value: Binding(get: { value.wrappedValue },
                                   set: { value.wrappedValue = $0; apply($0) }),
-                   in: 0...1)
+                   in: range)
                 .controlSize(.mini)
         }
     }
 
     // MARK: - audio + reloj
 
-    private func start() {
-        session.start()
+    /// Ganancias + transporte + metronomo. Se llama al arrancar y despues de
+    /// reabrir el motor con otro buffer (el motor nuevo nace sin estos ajustes).
+    private func applyEngineParams() {
         guard let engine = engine else { return }
-
-        engine.metronomeEnabled = metronomeOn
+        engine.metronomeEnabled = metroOn
         engine.setInstrumentalGain(Float(instruVol))
         engine.setMasterGain(0.85)
         engine.setScratchGain(faderClosed ? 0 : Float(sampleVol))
         engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
+    }
 
-        // cada paso del reloj: solo se manda la VELOCIDAD (derivada exacta del
-        // movimiento del cabezal en fraccion util del sample). NO se hace
-        // `seekScratch` por fotograma: escribir el cabezal desde el hilo normal
-        // mientras el RT lo integra es una carrera y metia un click periodico.
-        // El cabezal lo integra el RT a partir de la velocidad; la onda de abajo
-        // lee ese mismo cabezal, asi que van juntas.
+    private func start() {
+        session.start()
+        session.scrollSensitivity = sensitivity
+        guard let engine = engine else { return }
+
+        applyEngineParams()
+
+        // cada paso del reloj: se manda la velocidad (driver del cabezal) Y el
+        // objetivo de posicion como ancla anti-deriva (trim acotado en el motor,
+        // <=1.5% de pitch: no se oye). Asi la onda de abajo no se separa de la
+        // autopista a la larga sin meter barridos de pitch.
         let sr = engine.sampleRateHz
-        session.onAdvance = { [weak engine] normVel, _, _ in
+        session.onAdvance = { [weak engine] normVel, normPos, _ in
             guard let engine = engine, engine.scratchFrameCount > 1 else { return }
-            let usable = Double(engine.scratchFrameCount - 1) * AudioAsset.scratchUsableFraction
-            engine.setVelocity(normVel * usable / sr)   // frames de sample por frame de salida
+            // normPos / normVel ya estan normalizados al SAMPLE ENTERO (el pico
+            // del patron cae en 2/3; el plato puede llegar hasta 1 = final).
+            let full = Double(engine.scratchFrameCount - 1)
+            engine.setVelocity(normVel * full / sr)
+            engine.setScratchTarget(normPos * full)
         }
 
         // decodificar los audios fuera del hilo principal (el MP3 tarda)
@@ -231,6 +291,19 @@ public struct LivePracticeView: View {
                 Text(session.faderClosed ? "fader cerrado" : "fader abierto")
                     .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
             }
+            Button {
+                metroOn.toggle()
+                engine?.metronomeEnabled = metroOn
+                onMetronomeChanged(metroOn)
+            } label: {
+                HStack(spacing: XFSpacing.xs) {
+                    Circle().fill(metroOn ? XFColor.accent : XFColor.textMuted)
+                        .frame(width: 8, height: 8)
+                    Text("Metrónomo").font(XFFont.body(11))
+                }
+                .foregroundColor(metroOn ? XFColor.text : XFColor.textMuted)
+            }
+            .buttonStyle(.plain)
             Text("\(session.bpm) BPM").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
         }
         .padding(.horizontal, XFSpacing.md)

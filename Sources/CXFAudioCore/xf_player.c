@@ -40,6 +40,16 @@ struct xf_player {
     int    loop;              /* 0 = satura en los extremos; 1 = da la vuelta */
     double speed_gate;        /* >0: amplitud ~ min(1, |v|/speed_gate). 0 = off */
 
+    /* ancla de posicion (ADR-042): NO es el driver del cabezal (lo es la
+     * velocidad), es un TRIM anti-deriva. Cada muestra suma a la velocidad
+     * `(target_playhead - playhead) * seek_coef`, ACOTADO a +-`seek_max_trim`
+     * frames/muestra para que la correccion no se oiga nunca como un barrido de
+     * pitch. `seek_active` 0 = suelto. */
+    int    seek_active;
+    double target_playhead;
+    double seek_coef;         /* [0,1] por frame, ~250 ms */
+    double seek_max_trim;     /* tope de |trim|, frames/muestra (~1.5% de pitch) */
+
     /* Tabla [ratio][fase][tap]. Cada kernel esta normalizado a ganancia DC 1. */
     float *table;             /* NRATIOS * PHASES * TAPS floats */
 };
@@ -103,6 +113,11 @@ xf_player *xf_player_create(const float *sample, int64_t frames, unsigned int sa
     p->sample_rate = sample_rate;
     p->playhead    = 0.0;
     p->velocity    = 0.0;
+    p->seek_active = 0;
+    /* trim del ancla: one-pole lento (~250 ms) y tope de 0.015 frames/muestra
+     * (~1.5% de pitch). Lo justo para corregir deriva sin que se oiga. */
+    p->seek_coef     = 1.0 - exp(-1.0 / (0.25 * (double)sample_rate));
+    p->seek_max_trim = 0.015;
     xf_player_set_glide_ms(p, 5.0);
 
     xf_player_build_table(p);
@@ -143,6 +158,16 @@ void xf_player_set_playhead(xf_player *p, double frame) {
     p->playhead = frame;
 }
 
+/* RT-SAFE: escribe 2 campos (`target_playhead`, `seek_active`), sin bucles. */
+void xf_player_set_target_playhead(xf_player *p, double frame) {
+    if (!p) return;
+    if (frame < 0.0) { p->seek_active = 0; return; }
+    double last = (double)(p->frames - 1);
+    if (frame > last) frame = last;
+    p->target_playhead = frame;
+    p->seek_active = 1;
+}
+
 /* Elige el cubo de ratio: el mas pequeno que sea >= r (filtra de mas, nunca de
  * menos). RT-SAFE: bucle acotado a NRATIOS. */
 static inline int xf_player_ratio_index(double r) {
@@ -160,15 +185,30 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
     const double  coef = p->glide_coef;
 
     for (int n = 0; n < nframes; n++) {
-        /* 1) suaviza la velocidad hacia el objetivo (evita clicks al cambiarla) */
+        /* 1) velocidad libre: se desliza hacia el objetivo de Swift. Se mantiene
+         *    al dia aunque haya ancla de posicion, para que SOLTAR el ancla no
+         *    meta un salto de velocidad. */
         p->velocity += (target_velocity - p->velocity) * coef;
-        double v = p->velocity;
 
-        /* 2) elige el kernel segun |v| */
+        /* 2) la velocidad manda. Si hay ancla de posicion (ADR-042) se le suma un
+         *    TRIM anti-deriva one-pole (~250 ms) ACOTADO a +-seek_max_trim: pega
+         *    el cabezal a la posicion de la autopista a la larga, pero como es
+         *    <=1.5% de pitch NO se oye como un barrido (el bug del "laser": el
+         *    objetivo llega a escalones de 60 Hz y un one-pole rapido perseguia
+         *    cada escalon de forma audible). */
+        double v = p->velocity;
+        if (p->seek_active) {
+            double trim = (p->target_playhead - p->playhead) * p->seek_coef;
+            if (trim >  p->seek_max_trim) trim =  p->seek_max_trim;
+            if (trim < -p->seek_max_trim) trim = -p->seek_max_trim;
+            v += trim;
+        }
+
+        /* 3) elige el kernel segun |v| */
         double av = v < 0.0 ? -v : v;
         int ri = xf_player_ratio_index(av);
 
-        /* 3) parte entera y fase fraccionaria del cabezal */
+        /* 4) parte entera y fase fraccionaria del cabezal */
         double x = p->playhead;
         int64_t i = (int64_t)floor(x);
         double  f = x - (double)i;
@@ -178,7 +218,7 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
         const float *k =
             p->table + ((size_t)ri * XF_PLAYER_PHASES + (size_t)ph) * XF_PLAYER_TAPS;
 
-        /* 4) convolucion de TAPS puntos. Fuera del sample: 0 si el cabezal se
+        /* 5) convolucion de TAPS puntos. Fuera del sample: 0 si el cabezal se
          *    satura, o envuelto por modulo si esta en bucle (base instrumental). */
         double acc = 0.0;
         for (int t = 0; t < XF_PLAYER_TAPS; t++) {
@@ -202,7 +242,7 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
         }
         out[n] = (float)(acc * amp);
 
-        /* 5) avanza el cabezal: se satura a los extremos (el plato no se sale
+        /* 6) avanza el cabezal: se satura a los extremos (el plato no se sale
          *    del sample) o da la vuelta si esta en bucle. */
         p->playhead += v;
         if (p->loop) {

@@ -20,7 +20,8 @@ memoria por fotograma. Ver **ADR-036**.
 public struct HighwayGeometry: Equatable, Sendable {
     public init(size: CGSize, playheadFraction: CGFloat = 0.30,
                 pixelsPerBeat: CGFloat = 120, laneHeight: CGFloat = 40, curveInset: CGFloat = 16,
-                beatsPerBar: Int = 4)          // rejilla: negras por compás (ADR-038)
+                beatsPerBar: Int = 4,          // rejilla: negras por compás (ADR-038)
+                patternFill: CGFloat = 1.0)    // fracción de la banda que ocupa el patrón (ADR-041)
     public var playheadX: CGFloat
     public func pixelsPerTick(ppq: Int) -> CGFloat
     public var curveBand: (bottom: CGFloat, top: CGFloat)

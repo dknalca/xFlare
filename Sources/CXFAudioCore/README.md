@@ -56,7 +56,10 @@ void   xf_player_destroy(xf_player *p);                                         
 void   xf_player_render(xf_player *p, float *out, int nframes, double target_v);   /* RT-SAFE */
 double xf_player_playhead(const xf_player *p);                                     /* RT-SAFE */
 void   xf_player_set_playhead(xf_player *p, double frame);
+void   xf_player_set_target_playhead(xf_player *p, double frame);                  /* RT-SAFE — ancla/trim (ADR-042) */
 double xf_player_velocity(const xf_player *p);                                     /* RT-SAFE */
+void   xf_player_set_loop(xf_player *p, bool loop);                                /* NO RT-SAFE — bases en bucle */
+void   xf_player_set_speed_gate(xf_player *p, double gate_velocity);              /* NO RT-SAFE — plato parado no zumba */
 void   xf_player_set_glide_ms(xf_player *p, double ms);                            /* NO RT-SAFE */
 ```
 
@@ -65,7 +68,16 @@ void   xf_player_set_glide_ms(xf_player *p, double ms);                         
   `create` (NO RT-SAFE); el `render` no reserva nada. Leer mas rapido que el
   sample (`|v| > 1`) submuestrea la fuente; sin bajar el corte apareceria alias.
 - **Suavizado de velocidad** (`glide_ms`, 5 ms por defecto) para no meter clicks
-  al cambiarla de golpe. El cabezal se satura a los extremos (no hace loop).
+  al cambiarla de golpe. El cabezal se satura a los extremos, o hace **loop**
+  (modulo) si `set_loop(true)` — asi corre la base instrumental.
+- **`set_speed_gate(v)`**: la amplitud escala con `min(1, |vel|/v)`; el plato
+  casi parado casi no suena y desaparece el zumbido de DC del cabezal quieto.
+- **`set_target_playhead(frame)`** (ADR-042): ancla de posicion en forma de
+  **trim anti-deriva ACOTADO**. NO mueve el cabezal (lo hace la velocidad): cada
+  muestra suma a `v` un `(frame - cabezal)·k` (one-pole ~250 ms) topado a
+  ±0.015 frames/muestra (~1.5% de pitch), inaudible. Pega el scratch a la
+  posicion de la autopista sin meter saltos, oscilaciones ni barridos. `< 0` lo
+  suelta.
 - Solo resamplea: el corte de fader, el metronomo y la mezcla a estereo van
   aguas abajo (B4.2 / B4.4).
 
@@ -130,6 +142,14 @@ void xf_engine_set_transport(xf_engine *, double bpm, int ppq, bool playing);
 void xf_engine_seek_tick(xf_engine *, double tick);
 void xf_engine_set_velocity(xf_engine *, double v);
 void xf_engine_set_master_gain(xf_engine *, float g);
+void xf_engine_set_scratch_gain(xf_engine *, float g);            /* solo el scratch; mute de fader */
+void xf_engine_seek_scratch(xf_engine *, double frame);
+void xf_engine_set_scratch_target(xf_engine *, double frame);     /* ancla/trim; < 0 = suelto (ADR-042) */
+double xf_engine_scratch_playhead(const xf_engine *);             /* RT-SAFE */
+double xf_engine_output_peak(const xf_engine *);                  /* pico ANTES de limitar, para el medidor */
+void xf_engine_load_instrumental(xf_engine *, const float *mono, int64_t frames, double native_bpm);
+void xf_engine_set_instrumental_gain(xf_engine *, float g);
+int  xf_engine_start_output(xf_engine *, const char *device_uid); /* solo salida, sin capturar entrada */
 xf_ring_t    *xf_engine_input_ring(xf_engine *);   /* Swift drena PCM int16 estereo */
 xf_metronome *xf_engine_metronome(xf_engine *);
 double        xf_engine_tick(const xf_engine *);   /* RT-SAFE */
@@ -138,7 +158,13 @@ void xf_engine_render(xf_engine *, const float *inL, const float *inR,
 ```
 
 Cambiar el sample **sonando** es seguro: el puntero al reproductor es atomico y
-el anterior se retira sin `free` en el hilo RT.
+el anterior se retira sin `free` en el hilo RT. Mismo patron para la **base
+instrumental** (2º `xf_player` en bucle, tempo-lock por resample a
+`bpm/native_bpm`, ADR-039). La **salida**: soft-clip con rodilla `tanh` (el
+recorte duro cruje) y `output_peak` guarda el pico pre-limite para la UI.
+`start_output` abre la AU **solo de salida** para practicar con la mesa
+desconectada; el buffer se puede recrear en caliente desde Swift
+(`EngineHandle.restartOutput`) sin reiniciar la app.
 
 **Host CoreAudio (`xf_engine_start`/`xf_engine_stop`, compila; SIN tests):** abre
 la AudioUnit HAL sobre el dispositivo, fija 64 frames, instala el callback, y en
