@@ -329,7 +329,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-01): `PracticeHUD` (puro) arma las dos barras de UI_DESIGN 3.3 desde la `Session`: nombre, fase (Calentamiento/Serie i/N/Descanso/Boss/Resultados), BPM, `%` (solo si la fase puntua y no hay cuenta atras), ultimos 5 clicks como `HitLevel`, una sola frase de feedback. `PracticeView` SwiftUI: Scope + HighwayView + barra fina + barra de feedback, `onExit` (Esc). 6 tests.
 - [x] **B11.4** Pantalla de resultados con diagnostico `XFApp`
       - Hecho (2026-09-01): junto con B11.13. `ResultsSummary` (puro) traduce lo que calculo `XFAnalysis` a texto: 3 filas de estrella (las apagadas con su condicion, sacada de `starReasons` por prefijo `★`/`★★`/`★★★` y sin el `Titulo:`, o la condicion por defecto si aun no toca), puntuacion `3.840 / 4.800` (millares con punto), `%`, badge Record, frases del coach en orden. `ResultsView` SwiftUI con las estrellas escalonadas. 6 tests.
-- [ ] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
+- [x] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
+      - Hecho (2026-09-01): `FreeModeRecorder` (clase) — buffer rodante de `MotionSample`/`FaderSample`: al llegar una muestra tira las que caen fuera de la ventana de 30 s. No mira el reloj (el driver pasa cada muestra con su `hostTime`). `snapshot` para guardar como `.xfsession`, `durationSeconds`, `reset()`. `FreeModeView` SwiftUI (sin fantasma, indicador de grabacion, boton Guardar). 5 tests.
 - [ ] **B11.6** Navegador de la libreria `XFApp`
 - [ ] **B11.7** Ajustes `XFApp`
 - [ ] **B11.8** Accesibilidad: VoiceOver, alto contraste, teclado `XFApp`

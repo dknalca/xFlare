@@ -775,7 +775,8 @@
           "title": "Modo libre con grabacion de los ultimos 30 s",
           "module": "XFApp",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "FreeModeRecorder (clase): buffer rodante de MotionSample/FaderSample, tira lo que cae fuera de la ventana de 30 s al llegar una muestra nueva. No mira el reloj (driver pasa hostTime). snapshot/durationSeconds/reset. FreeModeView SwiftUI. 5 tests."
         },
         {
           "id": "B11.6",
