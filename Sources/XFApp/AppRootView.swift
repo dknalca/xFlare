@@ -23,6 +23,13 @@ public struct AppRootView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(XFColor.bg)
+        // xFlare es tema oscuro fijo: forzamos el esquema para que los colores
+        // semanticos de SwiftUI (texto por defecto, controles de Form, Toggle,
+        // Picker...) salgan en su variante clara. Sin esto, en un Mac en modo
+        // claro el texto sin `.foregroundColor` sale casi negro sobre `bg` casi
+        // negro y no se lee.
+        .foregroundColor(XFColor.text)
+        .preferredColorScheme(.dark)
         .onAppear { model.goHome() }
     }
 
@@ -91,7 +98,7 @@ public struct AppRootView: View {
             })
 
         case .practice(let ex, _):
-            practice(exerciseId: ex)
+            livePractice(exerciseId: ex)
 
         case .freeMode:
             if let scratch = model.continueExerciseId.flatMap(model.scratch(exerciseId:)) {
@@ -108,27 +115,22 @@ public struct AppRootView: View {
         }
     }
 
-    private func practice(exerciseId: String) -> some View {
+    /// Practica **rudimentaria**: la autopista corre con su propio reloj musical
+    /// y el trackpad / teclado mueven el plato (`PracticeSession`). Todavia **sin
+    /// scoring** — eso necesita el callback de audio (B4.2). De momento sirve
+    /// para ver el movimiento y probar la entrada.
+    @ViewBuilder private func livePractice(exerciseId: String) -> some View {
         let ex = model.catalog.exercise(id: exerciseId)
-        let scratch = model.scratch(exerciseId: exerciseId)
-        let bpm = ex?.startBpm ?? 90
-        let hud = PracticeHUD(
-            exerciseName: ex.flatMap { model.catalog.library.scratch(id: $0.scratchId)?.name } ?? "Práctica",
-            phaseLabel: "Práctica", seriesLabel: nil, bpm: bpm,
-            accuracyPercent: nil, isCountingIn: false, recentClicks: [], liveFeedback: nil)
-
-        return Group {
-            if let scratch {
-                PracticeView(
-                    hud: hud, scratch: scratch,
-                    highwayGeometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
-                    tick: { [weak model] in model?.engine?.tick ?? 0 },
-                    scopeReadings: { [] },
-                    onExit: { model.goHome() },
-                    onBPMChange: { _ in })
-            } else {
-                emptyPanel("No se encuentra el patrón de \(exerciseId).")
-            }
+        let name = ex.flatMap { model.catalog.library.scratch(id: $0.scratchId)?.name } ?? "Práctica"
+        if let scratch = model.scratch(exerciseId: exerciseId) {
+            LivePracticeView(
+                scratch: scratch,
+                exerciseName: name,
+                bpm: ex?.startBpm ?? 90,
+                geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
+                onExit: { model.goHome() })
+        } else {
+            emptyPanel("No se encuentra el patrón de \(exerciseId).")
         }
     }
 
