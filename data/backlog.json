@@ -72,9 +72,9 @@
           "id": "B0.9",
           "title": "CI en GitHub Actions: arm64 + trabajo universal",
           "module": "-",
-          "status": "wip",
+          "status": "done",
           "acceptance": ".github/workflows/ci.yml en verde; lipo -archs muestra las dos",
-          "note": "repo publico. Job macos-13 (Intel/Ventura) retirado: no es el OS objetivo (target = Monterey 12.7, sin runner en GitHub) y macos-13 no cogia runner. CI = 2 jobs en macos-14: test-arm64 (swift test + perfiles + guard de data/) y universal (make universal). x86_64/Monterey lo cubre la maquina de referencia con make verify. Verde pendiente de git push de los commits de la sesion."
+          "note": "repo publico. Job macos-13 retirado (no es el OS objetivo; sin runner). CI = 2 jobs en macos-14: test-arm64 (swift test 143 + xf_profile --all + guard data/) y universal (make universal -> lipo -archs = x86_64 arm64). x86_64/Monterey lo cubre la maquina de referencia con make verify. Run 33478377340 (9056fcf): completed / success."
         }
       ]
     },
