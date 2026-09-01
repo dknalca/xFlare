@@ -23,13 +23,18 @@ public struct HomeSummary: Equatable, Sendable {
     public var streakDays: Int
     public var minutesToday: Int
     public var continueTarget: ContinueTarget?
+    /// Miniatura TTM por `scratchId`, solo para las celdas donde se muestra
+    /// (ahora mismo un par del Nivel 1). El resto no la lleva.
+    public var thumbnails: [String: TTMThumbnail]
 
     public init(cells: [MatrixCell], streakDays: Int, minutesToday: Int,
-                continueTarget: ContinueTarget? = nil) {
+                continueTarget: ContinueTarget? = nil,
+                thumbnails: [String: TTMThumbnail] = [:]) {
         self.cells = cells
         self.streakDays = streakDays
         self.minutesToday = minutesToday
         self.continueTarget = continueTarget
+        self.thumbnails = thumbnails
     }
 
     /// Celdas agrupadas por nivel, en orden ("L1", "L2", …).

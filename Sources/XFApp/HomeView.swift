@@ -76,7 +76,8 @@ public struct HomeView: View {
                                              count: 6),
                               spacing: XFSpacing.sm) {
                         ForEach(group.cells) { cell in
-                            MatrixCellView(cell: cell).onTapGesture { onSelect(cell.scratchId) }
+                            MatrixCellView(cell: cell, thumbnail: summary.thumbnails[cell.scratchId])
+                                .onTapGesture { onSelect(cell.scratchId) }
                         }
                     }
                 }
@@ -88,16 +89,23 @@ public struct HomeView: View {
 /// Una celda de la rejilla.
 struct MatrixCellView: View {
     let cell: MatrixCell
+    /// Gráfico TTM debajo del nombre; solo en algunas celdas.
+    var thumbnail: TTMThumbnail? = nil
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Text(cell.name)
                 .font(XFFont.body(11))
-                .lineLimit(2)
+                .lineLimit(thumbnail == nil ? 2 : 1)
                 .multilineTextAlignment(.center)
+            if let thumbnail {
+                TTMThumbnailView(thumbnail: thumbnail)
+                    .frame(height: 22)
+                    .opacity(locked ? 0.4 : 0.9)
+            }
             Text(badge).font(XFFont.mono(11)).foregroundColor(XFColor.accent)
         }
-        .frame(width: 96, height: 64)
+        .frame(width: 96, height: thumbnail == nil ? 64 : 88)
         .padding(4)
         .background(RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface))
         .overlay(RoundedRectangle(cornerRadius: XFRadius.control)

@@ -329,6 +329,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-01): `MatrixCell` (celda de la rejilla: locked/available/practiced(stars)/mastered, derivada del estado de la variante base) + `HomeSummary` (celdas por nivel, racha, minutos de hoy, "Continuar", masteredCount, minimo diario) + `PracticeStreak` (racha de dias consecutivos, puro: si hoy no hay practica pero ayer si, sigue viva; anteayer -> 0). `HomeView` SwiftUI reemplaza la maqueta de `Sources/xFlare/HomeScaffoldView.swift` (borrada en el ensamblaje). Los datos los arma XFApp desde XFPersistence/XFNotation (glue pendiente; XFPersistence esta SEALED, no se toca). 11 tests.
       - Nota: ya existe una **maqueta inerte** en `Sources/xFlare/HomeScaffoldView.swift`
         (ejecutable `xFlare`, `make run`). Sirve de referencia visual; aquí se hace la de verdad en XFApp y se borra la maqueta.
+      - Anadido (2026-09-01): **miniatura TTM** en la celda. `TTMThumbnail` (curva
+        del disco + tramos de fader cerrado sacados de los eventos exactos,
+        normalizado al cuadrado unidad) + `TTMThumbnailView`. `HomeAssembler` la
+        pone **solo en los 2 primeros scratches del Nivel 1** (prueba visual; si
+        convence se extiende). 5 tests.
 - [x] **B11.3** Pantalla de practica (la autopista) `XFApp`
       - Hecho (2026-09-01): `PracticeHUD` (puro) arma las dos barras de UI_DESIGN 3.3 desde la `Session`: nombre, fase (Calentamiento/Serie i/N/Descanso/Boss/Resultados), BPM, `%` (solo si la fase puntua y no hay cuenta atras), ultimos 5 clicks como `HitLevel`, una sola frase de feedback. `PracticeView` SwiftUI: Scope + HighwayView + barra fina + barra de feedback, `onExit` (Esc). 6 tests.
       - Anadido (2026-09-01): **practica rudimentaria jugable sin HW**. `PracticeSession` (reloj musical propio integrado a mano + plato de juguete con friccion; acumula la traza del usuario para `HighwayView`), `PlatterInputView` (`NSView`: trackpad = girar el plato, `A`/`D` = atras/adelante, Espacio = fader cerrado, flechas = BPM, Esc = salir), `LivePracticeView` (autopista + capa de entrada + barra de ayuda). `AppRootView` la usa en `.practice`. **Todavia sin scoring** (necesita el callback de audio, B4.2): la sesion de verdad (series, cuenta atras, `XFEngine`+`XFAnalysis`) sigue pendiente. 10 tests de la fisica.

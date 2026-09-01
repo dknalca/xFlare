@@ -65,8 +65,20 @@ public enum HomeAssembler {
             target = .init(scratchId: ex.scratchId, name: name, bpm: bpm)
         }
 
+        // Miniatura TTM solo en los 2 primeros scratches del primer nivel
+        // (prueba visual; si convence se extiende al resto).
+        var thumbnails: [String: TTMThumbnail] = [:]
+        if let firstLevel = catalog.levels.sorted(by: { $0.id < $1.id }).first {
+            for scratchId in firstLevel.scratches.prefix(2) {
+                if let s = catalog.library.scratch(id: scratchId) {
+                    thumbnails[scratchId] = TTMThumbnail.build(scratch: s)
+                }
+            }
+        }
+
         return HomeSummary(cells: cells, streakDays: streakDays,
-                           minutesToday: minutesToday, continueTarget: target)
+                           minutesToday: minutesToday, continueTarget: target,
+                           thumbnails: thumbnails)
     }
 }
 
