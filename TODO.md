@@ -306,7 +306,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B10.8** Estado de dominado y desbloqueo de variantes `XFPersistence`
       - Criterio: 3★ base + 2★ en tres variantes
       - Hecho (2026-09-01): record `ExerciseMastery` (`masteredAt`/`oxidizedAt`). `XFDatabase.refreshMastery(exerciseId:baseVariantId:at:)` mira las estrellas de las filas de `exerciseProgress`: dominado = `masteryBaseStars`(3) en base **y** `masteryVariantCount`(3) variantes con >= `masteryVariantStars`(2). `masteredAt` se fija la primera vez y no se borra; `setOxidized(...)` para las recaidas en calentamiento (ADR-027 / WARMUP.md §5). `isMastered`, `mastery`, `masteredExercises` (pool del calentamiento). Desbloqueo: `evaluateUnlocks(exerciseId:rules:at:)` toma `[VariantUnlockRule]` (que el llamante construye desde `variants.json`) y marca las que ya cumplen; una pasada, sin cascada. 5 tests.
-- [ ] **B10.9** **SELLAR XFPersistence** `XFPersistence`
+- [x] **B10.9** **SELLAR XFPersistence** `XFPersistence`
+      - Hecho (2026-09-01): `make seal M=XFPersistence` en verde. `Sources/XFPersistence/README.md` con API + ejemplo. `Schema` pasa a `internal` (la app solo necesita `XFDatabase`). `docs/MODULE_STATUS.md` → SEALED 2026-09-01, 44 tests, `apiVersion = 1`. ADR-035 registrada (esquema completo en `v1`, `XFDatabase` como puerta unica, reglas de producto dentro y catalogo fuera, "dia" = 86.400 s). `GRDB` añadido al target de tests en B10.1.
 
 ## B11 — XFApp
 

@@ -722,7 +722,8 @@
           "title": "SELLAR XFPersistence",
           "module": "XFPersistence",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "make seal M=XFPersistence verde. README con API + ejemplo. Schema pasa a internal. MODULE_STATUS -> SEALED 2026-09-01, 44 tests, apiVersion = 1. ADR-035 (esquema completo en v1, XFDatabase puerta unica, reglas de producto dentro y catalogo fuera, dia = 86400 s)."
         }
       ]
     },

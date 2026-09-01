@@ -61,7 +61,8 @@ let package = Package(
                                           exclude: ["README.md"]),
 
         .target(name: "XFPersistence",    dependencies: ["XFNotation",
-                                                         .product(name: "GRDB", package: "GRDB.swift")]),
+                                                         .product(name: "GRDB", package: "GRDB.swift")],
+                                          exclude: ["README.md"]),
 
         .target(name: "XFEngine",         dependencies: ["XFNotation", "XFCapture",
                                                          "XFAnalysis", "XFPersistence",

@@ -14,10 +14,12 @@ import GRDB
 /// Nombres de tabla y columna en inglés (como el resto del código). Fechas como
 /// `DATETIME` (GRDB las guarda en texto ISO-8601). Booleanos como `BOOLEAN`
 /// (0/1).
-public enum Schema {
+///
+/// Detalle interno: la app solo necesita `XFDatabase`, que aplica esto al abrir.
+enum Schema {
 
     /// El migrador con todas las migraciones conocidas, en orden.
-    public static var migrator: DatabaseMigrator {
+    static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         registerV1(in: &migrator)
         return migrator
