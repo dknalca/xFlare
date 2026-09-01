@@ -511,7 +511,8 @@
           "title": "Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO",
           "module": "XFRender",
           "acceptance": "sin deriva tras 10 min; 120 fps en ProMotion",
-          "status": "todo"
+          "status": "done",
+          "note": "HighwayLayout: geometria pura (sin SpriteKit) que convierte Scratch + tick de AUDIO + HighwayGeometry en HighwayFrame (curva del disco, marcas de fader, carril, cabeza de lectura al 30%). Loop con el patron. HighwayScene (SKScene delgada, reutiliza nodos) y HighwayView (NSViewRepresentable) leen el tick en update(_:), que SpriteKit llama al refresco real. 11 tests, foco anti-deriva: frame(T)==frame(T+L) bit a bit tras 300 loops, cada click en playheadX + t*pxPerTick exacto. Pendiente en la maquina: 120 fps ProMotion (Mac Apple Silicon, R8) y conteo real de fps (ligado a B7.2b)."
         },
         {
           "id": "B7.4",

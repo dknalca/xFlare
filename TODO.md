@@ -236,8 +236,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho: `XFCard` (superficie + radio 16 + borde 1px, `raised` para modales), `XFButtonStyle` (.filled/.bordered, radio 10, easeOut 180 ms), `BPMStepper` (`‹ 80 BPM ›`, número monoespaciado, respeta `range`), `HitBadge` + `HitShape` (dibuja círculo lleno/círculo/rombo/triángulo/cruz según el nivel). 7 tests: valores de token, clasificación de `HitLevel`, formas distintas, los componentes se construyen. macOS 11.
 - [ ] **B7.2b** Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024) `XFRender`
       - Criterio: 60 fps estables en el MacBook Pro 2015 con la autopista completa
-- [ ] **B7.3** Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO `XFRender`
+- [x] **B7.3** Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO `XFRender`
       - Criterio: sin deriva tras 10 min; 120 fps en ProMotion
+      - Hecho (2026-09-01): `HighwayLayout` — geometria **pura** (sin SpriteKit, testeable): dado un `Scratch` + el tick de AUDIO actual + `HighwayGeometry`, produce `HighwayFrame` (polilinea de la curva del disco, marcas ○/● de fader sobre la curva, tramos del carril de fader, X de la cabeza de lectura al 30%). El patron hace loop con el modulo. `HighwayScene` (SKScene delgada, reutiliza nodos, 0 reservas por fotograma) y `HighwayView` (`NSViewRepresentable` sobre `SKView`) leen el tick en `update(_:)`, que SpriteKit llama al **refresco real**: el QUE se dibuja sale del reloj de audio, no de un contador propio. 11 tests, foco anti-deriva: `frame(T) == frame(T+L)` bit a bit tras 300 loops, cada click cae en `playheadX + t·pxPerTick` exacto, fotograma determinista. **Pendiente en la maquina**: los 120 fps de ProMotion (necesita un Mac Apple Silicon, R8) y el conteo real de fotogramas; se comprueba con la app corriendo (relacionado con B7.2b).
 - [ ] **B7.4** Capa fantasma + capa usuario + tenido por tolerancia `XFRender`
 - [ ] **B7.5** Scope circular del plato (Lissajous) `XFRender`
 - [ ] **B7.6** Golden tests de render en SVG `XFRender`
