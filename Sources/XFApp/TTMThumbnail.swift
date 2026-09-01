@@ -3,79 +3,87 @@
 import CoreGraphics
 import XFNotation
 
-/// Miniatura del gráfico TTM de un scratch para la celda de la matriz: la curva
-/// del disco y los tramos donde el fader está cerrado, **normalizados al cuadrado
-/// unidad** para que la vista solo tenga que escalar.
+/// Miniatura del gráfico TTM de un scratch para la celda de la matriz.
 ///
-/// Se calcula de `Scratch` con `PositionSampler` (mismo muestreo que la
-/// autopista, sin geometría). De momento se usa solo en un par de celdas
-/// (`docs/NOTATION.md` es la referencia del dibujo completo).
+/// Notación (docs/NOTATION.md): la curva del disco es la **posición de la mano**;
+/// donde el fader está **cerrado no se dibuja** (ausencia = mute), y cada
+/// apertura/cierre del fader se marca con un **círculo** sobre la curva. Los
+/// cortes largos son, por tanto, un hueco en la línea.
+///
+/// Todo normalizado al cuadrado unidad (`x` = tiempo 0→1, `y` = 0 abajo → 1
+/// arriba entre el mínimo y el máximo de la posición). Puro y testeable.
 public struct TTMThumbnail: Equatable, Sendable {
 
-    /// Curva del disco. `x` recorre 0→1 en el tiempo del patrón; `y` 0→1 de la
-    /// posición mínima a la máxima (0 abajo).
-    public var curve: [CGPoint]
+    /// La curva del disco partida en tramos: un tramo por cada intervalo con el
+    /// fader **abierto**. Entre tramos el fader está cerrado (no se dibuja).
+    public var segments: [[CGPoint]]
 
-    /// Tramos del eje `x` (0…1) donde el fader está **cerrado** (la barrita).
-    public var faderClosed: [ClosedRange<CGFloat>]
+    /// Puntos sobre la curva donde el fader abre o cierra (los círculos).
+    public var cuts: [CGPoint]
 
-    public init(curve: [CGPoint], faderClosed: [ClosedRange<CGFloat>]) {
-        self.curve = curve
-        self.faderClosed = faderClosed
+    public init(segments: [[CGPoint]], cuts: [CGPoint]) {
+        self.segments = segments
+        self.cuts = cuts
     }
 
-    /// - Parameter samples: puntos de muestreo a lo largo del patrón.
-    public static func build(scratch: Scratch, samples: Int = 72) -> TTMThumbnail {
-        let n = max(2, samples)
+    /// - Parameter samples: resolución de muestreo de la curva a lo ancho.
+    public static func build(scratch: Scratch, samples: Int = 120) -> TTMThumbnail {
+        let n = max(8, samples)
         let length = max(1, scratch.lengthTicks)
+        let L = Double(length)
 
-        func tick(_ i: Int) -> Int { min(length, Int((Double(i) / Double(n)) * Double(length))) }
-
-        // posiciones + rango vertical
-        var positions: [Double] = []
-        positions.reserveCapacity(n + 1)
+        // Rango vertical de TODA la curva (abierta o no), para una escala estable.
         var lo = Double.greatestFiniteMagnitude
         var hi = -Double.greatestFiniteMagnitude
         for i in 0...n {
-            let p = PositionSampler.position(of: scratch, atTick: tick(i))
-            positions.append(p)
+            let t = min(length, Int(Double(i) / Double(n) * L))
+            let p = PositionSampler.position(of: scratch, atTick: t)
             lo = min(lo, p); hi = max(hi, p)
         }
         let span = hi - lo
-
-        var curve: [CGPoint] = []
-        curve.reserveCapacity(n + 1)
-        for (i, p) in positions.enumerated() {
-            let x = CGFloat(i) / CGFloat(n)
-            let y = span > 1e-9 ? CGFloat((p - lo) / span) : 0.5
-            curve.append(CGPoint(x: x, y: y))
+        func y(_ p: Double) -> CGFloat { span > 1e-9 ? CGFloat((p - lo) / span) : 0.5 }
+        func pointAt(_ t: Int) -> CGPoint {
+            CGPoint(x: CGFloat(min(1, max(0, Double(t) / L))),
+                    y: y(PositionSampler.position(of: scratch, atTick: min(length, max(0, t)))))
         }
 
-        // Tramos de fader cerrado: se sacan de los eventos exactos, no del
-        // muestreo (los cierres de un flare duran ~20 ticks y el paso de la
-        // curva es mayor, se los saltaria).
-        let total = Double(length)
-        var closed: [ClosedRange<CGFloat>] = []
-        var state: FaderState = .open
-        var closeStart: Int?
-        for event in scratch.faderEvents.sorted(by: { $0.t < $1.t }) {
-            if event.state != .open, state == .open {
-                closeStart = event.t
-            } else if event.state == .open, state != .open, let s = closeStart {
-                appendClosed(&closed, from: s, to: event.t, total: total)
-                closeStart = nil
+        // Intervalos con el fader abierto, en ticks.
+        let events = scratch.faderEvents.sorted { $0.t < $1.t }
+        var openIntervals: [(Int, Int)] = []
+        if events.isEmpty {
+            openIntervals = [(0, length)]
+        } else {
+            var state: FaderState = .open
+            var openStart = 0
+            for e in events {
+                if e.state != .open, state == .open {
+                    if e.t > openStart { openIntervals.append((openStart, e.t)) }
+                } else if e.state == .open, state != .open {
+                    openStart = e.t
+                }
+                state = e.state
             }
-            state = event.state
+            if state == .open, length > openStart { openIntervals.append((openStart, length)) }
         }
-        if let s = closeStart { appendClosed(&closed, from: s, to: length, total: total) }
 
-        return TTMThumbnail(curve: curve, faderClosed: closed)
-    }
+        // Un tramo de curva por intervalo abierto.
+        var segments: [[CGPoint]] = []
+        for (a, b) in openIntervals where b > a {
+            let steps = max(2, Int(Double(b - a) / L * Double(n)) + 1)
+            var seg: [CGPoint] = []
+            seg.reserveCapacity(steps + 1)
+            for k in 0...steps {
+                seg.append(pointAt(a + (b - a) * k / steps))
+            }
+            segments.append(seg)
+        }
 
-    private static func appendClosed(_ out: inout [ClosedRange<CGFloat>],
-                                     from: Int, to: Int, total: Double) {
-        let lo = CGFloat(min(1, max(0, Double(from) / total)))
-        let hi = CGFloat(min(1, max(0, Double(to) / total)))
-        if hi > lo { out.append(lo...hi) }
+        // Círculos en cada transición de fader (el evento inicial en t=0 no cuenta).
+        var cuts: [CGPoint] = []
+        for (idx, e) in events.enumerated() where !(idx == 0 && e.t == 0) {
+            cuts.append(pointAt(e.t))
+        }
+
+        return TTMThumbnail(segments: segments, cuts: cuts)
     }
 }

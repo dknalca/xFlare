@@ -66,11 +66,15 @@ public final class PracticeSession: ObservableObject {
         self.ppq = Double(max(1, scratch.ppq))
         self.historyTicks = self.ppq * 8
 
+        // La traza del usuario vive en el MISMO rango que el fantasma: nunca se
+        // sale de la autopista.
         let range = HighwayLayout(scratch: scratch).positionRange
-        let span = max(0.2, range.upperBound - range.lowerBound)
-        self.posLo = range.lowerBound - span * 0.25
-        self.posHi = range.upperBound + span * 0.25
-        self.platterPosition = (range.lowerBound + range.upperBound) / 2
+        self.posLo = range.lowerBound
+        self.posHi = range.upperBound
+        // Arranca donde arranca el patron (tick 0), no en el centro, para que la
+        // linea del usuario y el fantasma partan del mismo punto.
+        let start = PositionSampler.position(of: scratch, atTick: 0)
+        self.platterPosition = min(max(start, range.lowerBound), range.upperBound)
         self.bpm = min(220, max(40, bpm))
     }
 

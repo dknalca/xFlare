@@ -115,7 +115,6 @@ public struct LivePracticeView: View {
     private var waveStrip: some View {
         WaveformStripView(envelope: waveEnvelope,
                           progress: { engine?.scratchProgress ?? 0 },
-                          muted: session.faderClosed,
                           visibleFraction: 0.5)
             .frame(height: 54)
             .background(XFColor.surface)

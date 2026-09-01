@@ -127,7 +127,9 @@ public struct AppRootView: View {
                 scratch: scratch,
                 exerciseName: name,
                 bpm: ex?.startBpm ?? 90,
-                geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
+                // curveInset holgado: la curva no toca los bordes de la autopista
+                geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
+                                          curveInset: 44),
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,

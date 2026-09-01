@@ -4,53 +4,52 @@ import XCTest
 import XFNotation
 import XFPersistence
 
-/// La miniatura TTM de la celda de la matriz: curva normalizada + tramos de
-/// fader cerrado. Se calcula de `Scratch` con `PositionSampler`.
+/// Miniatura TTM de la celda: curva del disco partida donde el fader cierra
+/// (ausencia = mute) + un círculo por transición de fader.
 final class TTMThumbnailTests: XCTestCase {
 
     private func library() throws -> ScratchLibrary {
         try CatalogLoader.load(from: RepoContentLoader()).library
     }
 
-    func testCurvaNormalizadaAlCuadradoUnidad() throws {
+    func testBabyEsUnSoloTramoSinCortes() throws {
+        // el baby no toca el fader: una curva continua, sin círculos
         let baby = try XCTUnwrap(try library().scratch(id: "baby"))
-        let thumb = TTMThumbnail.build(scratch: baby, samples: 40)
+        let thumb = TTMThumbnail.build(scratch: baby)
 
-        XCTAssertEqual(thumb.curve.count, 41)
-        XCTAssertEqual(Double(try XCTUnwrap(thumb.curve.first?.x)), 0, accuracy: 1e-9)
-        XCTAssertEqual(Double(try XCTUnwrap(thumb.curve.last?.x)), 1, accuracy: 1e-9)
-        for p in thumb.curve {
-            XCTAssert((0...1).contains(p.x), "x fuera de rango: \(p.x)")
-            XCTAssert((-1e-9...(1 + 1e-9)).contains(p.y), "y fuera de rango: \(p.y)")
+        XCTAssertEqual(thumb.segments.count, 1)
+        XCTAssertTrue(thumb.cuts.isEmpty)
+        let pts = thumb.segments[0]
+        XCTAssertGreaterThan(pts.count, 8)
+        XCTAssertEqual(Double(try XCTUnwrap(pts.first?.x)), 0, accuracy: 1e-9)
+        XCTAssertEqual(Double(try XCTUnwrap(pts.last?.x)), 1, accuracy: 0.05)
+        for p in pts {
+            XCTAssert((0...1).contains(p.x))
+            XCTAssert((-1e-9...(1 + 1e-9)).contains(p.y))
         }
-        // una curva de scratch no es plana: usa las dos mitades del eje y
-        XCTAssertEqual(thumb.curve.map(\.y).min() ?? -1, 0, accuracy: 1e-6)
-        XCTAssertEqual(thumb.curve.map(\.y).max() ?? -1, 1, accuracy: 1e-6)
+        // usa casi todo el eje y (el muestreo no cae justo en los extremos)
+        XCTAssertLessThan(pts.map(\.y).min() ?? 1, 0.03)
+        XCTAssertGreaterThan(pts.map(\.y).max() ?? 0, 0.97)
     }
 
-    func testFlareTieneTramosDeFaderCerrado() throws {
-        // un flare cierra el fader 1+ veces por movimiento
+    func testFlareSePARTEEnTramosYTieneCirculos() throws {
+        // el flare cierra el fader varias veces: varios tramos + un círculo por corte
         let flare = try XCTUnwrap(try library().scratch(id: "flare-1c"))
         let thumb = TTMThumbnail.build(scratch: flare)
 
-        XCTAssertFalse(thumb.faderClosed.isEmpty, "el flare cierra el fader")
-        for r in thumb.faderClosed {
-            XCTAssert(r.lowerBound >= 0 && r.upperBound <= 1)
-            XCTAssert(r.upperBound > r.lowerBound)
+        XCTAssertGreaterThan(thumb.segments.count, 1, "la curva se corta en los mutes")
+        XCTAssertFalse(thumb.cuts.isEmpty)
+        // hueco entre tramos: el último x de un tramo < primer x del siguiente
+        for (a, b) in zip(thumb.segments, thumb.segments.dropFirst()) {
+            XCTAssertLessThan(a.last!.x, b.first!.x)
         }
-    }
-
-    func testBabySinEventosDeFaderNoTieneTramosCerrados() throws {
-        // el baby es adelante-atras sin fader
-        let baby = try XCTUnwrap(try library().scratch(id: "baby"))
-        let thumb = TTMThumbnail.build(scratch: baby)
-        XCTAssertTrue(thumb.faderClosed.isEmpty)
+        for c in thumb.cuts { XCTAssert((0...1).contains(c.x) && (0...1).contains(c.y)) }
     }
 
     func testSeConstruyeParaTodaLaLibreria() throws {
         for s in try library().scratches {
             let thumb = TTMThumbnail.build(scratch: s)
-            XCTAssertGreaterThanOrEqual(thumb.curve.count, 3)
+            XCTAssertFalse(thumb.segments.isEmpty)
         }
     }
 

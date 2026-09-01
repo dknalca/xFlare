@@ -3,17 +3,19 @@
 import SwiftUI
 import AppKit
 
-/// Tira inferior con la **forma de onda del sample de scratch**: se desplaza bajo
-/// una línea vertical fija (centrada), como el visor de un DVS, siguiendo dónde
-/// está el cabezal del reproductor. `progress` es 0…1 sobre el sample; la vista
-/// se redibuja a ~60 Hz leyéndolo.
+/// Tira inferior con la **forma de onda del sample de scratch**. Se desplaza bajo
+/// una aguja vertical fija (a `needleFraction` del ancho, la misma fracción que
+/// la cabeza de lectura de la autopista), siguiendo dónde está el cabezal del
+/// reproductor. `progress` es 0…1 sobre el sample; la vista se redibuja a ~60 Hz.
+///
+/// El sample **empieza en el borde izquierdo** y **acaba en el derecho**: nunca
+/// se pinta onda fuera de donde hay sample. Si el plato se pasa por un extremo,
+/// la aguja se queda en ese extremo (no se pierde la referencia).
 struct WaveformStripView: NSViewRepresentable {
 
     let envelope: [Float]
     let progress: () -> Double
-    /// `true` = fader cerrado: no está sonando, la onda y la aguja se apagan.
-    var muted: Bool = false
-    /// Fracción del sample visible a lo ancho de la tira (zoom).
+    /// Fracción del sample visible a lo ancho de la tira (zoom; 1 = todo).
     var visibleFraction: Double = 0.5
     /// Dónde va la aguja (0…1). Alineada con la cabeza de lectura de la autopista.
     var needleFraction: Double = 0.30
@@ -30,8 +32,7 @@ struct WaveformStripView: NSViewRepresentable {
     private func apply(to v: StripView) {
         v.envelope = envelope
         v.progress = progress
-        v.muted = muted
-        v.visibleFraction = CGFloat(visibleFraction)
+        v.visibleFraction = CGFloat(min(1, max(0.05, visibleFraction)))
         v.needleFraction = CGFloat(min(0.9, max(0.05, needleFraction)))
     }
 
@@ -44,7 +45,6 @@ struct WaveformStripView: NSViewRepresentable {
 
         var envelope: [Float] = []
         var progress: () -> Double = { 0 }
-        var muted = false
         var visibleFraction: CGFloat = 0.5
         var needleFraction: CGFloat = 0.30
 
@@ -74,9 +74,9 @@ struct WaveformStripView: NSViewRepresentable {
             let w = bounds.width, h = bounds.height
             bg.setFill()
             bounds.fill()
-            guard w > 1, h > 4, envelope.count > 1 else {
-                drawNeedle(w: w, h: h); return
-            }
+
+            let needleX = (w * needleFraction).rounded()
+            guard w > 1, h > 4, envelope.count > 1 else { drawNeedle(x: needleX, h: h); return }
 
             let p = max(0, min(1, CGFloat(progress())))
             let half = h / 2
@@ -90,9 +90,9 @@ struct WaveformStripView: NSViewRepresentable {
             axis.lineWidth = 1
             axis.stroke()
 
-            // onda: por cada columna de píxel, mapea a una fracción del sample.
-            // fader cerrado (muted) -> la onda se apaga.
-            (muted ? wave.withAlphaComponent(0.22) : wave).setStroke()
+            // onda: cada columna de píxel -> fracción del sample. Fuera de
+            // [0,1) no se pinta nada: nunca hay onda donde no hay sample.
+            wave.setStroke()
             let path = NSBezierPath()
             path.lineWidth = 1
             var x: CGFloat = 0
@@ -108,14 +108,14 @@ struct WaveformStripView: NSViewRepresentable {
             }
             path.stroke()
 
-            drawNeedle(w: w, h: h)
+            drawNeedle(x: needleX, h: h)
         }
 
-        private func drawNeedle(w: CGFloat, h: CGFloat) {
-            (muted ? needle.withAlphaComponent(0.3) : needle).setStroke()
+        private func drawNeedle(x: CGFloat, h: CGFloat) {
+            needle.setStroke()
             let n = NSBezierPath()
-            n.move(to: CGPoint(x: w / 2, y: 0))
-            n.line(to: CGPoint(x: w / 2, y: h))
+            n.move(to: CGPoint(x: x, y: 0))
+            n.line(to: CGPoint(x: x, y: h))
             n.lineWidth = 1.5
             n.stroke()
         }

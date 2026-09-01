@@ -3,42 +3,40 @@
 import SwiftUI
 import XFDesign
 
-/// Dibuja una `TTMThumbnail` escalada al tamaño disponible: la curva del disco
-/// (línea) y, pegada abajo, la barrita de los tramos con el fader cerrado.
+/// Dibuja una `TTMThumbnail` escalada al tamaño disponible: los tramos de la
+/// curva del disco (con hueco donde el fader está cerrado) y un círculo pequeño
+/// en cada apertura/cierre del fader.
 struct TTMThumbnailView: View {
 
     let thumbnail: TTMThumbnail
-    /// Alto de la barrita de fader, en puntos.
-    private let laneHeight: CGFloat = 3
 
     var body: some View {
         GeometryReader { geo in
             let w = geo.size.width
             let h = geo.size.height
-            let curveH = max(1, h - laneHeight - 1)
 
-            ZStack(alignment: .bottomLeading) {
-                // fader cerrado
-                ForEach(Array(thumbnail.faderClosed.enumerated()), id: \.offset) { _, range in
-                    Rectangle()
-                        .fill(XFColor.accent.opacity(0.55))
-                        .frame(width: max(1, (range.upperBound - range.lowerBound) * w),
-                               height: laneHeight)
-                        .offset(x: range.lowerBound * w)
-                }
-
-                // curva del disco (y invertida: 1 = arriba)
+            ZStack {
+                // tramos de curva (y invertida: 1 = arriba)
                 Path { path in
-                    guard let first = thumbnail.curve.first else { return }
-                    func point(_ c: CGPoint) -> CGPoint {
-                        CGPoint(x: c.x * w, y: (1 - c.y) * curveH)
+                    for seg in thumbnail.segments where seg.count >= 2 {
+                        path.move(to: CGPoint(x: seg[0].x * w, y: (1 - seg[0].y) * h))
+                        for c in seg.dropFirst() {
+                            path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
+                        }
                     }
-                    path.move(to: point(first))
-                    for c in thumbnail.curve.dropFirst() { path.addLine(to: point(c)) }
                 }
                 .stroke(XFColor.textMuted,
                         style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
-                .padding(.bottom, laneHeight + 1)
+
+                // círculos de corte del fader
+                Path { path in
+                    let r: CGFloat = 2.2
+                    for c in thumbnail.cuts {
+                        let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
+                        path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+                    }
+                }
+                .stroke(XFColor.accent, lineWidth: 1)
             }
         }
         .accessibilityHidden(true)   // decorativo; el nombre ya nombra el truco
