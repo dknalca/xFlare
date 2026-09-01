@@ -298,8 +298,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B10.6** Tabla de intentos con eventScores y ruta al .xfsession `XFPersistence`
       - Criterio: data/schema/attempt.schema.json
       - Hecho (2026-09-01): junto con B10.2. La tabla `attempt` cubre todas las `properties` del schema (test `testColumnasDeAttemptCoincidenConElSchema` en B10.1); `sessionFile` guarda la ruta al `.xfsession` crudo; `eventScores` son filas de `AttemptEvent` (tipo/`t`/`points`/`offsetMs`), guardadas y ledas con `saveAttempt(_:events:)` / `events(ofAttempt:)`, borrado en cascada. Round-trip verificado con todos los campos llenos y con los opcionales a `nil`, y con los 5 modos.
-- [ ] **B10.7** Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio `XFPersistence`
+- [x] **B10.7** Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio `XFPersistence`
       - Criterio: docs/SCORING.md seccion 3
+      - Hecho (2026-09-01): record `ExerciseProgress` (fila derivada por (ejercicio, variante)) + `ProgressSummary` (progreso + media de 5 + linea de 20). `XFDatabase.recomputeProgress(exerciseId:variantId:)` recalcula desde `attempt`: intentos, mejor score + su fecha, ultima + su fecha, estrellas (MAX, no baja — SCORING.md §2), `bestBpmWith3Stars`, `meanBiasMs`, `totalPracticeMs`. Solo cuentan los intentos con `countsForStars = 1` (ADR-027), salvo el tiempo total que suma todo. `progress(...)` y `progressSummary(...)` (media de los ultimos 5 y linea de los ultimos 20, del mas antiguo al mas reciente). 6 tests.
 - [ ] **B10.8** Estado de dominado y desbloqueo de variantes `XFPersistence`
       - Criterio: 3★ base + 2★ en tres variantes
 - [ ] **B10.9** **SELLAR XFPersistence** `XFPersistence`

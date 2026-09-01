@@ -703,8 +703,9 @@
           "id": "B10.7",
           "title": "Progreso agregado: intentos, mejor, media de 5, mejor BPM con 3★, sesgo medio",
           "module": "XFPersistence",
-          "status": "todo",
-          "acceptance": "docs/SCORING.md seccion 3"
+          "status": "done",
+          "acceptance": "docs/SCORING.md seccion 3",
+          "note": "Record ExerciseProgress (fila derivada por ejercicio+variante) + ProgressSummary. XFDatabase.recomputeProgress recalcula desde attempt: intentos, mejor+fecha, ultima+fecha, estrellas (MAX, no baja), bestBpmWith3Stars, meanBiasMs, totalPracticeMs. Solo countsForStars=1 (ADR-027) salvo el tiempo total. progress(...) y progressSummary(...) (media de los ultimos 5 y linea de los ultimos 20). 6 tests."
         },
         {
           "id": "B10.8",
