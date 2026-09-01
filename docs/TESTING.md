@@ -41,11 +41,11 @@ deseado con datos reales, no con numeros inventados.
 
 ## Integracion continua
 
-`.github/workflows/ci.yml` corre en cada push: `macos-13` (Intel, toolchain fijada),
-`macos-14` (**Apple Silicon**, comprobacion de arquitectura) y un trabajo que
-verifica que el binario sale universal. Los runners arm64 son gratis en repos
-publicos y son la unica forma de cubrir Apple Silicon sin comprar hardware.
-Detalle en `docs/ARCHITECTURES.md` seccion 5.
+`.github/workflows/ci.yml` corre en cada push, todo en `macos-14` (**Apple
+Silicon**): `test-arm64` (`swift test` + validador de perfiles + guard de `data/`)
+y `universal` (que el binario sale con los dos slices). El target real —Intel con
+macOS 12.7— no tiene runner en GitHub y lo cubre la maquina de referencia con
+`make verify`. Detalle en `docs/ARCHITECTURES.md` seccion 5.
 
 ## Matriz de maquinas
 

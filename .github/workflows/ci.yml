@@ -1,9 +1,18 @@
 # CI de xFlare.
-# Objetivo principal: cubrir arm64 sin tener un Mac con Apple Silicon.
-# Tambien corre `swift test` como segundo par de ojos; en local ya pasa desde
-# que se resolvio ADR-029 (2026-08-31).
-# Los runners macos-14+ son Apple Silicon y son gratis e ilimitados en
-# repositorios publicos. Ver docs/ARCHITECTURES.md seccion 5.
+#
+# El target REAL es un MacBook Pro Intel de 2015 con **macOS 12.7 (Monterey)**.
+# GitHub NO ofrece runners de macOS 12, así que ese target se cubre en local:
+# la máquina de referencia corre `make verify` (build + lint + profiles + los
+# 143 tests) en cada tarea. Ver docs/ARCHITECTURES.md §5.
+#
+# Lo que la CI aporta y la máquina local no puede: **que la lógica pasa en
+# arm64 de verdad** (el autor no tiene un Mac con Apple Silicon) y que el
+# binario sale universal. Los runners `macos-14` son Apple Silicon, gratis e
+# ilimitados en repos públicos.
+#
+# (Se quitó el job `macos-13` Intel: es macOS 13, no el target; y GitHub le da
+#  tan poca capacidad —imagen en fin de vida— que se quedaba encolado sin
+#  runner. El x86_64 se valida en la máquina de referencia, que es Intel.)
 
 name: CI
 
@@ -14,33 +23,9 @@ on:
 
 jobs:
 
-  # Intel. `swift test` de Xcode 14.x ejecuta sin problema en los runners
-  # Ventura+ (el bug de ADR-029 era un primer arranque de Xcode 14.2 sin
-  # completar en la maquina local; los runners vienen listos).
-  test-intel:
-    name: Intel · build + tests
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-      # VERIFICAR que la imagen sigue trayendo Xcode 14.2 antes de fijarlo.
-      - name: Seleccionar Xcode 14.2
-        run: sudo xcode-select -s /Applications/Xcode_14.2.app || echo "14.2 no disponible, usando el por defecto"
-      - run: swift --version
-      - run: swift build
-      - run: swift test
-      - run: python3 tools/xf_profile.py --all
-      # La libreria compilada debe coincidir con lo commiteado: si xfn_build
-      # cambia algo en data/, es un cambio no revisado.
-      - name: data/ regenerado == commiteado
-        run: |
-          python3 tools/xfn_build.py
-          git diff --exit-code -- data/ || (echo "xfn_build.py produce un diff en data/. Commitea la regeneracion."; exit 1)
-
-  # Lo que de verdad importa aqui: la logica corriendo en arm64 nativo.
-  # Trae un Xcode mas nuevo que el fijado: vale como comprobacion de
-  # ARQUITECTURA, no de toolchain de release.
+  # Lo que de verdad importa aquí: la lógica corriendo en arm64 nativo.
   test-arm64:
-    name: Apple Silicon · arquitectura + tests
+    name: Apple Silicon · tests
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
@@ -49,9 +34,15 @@ jobs:
       - run: swift build
       - run: swift test
       - run: python3 tools/xf_profile.py --all
+      # La librería compilada debe coincidir con lo commiteado: si xfn_build
+      # cambia algo en data/, es un cambio no revisado.
+      - name: data/ regenerado == commiteado
+        run: |
+          python3 tools/xfn_build.py
+          git diff --exit-code -- data/ || (echo "xfn_build.py produce un diff en data/. Commitea la regeneracion."; exit 1)
 
   # Que la build de release sale con los dos slices. Si esto se rompe, se rompe
-  # el dia que se rompe, no en la semana 20. Usa el mismo `make` que en local.
+  # el día que se rompe, no en la semana 20. Usa el mismo `make` que en local.
   universal:
     name: Binario universal
     runs-on: macos-14

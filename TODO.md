@@ -54,9 +54,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B0.8** Goldens con redondeo a 4 decimales y tolerancia 1e-9 (ADR-028)
       - Criterio: un golden generado en x86_64 pasa en arm64; definirlo ANTES de escribir el primer golden
       - Hecho: `Sources/XFTestKit/GoldenComparison.swift` con `Golden.round4`, `approxEqual` (tol 1e-9) y `firstMismatch`. Compila. Sus tests se escriben en B3 (donde se usan de verdad); `swift test` ya ejecuta (ADR-029 resuelto). Politica ya documentada en ADR-028 / TESTING.md / ARCHITECTURES.md.
-- [~] **B0.9** CI en GitHub Actions: macos-13 Intel, macos-14 arm64 y trabajo universal
+- [~] **B0.9** CI en GitHub Actions: arm64 + trabajo universal
       - Criterio: .github/workflows/ci.yml en verde; `lipo -archs` muestra las dos
-      - Estado (2026-09-01): repo `dknalca/xFlare` creado y hecho **PÚBLICO** (restaura los runners macOS gratis e ilimitados que asumía el plan). En la 1ª run (commit inicial, aún privado) los jobs arm64 y universal pasaron; el job Intel `macos-13` se quedó **encolado 9 h** por el límite de minutos macOS de repo privado — resuelto al hacerlo público. Commit `3736084` con todo el trabajo de la sesión preparado en `main` (SIN pushear). **Verde pendiente de:** `git push` → run completa en verde.
+      - Estado (2026-09-01): repo `dknalca/xFlare` **público**. El job `macos-13` (Intel/Ventura) se retiró: **no es el OS objetivo** (el target es Monterey 12.7, sin runner en GitHub) y `macos-13` se quedaba encolado sin runner (imagen en fin de vida). CI = **2 jobs en `macos-14`**: `test-arm64` (`swift test` + perfiles + guard de `data/`) y `universal` (`make universal`). El x86_64/Monterey lo cubre la **máquina de referencia** con `make verify` (docs/ARCHITECTURES.md §5, TESTING.md). Los jobs arm64 y universal ya pasaron en la run del commit inicial. **Verde pendiente de:** `git push` de los commits de la sesión → run de los 2 jobs en verde.
 
 ## B1 — Spike de latencia
 

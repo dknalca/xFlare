@@ -97,18 +97,27 @@ compilacion cruzada funciona. Lo que no puedes es *ejecutarlo*.
 
 Esta es la parte buena: **GitHub Actions ofrece runners de Apple Silicon
 (`macos-14`, `macos-15`) gratis e ilimitados para repositorios publicos**. xFlare es
-GPL y va a ser publico, asi que sale a coste cero.
+GPL y es publico, asi que sale a coste cero.
 
-`.github/workflows/ci.yml` monta tres trabajos:
+**El target real —MacBook Pro Intel de 2015 con macOS 12.7— NO tiene runner en
+GitHub** (no hay imagenes de macOS 12). Ese target se cubre en **local**: la
+maquina de referencia corre `make verify` en cada tarea. La CI aporta lo que esa
+maquina no puede dar: arm64 nativo.
 
-| Trabajo | Runner | Que cubre |
-|---|---|---|
-| `test-intel` | `macos-13` (Intel) | Compilacion y tests con la toolchain fijada |
-| `test-arm64` | `macos-14` (Apple Silicon) | **Que la logica pasa en arm64 de verdad** |
-| `universal` | `macos-14` | Que el binario sale con los dos slices |
+`.github/workflows/ci.yml` monta dos trabajos, ambos en `macos-14`:
+
+| Trabajo | Que cubre |
+|---|---|
+| `test-arm64` | **Que la logica pasa en arm64 de verdad** + `swift test` + validador de perfiles + guard de `data/` |
+| `universal` | Que el binario de release sale con los dos slices (`make universal`) |
+
+> Se probo un job `macos-13` (Intel/Ventura) y se retiro: no es el OS objetivo y
+> GitHub le da tan poca capacidad —imagen en fin de vida— que se quedaba
+> encolado sin runner. El x86_64 lo valida la maquina de referencia, que ES Intel.
 
 Lo que **si** queda cubierto en arm64: `XFClock`, `XFNotation`, `XFProfiles`,
-`XFAnalysis` y los tests de replay. Es decir, la mayoria de las puertas de sellado.
+`XFPrimitives`, `XFAnalysis`, `XFCapture` (lo puro), `XFDesign` y la parte de
+`CXFAudioCore` sin hardware. Es decir, la mayoria de las puertas de sellado.
 
 Lo que **no**: nada que necesite tarjeta de sonido o mesa. Los runners no tienen
 audio real.

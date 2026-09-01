@@ -70,11 +70,11 @@
         },
         {
           "id": "B0.9",
-          "title": "CI en GitHub Actions: macos-13 Intel, macos-14 arm64 y trabajo universal",
+          "title": "CI en GitHub Actions: arm64 + trabajo universal",
           "module": "-",
           "status": "wip",
-          "acceptance": ".github/workflows/ci.yml en verde; `lipo -archs` muestra las dos",
-          "note": "repo git creado (dknalca/xFlare) y hecho PUBLICO el 2026-09-01 (restaura macOS runners gratis e ilimitados, como asumia el plan). En la 1a run (commit inicial, privado) el job Intel se quedo encolado 9h por el limite de minutos macOS de repo privado; los jobs arm64 y universal pasaron. Commit 3736084 con todo el trabajo de la sesion preparado en main (SIN pushear). Verde pendiente de: git push -> run completa en verde."
+          "acceptance": ".github/workflows/ci.yml en verde; lipo -archs muestra las dos",
+          "note": "repo publico. Job macos-13 (Intel/Ventura) retirado: no es el OS objetivo (target = Monterey 12.7, sin runner en GitHub) y macos-13 no cogia runner. CI = 2 jobs en macos-14: test-arm64 (swift test + perfiles + guard de data/) y universal (make universal). x86_64/Monterey lo cubre la maquina de referencia con make verify. Verde pendiente de git push de los commits de la sesion."
         }
       ]
     },
