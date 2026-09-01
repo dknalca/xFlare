@@ -874,48 +874,95 @@
       "name": "Distribucion",
       "goal": "Que lo pueda usar alguien que no seas tu.",
       "phase": "later",
+      "note": "ADR-037 (2026-09-01): partido en B12a (DMG sin notarizar por GitHub Releases, alcance minimo) y B12b (notarizacion + Homebrew, pospuesto sin fecha).",
       "tasks": [
         {
-          "id": "B12.0",
-          "title": "Verificar binario universal y pasar la matriz de pruebas en las dos maquinas",
+          "id": "B12a.0",
+          "title": "Empaquetar data/ y profiles/ como recursos del bundle; Bundle.module / DirectoryContentLoader en la app",
+          "module": "XFApp",
+          "status": "todo",
+          "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run"
+        },
+        {
+          "id": "B12a.1",
+          "title": "Info.plist del .app: NSMicrophoneUsageDescription, CFBundleIdentifier, version, icono",
           "module": "-",
           "status": "todo",
-          "acceptance": "PLATFORM_SUPPORT.md seccion 9 completa"
+          "acceptance": "sin NSMicrophoneUsageDescription la captura de timecode falla sin decir por que"
         },
         {
-          "id": "B12.1",
-          "title": "Firma y notarizacion",
+          "id": "B12a.2",
+          "title": "Verificar binario universal x86_64 + arm64 en las dos maquinas",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "PLATFORM_SUPPORT.md seccion 9 completa; ADR-028 no se relaja"
+        },
+        {
+          "id": "B12a.3",
+          "title": "Firma ad-hoc (codesign -s -)",
+          "module": "-",
+          "status": "todo",
+          "acceptance": "en Apple Silicon un .app sin ninguna firma no arranca; no se notariza"
+        },
+        {
+          "id": "B12a.4",
+          "title": "DMG plano con el .app dentro, publicado en GitHub Releases",
           "module": "-",
           "acceptance": "-",
           "status": "todo"
         },
         {
-          "id": "B12.2",
-          "title": "DMG",
+          "id": "B12a.5",
+          "title": "Nota de release: rodeo de Gatekeeper + enlace al tag del fuente (GPL-3.0)",
           "module": "-",
           "acceptance": "-",
           "status": "todo"
         },
         {
-          "id": "B12.3",
-          "title": "Formula de Homebrew",
-          "module": "-",
-          "acceptance": "-",
-          "status": "todo"
-        },
-        {
-          "id": "B12.4",
+          "id": "B12a.6",
           "title": "README publico, capturas, video de 30 s",
           "module": "-",
           "acceptance": "-",
           "status": "todo"
         },
         {
-          "id": "B12.5",
+          "id": "B12a.7",
           "title": "5 DJs probandolo y sus notas",
           "module": "-",
           "acceptance": "el examen de verdad",
           "status": "todo"
+        },
+        {
+          "id": "B12b.0",
+          "title": "Cuenta de Apple Developer + codesign con identidad real",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo",
+          "note": "pospuesto sin fecha (ADR-037)"
+        },
+        {
+          "id": "B12b.1",
+          "title": "notarytool + stapler sobre el .app de B12a",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo",
+          "note": "pospuesto sin fecha (ADR-037)"
+        },
+        {
+          "id": "B12b.2",
+          "title": "DMG estilado (fondo, layout, enlace a /Applications)",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo",
+          "note": "pospuesto sin fecha (ADR-037)"
+        },
+        {
+          "id": "B12b.3",
+          "title": "Formula de Homebrew (tap + sha256)",
+          "module": "-",
+          "acceptance": "-",
+          "status": "todo",
+          "note": "pospuesto sin fecha (ADR-037)"
         }
       ]
     },

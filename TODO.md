@@ -47,7 +47,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho: Xcode 14.2 (14C18) y Swift 5.7.2 presentes; `swift build` y `swift test` OK desde terminal. Toolchain swift.org 5.8.1 instalada en ~/Library/Developer/Toolchains (compila todo, GRDB incluido) como red. El bloqueo de `swift test` (ADR-029) se cerro el 2026-08-31 al completar el primer arranque de Xcode 14.2; no hizo falta Xcode 14.1.
 - [x] **B0.6** Compilacion universal x86_64 + arm64 desde el primer dia
       - Criterio: `lipo -archs` muestra las dos arquitecturas; no dejarlo para el final
-      - Hecho: `swift build -c release --arch arm64 --arch x86_64` (Xcode 14.2) compila los 13 targets + GRDB para ambas arqs. `make universal`/`make archs` → objetos de modulo fat (`lipo -archs XFApp.o` = `x86_64 arm64`). El gate del ejecutable notarizado es B12.0.
+      - Hecho: `swift build -c release --arch arm64 --arch x86_64` (Xcode 14.2) compila los 13 targets + GRDB para ambas arqs. `make universal`/`make archs` → objetos de modulo fat (`lipo -archs XFApp.o` = `x86_64 arm64`). El gate del ejecutable notarizado es B12b (ADR-037); B12a.2 revalida el universal.
 - [x] **B0.7** Comprobar que xwax compila para arm64 (intrinsecos SSE en lut.c/timecoder.c) `CXFTimecode`
       - Criterio: si hay SSE, condicionarlo por arquitectura sin tocar la logica
       - Hecho: xwax 1.10 **no** usa intrínsecos SSE ni `-msse`. `swift build --arch arm64 --arch x86_64` compila `timecoder.c` y `lut.c` en ambas arqs sin condicionar nada. 2 warnings `-Wshorten-64-to-32` de xwax (no se tocan). Ver `docs/TIMECODE.md`.
@@ -371,14 +371,39 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Que lo pueda usar alguien que no seas tu.*
 
-- [ ] **B12.0** Verificar binario universal y pasar la matriz de pruebas en las dos maquinas
-      - Criterio: PLATFORM_SUPPORT.md seccion 9 completa
-- [ ] **B12.1** Firma y notarizacion
-- [ ] **B12.2** DMG
-- [ ] **B12.3** Formula de Homebrew
-- [ ] **B12.4** README publico, capturas, video de 30 s
-- [ ] **B12.5** 5 DJs probandolo y sus notas
+> **ADR-037 (2026-09-01):** la primera via es un **DMG sin notarizar por GitHub
+> Releases**. El bloque se parte en **B12a** (eso, alcance minimo) y **B12b**
+> (notarizacion + Homebrew, el plan final de CLAUDE.md §4, pospuesto sin fecha).
+
+### B12a — DMG sin notarizar para GitHub Releases
+
+- [ ] **B12a.0** Empaquetar recursos en el bundle
+      - `data/` y `profiles/` dejan de leerse del repo (`RepoContentLoader` via
+        `#filePath`) y pasan a recursos del bundle. En la app: `Bundle.module` /
+        `DirectoryContentLoader`. `RepoContentLoader` queda solo para tests y `swift run`.
+      - Criterio: la app arranca y monta el catalogo desde el `.app`, sin el repo delante.
+- [ ] **B12a.1** `Info.plist` del `.app`
+      - `NSMicrophoneUsageDescription` (obligatorio: sin el la captura de timecode
+        falla sin decir por que), `CFBundleIdentifier`, version, icono.
+- [ ] **B12a.2** Verificar binario universal `x86_64 + arm64` en las dos maquinas
+      - Criterio: PLATFORM_SUPPORT.md seccion 9 completa. ADR-028 no se relaja.
+- [ ] **B12a.3** Firma ad-hoc (`codesign -s -`)
+      - En Apple Silicon un `.app` sin ninguna firma no arranca. No se notariza.
+- [ ] **B12a.4** DMG plano con el `.app` dentro
+      - Sin fondo ni layout. Publicado en GitHub Releases.
+- [ ] **B12a.5** Nota de release
+      - Rodeo de Gatekeeper (clic derecho -> Abrir, o `xattr -dr com.apple.quarantine xFlare.app`).
+      - GPL-3.0: enlazar el tag exacto del fuente correspondiente.
+- [ ] **B12a.6** README publico, capturas, video de 30 s
+- [ ] **B12a.7** 5 DJs probandolo y sus notas
       - Criterio: el examen de verdad
+
+### B12b — Notarizacion + Homebrew (pospuesto, sin fecha)
+
+- [ ] **B12b.0** Cuenta de Apple Developer + `codesign` con identidad real
+- [ ] **B12b.1** `notarytool` + `stapler` sobre el `.app` de B12a
+- [ ] **B12b.2** DMG estilado (fondo, layout, enlace a /Applications)
+- [ ] **B12b.3** Formula de Homebrew (tap + `sha256`)
 
 
 ---
