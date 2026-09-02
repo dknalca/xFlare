@@ -99,15 +99,16 @@ public struct LivePracticeView: View {
                         HighwayView(scratch: scratch, geometry: geometry,
                                     tick: { s.tick() },
                                     userTrace: { s.trace() })
+                            // en "tu turno" el fantasma se apaga: imitas de oido
+                            .opacity(s.crPhase == .respond ? 0.12 : 1)
                         PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
                         onFaderClosed: { closed in
-                            faderClosed = closed
+                            // solo avisa a la sesion; el gain lo pone el
+                            // .onChange de session.faderClosed (asi tambien
+                            // funciona cuando el fader lo mueve el fantasma).
                             s.setFaderClosed(closed)
-                            // fader cerrado / mute = calla SOLO el scratch; la
-                            // instrumental (y el metronomo) siguen sonando.
-                            engine?.setScratchGain(closed ? 0 : Float(sampleVol))
                         },
                         onBPM: { bpm in
                             s.setBPM(bpm)
@@ -125,6 +126,13 @@ public struct LivePracticeView: View {
         .background(XFColor.bg)
         .foregroundColor(XFColor.text)
         .onReceive(meterTick) { _ in meterPeak = engine?.outputPeak ?? 0 }
+        .onChange(of: session.faderClosed) { closed in
+            faderClosed = closed
+            // fader cerrado / mute = calla SOLO el scratch; la instrumental y el
+            // metronomo siguen. Vale tanto si lo cierra el usuario (Espacio) como
+            // si lo cierra el fantasma en la fase de escucha.
+            engine?.setScratchGain(closed ? 0 : Float(sampleVol))
+        }
         .onAppear { start() }
         .onDisappear { stop() }
     }
@@ -332,11 +340,40 @@ public struct LivePracticeView: View {
                 .foregroundColor(metroOn ? XFColor.text : XFColor.textMuted)
             }
             .buttonStyle(.plain)
+
+            // llamada y respuesta
+            Button {
+                session.setCallResponse(session.crPhase == .off)
+            } label: {
+                HStack(spacing: XFSpacing.xs) {
+                    Image(systemName: session.crPhase == .off
+                          ? "questionmark.circle" : "questionmark.circle.fill")
+                    Text(crLabel).font(XFFont.body(11))
+                }
+                .foregroundColor(crColor)
+            }
+            .buttonStyle(.plain)
+
             Text("\(session.bpm) BPM").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
         }
         .padding(.horizontal, XFSpacing.md)
         .padding(.vertical, XFSpacing.xs)
         .background(XFColor.surface)
+    }
+
+    private var crLabel: String {
+        switch session.crPhase {
+        case .off:     return "Llamada y respuesta"
+        case .listen:  return "Escucha…"
+        case .respond: return "Tu turno"
+        }
+    }
+    private var crColor: Color {
+        switch session.crPhase {
+        case .off:     return XFColor.textMuted
+        case .listen:  return XFColor.accent
+        case .respond: return XFColor.text
+        }
     }
 
     private var hintBar: some View {

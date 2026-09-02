@@ -141,4 +141,58 @@ final class PracticeSessionTests: XCTestCase {
             XCTAssertGreaterThan(s.tick(), 0)
         }
     }
+
+    // MARK: - llamada y respuesta
+
+    func testEnEscuchaElFantasmaMueveElPlatoYSeIgnoraElInput() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 90)
+        s.setCallResponse(true)
+        XCTAssertEqual(s.crPhase, .listen)
+
+        var positions: [Double] = []
+        for _ in 0..<40 {
+            s.scrollBy(500)                     // input del usuario: debe ignorarse
+            s.advance(by: 1.0 / 60.0)
+            positions.append(s.platterPosition)
+        }
+        // el plato se mueve (lo mueve el fantasma, no el scroll)
+        XCTAssertGreaterThan((positions.max() ?? 0) - (positions.min() ?? 0), 0.05,
+                             "el fantasma mueve el plato en escucha")
+        // y `onAdvance` (que empuja el audio) recibe posiciones que cambian
+        var norms: [Double] = []
+        s.onAdvance = { _, pos, _ in norms.append(pos) }
+        for _ in 0..<40 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan((norms.max() ?? 0) - (norms.min() ?? 0), 0.02)
+    }
+
+    func testAlternaEscuchaYTuTurnoCadaCrBars() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        s.setCallResponse(true)
+        XCTAssertEqual(s.crPhase, .listen)
+
+        var sawRespond = false
+        var sawListenAgain = false
+        // corre bastante: baby = 1 compas, crBars = 2 -> fase de 2 compases.
+        // a 120 bpm, 2 compases = 4 s. Corremos 12 s.
+        for _ in 0..<720 {
+            s.advance(by: 1.0 / 60.0)
+            if s.crPhase == .respond { sawRespond = true }
+            if sawRespond && s.crPhase == .listen { sawListenAgain = true }
+        }
+        XCTAssertTrue(sawRespond, "pasa a tu turno")
+        XCTAssertTrue(sawListenAgain, "y vuelve a escucha")
+    }
+
+    func testApagarCallResponseVuelveAControlManual() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 90)
+        s.setCallResponse(true)
+        for _ in 0..<20 { s.advance(by: 1.0 / 60.0) }
+        s.setCallResponse(false)
+        XCTAssertEqual(s.crPhase, .off)
+
+        let p0 = s.platterPosition
+        s.scrollBy(40)
+        for _ in 0..<20 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan(abs(s.platterPosition - p0), 1e-6, "el scroll vuelve a mover el plato")
+    }
 }

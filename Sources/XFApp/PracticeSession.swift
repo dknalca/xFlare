@@ -21,6 +21,15 @@ import XFDesign
 /// SpriteKit lee `tick()` / `trace()` en cada fotograma.
 public final class PracticeSession: ObservableObject {
 
+    /// Fase de "llamada y respuesta": la máquina toca el fantasma sobre el
+    /// sample unos compases (`listen`) y luego te toca imitarlo de oído
+    /// (`respond`). `off` = práctica libre normal.
+    public enum CallResponsePhase: Equatable { case off, listen, respond }
+
+    // --- el patron, para que el fantasma pueda mover el sample en `listen` ---
+    private let scratch: Scratch
+    private let lengthTicks: Double
+
     // --- constantes del patron ---
     private let ppq: Double
     /// Extremos del recorrido del PLATO. `posLo` = posicion 0 del sample (el
@@ -37,6 +46,14 @@ public final class PracticeSession: ObservableObject {
     // --- estado observable (barra superior) ---
     @Published public private(set) var bpm: Int
     @Published public private(set) var faderClosed = false
+
+    // --- llamada y respuesta ---
+    @Published public private(set) var crPhase: CallResponsePhase = .off
+    /// Cuántos compases dura cada fase. Se fija a un múltiplo entero de la
+    /// longitud del patrón (así cada `listen` toca la misma frase completa).
+    private var crBars: Int = 2
+    private var crPhaseLenTicks: Double = 0
+    private var crPhaseStart: Double = 0
 
     // --- reloj musical, integrado a mano para tolerar cambios de BPM ---
     private(set) var currentTick: Double = 0
@@ -93,8 +110,17 @@ public final class PracticeSession: ObservableObject {
     public var scrollSensitivity: Double = 1.0
 
     public init(scratch: Scratch, bpm: Int) {
+        self.scratch = scratch
+        self.lengthTicks = Double(max(1, scratch.lengthTicks))
         self.ppq = Double(max(1, scratch.ppq))
         self.historyTicks = self.ppq * 8
+
+        // llamada y respuesta: ~2 compases, redondeado a un número entero de
+        // repeticiones del patrón para que la frase sea siempre la misma.
+        let barTicks = 4.0 * Double(max(1, scratch.ppq))
+        let patternBars = max(1, Int((Double(max(1, scratch.lengthTicks)) / barTicks).rounded()))
+        self.crBars = patternBars * max(1, Int((2.0 / Double(patternBars)).rounded()))
+        self.crPhaseLenTicks = Double(self.crBars) * barTicks
 
         // El patron (fantasma) va de `range.lowerBound` (pico bajo = sample 0) a
         // `range.upperBound` (pico alto = 2/3 del sample). El PLATO puede ir mas
@@ -146,12 +172,29 @@ public final class PracticeSession: ObservableObject {
         // reloj musical
         currentTick += step * (Double(bpm) / 60.0) * ppq
 
-        // plato: la velocidad decae y arrastra la posicion
-        platterVelocity *= exp(-frictionPerSecond * step)
-        if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
-        platterPosition += platterVelocity * step
-        if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
-        if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+        // llamada y respuesta: alterna escucha <-> tu turno cada `crBars` compases
+        if crPhase != .off, currentTick - crPhaseStart >= crPhaseLenTicks {
+            crPhase = (crPhase == .listen) ? .respond : .listen
+            crPhaseStart = currentTick
+            if crPhase == .respond { platterVelocity = 0 }   // empiezas con el plato quieto
+        }
+
+        if crPhase == .listen {
+            // la MAQUINA toca: el fantasma mueve el plato (y con el, el sample).
+            // La posicion viene de la curva del patron; la velocidad, de su
+            // derivada; el fader, del estado del patron en ese tick.
+            let g = ghostPosition(atTick: currentTick)
+            platterVelocity = (g - platterPosition) / step
+            platterPosition = g
+            setFaderClosed(!ghostFaderOpen(atTick: currentTick))
+        } else {
+            // tu turno (o practica libre): el plato lo mueves tu
+            platterVelocity *= exp(-frictionPerSecond * step)
+            if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
+            platterPosition += platterVelocity * step
+            if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
+            if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+        }
 
         // traza: un punto por fotograma. Con el fader cerrado no suena, asi que
         // ese tramo de la linea se pinta apagado (nivel `.miss`), no la pantalla.
@@ -174,15 +217,44 @@ public final class PracticeSession: ObservableObject {
     public func tick() -> Double { currentTick }
     public func trace() -> [TracePoint] { traceBuffer }
 
+    // MARK: - llamada y respuesta
+
+    /// Enciende/apaga el modo. Al encender arranca en `listen` (te toca escuchar).
+    public func setCallResponse(_ on: Bool) {
+        if on {
+            guard crPhase == .off else { return }
+            crPhase = .listen
+            crPhaseStart = currentTick
+        } else {
+            crPhase = .off
+            platterVelocity = 0
+        }
+    }
+
+    /// Posición del fantasma en `tick`, envuelta al patrón (para `listen`).
+    private func ghostPosition(atTick t: Double) -> Double {
+        PositionSampler.position(of: scratch, atTick: wrappedTick(t))
+    }
+    private func ghostFaderOpen(atTick t: Double) -> Bool {
+        PositionSampler.faderState(of: scratch, atTick: wrappedTick(t)) == .open
+    }
+    private func wrappedTick(_ t: Double) -> Int {
+        let m = t.truncatingRemainder(dividingBy: lengthTicks)
+        return Int(m < 0 ? m + lengthTicks : m)
+    }
+
     // MARK: - entrada
 
     /// Scroll horizontal del trackpad. `deltaX` en puntos (signo: + = adelante).
+    /// En `listen` se ignora: manda la máquina.
     public func scrollBy(_ deltaX: Double) {
+        guard crPhase != .listen else { return }
         platterVelocity += deltaX * scrollGain * scrollSensitivity
     }
 
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).
     public func nudge(forward: Bool) {
+        guard crPhase != .listen else { return }
         platterVelocity += (forward ? 1.0 : -1.0) * keyImpulse
     }
 
