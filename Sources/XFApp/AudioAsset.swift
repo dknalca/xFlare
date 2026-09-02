@@ -20,7 +20,13 @@ public enum AudioAsset {
     public static let instrumentalNativeBPM: Double = 80
     /// Dónde cae el **pico del patrón** dentro del sample: el punto más alto de
     /// la curva del baby mapea a esta fracción del sample. El plato puede seguir
-    /// scratcheando más allá, hasta el final del sample.
+    /// scratcheando más allá, hasta el final del sample (`posHi`).
+    ///
+    /// La CURVA del patrón, en cambio, llena la autopista de arriba abajo
+    /// (`HighwayGeometry.patternFill` = 1.0; revisado 2026-09-02: antes 2/3, con
+    /// el tercio de arriba reservado — ADR-041 — que se leía como un techo y
+    /// dejaba mucho hueco vacío). Pasarse del pico lleva la traza por encima del
+    /// borde superior, que se recorta, como en un vinilo de verdad.
     public static let scratchPatternTopFraction: Double = 2.0 / 3.0
 
     /// Decodifica `url` a mono float a `sampleRate`. `nil` si no se puede abrir.

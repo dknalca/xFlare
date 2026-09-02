@@ -124,10 +124,10 @@ public final class PracticeSession: ObservableObject {
         self.crBars = 2
         self.crPhaseLenTicks = 2.0 * 4.0 * self.ppq
 
-        // El patron (fantasma) va de `range.lowerBound` (pico bajo = sample 0) a
-        // `range.upperBound` (pico alto = 2/3 del sample). El PLATO puede ir mas
-        // alla del pico alto, hasta el final del sample: por eso `posHi` esta por
-        // encima de `range.upperBound`.
+        // El patron (fantasma) va de `range.lowerBound` a `range.upperBound` y su
+        // curva llena la autopista entera (patternFill 1.0). El PLATO puede ir
+        // mas alla del pico, hasta el final del sample: `posHi` esta por encima
+        // de `range.upperBound` y esa traza extra se sale por el borde superior.
         let range = HighwayLayout(scratch: scratch).positionRange
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound

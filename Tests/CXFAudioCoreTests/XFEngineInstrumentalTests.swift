@@ -103,6 +103,24 @@ final class XFEngineInstrumentalTests: XCTestCase {
         XCTAssertLessThan(rms(render(e, blocks: 30)), 0.01)
     }
 
+    func testTransportePausadoCallaLaBasePeroNoRevienta() {
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        let loop = stable(sine(1000, frames: 4_800))
+        defer { loop.deallocate() }
+
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 90)
+        xf_engine_set_master_gain(e, 1)
+        xf_engine_set_transport(e, 90, 480, true)
+        XCTAssertGreaterThan(rms(render(e, blocks: 20)), 0.05, "en marcha suena")
+
+        xf_engine_set_transport(e, 90, 480, false)            // pausa (tecla P)
+        XCTAssertLessThan(rms(render(e, blocks: 20)), 0.01, "pausado, la base calla")
+
+        xf_engine_set_transport(e, 90, 480, true)             // reanuda
+        XCTAssertGreaterThan(rms(render(e, blocks: 20)), 0.05, "vuelve a sonar")
+    }
+
     func testQuitarLaBaseLaCalla() {
         let e = engine()
         defer { xf_engine_destroy(e) }

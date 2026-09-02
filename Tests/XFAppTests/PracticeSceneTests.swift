@@ -19,32 +19,34 @@ final class PracticeSceneTests: XCTestCase {
                         playheadFraction: 0.30, pixelsPerBeat: 120, beatsPerBar: 4)
     }
 
-    /// El objetivo de ADR-048: la rejilla de compas de la tira de la
-    /// instrumental cae EXACTAMENTE sobre la de la autopista. Se comprueba que
-    /// `PracticeScene.stripGridXs` produce las mismas X que `HighwayLayout`.
-    func testLaRejillaDeLaTiraCaeSobreLaDeLaAutopista() throws {
-        let scratch = try babyScratch()
-        // la zona de autopista = ancho de vista menos el rail izquierdo (44).
+    /// La rejilla de `PracticeScene` (tira + autopista, una sola capa): una
+    /// linea por negra, X = `playheadX + (b·ppq - now)·pxPerTick`, y compas cada
+    /// `beatsPerBar` negras contando desde el "1" absoluto (tick 0). Regular
+    /// aunque el patron no mida un numero entero de compases.
+    func testLaRejillaEsRegularYPorNegraAbsoluta() throws {
         let g = geometry(width: 900 - 44, height: 600 - 46)
-        let layout = HighwayLayout(scratch: scratch)
-        let pxPerTick = g.pixelsPerTick(ppq: scratch.ppq)
+        let ppq = 480
+        let pxPerTick = g.pixelsPerTick(ppq: ppq)
+        let barPx = pxPerTick * CGFloat(ppq * g.beatsPerBar)
 
-        for now in stride(from: -1000.0, through: 5000.0, by: 137.0) {
-            let frame = layout.frame(atTick: now, geometry: g)
-            let expected = (frame.beatLines + frame.barLines).sorted()
-
-            let (beats, bars) = PracticeScene.stripGridXs(
+        for now in stride(from: -1000.0, through: 5000.0, by: 133.0) {
+            let (beats, bars) = PracticeScene.gridLines(
                 now: now, width: g.size.width, playheadX: g.playheadX,
-                pxPerTick: pxPerTick, ppq: scratch.ppq,
-                patternLen: scratch.lengthTicks, beatsPerBar: g.beatsPerBar)
-            let got = (beats + bars).sorted()
+                pxPerTick: pxPerTick, ppq: ppq, beatsPerBar: g.beatsPerBar)
 
-            XCTAssertEqual(got.count, expected.count, "distinto numero de lineas en now=\(now)")
-            for (a, b) in zip(got, expected) {
-                XCTAssertEqual(a, b, accuracy: 1e-6, "linea desalineada en now=\(now)")
+            // toda linea cae en una negra exacta respecto al cabezal
+            for x in beats + bars {
+                let tick = Double(now) + Double((x - g.playheadX) / pxPerTick)
+                XCTAssertEqual(tick / Double(ppq), (tick / Double(ppq)).rounded(), accuracy: 1e-6)
             }
-            // y ademas: los compases de la tira son los compases de la autopista
-            XCTAssertEqual(bars.sorted(), frame.barLines.sorted())
+            // los compases van EXACTAMENTE a distancia de un compas
+            let sortedBars = bars.sorted()
+            for (a, b) in zip(sortedBars, sortedBars.dropFirst()) {
+                XCTAssertEqual(b - a, barPx, accuracy: 1e-6, "compases no regulares en now=\(now)")
+            }
+            // 1 de cada `beatsPerBar` lineas es de compas
+            XCTAssertEqual(bars.count + beats.count > 0, true)
+            XCTAssertLessThanOrEqual(abs((beats.count + bars.count) - bars.count * g.beatsPerBar), g.beatsPerBar)
         }
     }
 

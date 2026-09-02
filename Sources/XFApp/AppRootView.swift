@@ -142,12 +142,12 @@ public struct AppRootView: View {
                 scratch: scratch,
                 exerciseName: name,
                 bpm: ex?.startBpm ?? 90,
-                // patternFill 2/3: el patron ocupa los 2/3 de abajo de la
-                // autopista; el tercio de arriba es para pasarse del pico hacia
-                // el final del sample (ADR-041).
+                // patternFill 1.0: el patron llena la autopista de arriba abajo,
+                // igual que la tira del sample (revisado 2026-09-02, feedback;
+                // antes 2/3 con headroom, ADR-041).
                 geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
-                                          curveInset: 28,
-                                          patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
+                                          curveInset: 12,
+                                          patternFill: 1.0),
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,

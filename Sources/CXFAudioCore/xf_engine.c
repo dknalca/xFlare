@@ -328,8 +328,13 @@ void xf_engine_render(xf_engine *e,
         e->scratch_gain_cur = g;
     }
 
+    /* La base instrumental solo suena con el transporte EN MARCHA. Al pausar
+     * (`set_transport(..., false)`, p. ej. la tecla P de "congelar" en la
+     * practica) no se llama a su render, asi que su cabezal se queda quieto y
+     * al reanudar sigue justo donde estaba. El reproductor de scratch NO se
+     * toca: se puede seguir scratcheando sobre la imagen congelada. */
     xf_player *ip = atomic_load(&e->instrumental);
-    if (ip) {
+    if (ip && playing) {
         const double iratio = atomic_load(&e->instr_ratio);
         const float  igain  = (float)atomic_load(&e->instr_gain);
         xf_player_render(ip, e->mono2, nframes, iratio);

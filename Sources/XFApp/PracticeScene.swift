@@ -251,8 +251,10 @@ final class PracticeScene: SKScene {
 
         stripBG.path = CGPath(rect: CGRect(x: railWidth, y: hh, width: hw, height: stripHeight),
                               transform: nil)
-        // el rail solo ocupa la zona de autopista (no se mete bajo la tira)
-        railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
+        // el rail ocupa la misma franja vertical que la curva de la autopista
+        let (yb, yt) = geometry.curveBand
+        railBG.path = CGPath(rect: CGRect(x: 0, y: yb, width: railWidth, height: max(1, yt - yb)),
+                             transform: nil)
         lastLaidOut = size
     }
 
@@ -273,27 +275,28 @@ final class PracticeScene: SKScene {
         if let frame { renderHighway(frame, height: geometry.size.height) }
         highwayContainer.alpha = ghostDimmed ? 0.14 : 1
 
-        renderFullGrid(frame)
+        renderFullGrid(now: now)
         renderStrip(now: now)
         renderRail(frame)
     }
 
     // MARK: - rejilla + cabezal de altura completa (tira + autopista)
 
-    private func renderFullGrid(_ frame: HighwayFrame?) {
-        guard let frame else {
-            for n in fullBeatPool { n.isHidden = true }
-            for n in fullBarPool { n.isHidden = true }
-            fullPlayhead.path = nil
-            return
-        }
-        // frame.beatLines / barLines vienen en X locales a la autopista; se
-        // desplazan por `railWidth` y se dibujan de y=0 a y=alto de escena.
-        drawFullLines(pool: &fullBeatPool, xs: frame.beatLines, color: gridBeatColor, width: 1)
-        drawFullLines(pool: &fullBarPool, xs: frame.barLines, color: gridBarColor, width: 2)
+    private func renderFullGrid(now: Double) {
+        let pxPerTick = geometry.pixelsPerTick(ppq: max(1, patternPPQ))
+        let playheadX = geometry.playheadX
+        let (beats, bars) = Self.gridLines(
+            now: now, width: geometry.size.width, playheadX: playheadX,
+            pxPerTick: pxPerTick, ppq: max(1, patternPPQ),
+            beatsPerBar: max(1, geometry.beatsPerBar))
+
+        // X locales a la autopista -> se desplazan por `railWidth` y van de
+        // y=0 a y=alto de escena (una linea unica atraviesa tira + autopista).
+        drawFullLines(pool: &fullBeatPool, xs: beats, color: gridBeatColor, width: 1)
+        drawFullLines(pool: &fullBarPool, xs: bars, color: gridBarColor, width: 2)
 
         let p = CGMutablePath()
-        let px = (railWidth + frame.playheadX).rounded()
+        let px = (railWidth + playheadX).rounded()
         p.move(to: CGPoint(x: px, y: 0))
         p.addLine(to: CGPoint(x: px, y: size.height))
         fullPlayhead.path = p
@@ -444,28 +447,29 @@ final class PracticeScene: SKScene {
         }
     }
 
-    /// X (locales a la tira, = locales a la autopista) de las lineas de negra y
-    /// de compas visibles en `now`. **Misma formula y clasificacion** que
-    /// `HighwayLayout.frame` (rejilla por `wrapped` sobre la longitud del
-    /// patron). `internal` para poder comprobarlo en un test contra
-    /// `HighwayLayout`: prueba que la tira y la autopista comparten regla.
-    static func stripGridXs(now: Double, width w: CGFloat, playheadX: CGFloat,
-                            pxPerTick: CGFloat, ppq: Int, patternLen: Int,
-                            beatsPerBar: Int) -> (beats: [CGFloat], bars: [CGFloat]) {
+    /// X (locales a la autopista) de las lineas de negra y de compas visibles en
+    /// `now`, una linea por negra. Una negra es **linea de compas** cuando su
+    /// indice ABSOLUTO es multiplo de `beatsPerBar`: el "1" es el tick 0, que
+    /// `PracticeSession.resyncClock()` alinea con el primer golpe de la
+    /// instrumental. Asi los compases quedan regulares aunque el patron no mida
+    /// un numero entero de compases (la clasificacion `wrapped` de
+    /// `HighwayLayout`, pensada para su invariancia anti-deriva, ahi los
+    /// desalinea). `internal` para testearla.
+    static func gridLines(now: Double, width w: CGFloat, playheadX: CGFloat,
+                          pxPerTick: CGFloat, ppq: Int,
+                          beatsPerBar: Int) -> (beats: [CGFloat], bars: [CGFloat]) {
         let tMin = now + Double((0 - playheadX) / pxPerTick)
         let tMax = now + Double((w - playheadX) / pxPerTick)
-        let len = Double(max(1, patternLen))
         let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
         let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
         var beats: [CGFloat] = []
         var bars: [CGFloat] = []
         guard firstBeat <= lastBeat else { return ([], []) }
+        let bpb = max(1, beatsPerBar)
         for b in firstBeat...lastBeat {
-            let t = Double(b * ppq)
-            let m = t.truncatingRemainder(dividingBy: len)
-            let beatInPattern = Int(m < 0 ? m + len : m) / ppq
-            let x = playheadX + CGFloat(t - now) * pxPerTick
-            if beatInPattern % max(1, beatsPerBar) == 0 { bars.append(x) } else { beats.append(x) }
+            let x = playheadX + CGFloat(Double(b * ppq) - now) * pxPerTick
+            // modulo bien portado con negras negativas (b puede ser < 0)
+            if ((b % bpb) + bpb) % bpb == 0 { bars.append(x) } else { beats.append(x) }
         }
         return (beats, bars)
     }
@@ -473,24 +477,27 @@ final class PracticeScene: SKScene {
     // MARK: - rail del sample
 
     private func renderRail(_ frame: HighwayFrame?) {
-        let hh = highwayHeight
+        // el rail ocupa EXACTAMENTE la banda vertical de la curva de la autopista
+        // (`curveBand`), no la zona entera: asi la onda del sample y el recorrido
+        // del movimiento usan el mismo rango de alto, sin "techo".
+        let (yb, yt) = geometry.curveBand
+        let bandH = max(1, yt - yb)
 
         let ax = CGMutablePath()
-        ax.move(to: CGPoint(x: railWidth / 2, y: 0))
-        ax.addLine(to: CGPoint(x: railWidth / 2, y: hh))
+        ax.move(to: CGPoint(x: railWidth / 2, y: yb))
+        ax.addLine(to: CGPoint(x: railWidth / 2, y: yt))
         railAxis.path = ax
 
         if let s = sampleSprite {
-            // pre-giro: el eje largo (tiempo) mide el alto de la ZONA de
-            // autopista; el corto, el ancho del rail. Con `zRotation = .pi/2`
-            // queda vertical y ocupa exactamente la misma franja que la autopista.
-            s.position = CGPoint(x: railWidth / 2, y: hh / 2)
-            s.size = CGSize(width: hh, height: railWidth)
+            // pre-giro: el eje largo (tiempo) mide el alto de la banda; el corto,
+            // el ancho del rail. Con `zRotation = .pi/2` queda vertical.
+            s.position = CGPoint(x: railWidth / 2, y: (yb + yt) / 2)
+            s.size = CGSize(width: bandH, height: railWidth)
         }
 
         // la aguja va a la MISMA altura que la linea de la autopista bajo el
         // cabezal: asi "donde estas en el sample" = "donde estas en la autopista".
-        let y = min(hh, max(0, railMarkerY(frame, fallback: hh / 2)))
+        let y = min(yt, max(yb, railMarkerY(frame, fallback: (yb + yt) / 2)))
         let mk = CGMutablePath()
         mk.move(to: CGPoint(x: 0, y: y))
         mk.addLine(to: CGPoint(x: railWidth, y: y))
