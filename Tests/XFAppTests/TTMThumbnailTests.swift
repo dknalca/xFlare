@@ -73,8 +73,12 @@ final class TTMThumbnailTests: XCTestCase {
 
         // miniatura para TODO scratch que tenga ejercicio (L1..L6), no solo L1
         let expected = Set(catalog.exercises.map(\.scratchId))
-        XCTAssertEqual(Set(summary.thumbnails.keys), expected)
+        XCTAssertTrue(Set(summary.thumbnails.keys).isSuperset(of: expected))
         XCTAssertFalse(expected.isEmpty)
+        // y tambien para cada familia (usa la miniatura de su primer miembro)
+        for fam in catalog.families {
+            XCTAssertNotNil(summary.thumbnails[fam.id], "familia \(fam.id) sin miniatura")
+        }
         // p. ej. un scratch de L2
         if let l2 = catalog.levels.first(where: { $0.id == "L2" })?.scratches.first {
             XCTAssertNotNil(summary.thumbnails[l2])

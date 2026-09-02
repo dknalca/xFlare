@@ -12,17 +12,25 @@ public struct Catalog: Sendable {
     public var levels: [LevelInfo]
     public var exercises: [ExerciseInfo]
     public var variants: [VariantInfo]
+    /// Familias de trucos (`data/curriculum/families.json`): en el menú los Flare
+    /// (1c/2c/3c + orbits) y los Transformer (x2/x3/x4) se ven como UNA tarjeta;
+    /// dentro están los miembros, cada uno con sus variantes. Los miembros siguen
+    /// siendo ejercicios de verdad (mismo `bpmLadder`, mismo progreso guardado):
+    /// la familia es solo agrupación de presentación.
+    public var families: [FamilyInfo]
     /// Primitivas de composición (`data/primitives/*.json`). Las necesitan las
     /// variantes que recomponen el patrón (`offset`, `subdivision`).
     public var primitives: PrimitiveSet
 
     public init(library: ScratchLibrary, levels: [LevelInfo],
                 exercises: [ExerciseInfo], variants: [VariantInfo],
+                families: [FamilyInfo] = [],
                 primitives: PrimitiveSet = PrimitiveSet(handPatterns: [:], faderPatterns: [:])) {
         self.library = library
         self.levels = levels
         self.exercises = exercises
         self.variants = variants
+        self.families = families
         self.primitives = primitives
     }
 
@@ -37,6 +45,43 @@ public struct Catalog: Sendable {
 
     public func variant(id: String) -> VariantInfo? {
         variants.first { $0.id == id }
+    }
+
+    /// La familia con ese id ("flare", "transformer"), o `nil`.
+    public func family(id: String) -> FamilyInfo? {
+        families.first { $0.id == id }
+    }
+
+    /// La familia que contiene ese scratch (por scratchId), o `nil` si el truco
+    /// no pertenece a ninguna familia.
+    public func family(containingScratch scratchId: String) -> FamilyInfo? {
+        families.first { $0.members.contains(scratchId) }
+    }
+
+    /// Todos los scratchIds que son miembros de alguna familia (para ocultarlos
+    /// como tarjeta suelta en el Home / la librería).
+    public var familyMemberScratchIds: Set<String> {
+        Set(families.flatMap(\.members))
+    }
+}
+
+/// Una familia de trucos de `data/curriculum/families.json`.
+public struct FamilyInfo: Sendable, Equatable, Codable {
+    public let id: String            // "flare", "transformer"
+    public let name: String
+    public let level: String         // "L3" — nivel donde vive la tarjeta
+    public let members: [String]     // scratchIds, en orden de presentación
+    public let blurb: String
+    public let history: String?
+
+    public init(id: String, name: String, level: String, members: [String],
+                blurb: String, history: String? = nil) {
+        self.id = id
+        self.name = name
+        self.level = level
+        self.members = members
+        self.blurb = blurb
+        self.history = history
     }
 }
 

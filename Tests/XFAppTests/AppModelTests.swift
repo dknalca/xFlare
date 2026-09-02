@@ -16,7 +16,7 @@ final class AppModelTests: XCTestCase {
         let m = try model()
         m.refreshHome()
         XCTAssertEqual(m.screen, .home)
-        XCTAssertEqual(m.home?.cells.count, 21)
+        XCTAssertEqual(m.home?.cells.count, 15)
     }
 
     func testNavegacion() throws {
@@ -43,6 +43,20 @@ final class AppModelTests: XCTestCase {
         m.startPractice(exerciseId: "ex-l1-baby")
         XCTAssertEqual(m.screen, .practice(exerciseId: "ex-l1-baby", variantId: "base"))
         XCTAssertEqual(m.continueExerciseId, "ex-l1-baby")
+    }
+
+    func testSeleccionarUnaFamiliaAbreLaFichaConSusMiembros() throws {
+        let m = try model()
+        m.selectScratch("flare")
+        XCTAssertEqual(m.screen, .exerciseDetail(scratchId: "flare"))
+        let d = try XCTUnwrap(m.exerciseDetail(scratchId: "flare"))
+        XCTAssertEqual(d.name, "Flare")
+        XCTAssertFalse(d.members.isEmpty)
+        XCTAssertTrue(d.members.contains { $0.scratchId == "orbit-2c" })
+        // desde un miembro se lanza la practica con su ejercicio real
+        let ex = try XCTUnwrap(d.members.first { $0.scratchId == "flare-2c" }?.exerciseId)
+        m.startPractice(exerciseId: ex, variantId: "base")
+        XCTAssertEqual(m.screen, .practice(exerciseId: "ex-l4-flare-2c", variantId: "base"))
     }
 
     func testSeleccionarUnScratchInexistenteNoHaceNada() throws {
@@ -156,7 +170,7 @@ final class AppModelTests: XCTestCase {
         let m = AppModel.boot(content: RepoContentLoader(), databaseURL: dbURL)
         XCTAssertEqual(m.screen, .home)
         XCTAssertEqual(m.catalog.exercises.count, 21)
-        XCTAssertEqual(m.home?.cells.count, 21)
+        XCTAssertEqual(m.home?.cells.count, 15)
         XCTAssertFalse(m.myTable().rows.isEmpty, "carga los perfiles de profiles/")
         XCTAssertNotNil(m.engine, "crea el motor de audio")
     }

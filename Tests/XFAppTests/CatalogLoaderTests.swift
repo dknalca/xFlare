@@ -17,6 +17,26 @@ final class CatalogLoaderTests: XCTestCase {
         XCTAssertEqual(c.variants.count, 13)   // 10 + escalera de subdivision (ADR-043)
     }
 
+    func testCargaLasFamilias() throws {
+        let c = try catalog()
+        XCTAssertEqual(Set(c.families.map(\.id)), ["flare", "transformer"])
+
+        let flare = try XCTUnwrap(c.family(id: "flare"))
+        XCTAssertEqual(flare.members, ["flare-1c", "flare-2c", "flare-3c", "orbit-1c", "orbit-2c"])
+        XCTAssertFalse(flare.blurb.isEmpty)
+        XCTAssertNotNil(flare.history)
+
+        // todo miembro es un scratch real y tiene ejercicio
+        for m in c.families.flatMap(\.members) {
+            XCTAssertNotNil(c.library.scratch(id: m), "\(m) no esta en la libreria")
+            XCTAssertNotNil(c.exercise(forScratch: m), "\(m) no tiene ejercicio")
+        }
+        // y la busqueda inversa
+        XCTAssertEqual(c.family(containingScratch: "orbit-2c")?.id, "flare")
+        XCTAssertEqual(c.family(containingScratch: "transformer-3")?.id, "transformer")
+        XCTAssertNil(c.family(containingScratch: "baby"))
+    }
+
     func testCadaEjercicioApuntaAUnScratchReal() throws {
         let c = try catalog()
         for ex in c.exercises {

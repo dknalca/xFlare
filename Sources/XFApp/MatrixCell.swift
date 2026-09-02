@@ -14,18 +14,23 @@ public struct MatrixCell: Equatable, Sendable, Identifiable {
         case mastered                   // dominado (3★ base + 2★ en tres variantes)
     }
 
-    public var scratchId: String
+    public var scratchId: String        // scratchId real, o id de familia ("flare")
     public var name: String
     public var level: String            // "L1"…"L6"
     public var state: State
+    /// `true` si la celda es una **familia** (Flare, Transformer): al pincharla
+    /// se abre la ficha de la familia con sus miembros, no un truco suelto.
+    public var isFamily: Bool
 
     public var id: String { scratchId }
 
-    public init(scratchId: String, name: String, level: String, state: State) {
+    public init(scratchId: String, name: String, level: String, state: State,
+                isFamily: Bool = false) {
         self.scratchId = scratchId
         self.name = name
         self.level = level
         self.state = state
+        self.isFamily = isFamily
     }
 
     /// Construye la celda a partir del estado guardado de la **variante base**.

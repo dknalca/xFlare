@@ -72,10 +72,8 @@ public struct AppRootView: View {
             if let d = model.exerciseDetail(scratchId: scratchId) {
                 ExerciseDetailView(
                     display: d,
-                    onPractice: { variantId in
-                        if let ex = d.exerciseId {
-                            model.startPractice(exerciseId: ex, variantId: variantId)
-                        }
+                    onPractice: { exerciseId, variantId in
+                        model.startPractice(exerciseId: exerciseId, variantId: variantId)
                     },
                     onBack: { model.openLibrary() })
             } else {

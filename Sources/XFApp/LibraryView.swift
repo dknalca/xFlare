@@ -51,7 +51,9 @@ public struct LibraryView: View {
                 Text(e.name).font(XFFont.bodyMedium(13))
                 Text(e.family).font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                Text("\(e.clickCount) clicks").font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
+                // una familia (Flare, Transformer) no tiene "clicks": es una carpeta
+                Text(e.technique == "familia" ? "familia" : "\(e.clickCount) clicks")
+                    .font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
                 if !e.isUnlocked { Image(systemName: "lock.fill").foregroundColor(XFColor.textMuted) }
                 Image(systemName: "chevron.right")
                     .font(.system(size: 9)).foregroundColor(XFColor.textMuted)

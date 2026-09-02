@@ -52,7 +52,16 @@ public enum HomeAssembler {
         }
 
         var cells: [MatrixCell] = []
+        var seenFamilies: Set<String> = []
         for ex in catalog.exercises {
+            // los miembros de una familia (Flare, Transformer) colapsan a UNA
+            // celda; el estado es el agregado de los miembros.
+            if let fam = catalog.family(containingScratch: ex.scratchId) {
+                guard seenFamilies.insert(fam.id).inserted else { continue }
+                cells.append(try familyCell(fam, catalog: catalog, db: db,
+                                            baseUnlocked: openLevels.contains(fam.level)))
+                continue
+            }
             let base = try db.progress(exerciseId: ex.id, variantId: "base")
             let mastery = try db.mastery(exerciseId: ex.id)
             let name = catalog.library.scratch(id: ex.scratchId)?.name ?? ex.name
@@ -71,7 +80,8 @@ public enum HomeAssembler {
         }
 
         // Miniatura TTM en TODOS los scratches del currículo (barato: build es
-        // puro y son ~25). Antes solo L1.
+        // puro y son ~25). Antes solo L1. Para una celda de familia se usa la
+        // miniatura de su primer miembro.
         var thumbnails: [String: TTMThumbnail] = [:]
         for ex in catalog.exercises {
             if thumbnails[ex.scratchId] == nil,
@@ -79,10 +89,39 @@ public enum HomeAssembler {
                 thumbnails[ex.scratchId] = TTMThumbnail.build(scratch: s)
             }
         }
+        for fam in catalog.families {
+            if let first = fam.members.first, let t = thumbnails[first] {
+                thumbnails[fam.id] = t
+            }
+        }
 
         return HomeSummary(cells: cells, streakDays: streakDays,
                            minutesToday: minutesToday, continueTarget: target,
                            thumbnails: thumbnails)
+    }
+
+    /// Celda agregada de una familia: bloqueada si su nivel no está abierto;
+    /// dominada si TODOS sus miembros lo están; practicada con el máximo de
+    /// estrellas de un miembro si alguno tiene marca; disponible si no.
+    private static func familyCell(_ fam: FamilyInfo, catalog: Catalog, db: XFDatabase,
+                                   baseUnlocked: Bool) throws -> MatrixCell {
+        var maxStars = 0
+        var allMastered = !fam.members.isEmpty
+        var any = false
+        for scratchId in fam.members {
+            guard let ex = catalog.exercise(forScratch: scratchId) else { allMastered = false; continue }
+            let stars = try db.progress(exerciseId: ex.id, variantId: "base")?.stars ?? 0
+            maxStars = max(maxStars, stars)
+            if stars > 0 { any = true }
+            if try db.mastery(exerciseId: ex.id)?.isMastered != true { allMastered = false }
+        }
+        let state: MatrixCell.State
+        if !baseUnlocked        { state = .locked }
+        else if allMastered     { state = .mastered }
+        else if any             { state = .practiced(stars: min(2, maxStars)) }
+        else                    { state = .available }
+        return MatrixCell(scratchId: fam.id, name: fam.name, level: fam.level,
+                          state: state, isFamily: true)
     }
 }
 
@@ -116,13 +155,27 @@ public enum LibraryAssembler {
             return Int(raw.drop(while: { !$0.isNumber }))
         }
 
-        let entries = catalog.library.scratches
-            .filter { !hiddenInLibrary.contains($0.id) }
+        // Los miembros de una familia no salen sueltos: en su lugar, una entrada
+        // por familia que abre la ficha con todos los miembros.
+        let members = catalog.familyMemberScratchIds
+        let loose = catalog.library.scratches
+            .filter { !hiddenInLibrary.contains($0.id) && !members.contains($0.id) }
             .map { s in
                 LibraryEntry(scratch: s, isUnlocked: available.contains(s.id),
                              level: curriculumLevel(s.id))
             }
-        return LibraryBrowser(entries: entries)
+        let familyEntries: [LibraryEntry] = catalog.families.map { fam in
+            let lvl = Int(fam.level.drop(while: { !$0.isNumber })) ?? 99
+            let thumb = fam.members.first
+                .flatMap { catalog.library.scratch(id: $0) }
+                .map { TTMThumbnail.build(scratch: $0) }
+            return LibraryEntry(
+                scratchId: fam.id, name: fam.name, family: fam.name, level: lvl,
+                technique: "familia", clickCount: 0, lengthTicks: 0,
+                isUnlocked: fam.members.contains { available.contains($0) },
+                thumbnail: thumb)
+        }
+        return LibraryBrowser(entries: loose + familyEntries)
     }
 }
 
@@ -135,25 +188,20 @@ public enum ExerciseDetailAssembler {
     /// llevan sacadas. `nil` si el scratch no existe en la librería.
     public static func display(catalog: Catalog, db: XFDatabase, scratchId: String,
                                allUnlocked: Bool = false) throws -> ExerciseDetailDisplay? {
+        // ¿es una familia (Flare, Transformer)? -> ficha con miembros.
+        if let fam = catalog.family(id: scratchId) {
+            return try familyDisplay(fam, catalog: catalog, db: db, allUnlocked: allUnlocked)
+        }
+
         guard let scratch = catalog.library.scratch(id: scratchId) else { return nil }
         let ex = catalog.exercise(forScratch: scratchId)
 
         // Nivel del CURRÍCULO (donde se practica), no el del scratch.
         let level: Int? = ex.flatMap { Int($0.level.drop(while: { !$0.isNumber })) }
 
-        var rows: [ExerciseDetailDisplay.VariantRow] = []
-        if let ex {
-            let options = try VariantAssembler.options(
-                catalog: catalog, exerciseId: ex.id, db: db, allUnlocked: allUnlocked)
-            for opt in options {
-                let p = try db.progress(exerciseId: ex.id, variantId: opt.variantId)
-                rows.append(.init(
-                    option: opt,
-                    stars: p?.stars ?? 0,
-                    bestScore: p?.bestScore.map(ExerciseProgressDisplay.grouped) ?? "—",
-                    attempts: p?.attempts ?? 0))
-            }
-        }
+        let rows = try ex.map {
+            try variantRows(catalog: catalog, db: db, exerciseId: $0.id, allUnlocked: allUnlocked)
+        } ?? []
 
         return ExerciseDetailDisplay(
             scratchId: scratch.id,
@@ -166,6 +214,43 @@ public enum ExerciseDetailAssembler {
             thumbnail: TTMThumbnail.build(scratch: scratch),
             exerciseId: ex?.id,
             variants: rows)
+    }
+
+    /// Ficha de una familia: blurb + historia de la familia y un bloque por
+    /// miembro (dibujo + variantes + su ejercicio para "Practicar").
+    private static func familyDisplay(_ fam: FamilyInfo, catalog: Catalog, db: XFDatabase,
+                                      allUnlocked: Bool) throws -> ExerciseDetailDisplay {
+        var members: [ExerciseDetailDisplay.MemberBlock] = []
+        for scratchId in fam.members {
+            guard let s = catalog.library.scratch(id: scratchId) else { continue }
+            let ex = catalog.exercise(forScratch: scratchId)
+            let rows = try ex.map {
+                try variantRows(catalog: catalog, db: db, exerciseId: $0.id, allUnlocked: allUnlocked)
+            } ?? []
+            members.append(.init(
+                scratchId: s.id, name: s.name,
+                thumbnail: TTMThumbnail.build(scratch: s),
+                exerciseId: ex?.id, variants: rows))
+        }
+        return ExerciseDetailDisplay(
+            scratchId: fam.id, name: fam.name, family: fam.name,
+            level: Int(fam.level.drop(while: { !$0.isNumber })),
+            technique: "", description: fam.blurb, history: fam.history,
+            thumbnail: nil, exerciseId: nil, variants: [], members: members)
+    }
+
+    private static func variantRows(catalog: Catalog, db: XFDatabase, exerciseId: String,
+                                    allUnlocked: Bool) throws -> [ExerciseDetailDisplay.VariantRow] {
+        let options = try VariantAssembler.options(
+            catalog: catalog, exerciseId: exerciseId, db: db, allUnlocked: allUnlocked)
+        return try options.map { opt in
+            let p = try db.progress(exerciseId: exerciseId, variantId: opt.variantId)
+            return .init(
+                option: opt,
+                stars: p?.stars ?? 0,
+                bestScore: p?.bestScore.map(ExerciseProgressDisplay.grouped) ?? "—",
+                attempts: p?.attempts ?? 0)
+        }
     }
 }
 

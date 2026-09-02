@@ -155,7 +155,9 @@ public final class AppModel: ObservableObject {
     /// Desde una celda de la matriz o del navegador (recibe `scratchId`): abre la
     /// **ficha** del truco, no la práctica. Desde la ficha se pulsa "Practicar".
     public func selectScratch(_ scratchId: String) {
-        guard catalog.library.scratch(id: scratchId) != nil else { return }
+        // acepta un scratchId real o un id de familia ("flare", "transformer")
+        guard catalog.library.scratch(id: scratchId) != nil
+                || catalog.family(id: scratchId) != nil else { return }
         screen = .exerciseDetail(scratchId: scratchId)
     }
 

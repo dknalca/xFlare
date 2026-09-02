@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "0.1.0",
+  "families": [
+    {
+      "id": "flare",
+      "name": "Flare",
+      "level": "L3",
+      "members": ["flare-1c", "flare-2c", "flare-3c", "orbit-1c", "orbit-2c"],
+      "blurb": "El fader parte ABIERTO y solo se cierra brevemente 1, 2 o 3 veces por movimiento: el sonido es continuo y el fader lo \"muerde\". El orbit es el mismo click aplicado en las dos direcciones del trazo.",
+      "history": "Lo populariza DJ Flare a principios de los 90 partiendo del transformer: en vez de trocear todo el sonido abriendo y cerrando, se deja abierto y solo se interrumpe con cierres puntuales. Es la base de casi todo el turntablism moderno."
+    },
+    {
+      "id": "transformer",
+      "name": "Transformer",
+      "level": "L2",
+      "members": ["transformer-2", "transformer-3", "transformer-4"],
+      "blurb": "El disco solo hace de zumbido continuo; el ritmo lo pone el fader, abriendo y cerrando para trocear el sonido en 2, 3 o 4 pulsos por trazo.",
+      "history": "Se atribuye a DJ Spinbad y lo popularizan Cash Money y Jazzy Jeff a finales de los 80. Fue el primer scratch donde el fader, y no la mano, lleva el ritmo."
+    }
+  ]
+}

@@ -49,11 +49,13 @@ final class AssemblerTests: XCTestCase {
         let byScratch = Dictionary(uniqueKeysWithValues: s.cells.map { ($0.scratchId, $0) })
 
         XCTAssertEqual(byScratch["baby"]?.state, .practiced(stars: 2))
-        // un scratch de L4 sin L1..L3 completo -> bloqueado
-        if let flare2c = byScratch["flare-2c"] {
-            XCTAssertEqual(flare2c.state, .locked)
-        }
-        XCTAssertEqual(s.cells.count, 21)
+        // los flares colapsan a UNA celda de familia (Flare, Transformer)
+        XCTAssertEqual(byScratch["flare"]?.isFamily, true)
+        XCTAssertNil(byScratch["flare-2c"], "el 2-click no sale suelto: esta dentro de Flare")
+        // la familia Flare (L3) sin L1..L2 completo -> bloqueada
+        XCTAssertEqual(byScratch["flare"]?.state, .locked)
+        // 21 ejercicios, 8 de ellos miembros de familia -> 21 - 8 + 2 = 15 celdas
+        XCTAssertEqual(s.cells.count, 15)
     }
 
     func testHomeContinueTarget() throws {
@@ -70,13 +72,15 @@ final class AssemblerTests: XCTestCase {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
         let b = try LibraryAssembler.browser(catalog: c, db: db)
-        // 25 en el catalogo menos las 4 variantes ocultas (lo-/hi-flare, los -16)
-        XCTAssertEqual(b.entries.count, 21)
+        // 25 - 4 ocultas - 8 miembros de familia + 2 entradas de familia = 15
+        XCTAssertEqual(b.entries.count, 15)
         for hidden in LibraryAssembler.hiddenInLibrary {
             XCTAssertNil(b.entries.first { $0.scratchId == hidden }, "\(hidden) no se lista")
         }
-        // el truco de verdad si esta
-        XCTAssertNotNil(b.entries.first { $0.scratchId == "flare-1c" })
+        // los flares no salen sueltos: en su lugar, la familia
+        XCTAssertNil(b.entries.first { $0.scratchId == "flare-1c" })
+        XCTAssertNotNil(b.entries.first { $0.scratchId == "flare" })
+        XCTAssertNotNil(b.entries.first { $0.scratchId == "transformer" })
         // L1 disponible desde el principio
         XCTAssertEqual(b.entries.first { $0.scratchId == "baby" }?.isUnlocked, true)
         // algo de un nivel alto, bloqueado
@@ -184,6 +188,43 @@ final class AssemblerTests: XCTestCase {
 
         // una variante que pide estrellas sigue bloqueada
         XCTAssertTrue(d.variants.contains { if case .locked = $0.option.lock { return true }; return false })
+    }
+
+    func testLaFichaDeUnaFamiliaTraeLosMiembrosConSusVariantes() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+        try setStars(db, exercise: "ex-l4-flare-2c", variant: "base", stars: 2)
+
+        let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
+            catalog: c, db: db, scratchId: "flare"))
+
+        XCTAssertEqual(d.name, "Flare")
+        XCTAssertNil(d.exerciseId, "en una familia se practica por miembro")
+        XCTAssertTrue(d.variants.isEmpty)
+        XCTAssertEqual(d.members.map(\.scratchId),
+                       ["flare-1c", "flare-2c", "flare-3c", "orbit-1c", "orbit-2c"])
+
+        let m2c = try XCTUnwrap(d.members.first { $0.scratchId == "flare-2c" })
+        XCTAssertEqual(m2c.exerciseId, "ex-l4-flare-2c")
+        XCTAssertNotNil(m2c.thumbnail)
+        XCTAssertFalse(m2c.variants.isEmpty)
+        XCTAssertEqual(m2c.variants.first { $0.option.variantId == "base" }?.stars, 2)
+    }
+
+    func testLosFlaresColapsanAUnaCeldaDeFamiliaEnElHome() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+        let s = try HomeAssembler.summary(catalog: c, db: db, allUnlocked: true)
+        let flare = try XCTUnwrap(s.cells.first { $0.scratchId == "flare" })
+        XCTAssertTrue(flare.isFamily)
+        XCTAssertEqual(flare.name, "Flare")
+        XCTAssertEqual(flare.level, "L3")
+        // ningun miembro suelto
+        for m in ["flare-1c", "flare-2c", "orbit-1c", "transformer-3"] {
+            XCTAssertNil(s.cells.first { $0.scratchId == m })
+        }
+        // miniatura de familia (la del primer miembro)
+        XCTAssertNotNil(s.thumbnails["flare"])
     }
 
     func testAllUnlockedAbreNivelesYVariantes() throws {

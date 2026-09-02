@@ -24,6 +24,28 @@ public struct ExerciseDetailDisplay: Equatable, Sendable {
         }
     }
 
+    /// Un miembro de una **familia** (Flare, Transformer): un truco de verdad con
+    /// su dibujo, su ejercicio y sus variantes. La ficha de la familia lista
+    /// varios de estos; `members` vacío = ficha de un solo truco.
+    public struct MemberBlock: Equatable, Sendable, Identifiable {
+        public var scratchId: String
+        public var name: String
+        public var thumbnail: TTMThumbnail?
+        /// Ejercicio a lanzar (`nil` = sin ejercicio en el currículo todavía).
+        public var exerciseId: String?
+        public var variants: [VariantRow]
+        public var id: String { scratchId }
+
+        public init(scratchId: String, name: String, thumbnail: TTMThumbnail?,
+                    exerciseId: String?, variants: [VariantRow]) {
+            self.scratchId = scratchId
+            self.name = name
+            self.thumbnail = thumbnail
+            self.exerciseId = exerciseId
+            self.variants = variants
+        }
+    }
+
     public var scratchId: String
     public var name: String
     public var family: String
@@ -34,13 +56,17 @@ public struct ExerciseDetailDisplay: Equatable, Sendable {
     public var history: String?
     public var thumbnail: TTMThumbnail?
     /// El ejercicio que se lanza al pulsar "Practicar" (`nil` = no hay ejercicio
-    /// para este scratch todavía; el botón se desactiva).
+    /// para este scratch todavía, o es una ficha de familia: se practica por
+    /// miembro).
     public var exerciseId: String?
     public var variants: [VariantRow]
+    /// Miembros, si esto es la ficha de una **familia**. Vacío = truco suelto.
+    public var members: [MemberBlock]
 
     public init(scratchId: String, name: String, family: String, level: Int?,
                 technique: String, description: String, history: String?,
-                thumbnail: TTMThumbnail?, exerciseId: String?, variants: [VariantRow]) {
+                thumbnail: TTMThumbnail?, exerciseId: String?, variants: [VariantRow],
+                members: [MemberBlock] = []) {
         self.scratchId = scratchId
         self.name = name
         self.family = family
@@ -51,5 +77,6 @@ public struct ExerciseDetailDisplay: Equatable, Sendable {
         self.thumbnail = thumbnail
         self.exerciseId = exerciseId
         self.variants = variants
+        self.members = members
     }
 }

@@ -20,6 +20,11 @@ public enum CatalogLoader {
         let varDoc = try JSONDecoder().decode(
             VariantsDoc.self, from: content.data("data/curriculum/variants.json"))
 
+        // Familias (`data/curriculum/families.json`): opcional. Si falta, no hay
+        // agrupación y cada truco sale por su cuenta (como antes).
+        let families = (try? JSONDecoder().decode(
+            FamiliesDoc.self, from: content.data("data/curriculum/families.json")))?.families ?? []
+
         // Primitivas (`data/primitives/*.json`): las variantes que recomponen el
         // patrón (offset, subdivision) las necesitan. Si faltan, `PrimitiveSet`
         // lanza y el arranque cae a `.error(...)`.
@@ -42,12 +47,15 @@ public enum CatalogLoader {
                                 .init(variant: $0.variant, stars: $0.stars)
                             })
             },
+            families: families,
             primitives: primitives)
     }
 
     // MARK: - formas de los JSON (solo para decodificar)
 
     private struct LevelsDoc: Decodable { let levels: [LevelInfo] }
+
+    private struct FamiliesDoc: Decodable { let families: [FamilyInfo] }
 
     private struct ExercisesDoc: Decodable {
         struct Row: Decodable {
