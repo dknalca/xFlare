@@ -6,6 +6,9 @@ import QuartzCore
 import XFNotation
 import XFRender
 import XFDesign
+import XFCapture
+import XFPrimitives
+import XFClock
 
 /// El motor de la practica **rudimentaria**: un reloj musical propio (sin audio)
 /// que hace correr la autopista, y un modelo de plato de juguete que el trackpad
@@ -52,6 +55,21 @@ public final class PracticeSession: ObservableObject {
     /// scratchear el sample sobre la imagen congelada. La instrumental la para
     /// la vista (transporte del motor).
     @Published public private(set) var frozen = false
+
+    // --- grabacion de linea libre (.xfsession) ---
+    /// `true` mientras se graba el movimiento del plato y el fader.
+    @Published public private(set) var recording = false
+    /// `true` mientras se reproduce una linea grabada (importada): el plato lo
+    /// mueve el fichero, se ignora el input (como en "repite conmigo").
+    @Published public private(set) var playingBack = false
+    private var recMotion: [MotionSample] = []
+    private var recFader: [FaderSample] = []
+    private var recStartHost: UInt64 = 0
+    private var recLastClosed: Bool?
+    private var pbMotion: [(t: Double, pos: Double)] = []   // t en segundos desde 0
+    private var pbFader: [(t: Double, closed: Bool)] = []
+    private var pbLen: Double = 0
+    private var pbClock: Double = 0
 
     // --- llamada y respuesta ---
     @Published public private(set) var crPhase: CallResponsePhase = .off
@@ -184,6 +202,7 @@ public final class PracticeSession: ObservableObject {
             platterPosition += platterVelocity * step
             if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
             if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+            recordFrame()
             onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
             return
         }
@@ -198,7 +217,15 @@ public final class PracticeSession: ObservableObject {
             if crPhase == .respond { platterVelocity = 0 }   // empiezas con el plato quieto
         }
 
-        if crPhase == .listen {
+        if playingBack {
+            // reproduccion de una linea grabada: el fichero mueve el plato.
+            pbClock += step
+            if pbLen > 0, pbClock >= pbLen { pbClock = pbClock.truncatingRemainder(dividingBy: pbLen) }
+            let g = pbPositionAt(pbClock)
+            platterVelocity = (g - platterPosition) / step
+            platterPosition = g
+            setFaderClosed(pbClosedAt(pbClock))
+        } else if crPhase == .listen {
             // la MAQUINA toca: el fantasma mueve el plato (y con el, el sample).
             // La posicion viene de la curva del patron; la velocidad, de su
             // derivada; el fader, del estado del patron en ese tick.
@@ -228,6 +255,7 @@ public final class PracticeSession: ObservableObject {
             traceBuffer.removeAll { $0.tick < cutoff }
         }
 
+        recordFrame()
         onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
     }
 
@@ -315,6 +343,91 @@ public final class PracticeSession: ObservableObject {
     public func toggleFreeze() {
         frozen.toggle()
         if !frozen { lastFrameTime = CACurrentMediaTime() }
+    }
+
+    // MARK: - grabar / reproducir una linea libre (.xfsession)
+
+    /// Empieza a grabar el movimiento del plato y el fader (borra lo anterior).
+    public func startRecording() {
+        recMotion.removeAll(keepingCapacity: true)
+        recFader.removeAll(keepingCapacity: true)
+        recLastClosed = nil
+        recStartHost = HostClock.now()
+        recording = true
+    }
+
+    /// Para de grabar y devuelve lo grabado como `XFSession` (nil si es muy corto).
+    @discardableResult
+    public func stopRecording() -> XFSession? {
+        recording = false
+        guard recMotion.count > 2 else { return nil }
+        let hc = HostClock()
+        if recFader.isEmpty {
+            recFader.append(FaderSample(hostTime: recStartHost, value: 1, isOpen: true))
+        }
+        return XFSession(
+            header: .init(formatVersion: 1, tempoBPM: Double(bpm),
+                          anchorHostTime: recStartHost, anchorTick: 0,
+                          hostNumer: hc.numer, hostDenom: hc.denom,
+                          notes: "linea libre xFlare"),
+            motion: recMotion, fader: recFader)
+    }
+
+    /// Segundos grabados hasta ahora.
+    public var recordedSeconds: Double {
+        guard let a = recMotion.first?.hostTime, let b = recMotion.last?.hostTime, b > a
+        else { return 0 }
+        return HostClock().nanoseconds(fromHostTicks: b - a) / 1_000_000_000
+    }
+
+    /// Carga una linea grabada y la pone a reproducir en bucle (el plato lo
+    /// mueve el fichero; el input se ignora, como en "repite conmigo").
+    public func loadPlayback(_ s: XFSession) {
+        let hc = HostClock(numer: max(1, s.header.hostNumer), denom: max(1, s.header.hostDenom))
+        guard let t0 = s.motion.first?.hostTime else { return }
+        func sec(_ ht: UInt64) -> Double {
+            ht <= t0 ? 0 : hc.nanoseconds(fromHostTicks: ht - t0) / 1_000_000_000
+        }
+        pbMotion = s.motion.map { (sec($0.hostTime), $0.position) }
+        pbFader = s.fader.map { (sec($0.hostTime), !$0.isOpen) }
+        pbLen = pbMotion.last?.t ?? 0
+        pbClock = 0
+        playingBack = pbLen > 0
+    }
+
+    public func stopPlayback() {
+        playingBack = false
+        pbMotion.removeAll(); pbFader.removeAll(); pbLen = 0
+    }
+
+    /// Un frame de grabacion (si esta grabando).
+    private func recordFrame() {
+        guard recording else { return }
+        let ht = HostClock.now()
+        recMotion.append(MotionSample(hostTime: ht, position: platterPosition,
+                                      velocity: platterVelocity, confidence: 1))
+        if recLastClosed != faderClosed {
+            recLastClosed = faderClosed
+            recFader.append(FaderSample(hostTime: ht, value: faderClosed ? 0 : 1,
+                                        isOpen: !faderClosed))
+        }
+    }
+
+    /// Posicion interpolada de la linea grabada en el segundo `t`.
+    private func pbPositionAt(_ t: Double) -> Double {
+        guard !pbMotion.isEmpty else { return platterPosition }
+        if t <= pbMotion[0].t { return pbMotion[0].pos }
+        for i in 1..<pbMotion.count where pbMotion[i].t >= t {
+            let a = pbMotion[i - 1], b = pbMotion[i]
+            let f = (t - a.t) / max(1e-9, b.t - a.t)
+            return a.pos + (b.pos - a.pos) * f
+        }
+        return pbMotion.last!.pos
+    }
+    private func pbClosedAt(_ t: Double) -> Bool {
+        var closed = false
+        for f in pbFader { if f.t <= t { closed = f.closed } else { break } }
+        return closed
     }
 
     /// Tecla 1: **cue 1**. Salta el plato al inicio del sample (`posLo`), que es

@@ -2,6 +2,7 @@
 import XCTest
 @testable import XFApp
 import XFNotation
+import XFCapture
 
 /// El motor de la practica rudimentaria: reloj musical propio + plato de juguete.
 /// Aqui se prueba la fisica (que es pura); el pegamento con `NSView` no.
@@ -158,6 +159,43 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.normalizedPosition, 1, accuracy: 1e-6)
         for _ in 0..<800 { s.scrollBy(-80); s.advance(by: 1.0 / 60.0) }
         XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
+    }
+
+    func testGrabarUnaLineaLaExportaYSePuedeReproducir() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        XCTAssertFalse(s.recording)
+
+        s.startRecording()
+        XCTAssertTrue(s.recording)
+        // mueve el plato adelante y atras un rato
+        for i in 0..<120 {
+            s.scrollBy(i % 40 < 20 ? 30 : -30)
+            s.advance(by: 1.0 / 60.0)
+        }
+        let take = try XCTUnwrap(s.stopRecording())
+        XCTAssertFalse(s.recording)
+        XCTAssertGreaterThan(take.motion.count, 100)
+        XCTAssertEqual(take.header.tempoBPM, 90, accuracy: 1e-9)
+
+        // ida y vuelta por el fichero .xfsession
+        let text = take.encodedJSONLines()
+        let reloaded = try XFSession(jsonLines: text)
+        XCTAssertEqual(reloaded.motion.count, take.motion.count)
+
+        // reproducirla: el plato lo mueve el fichero, no el input
+        let p = PracticeSession(scratch: try scratch(), bpm: 90)
+        p.loadPlayback(reloaded)
+        XCTAssertTrue(p.playingBack)
+        var moved = false
+        let start = p.platterPosition
+        for _ in 0..<200 {
+            p.advance(by: 1.0 / 60.0)
+            if abs(p.platterPosition - start) > 1e-6 { moved = true }
+        }
+        XCTAssertTrue(moved, "la linea grabada mueve el plato al reproducirse")
+
+        p.stopPlayback()
+        XCTAssertFalse(p.playingBack)
     }
 
     func testCue1VuelveAlInicioDelSample() throws {

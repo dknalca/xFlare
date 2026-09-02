@@ -5,6 +5,7 @@ import AppKit
 import XFDesign
 import XFRender
 import XFNotation
+import XFCapture
 
 /// Pantalla de practica **rudimentaria**: la autopista corre con el reloj de
 /// `PracticeSession` y el trackpad / teclado mueven el plato. Con audio: el
@@ -32,6 +33,9 @@ public struct LivePracticeView: View {
     @State private var amplitude: Double = AudioAsset.scratchPatternTopFraction
     // Desplazamiento manual de la rejilla respecto a la base (botones ◀/▶), ticks.
     @State private var gridShift: Double = 0
+    // Ultima linea grabada, lista para exportar a .xfsession.
+    @State private var lastRecording: XFSession?
+    @State private var recTick = 0   // fuerza refresco del contador de segundos
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
@@ -134,7 +138,10 @@ public struct LivePracticeView: View {
         }
         .background(XFColor.bg)
         .foregroundColor(XFColor.text)
-        .onReceive(meterTick) { _ in meterPeak = engine?.outputPeak ?? 0 }
+        .onReceive(meterTick) { _ in
+            meterPeak = engine?.outputPeak ?? 0
+            if session.recording { recTick &+= 1 }
+        }
         .onChange(of: session.faderClosed) { closed in
             faderClosed = closed
             // fader cerrado / mute = calla SOLO el scratch; la instrumental y el
@@ -160,6 +167,7 @@ public struct LivePracticeView: View {
                 }
                 panelSection("Base") { instrumentalPicker }
                 panelSection("Repite conmigo") { callResponsePanel }
+                panelSection("Grabar línea") { recordPanel }
                 panelSection("Ajuste rápido") {
                     volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
                         session.scrollSensitivity = v
@@ -288,6 +296,79 @@ public struct LivePracticeView: View {
     /// se detecto al doble (180 en un hiphop de 90), ÷2 deja la rejilla a 90 y
     /// la base se sigue oyendo natural: se reinstala con `nativeBPM = 90`, asi
     /// el ratio de reproduccion se queda en ~1.0. Vuelve a empezar desde el "1".
+    /// Grabar una línea libre y exportarla / importarla (`.xfsession`).
+    private var recordPanel: some View {
+        VStack(spacing: XFSpacing.xs) {
+            Button {
+                if session.recording {
+                    lastRecording = session.stopRecording()
+                } else {
+                    session.stopPlayback()
+                    session.startRecording()
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Circle().fill(session.recording ? Color(hex: 0xFF4D5E) : XFColor.textMuted)
+                        .frame(width: 8, height: 8)
+                    Text(session.recording
+                         ? String(format: "Grabando · %.0fs", session.recordedSeconds)
+                         : "Grabar")
+                        .font(XFFont.bodyMedium(11))
+                    Spacer(minLength: 0)
+                }
+                .foregroundColor(XFColor.text)
+                .padding(.vertical, 5).padding(.horizontal, XFSpacing.xs)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 5).fill(XFColor.surface))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 5) {
+                Button("Exportar…") { exportLine() }
+                    .buttonStyle(.plain).font(XFFont.body(9))
+                    .foregroundColor(lastRecording == nil ? XFColor.textMuted : XFColor.text)
+                    .disabled(lastRecording == nil || session.recording)
+                Spacer(minLength: 0)
+                Button("Importar…") { importLine() }
+                    .buttonStyle(.plain).font(XFFont.body(9)).foregroundColor(XFColor.text)
+                    .disabled(session.recording)
+            }
+
+            if session.playingBack {
+                Button("Parar reproducción") { session.stopPlayback() }
+                    .buttonStyle(.plain).font(XFFont.body(9)).foregroundColor(XFColor.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        // el contador de segundos se refresca con el mismo tick del medidor
+        .id(session.recording ? recTick : -1)
+    }
+
+    private func exportLine() {
+        guard let rec = lastRecording else { return }
+        let panel = NSSavePanel()
+        panel.allowedFileTypes = ["xfsession"]
+        panel.nameFieldStringValue = "linea.xfsession"
+        panel.prompt = "Exportar"
+        if panel.runModal() == .OK, let url = panel.url {
+            try? rec.encodedJSONLines().write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    private func importLine() {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["xfsession"]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Importar"
+        if panel.runModal() == .OK, let url = panel.url,
+           let text = try? String(contentsOf: url, encoding: .utf8),
+           let s = try? XFSession(jsonLines: text) {
+            session.loadPlayback(s)
+        }
+    }
+
     private func retempo(_ factor: Double) {
         session.setBPM(Int((Double(session.bpm) * factor).rounded()))
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
