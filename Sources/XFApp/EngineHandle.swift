@@ -95,6 +95,16 @@ public final class EngineHandle {
         instrumentalNativeBPM = nativeBPM
     }
 
+    /// Reinstala la MISMA base pero con otro `nativeBPM` (botones x2 / /2): el
+    /// bucle vuelve a empezar (cabezal a 0) y el ratio de reproduccion se
+    /// recalcula con el BPM de sesion actual. Corrige la deteccion de tempo sin
+    /// cambiar la velocidad real de la base (solo la rejilla).
+    public func replayInstrumental(nativeBPM: Double) {
+        guard let buf = currentInstrumental, instrumentalFrameCount >= 2, nativeBPM > 0 else { return }
+        xf_engine_load_instrumental(engine, buf.baseAddress, Int64(instrumentalFrameCount), nativeBPM)
+        instrumentalNativeBPM = nativeBPM
+    }
+
     public func clearInstrumental() {
         xf_engine_load_instrumental(engine, nil, 0, 0)
         retiredInstrumental?.deallocate()

@@ -90,6 +90,29 @@ final class XFEngineInstrumentalTests: XCTestCase {
                              "a ratio 2 el tono se va a 2 kHz")
     }
 
+    func testRecargarConOtroNativeBpmMantieneElPitchNatural() {
+        // Simula los botones /2: base "detectada" a 160, luego se reinstala a 80
+        // con el transporte tambien a 80 -> el ratio vuelve a 1.0 y el tono
+        // sigue en su sitio (1000 Hz), NO se ralentiza.
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        let loop = stable(sine(1000, frames: 9_600))
+        defer { loop.deallocate() }
+        xf_engine_set_master_gain(e, 1)
+
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 160)
+        xf_engine_set_transport(e, 160, 480, true)          // ratio 1.0
+        _ = render(e, blocks: 20)
+
+        // /2: reinstala con native 80 + transporte 80
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 80)
+        xf_engine_set_transport(e, 80, 480, true)
+        let out = render(e, blocks: 60)
+
+        XCTAssertGreaterThan(goertzel(out, hz: 1000), goertzel(out, hz: 500) * 3,
+                             "sigue en 1 kHz: NO se ha ralentizado")
+    }
+
     func testGananciaCeroSilenciaLaBase() {
         let e = engine()
         defer { xf_engine_destroy(e) }

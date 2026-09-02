@@ -128,22 +128,43 @@ public enum TempoAnalyzer {
         }
 
         // --- fase de negra ---
+        // Comb: para cada offset `p` (en env-frames) se suma la envolvente en
+        // `p, p+period, p+2·period, …`; el `p` que mas suma es la fase de negra.
         let period = 60.0 / bpm * envRate
         let searchN = max(1, Int(period.rounded()))
+        func combScore(_ p: Double) -> Double {
+            var s = 0.0
+            var x = p
+            while x < Double(nFrames) - 1 {
+                let i = Int(x)
+                let fr = x - Double(i)
+                s += env[i] * (1 - fr) + env[i + 1] * fr     // interp lineal
+                x += period
+            }
+            return s
+        }
         var beatPhase = 0
         var beatScore = -1.0
         for p in 0..<searchN {
-            var s = 0.0
-            var k = 0.0
-            while true {
-                let idx = Int((Double(p) + k * period).rounded())
-                if idx >= nFrames { break }
-                s += env[idx]; k += 1
-            }
+            let s = combScore(Double(p))
             if s > beatScore { beatScore = s; beatPhase = p }
         }
-
-        let phaseFrames = min(pcm.count - 1, max(0, beatPhase * hop))
+        // refino sub-frame por parabola alrededor del mejor `p`
+        var refined = Double(beatPhase)
+        if searchN > 2 {
+            let a = combScore(Double((beatPhase - 1 + searchN) % searchN))
+            let b = beatScore
+            let c = combScore(Double((beatPhase + 1) % searchN))
+            let denom = a - 2 * b + c
+            if abs(denom) > 1e-12 {
+                let d = 0.5 * (a - c) / denom
+                if abs(d) < 1 { refined = Double(beatPhase) + d }
+            }
+        }
+        // La envolvente de flux marca el bloque donde SUBE la energia; el golpe
+        // real cae hacia el centro de ese bloque -> medio hop mas tarde. (El
+        // usuario tenia la rejilla adelantada respecto a los golpes.)
+        let phaseFrames = min(pcm.count - 1, max(0, Int((refined * Double(hop)).rounded()) + hop / 2))
 
         // --- cuadrar SOLO bucles cortos (<= 16 s) con ~n negras exactas ---
         let loopSec = Double(pcm.count) / sampleRate

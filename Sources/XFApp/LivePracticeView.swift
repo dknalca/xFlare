@@ -225,13 +225,31 @@ public struct LivePracticeView: View {
                 Button("×2") { retempo(2.0) }.buttonStyle(.plain).font(XFFont.mono(10))
             }
             .foregroundColor(XFColor.textMuted)
+            // ajuste fino de la FASE de la rejilla respecto a la base
+            HStack(spacing: 4) {
+                Text("Fase").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                Spacer()
+                Button { session.nudgePhase(Double(scratch.ppq) / 48) } label: {
+                    Image(systemName: "arrow.left")
+                }.buttonStyle(.plain)
+                Button { session.nudgePhase(-Double(scratch.ppq) / 48) } label: {
+                    Image(systemName: "arrow.right")
+                }.buttonStyle(.plain)
+            }
+            .font(XFFont.body(10))
+            .foregroundColor(XFColor.text)
         }
     }
 
-    /// Multiplica el tempo del ejercicio (y de la base) por `factor` (÷2 / ×2).
+    /// ÷2 / ×2: corrige la **rejilla**, no la velocidad de la base. Si el tempo
+    /// se detecto al doble (180 en un hiphop de 90), ÷2 deja la rejilla a 90 y
+    /// la base se sigue oyendo natural: se reinstala con `nativeBPM = 90`, asi
+    /// el ratio de reproduccion se queda en ~1.0. Vuelve a empezar desde el "1".
     private func retempo(_ factor: Double) {
         session.setBPM(Int((Double(session.bpm) * factor).rounded()))
+        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        session.resyncClock()
     }
 
     private var clipMeter: some View {

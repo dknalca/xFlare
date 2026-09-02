@@ -317,6 +317,15 @@ public final class PracticeSession: ObservableObject {
         if !frozen { lastFrameTime = CACurrentMediaTime() }
     }
 
+    /// Botones ← / → sobre la instrumental: desplaza la REJILLA respecto a la
+    /// base sumando un offset al reloj. `+ticks` mueve la rejilla a la izquierda
+    /// (adelanta el tick), `-ticks` a la derecha. Ajuste fino manual de la fase
+    /// cuando la deteccion no cae exacta en los golpes.
+    public func nudgePhase(_ ticks: Double) {
+        currentTick += ticks
+        crPhaseStart += ticks
+    }
+
     /// Tecla 1: **cue 1**. Salta el plato al inicio del sample (`posLo`), que es
     /// donde está el cue 1 por defecto. Deja el plato quieto y avisa al motor
     /// (por `onAdvance`) para que el sample vuelva al principio.
