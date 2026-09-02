@@ -146,105 +146,118 @@ public struct LivePracticeView: View {
     // MARK: - panel derecho: medidor + volumenes (provisional)
 
     private var rightPanel: some View {
-        VStack(spacing: XFSpacing.sm) {
-            clipMeter
-            volSlider("Sample", $sampleVol) { v in
-                if !faderClosed { engine?.setScratchGain(Float(v)) }
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: XFSpacing.md) {
+                panelSection("Mezcla") {
+                    clipMeter
+                    volSlider("Sample", $sampleVol) { v in
+                        if !faderClosed { engine?.setScratchGain(Float(v)) }
+                    }
+                    volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
+                }
+                panelSection("Base") { instrumentalPicker }
+                panelSection("Llamada y respuesta") { callResponsePanel }
+                panelSection("Ajuste rápido") {
+                    volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
+                        session.scrollSensitivity = v
+                    }
+                    // "Amplitud" solo cambia el ALTO de la onda fantasma que hay
+                    // que seguir; no toca el movimiento ni el sample.
+                    volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
+                }
             }
-            volSlider("Instru", $instruVol) { v in
-                engine?.setInstrumentalGain(Float(v))
-            }
-            volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
-                session.scrollSensitivity = v
-            }
-            // amplitud: hasta donde llega el pico del movimiento respecto al
-            // sample (el sample de la izquierda no cambia). 100 % = arriba del
-            // todo; por defecto ~67 % (2/3).
-            // "Amplitud" solo cambia el ALTO de la onda fantasma que hay que
-            // seguir; no toca la libertad de movimiento ni el sample.
-            volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
-            instrumentalPicker
-            Divider().background(XFColor.stroke)
-            callResponsePanel
+            .padding(XFSpacing.sm)
         }
-        .frame(width: 108)
-        .padding(XFSpacing.sm)
+        .frame(width: 136)
         .background(XFColor.surface)
+    }
+
+    /// Un bloque con título del panel derecho.
+    private func panelSection<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: XFSpacing.xxs) {
+            Text(title.uppercased())
+                .font(XFFont.body(9)).kerning(0.6)
+                .foregroundColor(XFColor.textMuted)
+            VStack(spacing: XFSpacing.xs) { content() }
+                .padding(XFSpacing.xs)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                    .fill(XFColor.surfaceRaised))
+        }
+    }
+
+    /// Botón "chip" pequeño (texto o icono) para el panel.
+    private func chip(_ label: String, icon: Bool = false, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Group {
+                if icon { Image(systemName: label).font(.system(size: 10, weight: .bold)) }
+                else { Text(label).font(XFFont.mono(10)) }
+            }
+            .frame(width: 26, height: 18)
+            .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surface))
+            .foregroundColor(XFColor.text)
+        }
+        .buttonStyle(.plain)
     }
 
     /// Llamada y respuesta: la máquina toca `n` compases con el fantasma
     /// moviendo el sample, luego los imitas de oído. `n` en múltiplos de 2.
     private var callResponsePanel: some View {
-        VStack(spacing: 3) {
+        VStack(spacing: XFSpacing.xs) {
             Button {
                 session.setCallResponse(session.crPhase == .off)
             } label: {
-                HStack(spacing: XFSpacing.xs) {
-                    Image(systemName: session.crPhase == .off
-                          ? "questionmark.circle" : "questionmark.circle.fill")
+                HStack(spacing: 5) {
+                    Image(systemName: session.crPhase == .off ? "play.circle" : "stop.circle.fill")
                     Text(crLabel).font(XFFont.body(10))
+                    Spacer()
                 }
                 .foregroundColor(crColor)
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.plain)
 
-            HStack(spacing: 4) {
-                Text("Compases").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+            HStack(spacing: 5) {
+                Text("Compases").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                Button { session.setCallResponseBars(session.crBars / 2) } label: { Text("−") }
-                    .buttonStyle(.plain).disabled(session.crBars <= 2)
-                Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 16)
-                Button { session.setCallResponseBars(session.crBars * 2) } label: { Text("+") }
-                    .buttonStyle(.plain).disabled(session.crBars >= 16)
+                chip("−") { session.setCallResponseBars(session.crBars / 2) }
+                    .disabled(session.crBars <= 2)
+                Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 14)
+                chip("+") { session.setCallResponseBars(session.crBars * 2) }
+                    .disabled(session.crBars >= 16)
             }
             .foregroundColor(XFColor.text)
         }
     }
 
-    /// Cargar otra instrumental + su BPM detectado + ajuste ×2 / ÷2.
+    /// Cargar otra instrumental + su BPM + ajuste ×2 / ÷2 + fase de la rejilla.
     private var instrumentalPicker: some View {
-        VStack(spacing: 3) {
-            HStack {
-                Text("Base").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
-                Spacer()
-            }
+        VStack(spacing: XFSpacing.xs) {
             Button(action: pickInstrumental) {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "waveform")
-                    Text(instrName).font(XFFont.body(9)).lineLimit(1).truncationMode(.middle)
+                    Text(instrName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    Image(systemName: "folder").font(.system(size: 9)).foregroundColor(XFColor.textMuted)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundColor(XFColor.text)
             }
             .buttonStyle(.plain)
-            HStack(spacing: 4) {
-                Text("\(session.bpm) BPM").font(XFFont.mono(11)).foregroundColor(XFColor.accent)
+
+            HStack(spacing: 5) {
+                Text("\(session.bpm)").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
+                Text("BPM").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                Button("÷2") { retempo(0.5) }.buttonStyle(.plain).font(XFFont.mono(10))
-                Button("×2") { retempo(2.0) }.buttonStyle(.plain).font(XFFont.mono(10))
+                chip("÷2") { retempo(0.5) }
+                chip("×2") { retempo(2.0) }
             }
-            .foregroundColor(XFColor.textMuted)
-            // mover la REJILLA respecto a la base para cuadrarla con los golpes
-            HStack(spacing: 6) {
+
+            HStack(spacing: 5) {
                 Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                gridShiftButton("chevron.left") { session.nudgeGrid(Double(scratch.ppq) / 12) }
-                gridShiftButton("chevron.right") { session.nudgeGrid(-Double(scratch.ppq) / 12) }
+                chip("chevron.left", icon: true) { session.nudgeGrid(Double(scratch.ppq) / 12) }
+                chip("chevron.right", icon: true) { session.nudgeGrid(-Double(scratch.ppq) / 12) }
             }
         }
-    }
-
-    /// Un botón de desplazar rejilla, con área de toque decente.
-    private func gridShiftButton(_ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .bold))
-                .frame(width: 22, height: 18)
-                .background(RoundedRectangle(cornerRadius: 3).fill(XFColor.surfaceRaised))
-                .foregroundColor(XFColor.text)
-        }
-        .buttonStyle(.plain)
     }
 
     /// ÷2 / ×2: corrige la **rejilla**, no la velocidad de la base. Si el tempo

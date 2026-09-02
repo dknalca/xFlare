@@ -5,8 +5,6 @@ import XFDesign
 
 /// El Home: el mapa de la matriz, la racha y "Continuar" (`docs/UI_DESIGN.md`
 /// §3.2). Dibuja un `HomeSummary`; los datos los arma `XFApp`.
-///
-/// Sustituye a la maqueta inerte de `Sources/xFlare/HomeScaffoldView.swift`.
 public struct HomeView: View {
 
     private let summary: HomeSummary
@@ -24,58 +22,89 @@ public struct HomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: XFSpacing.xl) {
-                XFWordmark(size: 30)
-                header
+                HStack(alignment: .center) {
+                    XFWordmark(size: 30)
+                    Spacer()
+                    header
+                }
                 if let target = summary.continueTarget { continueCard(target) }
                 matrix
             }
             .padding(XFSpacing.xl)
+            .frame(maxWidth: 980, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(XFColor.bg)
     }
 
+    // MARK: - cabecera: racha / hoy / dominados en pastillas
+
     private var header: some View {
-        HStack(spacing: XFSpacing.xl) {
-            stat("Racha", "\(summary.streakDays) d")
-            stat("Hoy", "\(summary.minutesToday) min",
-                 muted: !summary.meetsDailyMinimum())
-            stat("Dominados", "\(summary.masteredCount) / \(summary.cells.count)")
+        HStack(spacing: XFSpacing.sm) {
+            statPill("Racha", "\(summary.streakDays)", unit: "días")
+            statPill("Hoy", "\(summary.minutesToday)", unit: "min",
+                     muted: !summary.meetsDailyMinimum())
+            statPill("Dominados", "\(summary.masteredCount)", unit: "/ \(summary.cells.count)")
         }
     }
 
-    private func stat(_ label: String, _ value: String, muted: Bool = false) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(label).font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
-            Text(value).font(XFFont.mono(20))
-                .foregroundColor(muted ? XFColor.textMuted : XFColor.text)
+    private func statPill(_ label: String, _ value: String, unit: String,
+                          muted: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label.uppercased()).font(XFFont.body(9)).kerning(0.5)
+                .foregroundColor(XFColor.textMuted)
+            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                Text(value).font(XFFont.mono(18))
+                    .foregroundColor(muted ? XFColor.textMuted : XFColor.text)
+                Text(unit).font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+            }
         }
+        .padding(.horizontal, XFSpacing.sm)
+        .padding(.vertical, XFSpacing.xs)
+        .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+            .fill(XFColor.surface))
+        .overlay(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+            .stroke(XFColor.stroke, lineWidth: XFStroke.hairline))
     }
+
+    // MARK: - Continuar
 
     private func continueCard(_ target: HomeSummary.ContinueTarget) -> some View {
         Button(action: onContinue) {
-            XFCard(raised: true) {
-                HStack {
-                    VStack(alignment: .leading, spacing: XFSpacing.xs) {
-                        Text("Continuar").font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
-                        Text(target.name).font(XFFont.title(22))
-                        Text("\(target.bpm) BPM").font(XFFont.mono(14)).foregroundColor(XFColor.accent)
-                    }
-                    Spacer()
-                    Image(systemName: "play.fill").foregroundColor(XFColor.accent)
+            HStack(spacing: XFSpacing.md) {
+                RoundedRectangle(cornerRadius: 2).fill(XFColor.accent).frame(width: 3, height: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("CONTINUAR").font(XFFont.body(9)).kerning(0.6)
+                        .foregroundColor(XFColor.textMuted)
+                    Text(target.name).font(XFFont.title(22))
+                    Text("\(target.bpm) BPM").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
                 }
+                Spacer()
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 34)).foregroundColor(XFColor.accent)
             }
+            .padding(XFSpacing.md)
+            .background(RoundedRectangle(cornerRadius: XFRadius.card, style: .continuous)
+                .fill(XFColor.surfaceRaised))
+            .overlay(RoundedRectangle(cornerRadius: XFRadius.card, style: .continuous)
+                .stroke(XFColor.accent.opacity(0.35), lineWidth: XFStroke.hairline))
         }
         .buttonStyle(.plain)
     }
 
+    // MARK: - matriz por niveles
+
     private var matrix: some View {
-        VStack(alignment: .leading, spacing: XFSpacing.lg) {
+        VStack(alignment: .leading, spacing: XFSpacing.xl) {
             ForEach(summary.cellsByLevel, id: \.level) { group in
                 VStack(alignment: .leading, spacing: XFSpacing.sm) {
-                    Text(group.level).font(XFFont.body(13)).foregroundColor(XFColor.textMuted)
-                    LazyVGrid(columns: Array(repeating: GridItem(.fixed(96), spacing: XFSpacing.sm),
-                                             count: 6),
-                              spacing: XFSpacing.sm) {
+                    HStack(spacing: XFSpacing.xs) {
+                        Text("Nivel " + String(group.level.dropFirst()))
+                            .font(XFFont.bodyMedium(13)).foregroundColor(XFColor.text)
+                        Rectangle().fill(XFColor.stroke).frame(height: 1)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: XFSpacing.sm)],
+                              alignment: .leading, spacing: XFSpacing.sm) {
                         ForEach(group.cells) { cell in
                             MatrixCellView(cell: cell, thumbnail: summary.thumbnails[cell.scratchId])
                                 .onTapGesture { onSelect(cell.scratchId) }
@@ -94,33 +123,61 @@ struct MatrixCellView: View {
     var thumbnail: TTMThumbnail? = nil
 
     var body: some View {
-        VStack(spacing: 3) {
-            Text(cell.name)
-                .font(XFFont.body(11))
-                .lineLimit(thumbnail == nil ? 2 : 1)
-                .multilineTextAlignment(.center)
+        VStack(spacing: 4) {
+            HStack(spacing: 4) {
+                Text(cell.name)
+                    .font(XFFont.bodyMedium(11))
+                    .lineLimit(1).truncationMode(.tail)
+                if cell.isFamily {
+                    Image(systemName: "square.stack.3d.up")
+                        .font(.system(size: 8)).foregroundColor(XFColor.textMuted)
+                }
+                Spacer(minLength: 0)
+            }
             if let thumbnail {
                 TTMThumbnailView(thumbnail: thumbnail)
-                    .frame(height: 22)
-                    .opacity(locked ? 0.4 : 0.9)
+                    .frame(height: 26)
+                    .opacity(locked ? 0.35 : 0.9)
             }
-            Text(badge).font(XFFont.mono(11)).foregroundColor(XFColor.accent)
+            HStack {
+                badge
+                Spacer(minLength: 0)
+            }
         }
-        .frame(width: 96, height: thumbnail == nil ? 64 : 88)
-        .padding(4)
-        .background(RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface))
-        .overlay(RoundedRectangle(cornerRadius: XFRadius.control)
-            .stroke(XFColor.stroke, lineWidth: XFStroke.hairline))
-        .opacity(locked ? 0.4 : 1)
+        .frame(height: thumbnail == nil ? 60 : 92)
+        .padding(XFSpacing.xs)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+            .fill(mastered ? XFColor.accent.opacity(0.08) : XFColor.surface))
+        .overlay(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+            .stroke(borderColor, lineWidth: XFStroke.hairline))
+        .opacity(locked ? 0.5 : 1)
+        .contentShape(Rectangle())
     }
 
     private var locked: Bool { cell.state == .locked }
-    private var badge: String {
+    private var mastered: Bool { cell.state == .mastered }
+
+    private var borderColor: Color {
         switch cell.state {
-        case .locked:              return "🔒"
-        case .available:           return "·"
-        case .practiced(let s):    return String(repeating: "★", count: s)
-        case .mastered:            return "★★★"
+        case .locked:              return XFColor.stroke
+        case .available:           return XFColor.textMuted.opacity(0.4)
+        case .practiced:           return XFColor.accent.opacity(0.5)
+        case .mastered:            return XFColor.accent
+        }
+    }
+
+    @ViewBuilder private var badge: some View {
+        switch cell.state {
+        case .locked:
+            Image(systemName: "lock.fill").font(.system(size: 9)).foregroundColor(XFColor.textMuted)
+        case .available:
+            Text("nuevo").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+        case .practiced(let s):
+            Text(String(repeating: "★", count: s) + String(repeating: "☆", count: max(0, 3 - s)))
+                .font(XFFont.mono(10)).foregroundColor(XFColor.accent)
+        case .mastered:
+            Text("★★★").font(XFFont.mono(10)).foregroundColor(XFColor.accent)
         }
     }
 }
