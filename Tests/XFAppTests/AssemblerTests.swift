@@ -87,21 +87,14 @@ final class AssemblerTests: XCTestCase {
         XCTAssertEqual(b.entries.first { $0.scratchId == "crab" }?.isUnlocked, false)
     }
 
-    // MARK: - Variantes
+    // MARK: - Variantes (DESACTIVADAS de momento: solo `base`)
 
-    func testVariantesConSuCondicion() throws {
+    func testSoloEstaLaVarianteBase() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
-
-        var opts = try VariantAssembler.options(catalog: c, exerciseId: "ex-l1-baby", db: db)
-        let off50 = try XCTUnwrap(opts.first { $0.variantId == "off50" })
-        XCTAssertEqual(off50.lock, .locked(condition: "★★ en Base"))
-
-        // 2 estrellas en la base -> off50 se desbloquea
-        try setStars(db, exercise: "ex-l1-baby", variant: "base", stars: 2)
-        opts = try VariantAssembler.options(catalog: c, exerciseId: "ex-l1-baby", db: db)
-        XCTAssertTrue(try XCTUnwrap(opts.first { $0.variantId == "off50" }).isUnlocked)
-        XCTAssertTrue(try XCTUnwrap(opts.first { $0.variantId == "base" }).isUnlocked)
+        let opts = try VariantAssembler.options(catalog: c, exerciseId: "ex-l1-baby", db: db)
+        XCTAssertEqual(opts.map(\.variantId), ["base"])
+        XCTAssertTrue(opts[0].isUnlocked)
     }
 
     // MARK: - Mi mesa
@@ -139,36 +132,24 @@ final class AssemblerTests: XCTestCase {
 
     // MARK: - AttemptRecorder
 
-    func testGrabarUnaTomaAsientaProgresoDominadoYDesbloqueos() throws {
+    func testGrabarUnaTomaAsientaElProgreso() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
+        let a = Attempt(id: UUID().uuidString, exerciseId: "ex-l4-flare-2c", variantId: "base",
+                        mode: .ghost, bpm: 80, startedAt: Date(), durationMs: 12_000,
+                        score: 3400, maxScore: 3600, accuracy: 0.94, stars: 3)
 
-        func take(_ variant: String, stars: Int, bpm: Double = 80) -> Attempt {
-            Attempt(id: UUID().uuidString, exerciseId: "ex-l4-flare-2c", variantId: variant,
-                    mode: .ghost, bpm: bpm, startedAt: Date(), durationMs: 12_000,
-                    score: 3400, maxScore: 3600, accuracy: 0.94, stars: stars)
-        }
-
-        // 3★ en base -> se desbloquean mirror y div16 (3★ en base)
-        let unlocked = try AttemptRecorder.record(take("base", stars: 3), db: db, catalog: c)
-        XCTAssertTrue(Set(unlocked).isSuperset(of: ["off25", "off50", "amp50", "amp150", "mirror", "div16"]))
+        // sin variantes activas: no desbloquea nada, pero asienta el progreso
+        let unlocked = try AttemptRecorder.record(a, db: db, catalog: c)
+        XCTAssertTrue(unlocked.isEmpty)
         XCTAssertEqual(try db.progress(exerciseId: "ex-l4-flare-2c", variantId: "base")?.stars, 3)
-
-        // 2★ en tres variantes -> dominado -> entra en repaso
-        for v in ["off25", "off50", "amp50"] {
-            _ = try AttemptRecorder.record(take(v, stars: 2), db: db, catalog: c)
-        }
-        XCTAssertTrue(try db.isMastered(exerciseId: "ex-l4-flare-2c"))
-        XCTAssertNotNil(try db.reviewItem(exerciseId: "ex-l4-flare-2c", variantId: "base"))
     }
 
     // MARK: - Ventana de detalle del truco
 
-    func testDetalleDeUnTrucoTraeDibujoDescripcionVariantesYMarca() throws {
+    func testDetalleDeUnTrucoTraeDibujoDescripcionEHistoria() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
-        // una marca en la base del flare 2C
-        try setStars(db, exercise: "ex-l4-flare-2c", variant: "base", stars: 2)
 
         let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
             catalog: c, db: db, scratchId: "flare-2c"))
@@ -179,21 +160,13 @@ final class AssemblerTests: XCTestCase {
         XCTAssertNotNil(d.thumbnail)
         XCTAssertFalse(d.description.isEmpty)
         XCTAssertNotNil(d.history, "el flare tiene nota de historia")
-
-        // la base va primero, desbloqueada, con 2 estrellas y su mejor marca
-        let base = try XCTUnwrap(d.variants.first { $0.option.variantId == "base" })
-        XCTAssertTrue(base.option.isUnlocked)
-        XCTAssertEqual(base.stars, 2)
-        XCTAssertNotEqual(base.bestScore, "—")
-
-        // una variante que pide estrellas sigue bloqueada
-        XCTAssertTrue(d.variants.contains { if case .locked = $0.option.lock { return true }; return false })
+        // variantes desactivadas de momento
+        XCTAssertTrue(d.variants.isEmpty)
     }
 
-    func testLaFichaDeUnaFamiliaTraeLosMiembrosConSusVariantes() throws {
+    func testLaFichaDeUnaFamiliaTraeLosMiembros() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
-        try setStars(db, exercise: "ex-l4-flare-2c", variant: "base", stars: 2)
 
         let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
             catalog: c, db: db, scratchId: "flare"))
@@ -201,14 +174,14 @@ final class AssemblerTests: XCTestCase {
         XCTAssertEqual(d.name, "Flare")
         XCTAssertNil(d.exerciseId, "en una familia se practica por miembro")
         XCTAssertTrue(d.variants.isEmpty)
+        XCTAssertFalse(d.description.isEmpty)
         XCTAssertEqual(d.members.map(\.scratchId),
                        ["flare-1c", "flare-2c", "flare-3c", "orbit-1c", "orbit-2c"])
 
         let m2c = try XCTUnwrap(d.members.first { $0.scratchId == "flare-2c" })
         XCTAssertEqual(m2c.exerciseId, "ex-l4-flare-2c")
         XCTAssertNotNil(m2c.thumbnail)
-        XCTAssertFalse(m2c.variants.isEmpty)
-        XCTAssertEqual(m2c.variants.first { $0.option.variantId == "base" }?.stars, 2)
+        XCTAssertTrue(m2c.variants.isEmpty)
     }
 
     func testLosFlaresColapsanAUnaCeldaDeFamiliaEnElHome() throws {
@@ -227,7 +200,7 @@ final class AssemblerTests: XCTestCase {
         XCTAssertNotNil(s.thumbnails["flare"])
     }
 
-    func testAllUnlockedAbreNivelesYVariantes() throws {
+    func testAllUnlockedAbreNivelesYLaLibreria() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
 
@@ -238,16 +211,8 @@ final class AssemblerTests: XCTestCase {
         // libreria: hasta el crab (nivel alto) sale desbloqueado
         let b = try LibraryAssembler.browser(catalog: c, db: db, allUnlocked: true)
         XCTAssertEqual(b.entries.first { $0.scratchId == "crab" }?.isUnlocked, true)
-
-        // variantes: todas abiertas
-        let opts = try VariantAssembler.options(
-            catalog: c, exerciseId: "ex-l1-baby", db: db, allUnlocked: true)
-        XCTAssertTrue(opts.allSatisfy { $0.isUnlocked })
-
-        // ficha: idem
-        let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
-            catalog: c, db: db, scratchId: "flare-2c", allUnlocked: true))
-        XCTAssertTrue(d.variants.allSatisfy { $0.option.isUnlocked })
+        // y la familia Flare
+        XCTAssertEqual(b.entries.first { $0.scratchId == "flare" }?.isUnlocked, true)
     }
 
     func testDetalleDeUnScratchInexistenteEsNil() throws {

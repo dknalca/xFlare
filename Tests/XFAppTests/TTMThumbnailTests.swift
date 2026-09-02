@@ -4,22 +4,21 @@ import XCTest
 import XFNotation
 import XFPersistence
 
-/// Miniatura TTM de la celda: curva del disco partida donde el fader cierra
-/// (ausencia = mute) + un círculo por transición de fader.
+/// Miniatura del esquema simple TTM: UNA curva continua + un círculo ● en cada
+/// corte (el fader cierra). Sin círculo al abrir, sin huecos.
 final class TTMThumbnailTests: XCTestCase {
 
     private func library() throws -> ScratchLibrary {
         try CatalogLoader.load(from: RepoContentLoader()).library
     }
 
-    func testBabyEsUnSoloTramoSinCortes() throws {
+    func testBabyEsUnaCurvaContinuaSinCortes() throws {
         // el baby no toca el fader: una curva continua, sin círculos
         let baby = try XCTUnwrap(try library().scratch(id: "baby"))
         let thumb = TTMThumbnail.build(scratch: baby)
 
-        XCTAssertEqual(thumb.segments.count, 1)
-        XCTAssertTrue(thumb.openMarks.isEmpty && thumb.closeMarks.isEmpty)
-        let pts = thumb.segments[0]
+        XCTAssertTrue(thumb.cuts.isEmpty, "el baby no corta")
+        let pts = thumb.curve
         XCTAssertGreaterThan(pts.count, 8)
         XCTAssertEqual(Double(try XCTUnwrap(pts.first?.x)), 0, accuracy: 1e-9)
         XCTAssertEqual(Double(try XCTUnwrap(pts.last?.x)), 1, accuracy: 0.05)
@@ -32,38 +31,35 @@ final class TTMThumbnailTests: XCTestCase {
         XCTAssertGreaterThan(pts.map(\.y).max() ?? 0, 0.97)
     }
 
-    func testFlareSePARTEEnTramosYTieneCirculos() throws {
-        // el flare cierra el fader varias veces: varios tramos + un círculo por corte
+    func testElFlareEsUnaCurvaContinuaConCortes() throws {
+        // el flare cierra el fader: la curva NO se parte, y hay un ● por corte
         let flare = try XCTUnwrap(try library().scratch(id: "flare-1c"))
         let thumb = TTMThumbnail.build(scratch: flare)
 
-        XCTAssertGreaterThan(thumb.segments.count, 1, "la curva se corta en los mutes")
-        XCTAssertFalse(thumb.openMarks.isEmpty && thumb.closeMarks.isEmpty)
-        // hueco entre tramos: el último x de un tramo < primer x del siguiente
-        for (a, b) in zip(thumb.segments, thumb.segments.dropFirst()) {
-            XCTAssertLessThan(a.last!.x, b.first!.x)
+        XCTAssertFalse(thumb.cuts.isEmpty, "el flare corta al menos una vez")
+        // la curva es una sola polilínea continua (x monótona creciente)
+        for (a, b) in zip(thumb.curve, thumb.curve.dropFirst()) {
+            XCTAssertLessThanOrEqual(a.x, b.x + 1e-9)
         }
-        for c in thumb.openMarks + thumb.closeMarks {
+        for c in thumb.cuts {
             XCTAssert((0...1).contains(c.x) && (0...1).contains(c.y))
         }
+    }
+
+    func testElChirpTieneUnCorte() throws {
+        // chirp: arranca con el fader cerrado (eso ya es un corte) y abre al
+        // volver. La miniatura marca el corte, no la apertura.
+        let chirp = try XCTUnwrap(try library().scratch(id: "chirp"))
+        let t = TTMThumbnail.build(scratch: chirp)
+        XCTAssertFalse(t.cuts.isEmpty, "el chirp corta")
+        XCTAssertFalse(t.curve.isEmpty)
     }
 
     func testSeConstruyeParaTodaLaLibreria() throws {
         for s in try library().scratches {
             let thumb = TTMThumbnail.build(scratch: s)
-            XCTAssertFalse(thumb.segments.isEmpty)
+            XCTAssertGreaterThan(thumb.curve.count, 2, "\(s.id) sin curva")
         }
-    }
-
-    func testElChirpDistingueAperturasDeCierres() throws {
-        // chirp: abre al arrancar (○, empieza el sonido) y cierra al frenar (●),
-        // en cada trazo. La miniatura los guarda por separado.
-        let chirp = try XCTUnwrap(try library().scratch(id: "chirp"))
-        let t = TTMThumbnail.build(scratch: chirp)
-        XCTAssertFalse(t.openMarks.isEmpty, "el chirp abre el fader")
-        XCTAssertFalse(t.closeMarks.isEmpty, "y lo cierra")
-        // aproximadamente una apertura por cada cierre
-        XCTAssertEqual(t.openMarks.count, t.closeMarks.count, accuracy: 1)
     }
 
     func testHomeAssemblerPoneMiniaturaEnTodosLosEjerciciosDelCurriculo() throws {

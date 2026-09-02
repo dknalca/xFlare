@@ -3,10 +3,9 @@
 import SwiftUI
 import XFDesign
 
-/// Dibuja una `TTMThumbnail` escalada al tamaño disponible: los tramos de la
-/// curva del disco (hueco donde el fader está cerrado), un círculo **hueco** ○
-/// donde el fader abre (empieza el sonido) y uno **relleno** ● donde cierra
-/// (el corte), más un tick corto en cada phantom click.
+/// Dibuja una `TTMThumbnail` escalada al tamaño disponible: la curva del disco
+/// como **una línea continua** y un **círculo relleno ●** en cada corte (el
+/// fader se cierra). Sin círculo al abrir, sin huecos: es el esquema simple TTM.
 struct TTMThumbnailView: View {
 
     let thumbnail: TTMThumbnail
@@ -17,50 +16,27 @@ struct TTMThumbnailView: View {
             let h = geo.size.height
 
             ZStack {
-                // tramos de curva (y invertida: 1 = arriba)
+                // curva del disco (y invertida: 1 = arriba), continua
                 Path { path in
-                    for seg in thumbnail.segments where seg.count >= 2 {
-                        path.move(to: CGPoint(x: seg[0].x * w, y: (1 - seg[0].y) * h))
-                        for c in seg.dropFirst() {
-                            path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
-                        }
+                    let pts = thumbnail.curve
+                    guard pts.count >= 2 else { return }
+                    path.move(to: CGPoint(x: pts[0].x * w, y: (1 - pts[0].y) * h))
+                    for c in pts.dropFirst() {
+                        path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
                     }
                 }
                 .stroke(XFColor.textMuted,
                         style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
 
-                // fader ABRE: círculo hueco ○ (empieza a sonar)
+                // corte: círculo relleno ● (el fader cierra; se supone corto)
                 Path { path in
-                    let r: CGFloat = 2.4
-                    for c in thumbnail.openMarks {
-                        let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
-                        path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
-                    }
-                }
-                .stroke(XFColor.accent, lineWidth: 1.1)
-
-                // fader CIERRA: círculo relleno ● (el corte / click)
-                Path { path in
-                    let r: CGFloat = 2.4
-                    for c in thumbnail.closeMarks {
+                    let r: CGFloat = 2.6
+                    for c in thumbnail.cuts {
                         let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
                         path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
                     }
                 }
                 .fill(XFColor.accent)
-
-                // phantom clicks: tick vertical corto sobre la curva (el disco
-                // se para al cambiar de sentido). Más discreto que un círculo.
-                Path { path in
-                    let half: CGFloat = 3
-                    for c in thumbnail.phantomCuts {
-                        let x = c.x * w
-                        let y = (1 - c.y) * h
-                        path.move(to: CGPoint(x: x, y: y - half))
-                        path.addLine(to: CGPoint(x: x, y: y + half))
-                    }
-                }
-                .stroke(XFColor.textMuted, lineWidth: 1)
             }
         }
         .accessibilityHidden(true)   // decorativo; el nombre ya nombra el truco

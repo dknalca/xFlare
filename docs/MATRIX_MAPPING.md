@@ -118,12 +118,15 @@ primitivas de fader, y solo usa nombres que son de verdad comunes en la comunida
       fader abierto, y deja claro que el vocabulario canonico es de ~10 moves.
 - [ ] Los terminos STC/HC/OC/DC/Tazer/Squat/Phasor **no salen en el manual** — son
       del poster. Si algun dia se quieren, verificar con la comunidad, no adivinar.
-- [x] Convenio de marcadores en la miniatura (`TTMThumbnail`): fader **abre** =
-      circulo **hueco** ○ (empieza el sonido); fader **cierra** = circulo
-      **relleno** ● (el corte / click). Guardados por separado
-      (`openMarks`/`closeMarks`). Falta contrastar con el poster a alta resolucion.
-- [x] Phantom click en la sombra/miniatura: tick corto en el cambio de sentido
-      con fader abierto (ADR-044).
+- [x] Convenio de marcadores en la miniatura (`TTMThumbnail`), **revisado
+      2026-09-02** conforme al esquema simple del manual: la curva del disco se
+      dibuja **continua** (NO se parte por el fader como en la autopista) y solo
+      se marca el **corte** con un **circulo relleno ●** donde el fader cierra
+      (el corte se supone corto). **No** se dibuja circulo al abrir. Un baby (no
+      toca el fader) no tiene ninguno. `TTMThumbnail` pasa a `{ curve, cuts }`.
+- [x] La sombra de la autopista (`HighwayScene`, sellado) SI mantiene el hueco de
+      mute + ○/● + phantom click (ADR-040/044): ahi se ve el silencio. Es la
+      miniatura la que simplifica.
 - [ ] Decidir si merece la pena contactar a TTM Academy para una colaboracion o
       licencia oficial. Seria un diferenciador enorme y evita cualquier zona gris.
 - [ ] Ampliar `fader_patterns.json` con las familias de confianza Media/Baja una vez

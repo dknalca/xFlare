@@ -14,7 +14,7 @@ final class CatalogLoaderTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(c.library.scratches.count, 25)
         XCTAssertEqual(c.levels.map(\.id), ["L1", "L2", "L3", "L4", "L5", "L6"])
         XCTAssertEqual(c.exercises.count, 21)   // 25 - 4 (baby-16, lo/hi-flare, flare-2c-16)
-        XCTAssertEqual(c.variants.count, 13)   // 10 + escalera de subdivision (ADR-043)
+        XCTAssertEqual(c.variants.map(\.id), ["base"])   // variantes desactivadas de momento
     }
 
     func testCargaLasFamilias() throws {
@@ -55,15 +55,12 @@ final class CatalogLoaderTests: XCTestCase {
         }
     }
 
-    func testLaBaseNoTieneCondicionYLasDemasSi() throws {
+    func testLaBaseNoTieneCondicion() throws {
         let c = try catalog()
         let base = try XCTUnwrap(c.variant(id: "base"))
         XCTAssertTrue(base.isBase)
         XCTAssertNil(base.requirement)
-
-        let off50 = try XCTUnwrap(c.variant(id: "off50"))
-        XCTAssertEqual(off50.requirement, .init(variant: "base", stars: 2))
-        XCTAssertEqual(off50.difficulty, 1.25, accuracy: 1e-9)
+        XCTAssertEqual(base.difficulty, 1.0, accuracy: 1e-9)
     }
 
     func testLookups() throws {

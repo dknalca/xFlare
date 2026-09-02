@@ -199,9 +199,10 @@ public enum ExerciseDetailAssembler {
         // Nivel del CURRÍCULO (donde se practica), no el del scratch.
         let level: Int? = ex.flatMap { Int($0.level.drop(while: { !$0.isNumber })) }
 
-        let rows = try ex.map {
-            try variantRows(catalog: catalog, db: db, exerciseId: $0.id, allUnlocked: allUnlocked)
-        } ?? []
+        // Variantes DESACTIVADAS de momento (feedback 2026-09-02): la ficha solo
+        // ofrece "Practicar" (base). `variantRows` sigue por si se reactivan.
+        let rows: [ExerciseDetailDisplay.VariantRow] = []
+        _ = allUnlocked
 
         return ExerciseDetailDisplay(
             scratchId: scratch.id,
@@ -217,40 +218,22 @@ public enum ExerciseDetailAssembler {
     }
 
     /// Ficha de una familia: blurb + historia de la familia y un bloque por
-    /// miembro (dibujo + variantes + su ejercicio para "Practicar").
+    /// miembro (dibujo + su ejercicio para "Practicar"). Sin variantes de momento.
     private static func familyDisplay(_ fam: FamilyInfo, catalog: Catalog, db: XFDatabase,
                                       allUnlocked: Bool) throws -> ExerciseDetailDisplay {
-        var members: [ExerciseDetailDisplay.MemberBlock] = []
-        for scratchId in fam.members {
-            guard let s = catalog.library.scratch(id: scratchId) else { continue }
+        _ = (db, allUnlocked)
+        let members: [ExerciseDetailDisplay.MemberBlock] = fam.members.compactMap { scratchId in
+            guard let s = catalog.library.scratch(id: scratchId) else { return nil }
             let ex = catalog.exercise(forScratch: scratchId)
-            let rows = try ex.map {
-                try variantRows(catalog: catalog, db: db, exerciseId: $0.id, allUnlocked: allUnlocked)
-            } ?? []
-            members.append(.init(
-                scratchId: s.id, name: s.name,
-                thumbnail: TTMThumbnail.build(scratch: s),
-                exerciseId: ex?.id, variants: rows))
+            return .init(scratchId: s.id, name: s.name,
+                         thumbnail: TTMThumbnail.build(scratch: s),
+                         exerciseId: ex?.id, variants: [])
         }
         return ExerciseDetailDisplay(
             scratchId: fam.id, name: fam.name, family: fam.name,
             level: Int(fam.level.drop(while: { !$0.isNumber })),
             technique: "", description: fam.blurb, history: fam.history,
             thumbnail: nil, exerciseId: nil, variants: [], members: members)
-    }
-
-    private static func variantRows(catalog: Catalog, db: XFDatabase, exerciseId: String,
-                                    allUnlocked: Bool) throws -> [ExerciseDetailDisplay.VariantRow] {
-        let options = try VariantAssembler.options(
-            catalog: catalog, exerciseId: exerciseId, db: db, allUnlocked: allUnlocked)
-        return try options.map { opt in
-            let p = try db.progress(exerciseId: exerciseId, variantId: opt.variantId)
-            return .init(
-                option: opt,
-                stars: p?.stars ?? 0,
-                bestScore: p?.bestScore.map(ExerciseProgressDisplay.grouped) ?? "—",
-                attempts: p?.attempts ?? 0)
-        }
     }
 }
 

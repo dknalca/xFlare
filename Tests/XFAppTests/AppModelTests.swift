@@ -35,10 +35,11 @@ final class AppModelTests: XCTestCase {
         let m = try model()
         m.selectScratch("baby")
         XCTAssertEqual(m.screen, .exerciseDetail(scratchId: "baby"))
-        // la ficha trae dibujo + descripción + variantes
+        // la ficha trae dibujo + descripción
         let d = try XCTUnwrap(m.exerciseDetail(scratchId: "baby"))
         XCTAssertEqual(d.exerciseId, "ex-l1-baby")
-        XCTAssertFalse(d.variants.isEmpty)
+        XCTAssertFalse(d.description.isEmpty)
+        XCTAssertNotNil(d.thumbnail)
         // y desde ahí se lanza la práctica
         m.startPractice(exerciseId: "ex-l1-baby")
         XCTAssertEqual(m.screen, .practice(exerciseId: "ex-l1-baby", variantId: "base"))
@@ -65,37 +66,16 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.screen, .home)
     }
 
-    // MARK: - variantes cableadas al patron que se practica (ADR-043)
+    // MARK: - patron a practicar
+    // (Variantes DESACTIVADAS de momento: solo `base`. La maquinaria de
+    //  transformacion -subdivision, mirror, offset...- sigue en `AppModel.scratch`
+    //  y volvera con datos en `variants.json` cuando se reactiven.)
 
     func testLaVarianteBaseDevuelveElPatronTalCual() throws {
         let m = try model()
         let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
         XCTAssertEqual(base.div, "1/8")
         XCTAssertEqual(base.id, "baby")
-    }
-
-    func testLaEscaleraDeSubdivisionRecomponeElPatron() throws {
-        let m = try model()
-        // sub-1-2: un ciclo por compas (blancas). Conserva la longitud musical.
-        let slow = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "sub-1-2"))
-        let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
-        XCTAssertEqual(slow.div, "1/2")
-        XCTAssertLessThan(slow.cycles, base.cycles, "menos ciclos por compas")
-        XCTAssertEqual(slow.lengthTicks, base.lengthTicks, "misma longitud musical")
-
-        // sub-1-8: cuatro por compas (corcheas) = como la base del baby
-        let fast = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "sub-1-8"))
-        XCTAssertEqual(fast.div, "1/8")
-        XCTAssertEqual(fast.lengthTicks, base.lengthTicks)
-    }
-
-    func testMirrorInvierteElGesto() throws {
-        let m = try model()
-        let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
-        let mir  = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "mirror"))
-        // el primer tramo del baby va hacia delante; espejado, va hacia atras
-        XCTAssertEqual(base.record.first?.dir, .fwd)
-        XCTAssertEqual(mir.record.first?.dir, .rev)
     }
 
     func testUnaVarianteDesconocidaCaeALaBase() throws {
@@ -148,12 +128,10 @@ final class AppModelTests: XCTestCase {
 
     func testVariantOptions() throws {
         let m = try model()
-        // por defecto `allUnlocked` -> todo abierto
+        // variantes DESACTIVADAS de momento: solo `base`, desbloqueada
         let opts = m.variantOptions(exerciseId: "ex-l1-baby")
-        XCTAssertEqual(opts.count, 13)   // + escalera de subdivision (ADR-043)
+        XCTAssertEqual(opts.map(\.variantId), ["base"])
         XCTAssertTrue(opts.allSatisfy { $0.isUnlocked })
-        // (la puerta de progresion se prueba en AssemblerTests sin tocar
-        //  `settings`, que persiste en el plist compartido con la app real)
     }
 
     func testFailedDaUnModeloEnError() {
