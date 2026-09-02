@@ -45,23 +45,41 @@ public struct LibraryView: View {
     }
 
     @ViewBuilder private func row(_ e: LibraryEntry) -> some View {
-        // pinchar la fila abre la ficha del truco (dibujo + historia + variantes)
-        Button { onSelect(e.scratchId) } label: {
+        LibraryRow(entry: e, onSelect: onSelect)
+    }
+}
+
+/// Una fila de la librería, con realce al pasar el ratón.
+private struct LibraryRow: View {
+    let entry: LibraryEntry
+    let onSelect: (String) -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        Button { onSelect(entry.scratchId) } label: {
             HStack {
-                Text(e.name).font(XFFont.bodyMedium(13))
-                Text(e.family).font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                Text(entry.name).font(XFFont.bodyMedium(13))
+                Text(entry.family).font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                // una familia (Flare, Transformer) no tiene "clicks": es una carpeta
-                Text(e.technique == "familia" ? "familia" : "\(e.clickCount) clicks")
+                Text(entry.technique == "familia" ? "familia" : "\(entry.clickCount) clicks")
                     .font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
-                if !e.isUnlocked { Image(systemName: "lock.fill").foregroundColor(XFColor.textMuted) }
+                if !entry.isUnlocked {
+                    Image(systemName: "lock.fill").foregroundColor(XFColor.textMuted)
+                }
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9)).foregroundColor(XFColor.textMuted)
+                    .font(.system(size: 9))
+                    .foregroundColor(hovering && entry.isUnlocked ? XFColor.accent : XFColor.textMuted)
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 7).padding(.horizontal, XFSpacing.sm)
+            .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                .fill(hovering && entry.isUnlocked ? XFColor.surface : .clear))
+            .overlay(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                .stroke(hovering && entry.isUnlocked ? XFColor.accent.opacity(0.6) : .clear, lineWidth: 1))
             .contentShape(Rectangle())
-            .opacity(e.isUnlocked ? 1 : 0.5)
+            .opacity(entry.isUnlocked ? 1 : 0.5)
         }
         .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
     }
 }

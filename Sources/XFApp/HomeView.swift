@@ -122,6 +122,9 @@ struct MatrixCellView: View {
     /// Gráfico TTM debajo del nombre; solo en algunas celdas.
     var thumbnail: TTMThumbnail? = nil
 
+    @State private var hovering = false
+    private var hot: Bool { hovering && !locked }
+
     var body: some View {
         VStack(spacing: 4) {
             HStack(spacing: 4) {
@@ -148,11 +151,16 @@ struct MatrixCellView: View {
         .padding(XFSpacing.xs)
         .frame(maxWidth: .infinity)
         .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
-            .fill(mastered ? XFColor.accent.opacity(0.08) : XFColor.surface))
+            .fill(hot ? XFColor.surfaceRaised
+                  : mastered ? XFColor.accent.opacity(0.08) : XFColor.surface))
         .overlay(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
-            .stroke(borderColor, lineWidth: XFStroke.hairline))
+            .stroke(hot ? XFColor.accent : borderColor, lineWidth: hot ? 1.5 : XFStroke.hairline))
+        .shadow(color: XFColor.accent.opacity(hot ? 0.25 : 0), radius: 6)
         .opacity(locked ? 0.5 : 1)
+        .scaleEffect(hot ? 1.025 : 1)
         .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
     }
 
     private var locked: Bool { cell.state == .locked }

@@ -10,12 +10,23 @@ import XFNotation
 public struct AppRootView: View {
 
     @ObservedObject private var model: AppModel
+    @State private var showSplash = true
 
     public init(model: AppModel) {
         self.model = model
     }
 
     public var body: some View {
+        ZStack {
+            appContent
+            if showSplash {
+                SplashView(onDone: { withAnimation(.easeOut(duration: 0.2)) { showSplash = false } })
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    private var appContent: some View {
         VStack(spacing: 0) {
             navBar
             Divider().background(XFColor.stroke)
