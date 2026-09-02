@@ -2,6 +2,7 @@
 
 import SwiftUI
 import AppKit
+import simd
 import XFRender
 
 /// Tira **superior** con la forma de onda de la instrumental (en bucle) y la
@@ -18,8 +19,8 @@ import XFRender
 /// acotada aquí; es preferible a re-sellar XFRender por esto.
 struct InstrumentalStripView: NSViewRepresentable {
 
-    /// Envolvente de amplitud del bucle entero (0…1), como la de `WaveformStripView`.
-    let envelope: [Float]
+    /// Onda del bucle entero: amplitud 0…1 + color por frecuencia.
+    let wave: WaveformColored.Data
     /// Duración musical del bucle, en ticks (se redondea a compás al calcularla).
     let loopTicks: Double
     /// Geometría de la autopista (nominal). La misma instancia que `HighwayView`.
@@ -41,7 +42,7 @@ struct InstrumentalStripView: NSViewRepresentable {
     func updateNSView(_ nsView: StripView, context: Context) { apply(to: nsView) }
 
     private func apply(to v: StripView) {
-        v.envelope = envelope
+        v.wave = wave
         v.loopTicks = max(1, loopTicks)
         v.geometry = geometry
         v.ppq = max(1, ppq)
@@ -55,7 +56,7 @@ struct InstrumentalStripView: NSViewRepresentable {
 
     final class StripView: NSView {
 
-        var envelope: [Float] = []
+        var wave = WaveformColored.Data(levels: [], colors: [])
         var loopTicks: Double = 1
         var geometry = HighwayGeometry(size: CGSize(width: 1000, height: 100))
         var ppq: Int = 480
@@ -66,7 +67,6 @@ struct InstrumentalStripView: NSViewRepresentable {
 
         // paleta (docs/UI_DESIGN.md §2)
         private let bg = NSColor(srgbRed: 0x11/255, green: 0x14/255, blue: 0x18/255, alpha: 1)
-        private let wave = NSColor(srgbRed: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.75)
         private let beatLine = NSColor(srgbRed: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1)
         private let barLine = NSColor(srgbRed: 0x5A/255, green: 0x66/255, blue: 0x74/255, alpha: 1)
         private let playhead = NSColor(srgbRed: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 0.5)
@@ -104,25 +104,35 @@ struct InstrumentalStripView: NSViewRepresentable {
             let tMin = now + Double((0 - playheadX) / pxPerTick)
             let tMax = now + Double((w - playheadX) / pxPerTick)
 
-            // --- onda de la instrumental: cada columna de pixel -> tick -> fraccion del bucle ---
-            let count = envelope.count
+            // --- onda de la instrumental: cada columna de pixel -> tick ->
+            //     fraccion del bucle, con interpolacion lineal entre tramos
+            //     (asi no se ve cuadriculada) y color por frecuencia ---
+            let count = wave.levels.count
             if count > 1 {
-                wave.setStroke()
-                let path = NSBezierPath()
-                path.lineWidth = 1
                 let half = h / 2
+                let denom = Double(count)
                 var px: CGFloat = 0
                 while px <= w {
                     let t = now + Double((px - playheadX) / pxPerTick)
                     var frac = t.truncatingRemainder(dividingBy: loopTicks) / loopTicks
                     if frac < 0 { frac += 1 }
-                    let idx = min(count - 1, max(0, Int(frac * Double(count))))
-                    let amp = CGFloat(envelope[idx]) * (half - 2)
-                    path.move(to: CGPoint(x: px, y: half - amp))
-                    path.line(to: CGPoint(x: px, y: half + amp))
+                    let fx = frac * denom
+                    let i0 = min(count - 1, max(0, Int(fx)))
+                    let i1 = min(count - 1, i0 + 1)
+                    let f = CGFloat(fx - Double(i0))
+                    let lvl = CGFloat(wave.levels[i0]) * (1 - f) + CGFloat(wave.levels[i1]) * f
+                    let amp = lvl * (half - 2)
+                    let c0 = wave.colors[i0], c1 = wave.colors[i1]
+                    let c = c0 + (c1 - c0) * Float(f)
+                    NSColor(srgbRed: CGFloat(c.x), green: CGFloat(c.y), blue: CGFloat(c.z),
+                            alpha: 0.9).setStroke()
+                    let col = NSBezierPath()
+                    col.lineWidth = 1
+                    col.move(to: CGPoint(x: px, y: half - amp))
+                    col.line(to: CGPoint(x: px, y: half + amp))
+                    col.stroke()
                     px += 1
                 }
-                path.stroke()
             }
 
             // --- rejilla: mismas X y misma clasificacion que HighwayLayout ---

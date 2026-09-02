@@ -211,7 +211,18 @@ public final class PracticeSession: ObservableObject {
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)
 
-    public func tick() -> Double { currentTick }
+    /// Tick "de ahora mismo". Entre dos pasos del timer (que llega con jitter)
+    /// se **extrapola** con el reloj de pared: `currentTick + (tiempo desde el
+    /// ultimo paso) * ritmo`. Asi el scroll es suave (sin los saltos del timer) y
+    /// la autopista y la tira de la instrumental, que llaman aqui las dos, ven
+    /// SIEMPRE el mismo valor -> no se descorrelacionan. Sin timer (tests) se
+    /// devuelve el crudo.
+    public func tick() -> Double {
+        guard timer != nil else { return currentTick }
+        let rate = (Double(bpm) / 60.0) * ppq
+        let extra = (CACurrentMediaTime() - lastFrameTime) * rate
+        return currentTick + min(max(0, extra), 0.05 * rate)
+    }
     public func trace() -> [TracePoint] { traceBuffer }
 
     // MARK: - llamada y respuesta

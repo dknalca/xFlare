@@ -165,20 +165,24 @@ public final class AppModel: ObservableObject {
         home = try? HomeAssembler.summary(
             catalog: catalog, db: db,
             continueExerciseId: continueExerciseId,
-            streakDays: currentStreakDays(), minutesToday: minutesPracticedToday())
+            streakDays: currentStreakDays(), minutesToday: minutesPracticedToday(),
+            allUnlocked: settings.allUnlocked)
     }
 
     public func refreshLibrary() {
-        library = try? LibraryAssembler.browser(catalog: catalog, db: db)
+        library = try? LibraryAssembler.browser(
+            catalog: catalog, db: db, allUnlocked: settings.allUnlocked)
     }
 
     public func variantOptions(exerciseId: String) -> [VariantOption] {
-        (try? VariantAssembler.options(catalog: catalog, exerciseId: exerciseId, db: db)) ?? []
+        (try? VariantAssembler.options(catalog: catalog, exerciseId: exerciseId, db: db,
+                                       allUnlocked: settings.allUnlocked)) ?? []
     }
 
     /// Ficha de detalle de un truco para la pantalla `.exerciseDetail`.
     public func exerciseDetail(scratchId: String) -> ExerciseDetailDisplay? {
-        (try? ExerciseDetailAssembler.display(catalog: catalog, db: db, scratchId: scratchId)) ?? nil
+        (try? ExerciseDetailAssembler.display(catalog: catalog, db: db, scratchId: scratchId,
+                                              allUnlocked: settings.allUnlocked)) ?? nil
     }
 
     public func progressDisplay(exerciseId: String, variantId: String) -> ExerciseProgressDisplay? {

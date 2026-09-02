@@ -18,7 +18,7 @@ public struct LivePracticeView: View {
     @StateObject private var session: PracticeSession
     @State private var waveEnvelope: [Float] = []
     // Onda de la instrumental (tira superior) + longitud musical de su bucle.
-    @State private var instrEnvelope: [Float] = []
+    @State private var instrWave = WaveformColored.Data(levels: [], colors: [])
     @State private var instrLoopTicks: Double = 0
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
@@ -87,7 +87,7 @@ public struct LivePracticeView: View {
                 // misma X en las dos.
                 VStack(spacing: 0) {
                     InstrumentalStripView(
-                        envelope: instrEnvelope,
+                        wave: instrWave,
                         loopTicks: instrLoopTicks,
                         geometry: geometry,
                         ppq: scratch.ppq,
@@ -331,7 +331,9 @@ public struct LivePracticeView: View {
                     loopTicks = bars * Double(beatsPerBar) * Double(ppq)
                 }
             }
-            let instrEnv = instrPCM.map { WaveformEnvelope.build($0) } ?? []
+            let instrW = instrPCM.map {
+                WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 64, 300_000))
+            } ?? WaveformColored.Data(levels: [], colors: [])
             let bpmRounded = Int(instrBPM.rounded())
 
             DispatchQueue.main.async {
@@ -343,7 +345,7 @@ public struct LivePracticeView: View {
                     engine.loadInstrumental(instrPCM, nativeBPM: instrBPM)
                 }
                 waveEnvelope = env
-                instrEnvelope = instrEnv
+                instrWave = instrW
                 instrLoopTicks = loopTicks
                 // el tempo de la sesion pasa a ser el de la cancion, y el reloj
                 // se pone a 0 justo cuando arranca el audio: el "1" del bucle

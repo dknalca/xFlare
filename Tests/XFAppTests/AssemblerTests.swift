@@ -186,6 +186,29 @@ final class AssemblerTests: XCTestCase {
         XCTAssertTrue(d.variants.contains { if case .locked = $0.option.lock { return true }; return false })
     }
 
+    func testAllUnlockedAbreNivelesYVariantes() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+
+        // niveles
+        let open = LevelGate.unlockedLevels(catalog: c, allUnlocked: true) { _ in 0 }
+        XCTAssertEqual(open, Set(c.levels.map(\.id)))
+
+        // libreria: hasta el crab (nivel alto) sale desbloqueado
+        let b = try LibraryAssembler.browser(catalog: c, db: db, allUnlocked: true)
+        XCTAssertEqual(b.entries.first { $0.scratchId == "crab" }?.isUnlocked, true)
+
+        // variantes: todas abiertas
+        let opts = try VariantAssembler.options(
+            catalog: c, exerciseId: "ex-l1-baby", db: db, allUnlocked: true)
+        XCTAssertTrue(opts.allSatisfy { $0.isUnlocked })
+
+        // ficha: idem
+        let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
+            catalog: c, db: db, scratchId: "flare-2c", allUnlocked: true))
+        XCTAssertTrue(d.variants.allSatisfy { $0.option.isUnlocked })
+    }
+
     func testDetalleDeUnScratchInexistenteEsNil() throws {
         let c = try catalog()
         let db = try XFDatabase.inMemory()

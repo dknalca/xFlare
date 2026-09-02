@@ -53,18 +53,18 @@ final class TTMThumbnailTests: XCTestCase {
         }
     }
 
-    func testHomeAssemblerPoneMiniaturaEnTodoElNivel1() throws {
+    func testHomeAssemblerPoneMiniaturaEnTodosLosEjerciciosDelCurriculo() throws {
         let catalog = try CatalogLoader.load(from: RepoContentLoader())
         let db = try XFDatabase.inMemory()
         let summary = try HomeAssembler.summary(catalog: catalog, db: db)
 
-        let firstLevel = try XCTUnwrap(catalog.levels.sorted { $0.id < $1.id }.first)
-        XCTAssertEqual(Set(summary.thumbnails.keys), Set(firstLevel.scratches))
-        XCTAssertFalse(firstLevel.scratches.isEmpty)
-        // y no en niveles posteriores
-        let otherLevelScratch = catalog.levels.first { $0.id != firstLevel.id }?.scratches.first
-        if let other = otherLevelScratch {
-            XCTAssertNil(summary.thumbnails[other])
+        // miniatura para TODO scratch que tenga ejercicio (L1..L6), no solo L1
+        let expected = Set(catalog.exercises.map(\.scratchId))
+        XCTAssertEqual(Set(summary.thumbnails.keys), expected)
+        XCTAssertFalse(expected.isEmpty)
+        // p. ej. un scratch de L2
+        if let l2 = catalog.levels.first(where: { $0.id == "L2" })?.scratches.first {
+            XCTAssertNotNil(summary.thumbnails[l2])
         }
     }
 }

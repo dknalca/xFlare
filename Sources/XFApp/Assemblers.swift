@@ -9,9 +9,11 @@ import XFProfiles
 public enum LevelGate {
 
     /// Un nivel esta abierto si es el primero, o si **todos** los ejercicios del
-    /// nivel anterior tienen al menos 1 estrella en la base.
-    public static func unlockedLevels(catalog: Catalog,
+    /// nivel anterior tienen al menos 1 estrella en la base. `allUnlocked` abre
+    /// todos (provisional, `AppSettings.allUnlocked`).
+    public static func unlockedLevels(catalog: Catalog, allUnlocked: Bool = false,
                                       stars: (String) -> Int) -> Set<String> {
+        if allUnlocked { return Set(catalog.levels.map(\.id)) }
         var open: Set<String> = []
         var previousCleared = true
         for level in catalog.levels {
@@ -23,9 +25,9 @@ public enum LevelGate {
     }
 
     /// Ids de scratch disponibles para practicar (los de un nivel abierto).
-    public static func availableScratchIds(catalog: Catalog,
+    public static func availableScratchIds(catalog: Catalog, allUnlocked: Bool = false,
                                            stars: (String) -> Int) -> Set<String> {
-        let levels = unlockedLevels(catalog: catalog, stars: stars)
+        let levels = unlockedLevels(catalog: catalog, allUnlocked: allUnlocked, stars: stars)
         return Set(catalog.exercises.filter { levels.contains($0.level) }.map(\.scratchId))
     }
 }
@@ -37,14 +39,17 @@ public enum HomeAssembler {
     /// Arma el `HomeSummary` leyendo el estado guardado de cada ejercicio.
     public static func summary(catalog: Catalog, db: XFDatabase,
                                continueExerciseId: String? = nil,
-                               streakDays: Int = 0, minutesToday: Int = 0) throws -> HomeSummary {
+                               streakDays: Int = 0, minutesToday: Int = 0,
+                               allUnlocked: Bool = false) throws -> HomeSummary {
 
         // estrellas de la base por ejercicio (una sola pasada)
         var starsByExercise: [String: Int] = [:]
         for ex in catalog.exercises {
             starsByExercise[ex.id] = try db.progress(exerciseId: ex.id, variantId: "base")?.stars ?? 0
         }
-        let openLevels = LevelGate.unlockedLevels(catalog: catalog) { starsByExercise[$0] ?? 0 }
+        let openLevels = LevelGate.unlockedLevels(catalog: catalog, allUnlocked: allUnlocked) {
+            starsByExercise[$0] ?? 0
+        }
 
         var cells: [MatrixCell] = []
         for ex in catalog.exercises {
@@ -65,13 +70,13 @@ public enum HomeAssembler {
             target = .init(scratchId: ex.scratchId, name: name, bpm: bpm)
         }
 
-        // Miniatura TTM en todos los scratches del primer nivel (L1).
+        // Miniatura TTM en TODOS los scratches del currículo (barato: build es
+        // puro y son ~25). Antes solo L1.
         var thumbnails: [String: TTMThumbnail] = [:]
-        if let firstLevel = catalog.levels.sorted(by: { $0.id < $1.id }).first {
-            for scratchId in firstLevel.scratches {
-                if let s = catalog.library.scratch(id: scratchId) {
-                    thumbnails[scratchId] = TTMThumbnail.build(scratch: s)
-                }
+        for ex in catalog.exercises {
+            if thumbnails[ex.scratchId] == nil,
+               let s = catalog.library.scratch(id: ex.scratchId) {
+                thumbnails[ex.scratchId] = TTMThumbnail.build(scratch: s)
             }
         }
 
@@ -94,12 +99,15 @@ public enum LibraryAssembler {
         "baby-16", "flare-2c-16",
     ]
 
-    public static func browser(catalog: Catalog, db: XFDatabase) throws -> LibraryBrowser {
+    public static func browser(catalog: Catalog, db: XFDatabase,
+                               allUnlocked: Bool = false) throws -> LibraryBrowser {
         var starsByExercise: [String: Int] = [:]
         for ex in catalog.exercises {
             starsByExercise[ex.id] = try db.progress(exerciseId: ex.id, variantId: "base")?.stars ?? 0
         }
-        let available = LevelGate.availableScratchIds(catalog: catalog) { starsByExercise[$0] ?? 0 }
+        let available = LevelGate.availableScratchIds(catalog: catalog, allUnlocked: allUnlocked) {
+            starsByExercise[$0] ?? 0
+        }
 
         // Nivel del CURRICULO (no el del scratch): asi el crab, que en la libreria
         // es nivel 6, sale en el nivel donde de verdad se practica (L4).
@@ -125,8 +133,8 @@ public enum ExerciseDetailAssembler {
     /// Arma la ventana de detalle de `scratchId`: dibujo TTM + descripción +
     /// historia, y la lista de variantes con las estrellas / mejor marca que se
     /// llevan sacadas. `nil` si el scratch no existe en la librería.
-    public static func display(catalog: Catalog, db: XFDatabase,
-                               scratchId: String) throws -> ExerciseDetailDisplay? {
+    public static func display(catalog: Catalog, db: XFDatabase, scratchId: String,
+                               allUnlocked: Bool = false) throws -> ExerciseDetailDisplay? {
         guard let scratch = catalog.library.scratch(id: scratchId) else { return nil }
         let ex = catalog.exercise(forScratch: scratchId)
 
@@ -135,7 +143,8 @@ public enum ExerciseDetailAssembler {
 
         var rows: [ExerciseDetailDisplay.VariantRow] = []
         if let ex {
-            let options = try VariantAssembler.options(catalog: catalog, exerciseId: ex.id, db: db)
+            let options = try VariantAssembler.options(
+                catalog: catalog, exerciseId: ex.id, db: db, allUnlocked: allUnlocked)
             for opt in options {
                 let p = try db.progress(exerciseId: ex.id, variantId: opt.variantId)
                 rows.append(.init(
@@ -166,14 +175,18 @@ public enum VariantAssembler {
 
     /// Opciones de variante de un ejercicio, con la condicion de desbloqueo
     /// escrita, a partir de las estrellas guardadas.
-    public static func options(catalog: Catalog, exerciseId: String,
-                               db: XFDatabase) throws -> [VariantOption] {
+    public static func options(catalog: Catalog, exerciseId: String, db: XFDatabase,
+                               allUnlocked: Bool = false) throws -> [VariantOption] {
         var starsByVariant: [String: Int] = [:]
         for v in catalog.variants {
             starsByVariant[v.id] = try db.progress(exerciseId: exerciseId, variantId: v.id)?.stars ?? 0
         }
         return catalog.variants.map { v in
-            VariantOption.build(
+            if allUnlocked {
+                return VariantOption(variantId: v.id, name: v.name,
+                                     difficulty: v.difficulty, lock: .unlocked)
+            }
+            return VariantOption.build(
                 variantId: v.id, name: v.name, difficulty: v.difficulty,
                 requires: v.requirement.map { ($0.variant, $0.stars) },
                 starsInRequired: v.requirement.map { starsByVariant[$0.variant] ?? 0 } ?? 0,

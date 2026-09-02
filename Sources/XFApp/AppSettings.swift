@@ -22,13 +22,17 @@ public struct AppSettings: Equatable, Sendable {
     public var toleranceScale: Double
     public var highContrast: Bool
     public var reduceMotion: Bool
+    /// Sin puerta de progresión: todos los niveles y variantes abiertos.
+    /// Provisional mientras se prueba; por defecto `true`.
+    public var allUnlocked: Bool
 
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
-        toleranceScale: 1.0, highContrast: false, reduceMotion: false)
+        toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true)
 
     public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
-                toleranceScale: Double, highContrast: Bool, reduceMotion: Bool) {
+                toleranceScale: Double, highContrast: Bool, reduceMotion: Bool,
+                allUnlocked: Bool = true) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -36,6 +40,7 @@ public struct AppSettings: Equatable, Sendable {
         self.toleranceScale = toleranceScale
         self.highContrast = highContrast
         self.reduceMotion = reduceMotion
+        self.allUnlocked = allUnlocked
     }
 
     // MARK: - clave/valor
@@ -48,6 +53,7 @@ public struct AppSettings: Equatable, Sendable {
         static let tolerance = "scoring.toleranceScale"
         static let contrast = "a11y.highContrast"
         static let motion = "a11y.reduceMotion"
+        static let allUnlocked = "progression.allUnlocked"
     }
 
     public init(raw: [String: String]) {
@@ -63,7 +69,8 @@ public struct AppSettings: Equatable, Sendable {
             bufferFrames: int(Key.buffer, d.bufferFrames),
             toleranceScale: max(0.5, min(2.0, dbl(Key.tolerance, d.toleranceScale))),
             highContrast: bool(Key.contrast, d.highContrast),
-            reduceMotion: bool(Key.motion, d.reduceMotion))
+            reduceMotion: bool(Key.motion, d.reduceMotion),
+            allUnlocked: bool(Key.allUnlocked, d.allUnlocked))
     }
 
     public var raw: [String: String] {
@@ -75,6 +82,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.tolerance: String(toleranceScale),
             Key.contrast: highContrast ? "1" : "0",
             Key.motion: reduceMotion ? "1" : "0",
+            Key.allUnlocked: allUnlocked ? "1" : "0",
         ]
     }
 }
