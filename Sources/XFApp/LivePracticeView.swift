@@ -17,6 +17,9 @@ public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
     @State private var waveEnvelope: [Float] = []
+    // Onda de la instrumental (tira superior) + longitud musical de su bucle.
+    @State private var instrEnvelope: [Float] = []
+    @State private var instrLoopTicks: Double = 0
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
@@ -79,11 +82,24 @@ public struct LivePracticeView: View {
         return VStack(spacing: 0) {
             topBar
             HStack(spacing: 0) {
-                ZStack {
-                    HighwayView(scratch: scratch, geometry: geometry,
-                                tick: { s.tick() },
-                                userTrace: { s.trace() })
-                    PlatterInputView(
+                // Columna de la autopista: la onda de la instrumental va ENCIMA,
+                // con la misma anchura, para que la rejilla de compas caiga en la
+                // misma X en las dos.
+                VStack(spacing: 0) {
+                    InstrumentalStripView(
+                        envelope: instrEnvelope,
+                        loopTicks: instrLoopTicks,
+                        geometry: geometry,
+                        ppq: scratch.ppq,
+                        patternLengthTicks: scratch.lengthTicks,
+                        tick: { s.tick() })
+                        .frame(height: 46)
+
+                    ZStack {
+                        HighwayView(scratch: scratch, geometry: geometry,
+                                    tick: { s.tick() },
+                                    userTrace: { s.trace() })
+                        PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
                         onFaderClosed: { closed in
@@ -99,6 +115,7 @@ public struct LivePracticeView: View {
                         },
                         currentBPM: { s.bpm },
                         onExit: onExit)
+                    }
                 }
                 rightPanel
             }
@@ -241,10 +258,19 @@ public struct LivePracticeView: View {
         }
 
         // decodificar los audios fuera del hilo principal (el MP3 tarda)
+        let ppq = scratch.ppq
+        let beatsPerBar = geometry.beatsPerBar
         DispatchQueue.global(qos: .userInitiated).async {
             let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
             let instrPCM   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
             let env = scratchPCM.map { WaveformEnvelope.build($0) } ?? []
+            let instrEnv = instrPCM.map { WaveformEnvelope.build($0) } ?? []
+            // longitud musical del bucle, redondeada a compas
+            let loopTicks: Double = instrPCM.map { pcm in
+                let beats = Double(pcm.count) / sr * (AudioAsset.instrumentalNativeBPM / 60.0)
+                let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
+                return bars * Double(beatsPerBar) * Double(ppq)
+            } ?? Double(beatsPerBar * ppq)
             DispatchQueue.main.async {
                 if let scratchPCM {
                     engine.loadSample(scratchPCM)
@@ -254,6 +280,8 @@ public struct LivePracticeView: View {
                     engine.loadInstrumental(instrPCM, nativeBPM: AudioAsset.instrumentalNativeBPM)
                 }
                 waveEnvelope = env
+                instrEnvelope = instrEnv
+                instrLoopTicks = loopTicks
                 _ = engine.startOutput()
             }
         }
