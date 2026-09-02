@@ -33,20 +33,16 @@ public final class PracticeSession: ObservableObject {
     // --- constantes del patron ---
     private let ppq: Double
     /// Extremos del recorrido del PLATO. `posLo` = posicion 0 del sample (el
-    /// pico bajo del patron). `posHi` depende de `amplitude` (ver abajo).
+    /// pico bajo del patron); `posHi` = final del sample. El PLATO recorre
+    /// SIEMPRE todo el rango, de abajo a arriba: el slider de amplitud solo
+    /// afecta a la ONDA FANTASMA que se dibuja (en `PracticeScene`), no a la
+    /// libertad de movimiento ni al mapeo de audio.
     private let posLo: Double
-    private var posHi: Double
+    private let posHi: Double
     /// Span propio del patron (pico bajo -> pico alto), en unidades de posicion.
     private let patternSpan: Double
     /// Cuanta historia de traza guardamos, en ticks (~8 negras).
     private let historyTicks: Double
-
-    /// **Amplitud** del movimiento (slider de la vista): a que fraccion del
-    /// sample llega el PICO del patron. `2/3` por defecto (el pico cae a 2/3 del
-    /// "Ahh"); `1.0` = el patron recorre el sample entero. El principio del
-    /// movimiento SIEMPRE es el principio del sample (`posLo`); solo cambia
-    /// donde acaba. El sample de la izquierda no se toca.
-    private var amplitude: Double = AudioAsset.scratchPatternTopFraction
 
     // --- estado observable (barra superior) ---
     @Published public private(set) var bpm: Int
@@ -90,13 +86,13 @@ public final class PracticeSession: ObservableObject {
     /// en el final del sample. Se puede llegar a 1.
     public var normalizedPosition: Double {
         let rel = (platterPosition - posLo) / patternSpan   // 1.0 en el pico del patron
-        return min(1, max(0, rel * amplitude))
+        return min(1, max(0, rel * AudioAsset.scratchPatternTopFraction))
     }
 
     /// Derivada exacta de `normalizedPosition`: para que el cabezal del audio y
     /// la traza de la autopista no se separen.
     public var normalizedVelocity: Double {
-        platterVelocity / patternSpan * amplitude
+        platterVelocity / patternSpan * AudioAsset.scratchPatternTopFraction
     }
 
     // --- bucle ---
@@ -130,27 +126,16 @@ public final class PracticeSession: ObservableObject {
         self.crPhaseLenTicks = 2.0 * 4.0 * self.ppq
 
         // El patron (fantasma) va de `range.lowerBound` a `range.upperBound`. El
-        // PLATO puede ir mas alla del pico, hasta el final del sample y un poco
-        // mas (para no toparse con un muro): `posHi` depende de `amplitude`.
+        // PLATO recorre SIEMPRE mas: hasta el final del sample. Con
+        // `patternFill = 2/3` y `posHi` a 1,5 spans, la traza del usuario llega
+        // justo al borde superior de la autopista.
         let range = HighwayLayout(scratch: scratch).positionRange
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
-        //   n(posHi) = 1/amp  ->  y(posHi) = borde superior; normalizedPosition = 1
-        self.posHi = range.lowerBound + patternSpan / amplitude
+        self.posHi = range.lowerBound + patternSpan / AudioAsset.scratchPatternTopFraction
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
-    }
-
-    /// Slider de amplitud de la vista: a que fraccion del sample llega el pico
-    /// del movimiento (`0.3…1.0`; `2/3` por defecto). Recalcula el tope del plato
-    /// y lo reencuadra si se ha quedado fuera. El principio no cambia.
-    public func setAmplitude(_ value: Double) {
-        let a = min(1.0, max(0.3, value))
-        guard a != amplitude else { return }
-        amplitude = a
-        posHi = posLo + patternSpan / amplitude
-        if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
     }
 
     // MARK: - ciclo de vida

@@ -24,6 +24,7 @@ public struct HomeView: View {
     public var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: XFSpacing.xl) {
+                XFWordmark(size: 30)
                 header
                 if let target = summary.continueTarget { continueCard(target) }
                 matrix

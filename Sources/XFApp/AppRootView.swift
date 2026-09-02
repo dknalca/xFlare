@@ -35,6 +35,8 @@ public struct AppRootView: View {
 
     private var navBar: some View {
         HStack(spacing: XFSpacing.md) {
+            XFWordmark(size: 16)
+            Divider().frame(height: 18).background(XFColor.stroke)
             navButton("Home", "square.grid.3x3.fill") { model.goHome() }
             navButton("Librería", "books.vertical") { model.openLibrary() }
             navButton("Mi mesa", "pianokeys") { model.openMyTable() }

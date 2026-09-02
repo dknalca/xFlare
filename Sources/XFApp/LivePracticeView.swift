@@ -92,17 +92,18 @@ public struct LivePracticeView: View {
                 ZStack {
                     PracticeSceneView(
                         scratch: scratch,
-                        // `patternFill` = amplitud del slider: hasta donde llega
-                        // el pico del movimiento (el sample de la izquierda no
-                        // cambia).
-                        geometry: geometryWithAmplitude,
+                        geometry: geometry,
                         tick: { s.tick() },
                         trace: { s.trace() },
                         instrumentalWave: instrWave,
                         instrumentalLoopTicks: instrLoopTicks,
                         sampleWave: sampleWave,
                         // en "tu turno" del call & response el fantasma se atenua
-                        ghostDimmed: s.crPhase == .respond)
+                        ghostDimmed: s.crPhase == .respond,
+                        // el slider "Amplitud" solo escala la onda fantasma; con
+                        // amplitud 2/3 la escala es 1 (pico a 2/3), con 1.0 -> 1.5
+                        // (pico arriba del todo). La traza del usuario no se toca.
+                        ghostScale: CGFloat(1.5 * amplitude))
                     PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
@@ -147,13 +148,6 @@ public struct LivePracticeView: View {
 
     // MARK: - panel derecho: medidor + volumenes (provisional)
 
-    /// La geometría base con el `patternFill` puesto a la amplitud del slider.
-    private var geometryWithAmplitude: HighwayGeometry {
-        var g = geometry
-        g.patternFill = CGFloat(amplitude)
-        return g
-    }
-
     private var rightPanel: some View {
         VStack(spacing: XFSpacing.sm) {
             clipMeter
@@ -169,9 +163,9 @@ public struct LivePracticeView: View {
             // amplitud: hasta donde llega el pico del movimiento respecto al
             // sample (el sample de la izquierda no cambia). 100 % = arriba del
             // todo; por defecto ~67 % (2/3).
-            volSlider("Amplitud", $amplitude, range: 0.3...1.0) { v in
-                session.setAmplitude(v)
-            }
+            // "Amplitud" solo cambia el ALTO de la onda fantasma que hay que
+            // seguir; no toca la libertad de movimiento ni el sample.
+            volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
             bufferControl
             Divider().background(XFColor.stroke)
             callResponsePanel
@@ -299,7 +293,6 @@ public struct LivePracticeView: View {
 
     private func start() {
         session.scrollSensitivity = sensitivity
-        session.setAmplitude(amplitude)
         guard let engine = engine else { session.start(); return }
 
         applyEngineParams()
@@ -398,6 +391,8 @@ public struct LivePracticeView: View {
         HStack(spacing: XFSpacing.lg) {
             Button(action: onExit) { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
+            XFWordmark(size: 14)
+            Divider().frame(height: 16).background(XFColor.stroke)
             Text(exerciseName).font(XFFont.bodyMedium(14))
             if session.frozen {
                 Text("CONGELADO")

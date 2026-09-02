@@ -36,6 +36,11 @@ final class PracticeScene: SKScene {
     var userTrace: () -> [TracePoint] = { [] }
     /// En "tu turno" del call & response el fantasma se atenua: imitas de oido.
     var ghostDimmed = false
+    /// Escala vertical de la ONDA FANTASMA (la que hay que seguir), respecto al
+    /// borde inferior de la banda de la curva. `1` = tal cual (pico a 2/3);
+    /// `1.5` = pico arriba del todo. El slider de "Amplitud" lo mueve. NO afecta
+    /// a la traza del usuario, que siempre puede ir de abajo arriba del todo.
+    var ghostScale: CGFloat = 1
 
     /// Parametros de encuadre de la autopista. `size` lo fija la escena segun el
     /// tamano real de la vista menos el rail y la tira; el resto (pixelsPerBeat,
@@ -96,6 +101,9 @@ final class PracticeScene: SKScene {
     // --- autopista (replica fiel de HighwayScene, modulo sellado; sin rejilla:
     // esa va en `fullGridLayer`) ---
     private let laneLayer = SKNode()
+    /// Contenedor de todo lo FANTASMA (curva + marcas), con `yScale = ghostScale`
+    /// alrededor del borde inferior de la banda. La traza del usuario NO va aqui.
+    private let ghostContainer = SKNode()
     private let curveNode = SKShapeNode()
     private let curveLayer = SKNode()
     private let userLayer = SKNode()
@@ -178,9 +186,13 @@ final class PracticeScene: SKScene {
         stripCrop.maskNode = stripMask
         stripCrop.addChild(stripContainer)
 
-        // sublayers de la autopista, en el mismo orden que HighwayScene
-        for n in [laneLayer, curveNode, curveLayer, userLayer,
-                  marksLayer, phantomLayer, hitLayer] {
+        // sublayers de la autopista. Lo FANTASMA (curva + marcas) va dentro de
+        // `ghostContainer` (se escala con `ghostScale`); la traza del usuario,
+        // fuera (siempre a escala 1, de abajo arriba del todo).
+        for n in [curveNode, curveLayer, marksLayer, phantomLayer, hitLayer] {
+            ghostContainer.addChild(n)
+        }
+        for n in [laneLayer, ghostContainer, userLayer] {
             highwayContainer.addChild(n)
         }
         railContainer.addChild(railAxis)
@@ -273,6 +285,13 @@ final class PracticeScene: SKScene {
 
         if let frame { renderHighway(frame, height: geometry.size.height) }
         highwayContainer.alpha = ghostDimmed ? 0.14 : 1
+
+        // escala vertical de la onda fantasma alrededor del borde inferior de la
+        // banda: `y' = yb + (y - yb)·s`  ->  offset = yb·(1 - s).
+        let yb = geometry.curveBand.bottom
+        let s = max(0.1, ghostScale)
+        ghostContainer.yScale = s
+        ghostContainer.position = CGPoint(x: 0, y: yb * (1 - s))
 
         renderFullGrid(now: now)
         renderStrip(now: now)
