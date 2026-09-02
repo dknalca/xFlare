@@ -20,6 +20,8 @@ struct PracticeSceneView: NSViewRepresentable {
     let instrumentalLoopTicks: Double
     let sampleWave: WaveformColored.Data
     let ghostDimmed: Bool
+    /// `false` en Freestyle: sin onda fantasma que seguir.
+    var showGhost: Bool = true
     /// Escala vertical de la onda fantasma (slider "Amplitud"). Ver `PracticeScene`.
     let patternAmplitude: CGFloat
     /// Desplazamiento manual de la rejilla en ticks (botones ◀/▶).
@@ -56,6 +58,7 @@ struct PracticeSceneView: NSViewRepresentable {
         s.currentTick = tick
         s.userTrace = trace
         s.ghostDimmed = ghostDimmed
+        s.showGhost = showGhost
         s.patternAmplitude = patternAmplitude
         s.gridShift = gridShift
         s.geometry = geometry            // `size` lo sobrescribe la escena

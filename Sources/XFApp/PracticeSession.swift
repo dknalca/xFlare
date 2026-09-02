@@ -62,11 +62,24 @@ public final class PracticeSession: ObservableObject {
     /// `true` mientras se reproduce una linea grabada (importada): el plato lo
     /// mueve el fichero, se ignora el input (como en "repite conmigo").
     @Published public private(set) var playingBack = false
+    /// `true` durante la **claqueta**: 1 compás de metrónomo antes de que la
+    /// grabación empiece de verdad, para poder entrar en el "1".
+    @Published public private(set) var recArming = false
     private var recMotion: [MotionSample] = []
     private var recFader: [FaderSample] = []
     private var recStartHost: UInt64 = 0
     private var recLastClosed: Bool?
-    private var pbMotion: [(t: Double, pos: Double)] = []   // t en segundos desde 0
+    /// Tick musical en el que arrancó la grabación (tras la claqueta). La toma se
+    /// ancla aquí: cada gesto se reproduce en la misma fase del bucle.
+    private var recAnchorTick: Double = 0
+    /// Tick en el que la claqueta termina y empieza a grabar.
+    private var recArmFireTick: Double = 0
+    /// Longitud del bucle de la instrumental cargada, en ticks (la fija la vista).
+    /// La toma se redondea a un múltiplo de esto para que encaje sin deriva.
+    private var instrLoopTicksHint: Double = 0
+    // Playback: `t` y `pbClock`/`pbLen` van en TICKS musicales (antes segundos),
+    // así la línea corre al mismo reloj que la instrumental y no se desfasa.
+    private var pbMotion: [(t: Double, pos: Double)] = []
     private var pbFader: [(t: Double, closed: Bool)] = []
     private var pbLen: Double = 0
     private var pbClock: Double = 0
@@ -210,6 +223,12 @@ public final class PracticeSession: ObservableObject {
         // reloj musical
         currentTick += step * (Double(bpm) / 60.0) * ppq
 
+        // fin de la claqueta -> empieza a grabar en el downbeat
+        if recArming, currentTick >= recArmFireTick {
+            recArming = false
+            beginRecordingNow()
+        }
+
         // llamada y respuesta: alterna escucha <-> tu turno cada `crBars` compases
         if crPhase != .off, currentTick - crPhaseStart >= crPhaseLenTicks {
             crPhase = (crPhase == .listen) ? .respond : .listen
@@ -218,8 +237,10 @@ public final class PracticeSession: ObservableObject {
         }
 
         if playingBack {
-            // reproduccion de una linea grabada: el fichero mueve el plato.
-            pbClock += step
+            // reproduccion de una linea grabada, ANCLADA a la instrumental: el
+            // reloj de la linea avanza en TICKS al tempo actual, igual que la
+            // base, asi los scratches caen siempre en el mismo punto del bucle.
+            pbClock += step * (Double(bpm) / 60.0) * ppq
             if pbLen > 0, pbClock >= pbLen { pbClock = pbClock.truncatingRemainder(dividingBy: pbLen) }
             let g = pbPositionAt(pbClock)
             platterVelocity = (g - platterPosition) / step
@@ -347,30 +368,83 @@ public final class PracticeSession: ObservableObject {
 
     // MARK: - grabar / reproducir una linea libre (.xfsession)
 
-    /// Empieza a grabar el movimiento del plato y el fader (borra lo anterior).
+    /// Un compás en ticks (4/4). Mismo criterio que `crPhaseLenTicks`.
+    private var barTicks: Double { 4.0 * ppq }
+
+    /// La vista informa de la longitud del bucle de la instrumental cargada, en
+    /// ticks. La toma grabada se redondea a un múltiplo de esto (o de un compás
+    /// si no se sabe) para que el bucle encaje con la base sin deriva.
+    public func setInstrumentalLoopTicks(_ ticks: Double) {
+        instrLoopTicksHint = max(0, ticks)
+    }
+
+    /// Arranca una **claqueta** de ~1 compás y empieza a grabar en el downbeat
+    /// siguiente. La vista enciende el metrónomo mientras `recArming`. Los tests
+    /// y el arranque directo usan `startRecording()` (sin claqueta).
+    public func armRecording() {
+        guard !recording, !recArming else { return }
+        stopPlayback()
+        let bt = barTicks
+        var fire = ((currentTick / bt).rounded(.down) + 1) * bt
+        if fire - currentTick < bt * 0.5 { fire += bt }   // al menos medio compás
+        recArmFireTick = fire
+        recArming = true
+    }
+
+    /// Empieza a grabar YA, sin claqueta (borra lo anterior).
     public func startRecording() {
+        stopPlayback()
+        recArming = false
+        beginRecordingNow()
+    }
+
+    private func beginRecordingNow() {
         recMotion.removeAll(keepingCapacity: true)
         recFader.removeAll(keepingCapacity: true)
         recLastClosed = nil
         recStartHost = HostClock.now()
+        recAnchorTick = currentTick
         recording = true
     }
 
-    /// Para de grabar y devuelve lo grabado como `XFSession` (nil si es muy corto).
+    /// Para de grabar y devuelve lo grabado como `XFSession` (nil si es muy
+    /// corto). La longitud del bucle (en ticks, redondeada a compases enteros /
+    /// múltiplo del bucle de la instrumental) viaja en `notes` como `loop=<n>`.
     @discardableResult
     public func stopRecording() -> XFSession? {
         recording = false
-        guard recMotion.count > 2 else { return nil }
+        recArming = false
+        guard recMotion.count > 2,
+              let a = recMotion.first?.hostTime,
+              let b = recMotion.last?.hostTime, b > a else { return nil }
         let hc = HostClock()
         if recFader.isEmpty {
             recFader.append(FaderSample(hostTime: recStartHost, value: 1, isOpen: true))
         }
+        // duración real de la toma -> ticks al tempo de grabación
+        let spanSec = hc.nanoseconds(fromHostTicks: b - a) / 1_000_000_000
+        let spanTicks = spanSec * (Double(bpm) / 60.0) * ppq
+        // se redondea HACIA ARRIBA a un múltiplo del bucle de la instrumental
+        // (si se conoce) o de un compás: así cada vuelta cae sobre los mismos
+        // golpes de la base.
+        let unit = instrLoopTicksHint >= barTicks ? instrLoopTicksHint : barTicks
+        let loopTicks = max(unit, (spanTicks / unit).rounded(.up) * unit)
         return XFSession(
             header: .init(formatVersion: 1, tempoBPM: Double(bpm),
-                          anchorHostTime: recStartHost, anchorTick: 0,
+                          anchorHostTime: recStartHost,
+                          anchorTick: Int(recAnchorTick.rounded()),
                           hostNumer: hc.numer, hostDenom: hc.denom,
-                          notes: "linea libre xFlare"),
+                          notes: "xfl loop=\(Int(loopTicks.rounded())) bar=\(Int(barTicks.rounded()))"),
             motion: recMotion, fader: recFader)
+    }
+
+    /// Longitud del bucle codificada en las notas de la cabecera ("… loop=<n> …").
+    static func parseLoopTicks(_ notes: String) -> Double? {
+        for tok in notes.split(whereSeparator: { $0 == " " || $0 == ";" })
+        where tok.hasPrefix("loop=") {
+            if let n = Double(tok.dropFirst(5)), n > 0 { return n }
+        }
+        return nil
     }
 
     /// Segundos grabados hasta ahora.
@@ -385,12 +459,18 @@ public final class PracticeSession: ObservableObject {
     public func loadPlayback(_ s: XFSession) {
         let hc = HostClock(numer: max(1, s.header.hostNumer), denom: max(1, s.header.hostDenom))
         guard let t0 = s.motion.first?.hostTime else { return }
-        func sec(_ ht: UInt64) -> Double {
-            ht <= t0 ? 0 : hc.nanoseconds(fromHostTicks: ht - t0) / 1_000_000_000
+        let recBPM = s.header.tempoBPM > 0 ? s.header.tempoBPM : Double(bpm)
+        // host-ticks -> TICKS musicales al tempo de la grabación, relativos al
+        // primer sample (que es la fase 0 del bucle).
+        func ticks(_ ht: UInt64) -> Double {
+            guard ht > t0 else { return 0 }
+            return hc.nanoseconds(fromHostTicks: ht - t0) / 1_000_000_000 * (recBPM / 60.0) * ppq
         }
-        pbMotion = s.motion.map { (sec($0.hostTime), $0.position) }
-        pbFader = s.fader.map { (sec($0.hostTime), !$0.isOpen) }
-        pbLen = pbMotion.last?.t ?? 0
+        pbMotion = s.motion.map { (ticks($0.hostTime), $0.position) }
+        pbFader = s.fader.map { (ticks($0.hostTime), !$0.isOpen) }
+        // longitud del bucle: la de la cabecera (compases enteros). Si el fichero
+        // es antiguo y no la trae, la última muestra.
+        pbLen = Self.parseLoopTicks(s.header.notes) ?? (pbMotion.last?.t ?? 0)
         pbClock = 0
         playingBack = pbLen > 0
     }
@@ -413,7 +493,7 @@ public final class PracticeSession: ObservableObject {
         }
     }
 
-    /// Posicion interpolada de la linea grabada en el segundo `t`.
+    /// Posicion interpolada de la linea grabada en el tick `t` del bucle.
     private func pbPositionAt(_ t: Double) -> Double {
         guard !pbMotion.isEmpty else { return platterPosition }
         if t <= pbMotion[0].t { return pbMotion[0].pos }

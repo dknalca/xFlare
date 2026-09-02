@@ -43,6 +43,11 @@ final class PracticeScene: SKScene {
     /// se pasa del pico (n > 1/amplitud) sigue subiendo y se sale.
     var patternAmplitude: CGFloat = 2.0 / 3.0
 
+    /// En **Freestyle** no hay patron que seguir: se oculta la onda fantasma
+    /// (curva gris + sus marcas). La rejilla, el carril de fader y la traza del
+    /// usuario siguen visibles.
+    var showGhost = true
+
     /// Desplazamiento MANUAL de la rejilla respecto a la instrumental, en ticks
     /// (botones ◀ / ▶). Se suma a `now` cada fotograma -> mueve rejilla + onda
     /// fantasma + traza a la vez, sin tocar el reloj de la sesion. `+` mueve la
@@ -302,6 +307,7 @@ final class PracticeScene: SKScene {
         // pico quede a `patternAmplitude` de la banda hace falta yScale =
         // amplitud / (2/3) = 1.5·amplitud. (La traza usa el mismo factor en
         // `traceY`, asi coinciden.)
+        ghostContainer.isHidden = !showGhost
         let yb = geometry.curveBand.bottom
         let s = max(0.1, 1.5 * patternAmplitude)
         ghostContainer.yScale = s

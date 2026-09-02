@@ -198,6 +198,37 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertFalse(p.playingBack)
     }
 
+    func testLaClaquetaRetrasaElInicioYLaTomaCuadraACompases() throws {
+        // ppq 480, 4/4 -> 1 compas = 1920 ticks. A 120 bpm son 0,5 s (~30 fps).
+        let s = PracticeSession(scratch: try scratch(), bpm: 120)
+        s.advance(by: 1.0 / 60.0)
+
+        s.armRecording()
+        XCTAssertTrue(s.recArming)
+        XCTAssertFalse(s.recording)
+
+        var startedAt = -1
+        for i in 0..<400 {
+            s.scrollBy(i % 40 < 20 ? 25 : -25)
+            s.advance(by: 1.0 / 60.0)
+            if s.recording && startedAt < 0 { startedAt = i }
+        }
+        // la grabacion no arranca durante la claqueta (al menos ~medio compas)
+        XCTAssertGreaterThan(startedAt, 15, "no graba durante la claqueta")
+        XCTAssertFalse(s.recArming)
+
+        let take = try XCTUnwrap(s.stopRecording())
+        // la longitud del bucle viaja en la cabecera y es multiplo de compas
+        let loop = try XCTUnwrap(PracticeSession.parseLoopTicks(take.header.notes))
+        XCTAssertGreaterThanOrEqual(loop, 1920)
+        XCTAssertEqual(loop.truncatingRemainder(dividingBy: 1920), 0, accuracy: 1e-3)
+
+        // y esa toma se reproduce anclada (plato movido por el fichero)
+        let p = PracticeSession(scratch: try scratch(), bpm: 120)
+        p.loadPlayback(take)
+        XCTAssertTrue(p.playingBack)
+    }
+
     func testCue1VuelveAlInicioDelSample() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         // aleja el plato del inicio

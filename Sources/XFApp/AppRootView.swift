@@ -51,6 +51,7 @@ public struct AppRootView: View {
             navButton("Home", "square.grid.3x3.fill") { model.goHome() }
             navButton("Librería", "books.vertical") { model.openLibrary() }
             navButton("Mi mesa", "pianokeys") { model.openMyTable() }
+            navButton("Freestyle", "waveform.and.mic") { model.openFreeMode() }
             navButton("Ajustes", "slider.horizontal.3") { model.openSettings() }
             Spacer()
             navButton("Calibración", "dot.radiowaves.left.and.right") { model.openCalibration() }
@@ -126,13 +127,26 @@ public struct AppRootView: View {
             livePractice(exerciseId: ex, variantId: variant)
 
         case .freeMode:
-            if let scratch = model.continueExerciseId.flatMap({ model.scratch(exerciseId: $0) }) {
-                FreeModeView(scratch: scratch,
-                             highwayGeometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
-                             tick: { [weak model] in model?.engine?.tick ?? 0 },
-                             onExit: { model.goHome() })
+            // Freestyle: reutiliza la práctica en vivo pero sin fantasma ni
+            // "repite conmigo". Cualquier patrón sirve de rejilla base (se toma
+            // `baby`, o el primero de la librería): en Freestyle no se sigue.
+            if let scratch = model.catalog.library.scratch(id: "baby")
+                ?? model.catalog.library.scratches.first {
+                LivePracticeView(
+                    scratch: scratch,
+                    exerciseName: "Freestyle",
+                    bpm: 90,
+                    geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
+                                              laneHeight: 8, curveInset: 8,
+                                              patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
+                    freestyle: true,
+                    engine: model.engine,
+                    content: model.content,
+                    metronomeOn: model.settings.metronomeEnabled,
+                    onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
+                    onExit: { model.goHome() })
             } else {
-                emptyPanel("Elige un scratch primero.")
+                emptyPanel("No hay ningún patrón base para la rejilla.")
             }
 
         case .error(let message):

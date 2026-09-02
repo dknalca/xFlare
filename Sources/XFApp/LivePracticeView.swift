@@ -35,7 +35,7 @@ public struct LivePracticeView: View {
     @State private var gridShift: Double = 0
     // Ultima linea grabada, lista para exportar a .xfsession.
     @State private var lastRecording: XFSession?
-    @State private var recTick = 0   // fuerza refresco del contador de segundos
+    @State private var recSeconds: Double = 0   // contador visible mientras grabas
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
@@ -46,6 +46,9 @@ public struct LivePracticeView: View {
 
     private let scratch: Scratch
     private let exerciseName: String
+    /// Modo **Freestyle**: sin fantasma ni "repite conmigo"; grabas una línea
+    /// libre y la exportas / importas. El resto (plato, base, mixer) igual.
+    private let freestyle: Bool
     private let geometry: HighwayGeometry
     private let engine: EngineHandle?
     private let content: ContentLoader
@@ -57,6 +60,7 @@ public struct LivePracticeView: View {
                 exerciseName: String,
                 bpm: Int,
                 geometry: HighwayGeometry,
+                freestyle: Bool = false,
                 engine: EngineHandle? = nil,
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
@@ -64,6 +68,7 @@ public struct LivePracticeView: View {
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
+        self.freestyle = freestyle
         self.geometry = geometry
         self.engine = engine
         self.content = content
@@ -98,6 +103,7 @@ public struct LivePracticeView: View {
                         sampleWave: sampleWave,
                         // en "tu turno" del call & response el fantasma se atenua
                         ghostDimmed: s.crPhase == .respond,
+                        showGhost: !freestyle,
                         // el slider "Amplitud" solo escala la onda fantasma; con
                         // amplitud 2/3 la escala es 1 (pico a 2/3), con 1.0 -> 1.5
                         // (pico arriba del todo). La traza del usuario no se toca.
@@ -140,7 +146,7 @@ public struct LivePracticeView: View {
         .foregroundColor(XFColor.text)
         .onReceive(meterTick) { _ in
             meterPeak = engine?.outputPeak ?? 0
-            if session.recording { recTick &+= 1 }
+            recSeconds = session.recording ? session.recordedSeconds : 0
         }
         .onChange(of: session.faderClosed) { closed in
             faderClosed = closed
@@ -148,6 +154,11 @@ public struct LivePracticeView: View {
             // metronomo siguen. Vale tanto si lo cierra el usuario (Espacio) como
             // si lo cierra el fantasma en la fase de escucha.
             engine?.setScratchGain(closed ? 0 : Float(sampleVol))
+        }
+        .onChange(of: session.recArming) { arming in
+            // durante la claqueta el metronomo suena aunque el usuario lo tenga
+            // apagado; al terminar (empieza a grabar o se cancela) se restablece.
+            engine?.metronomeEnabled = arming ? true : metroOn
         }
         .onAppear { start() }
         .onDisappear { stop() }
@@ -166,15 +177,19 @@ public struct LivePracticeView: View {
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
                 }
                 panelSection("Base") { instrumentalPicker }
-                panelSection("Repite conmigo") { callResponsePanel }
+                if !freestyle {
+                    panelSection("Repite conmigo") { callResponsePanel }
+                }
                 panelSection("Grabar línea") { recordPanel }
                 panelSection("Ajuste rápido") {
                     volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
                         session.scrollSensitivity = v
                     }
-                    // "Amplitud" solo cambia el ALTO de la onda fantasma que hay
-                    // que seguir; no toca el movimiento ni el sample.
-                    volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
+                    if !freestyle {
+                        // "Amplitud" solo cambia el ALTO de la onda fantasma que
+                        // hay que seguir; no toca el movimiento ni el sample.
+                        volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
+                    }
                 }
             }
             .padding(XFSpacing.sm)
@@ -298,29 +313,30 @@ public struct LivePracticeView: View {
     /// el ratio de reproduccion se queda en ~1.0. Vuelve a empezar desde el "1".
     /// Grabar una línea libre y exportarla / importarla (`.xfsession`).
     private var recordPanel: some View {
-        VStack(spacing: XFSpacing.xs) {
+        let rec = session.recording
+        let arming = session.recArming
+        let active = rec || arming
+        return VStack(spacing: XFSpacing.xs) {
             Button {
-                if session.recording {
-                    lastRecording = session.stopRecording()
-                } else {
-                    session.stopPlayback()
-                    session.startRecording()
-                }
+                if rec { lastRecording = session.stopRecording() }
+                else if arming { session.stopRecording() }        // cancela la claqueta
+                else { session.stopPlayback(); session.armRecording() }
             } label: {
                 HStack(spacing: 5) {
-                    Circle().fill(session.recording ? Color(hex: 0xFF4D5E) : XFColor.textMuted)
-                        .frame(width: 8, height: 8)
-                    Text(session.recording
-                         ? String(format: "Grabando · %.0fs", session.recordedSeconds)
-                         : "Grabar")
+                    Image(systemName: rec ? "stop.fill" : (arming ? "metronome" : "record.circle"))
+                        .font(.system(size: rec ? 9 : 11))
+                    Text(rec ? String(format: "Parar · %.0fs", recSeconds)
+                         : (arming ? "Claqueta…" : "Grabar"))
                         .font(XFFont.bodyMedium(11))
                     Spacer(minLength: 0)
                 }
-                .foregroundColor(XFColor.text)
-                .padding(.vertical, 5).padding(.horizontal, XFSpacing.xs)
+                .foregroundColor(active ? Color(hex: 0xFF4D5E) : XFColor.text)
+                .padding(.vertical, 6).padding(.horizontal, XFSpacing.xs)
                 .frame(maxWidth: .infinity)
-                .background(RoundedRectangle(cornerRadius: 5).fill(XFColor.surface))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
+                .background(RoundedRectangle(cornerRadius: 5)
+                    .fill(active ? Color(hex: 0xFF4D5E).opacity(0.15) : XFColor.surface))
+                .overlay(RoundedRectangle(cornerRadius: 5)
+                    .stroke(active ? Color(hex: 0xFF4D5E) : XFColor.stroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
 
@@ -328,21 +344,27 @@ public struct LivePracticeView: View {
                 Button("Exportar…") { exportLine() }
                     .buttonStyle(.plain).font(XFFont.body(9))
                     .foregroundColor(lastRecording == nil ? XFColor.textMuted : XFColor.text)
-                    .disabled(lastRecording == nil || session.recording)
+                    .disabled(lastRecording == nil || active)
                 Spacer(minLength: 0)
                 Button("Importar…") { importLine() }
                     .buttonStyle(.plain).font(XFFont.body(9)).foregroundColor(XFColor.text)
-                    .disabled(session.recording)
+                    .disabled(active)
             }
 
             if session.playingBack {
-                Button("Parar reproducción") { session.stopPlayback() }
-                    .buttonStyle(.plain).font(XFFont.body(9)).foregroundColor(XFColor.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    session.stopPlayback()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "stop.fill").font(.system(size: 8))
+                        Text("Parar reproducción").font(XFFont.body(9))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundColor(XFColor.accent)
+                }
+                .buttonStyle(.plain)
             }
         }
-        // el contador de segundos se refresca con el mismo tick del medidor
-        .id(session.recording ? recTick : -1)
     }
 
     private func exportLine() {
@@ -366,6 +388,13 @@ public struct LivePracticeView: View {
            let text = try? String(contentsOf: url, encoding: .utf8),
            let s = try? XFSession(jsonLines: text) {
             session.loadPlayback(s)
+            // la linea arranca en la fase 0 de su bucle: la instrumental
+            // tambien vuelve al principio y el reloj musical a 0, para que los
+            // scratches caigan sobre los mismos golpes de la base.
+            session.resyncClock()
+            engine?.replayInstrumental(nativeBPM: Double(session.bpm))
+            engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+            gridShift = 0
         }
     }
 
@@ -511,6 +540,9 @@ public struct LivePracticeView: View {
                 if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
                 instrWave = wave
                 instrLoopTicks = loopTicks
+                // la sesion necesita la longitud del bucle para cuadrar las
+                // tomas grabadas a un multiplo entero de el.
+                session.setInstrumentalLoopTicks(loopTicks)
                 // el tempo del EJERCICIO pasa a ser el de esta instrumental
                 session.setBPM(bpmRounded)
                 session.resyncClock()
