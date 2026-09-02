@@ -70,7 +70,13 @@ final class AssemblerTests: XCTestCase {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
         let b = try LibraryAssembler.browser(catalog: c, db: db)
-        XCTAssertGreaterThanOrEqual(b.entries.count, 25)
+        // 25 en el catalogo menos las 4 variantes ocultas (lo-/hi-flare, los -16)
+        XCTAssertEqual(b.entries.count, 21)
+        for hidden in LibraryAssembler.hiddenInLibrary {
+            XCTAssertNil(b.entries.first { $0.scratchId == hidden }, "\(hidden) no se lista")
+        }
+        // el truco de verdad si esta
+        XCTAssertNotNil(b.entries.first { $0.scratchId == "flare-1c" })
         // L1 disponible desde el principio
         XCTAssertEqual(b.entries.first { $0.scratchId == "baby" }?.isUnlocked, true)
         // algo de un nivel alto, bloqueado

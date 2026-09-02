@@ -85,6 +85,15 @@ public enum HomeAssembler {
 
 public enum LibraryAssembler {
 
+    /// Trucos que NO se listan en la librería porque no son un truco distinto,
+    /// solo una variante del mismo: colocación del click (lo-/hi-flare) o cambio
+    /// de subdivisión (los `-16`). El truco de verdad (`flare-1c`, `baby`,
+    /// `flare-2c`) sí está. Siguen en el currículo. Ver `docs/MATRIX_MAPPING.md`.
+    static let hiddenInLibrary: Set<String> = [
+        "flare-1c-lo", "flare-1c-hi",
+        "baby-16", "flare-2c-16",
+    ]
+
     public static func browser(catalog: Catalog, db: XFDatabase) throws -> LibraryBrowser {
         var starsByExercise: [String: Int] = [:]
         for ex in catalog.exercises {
@@ -99,10 +108,12 @@ public enum LibraryAssembler {
             return Int(raw.drop(while: { !$0.isNumber }))
         }
 
-        let entries = catalog.library.scratches.map { s in
-            LibraryEntry(scratch: s, isUnlocked: available.contains(s.id),
-                         level: curriculumLevel(s.id))
-        }
+        let entries = catalog.library.scratches
+            .filter { !hiddenInLibrary.contains($0.id) }
+            .map { s in
+                LibraryEntry(scratch: s, isUnlocked: available.contains(s.id),
+                             level: curriculumLevel(s.id))
+            }
         return LibraryBrowser(entries: entries)
     }
 }
