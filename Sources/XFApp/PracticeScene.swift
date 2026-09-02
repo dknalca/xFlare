@@ -303,12 +303,25 @@ final class PracticeScene: SKScene {
         renderRail(frame)
     }
 
-    /// Dibuja la traza del usuario con un mapeo vertical LINEAL propio: el rango
-    /// entero del plato (`[posLo, posHi]`, es decir el sample de principio a fin)
-    /// ocupa toda la banda de la curva. Sin techo a 2/3. Los tramos con el fader
-    /// cerrado (`.miss`) se pintan apagados.
+    /// Y de una posicion de plato en la autopista. Mapeo LINEAL SIN TECHO: el
+    /// rango PROPIO del patron `[lo, lo+span]` (n = 0…1) ocupa toda la banda
+    /// `[yb, yt]`. Si el plato se pasa del pico del patron (n > 1) sube por
+    /// encima del borde (lo recorta el `SKCropNode`): "infinito hacia adelante".
+    /// Lo usan la traza del usuario Y la aguja del rail del sample: la aguja
+    /// tambien sigue al teal aunque se salga.
+    private func traceY(_ position: Double) -> CGFloat {
+        guard let layout else { return geometry.curveBand.bottom }
+        let (yb, yt) = geometry.curveBand
+        let lo = layout.positionRange.lowerBound
+        let span = max(1e-9, layout.positionRange.upperBound - lo)
+        let n = (position - lo) / span
+        return yb + CGFloat(min(4.0, max(-0.1, n))) * (yt - yb)
+    }
+
+    /// Dibuja la traza del usuario. Los tramos con el fader cerrado (`.miss`) se
+    /// pintan apagados.
     private func renderUserTrace(now: Double) {
-        guard let layout else {
+        guard layout != nil else {
             for n in userPool { n.isHidden = true }
             return
         }
@@ -316,26 +329,13 @@ final class PracticeScene: SKScene {
         let ppq = CGFloat(max(1, patternPPQ))
         let pxPerTick = geometry.pixelsPerBeat / ppq
         let playheadX = geometry.playheadX
-        let (yb, yt) = geometry.curveBand
-
-        // Mapeo LINEAL SIN TECHO: el rango PROPIO del patron [lo, lo+span]
-        // (n = 0…1) ocupa toda la banda [yb, yt]. Si el plato se pasa del pico
-        // del patron (n > 1) la traza SIGUE subiendo por encima del borde y la
-        // recorta el `SKCropNode` ("infinito" hacia adelante). La onda fantasma,
-        // en cambio, se queda mas baja (la escala `ghostScale` con la amplitud).
-        let lo = layout.positionRange.lowerBound
-        let span = max(1e-9, layout.positionRange.upperBound - lo)
-        func mapY(_ p: Double) -> CGFloat {
-            let n = (p - lo) / span
-            return yb + CGFloat(min(2.5, max(-0.1, n))) * (yt - yb)
-        }
 
         // parte la polilinea donde cambia el nivel (nil <-> .miss)
         var runs: [(muted: Bool, pts: [CGPoint])] = []
         var cur: (muted: Bool, pts: [CGPoint])?
         for tp in pts {
             let muted = (tp.level == .miss)
-            let pt = CGPoint(x: playheadX + CGFloat(tp.tick - now) * pxPerTick, y: mapY(tp.position))
+            let pt = CGPoint(x: playheadX + CGFloat(tp.tick - now) * pxPerTick, y: traceY(tp.position))
             if cur == nil || cur!.muted != muted {
                 if var c = cur { c.pts.append(pt); runs.append(c) }   // punto de corte compartido
                 cur = (muted, [pt])
@@ -560,29 +560,19 @@ final class PracticeScene: SKScene {
             s.size = CGSize(width: hh, height: railWidth)
         }
 
-        // la aguja va a la MISMA altura que la linea de la autopista bajo el
-        // cabezal: como el movimiento vive en `[yBottom, patternTopY≈2/3]`, la
-        // aguja recorre esa parte de abajo del rail = "vas por 2/3 del sample".
-        let y = min(hh, max(0, railMarkerY(frame, fallback: hh / 2)))
+        // la aguja sigue al TEAL: misma Y que la traza del usuario bajo el
+        // cabezal (mismo `traceY`), y sube por encima del rail si el plato se
+        // pasa del final del sample ("infinito"). Si aun no hay traza, la del
+        // fantasma. Se recorta a la banda del rail solo por abajo.
+        let y = min(size.height, max(-4, railMarkerY(frame, fallback: hh / 2)))
         let mk = CGMutablePath()
         mk.move(to: CGPoint(x: 0, y: y))
         mk.addLine(to: CGPoint(x: railWidth, y: y))
         sampleMarker.path = mk
     }
 
-    /// Y (en coords de la zona de autopista) de la linea bajo el cabezal:
-    /// donde esta el plato del usuario ahora (mismo mapeo lineal que la traza),
-    /// y si aun no hay traza, la del fantasma (curva del disco).
     private func railMarkerY(_ frame: HighwayFrame?, fallback: CGFloat) -> CGFloat {
-        if let layout, let last = userTrace().last {
-            let (yb, yt) = geometry.curveBand
-            let lo = layout.positionRange.lowerBound
-            let span = max(1e-9, layout.positionRange.upperBound - lo)
-            // el rail es el sample: la aguja se queda en [yb, yt] aunque el
-            // plato se pase del final.
-            let n = (last.position - lo) / span
-            return yb + CGFloat(min(1, max(0, n))) * (yt - yb)
-        }
+        if let last = userTrace().last { return traceY(last.position) }
         guard let frame else { return fallback }
         var bestY = fallback
         var bestD = CGFloat.greatestFiniteMagnitude
