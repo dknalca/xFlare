@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import AppKit
-import CoreVideo
 import simd
 
 /// Pre-renderiza una `WaveformColored.Data` a un `CGImage` de un tamaño dado.
-/// Se hace **una vez** al cargar el audio; luego las tiras solo desplazan la
-/// imagen cada frame (barato → sin tirones). Interpolación lineal entre tramos.
+/// Se hace **una vez** al cargar el audio; luego `WaveformScene` solo desplaza
+/// esa imagen como textura → sin tirones. Interpolación lineal entre tramos.
 enum WaveformImage {
 
     static func render(_ data: WaveformColored.Data, width: Int, height: Int) -> CGImage? {
@@ -38,42 +37,4 @@ enum WaveformImage {
         }
         return ctx.makeImage()
     }
-}
-
-/// Un `NSView` que se redibuja **al ritmo del vsync** (`CVDisplayLink`), no por
-/// `Timer`. Las subclases implementan `render(_:)`; el ciclo de vida del display
-/// link lo lleva esta clase.
-class DisplayLinkView: NSView {
-
-    private var link: CVDisplayLink?
-
-    override var isFlipped: Bool { true }
-
-    func startLink() {
-        guard link == nil else { return }
-        var dl: CVDisplayLink?
-        CVDisplayLinkCreateWithActiveCGDisplays(&dl)
-        guard let dl else { return }
-        CVDisplayLinkSetOutputHandler(dl) { [weak self] _, _, _, _, _ in
-            DispatchQueue.main.async { self?.needsDisplay = true }
-            return kCVReturnSuccess
-        }
-        CVDisplayLinkStart(dl)
-        link = dl
-    }
-
-    func stopLink() {
-        if let dl = link { CVDisplayLinkStop(dl) }
-        link = nil
-    }
-
-    deinit { stopLink() }
-
-    override func draw(_ dirtyRect: NSRect) {
-        guard let ctx = NSGraphicsContext.current?.cgContext else { return }
-        render(ctx, size: bounds.size)
-    }
-
-    /// A implementar por la subclase. `ctx` ya está listo; `size` en puntos.
-    func render(_ ctx: CGContext, size: CGSize) {}
 }

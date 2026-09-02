@@ -135,15 +135,11 @@ final class AppModelTests: XCTestCase {
     func testVariantOptions() throws {
         let m = try model()
         // por defecto `allUnlocked` -> todo abierto
-        var opts = m.variantOptions(exerciseId: "ex-l1-baby")
+        let opts = m.variantOptions(exerciseId: "ex-l1-baby")
         XCTAssertEqual(opts.count, 13)   // + escalera de subdivision (ADR-043)
         XCTAssertTrue(opts.allSatisfy { $0.isUnlocked })
-
-        // con la puerta puesta, off50 pide 2★ en base -> bloqueada
-        m.settings.allUnlocked = false
-        opts = m.variantOptions(exerciseId: "ex-l1-baby")
-        XCTAssertTrue(opts.first { $0.variantId == "base" }?.isUnlocked ?? false)
-        XCTAssertFalse(opts.first { $0.variantId == "off50" }?.isUnlocked ?? true)
+        // (la puerta de progresion se prueba en AssemblerTests sin tocar
+        //  `settings`, que persiste en el plist compartido con la app real)
     }
 
     func testFailedDaUnModeloEnError() {
