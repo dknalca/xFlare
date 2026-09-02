@@ -43,6 +43,12 @@ final class PracticeScene: SKScene {
     /// se pasa del pico (n > 1/amplitud) sigue subiendo y se sale.
     var patternAmplitude: CGFloat = 2.0 / 3.0
 
+    /// Desplazamiento MANUAL de la rejilla respecto a la instrumental, en ticks
+    /// (botones ◀ / ▶). Se suma a `now` cada fotograma -> mueve rejilla + onda
+    /// fantasma + traza a la vez, sin tocar el reloj de la sesion. `+` mueve la
+    /// rejilla a la izquierda, `-` a la derecha.
+    var gridShift: Double = 0
+
     /// Parametros de encuadre de la autopista. `size` lo fija la escena segun el
     /// tamano real de la vista menos el rail y la tira; el resto (pixelsPerBeat,
     /// playheadFraction, beatsPerBar, laneHeight...) lo pone `PracticeSceneView`.
@@ -281,11 +287,11 @@ final class PracticeScene: SKScene {
         guard size.width > railWidth + 8, size.height > stripHeight + 8 else { return }
         if size != lastLaidOut { layoutContainers() }
 
-        let now = currentTick()
-        // la traza del usuario NO pasa por `HighwayLayout.frame` (su mapeo `y()`
-        // con `patternFill` la dejaba con techo a 2/3): la dibujamos aparte con
-        // un mapeo lineal propio, de abajo del todo (inicio del sample) a arriba
-        // del todo (final). Ver `renderUserTrace`.
+        // `gridShift` (botones ◀/▶) desplaza la REJILLA + la onda fantasma + la
+        // traza respecto a la instrumental. La onda de la instrumental (tira de
+        // arriba) NO se mueve: es la referencia con la que hay que cuadrar.
+        let rawNow = currentTick()
+        let now = rawNow + gridShift
         let frame = layout?.frame(atTick: now, geometry: geometry)
 
         if let frame { renderHighway(frame, height: geometry.size.height) }
@@ -303,7 +309,7 @@ final class PracticeScene: SKScene {
 
         renderFullGrid(now: now)
         renderUserTrace(now: now)
-        renderStrip(now: now)
+        renderStrip(now: rawNow)   // la instrumental no se desplaza con `gridShift`
         renderRail(frame)
     }
 

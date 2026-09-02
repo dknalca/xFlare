@@ -22,6 +22,8 @@ struct PracticeSceneView: NSViewRepresentable {
     let ghostDimmed: Bool
     /// Escala vertical de la onda fantasma (slider "Amplitud"). Ver `PracticeScene`.
     let patternAmplitude: CGFloat
+    /// Desplazamiento manual de la rejilla en ticks (botones ◀/▶).
+    let gridShift: Double
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -55,6 +57,7 @@ struct PracticeSceneView: NSViewRepresentable {
         s.userTrace = trace
         s.ghostDimmed = ghostDimmed
         s.patternAmplitude = patternAmplitude
+        s.gridShift = gridShift
         s.geometry = geometry            // `size` lo sobrescribe la escena
         s.patternPPQ = scratch.ppq
         s.patternLengthTicks = max(1, scratch.lengthTicks)

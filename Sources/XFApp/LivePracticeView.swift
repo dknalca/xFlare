@@ -30,6 +30,8 @@ public struct LivePracticeView: View {
     // Amplitud del movimiento: a que fraccion del sample llega el pico del
     // patron. 2/3 por defecto; el principio siempre abajo (inicio del sample).
     @State private var amplitude: Double = AudioAsset.scratchPatternTopFraction
+    // Desplazamiento manual de la rejilla respecto a la base (botones ◀/▶), ticks.
+    @State private var gridShift: Double = 0
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
@@ -95,7 +97,8 @@ public struct LivePracticeView: View {
                         // el slider "Amplitud" solo escala la onda fantasma; con
                         // amplitud 2/3 la escala es 1 (pico a 2/3), con 1.0 -> 1.5
                         // (pico arriba del todo). La traza del usuario no se toca.
-                        patternAmplitude: CGFloat(amplitude))
+                        patternAmplitude: CGFloat(amplitude),
+                        gridShift: gridShift)
                     PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
@@ -205,32 +208,44 @@ public struct LivePracticeView: View {
     }
 
     /// "Repite conmigo": la máquina toca `n` compases con el fantasma moviendo el
-    /// sample, luego los imitas de oído. `n` en múltiplos de 2. Compacto.
+    /// sample, luego los imitas de oído. `n` en múltiplos de 2. Botón ancho en
+    /// una fila; los compases a imitar en otra.
     private var callResponsePanel: some View {
-        HStack(spacing: XFSpacing.xs) {
+        VStack(spacing: XFSpacing.xs) {
             Button {
                 session.setCallResponse(session.crPhase == .off)
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: session.crPhase == .off ? "play.circle" : "stop.circle.fill")
-                    Text(crShort).font(XFFont.body(10))
+                HStack(spacing: 5) {
+                    Image(systemName: session.crPhase == .off ? "play.fill" : "stop.fill")
+                        .font(.system(size: 9))
+                    Text(crShort).font(XFFont.bodyMedium(11))
+                    Spacer(minLength: 0)
                 }
-                .foregroundColor(crColor)
+                .foregroundColor(session.crPhase == .off ? XFColor.text : crColor)
+                .padding(.vertical, 5).padding(.horizontal, XFSpacing.xs)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 5)
+                    .fill(session.crPhase == .off ? XFColor.surface : crColor.opacity(0.15)))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
             }
             .buttonStyle(.plain)
-            Spacer(minLength: 0)
-            chip("−") { session.setCallResponseBars(session.crBars / 2) }
-                .disabled(session.crBars <= 2)
-            Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 14)
-            chip("+") { session.setCallResponseBars(session.crBars * 2) }
-                .disabled(session.crBars >= 16)
+
+            HStack(spacing: 5) {
+                Text("Compases").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                Spacer(minLength: 0)
+                chip("−") { session.setCallResponseBars(session.crBars / 2) }
+                    .disabled(session.crBars <= 2)
+                Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 16)
+                chip("+") { session.setCallResponseBars(session.crBars * 2) }
+                    .disabled(session.crBars >= 16)
+            }
         }
     }
 
     private var crShort: String {
         switch session.crPhase {
-        case .off:     return "Activar"
-        case .listen:  return "Escucha"
+        case .off:     return "Empezar"
+        case .listen:  return "Escucha…"
         case .respond: return "Tu turno"
         }
     }
@@ -259,8 +274,8 @@ public struct LivePracticeView: View {
             HStack(spacing: 5) {
                 Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer(minLength: 0)
-                chip("chevron.left", icon: true) { session.nudgeGrid(gridStep) }
-                chip("chevron.right", icon: true) { session.nudgeGrid(-gridStep) }
+                chip("chevron.left", icon: true) { gridShift += gridStep }
+                chip("chevron.right", icon: true) { gridShift -= gridStep }
             }
         }
     }
@@ -278,6 +293,7 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         session.resyncClock()
+        gridShift = 0
     }
 
     private var clipMeter: some View {
@@ -434,6 +450,7 @@ public struct LivePracticeView: View {
         panel.canChooseDirectories = false
         panel.prompt = "Cargar"
         if panel.runModal() == .OK, let url = panel.url {
+            gridShift = 0
             loadInstrumental(url: url, initial: false)
         }
     }

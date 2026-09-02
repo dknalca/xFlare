@@ -160,24 +160,6 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
     }
 
-    func testNudgeGridDesplazaElRelojYSePuedeResetear() throws {
-        let s = PracticeSession(scratch: try scratch(), bpm: 120)
-        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
-        let t0 = s.tick()
-
-        s.nudgeGrid(40)
-        s.nudgeGrid(40)
-        XCTAssertEqual(s.tick() - t0, 80, accuracy: 1e-6, "el reloj (y con el la rejilla) se ha movido")
-        XCTAssertEqual(s.gridPhaseOffset, 80, accuracy: 1e-6)
-
-        s.nudgeGrid(-30)
-        XCTAssertEqual(s.gridPhaseOffset, 50, accuracy: 1e-6)
-
-        s.resetGridPhase()
-        XCTAssertEqual(s.gridPhaseOffset, 0)
-        XCTAssertEqual(s.tick() - t0, 0, accuracy: 1e-6, "vuelve donde estaba")
-    }
-
     func testCue1VuelveAlInicioDelSample() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         // aleja el plato del inicio

@@ -317,24 +317,6 @@ public final class PracticeSession: ObservableObject {
         if !frozen { lastFrameTime = CACurrentMediaTime() }
     }
 
-    /// Botones ◀ / ▶ sobre la instrumental: desplaza la REJILLA respecto a la
-    /// base sumando un offset al reloj. `-ticks` mueve la rejilla a la DERECHA
-    /// (para cuadrarla con un golpe que va por detras); `+ticks` a la izquierda.
-    /// Se guarda el offset acumulado por si hay que resetearlo.
-    public private(set) var gridPhaseOffset: Double = 0
-    public func nudgeGrid(_ ticks: Double) {
-        currentTick += ticks
-        crPhaseStart += ticks
-        gridPhaseOffset += ticks
-        cachedTickAt = -1          // que `tick()` recalcule ya, sin esperar al cache
-    }
-    public func resetGridPhase() {
-        currentTick -= gridPhaseOffset
-        crPhaseStart -= gridPhaseOffset
-        gridPhaseOffset = 0
-        cachedTickAt = -1
-    }
-
     /// Tecla 1: **cue 1**. Salta el plato al inicio del sample (`posLo`), que es
     /// donde está el cue 1 por defecto. Deja el plato quieto y avisa al motor
     /// (por `onAdvance`) para que el sample vuelva al principio.
@@ -355,7 +337,6 @@ public final class PracticeSession: ObservableObject {
     public func resyncClock() {
         currentTick = 0
         crPhaseStart = 0
-        gridPhaseOffset = 0
         cachedTickAt = -1
         traceBuffer.removeAll()
         platterVelocity = 0
