@@ -270,26 +270,48 @@ public struct LivePracticeView: View {
         let beatsPerBar = geometry.beatsPerBar
         DispatchQueue.global(qos: .userInitiated).async {
             let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
-            let instrPCM   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
+            let rawInstr   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
             let env = scratchPCM.map { WaveformEnvelope.build($0) } ?? []
+
+            // Analiza la instrumental: tempo real + fase del primer golpe. Si
+            // sale, se ROTA el PCM para que empiece en el "1" y se usa ese BPM;
+            // así la rejilla cae sobre los golpes de verdad. Si no, 80 BPM y
+            // longitud redondeada a compás (como antes).
+            var instrPCM = rawInstr
+            var instrBPM = AudioAsset.instrumentalNativeBPM
+            var loopTicks = Double(beatsPerBar * ppq)
+            if let pcm = rawInstr {
+                if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr) {
+                    instrBPM = a.bpm
+                    let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
+                    instrPCM = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
+                    loopTicks = Double(a.beatsInLoop) * Double(ppq)
+                } else {
+                    let beats = Double(pcm.count) / sr * (instrBPM / 60.0)
+                    let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
+                    loopTicks = bars * Double(beatsPerBar) * Double(ppq)
+                }
+            }
             let instrEnv = instrPCM.map { WaveformEnvelope.build($0) } ?? []
-            // longitud musical del bucle, redondeada a compas
-            let loopTicks: Double = instrPCM.map { pcm in
-                let beats = Double(pcm.count) / sr * (AudioAsset.instrumentalNativeBPM / 60.0)
-                let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
-                return bars * Double(beatsPerBar) * Double(ppq)
-            } ?? Double(beatsPerBar * ppq)
+            let bpmRounded = Int(instrBPM.rounded())
+
             DispatchQueue.main.async {
                 if let scratchPCM {
                     engine.loadSample(scratchPCM)
                     engine.seekScratch(0)          // el sample arranca desde el principio
                 }
                 if let instrPCM {
-                    engine.loadInstrumental(instrPCM, nativeBPM: AudioAsset.instrumentalNativeBPM)
+                    engine.loadInstrumental(instrPCM, nativeBPM: instrBPM)
                 }
                 waveEnvelope = env
                 instrEnvelope = instrEnv
                 instrLoopTicks = loopTicks
+                // el tempo de la sesion pasa a ser el de la cancion, y el reloj
+                // se pone a 0 justo cuando arranca el audio: el "1" del bucle
+                // coincide con tick 0 y la rejilla con los golpes.
+                session.setBPM(bpmRounded)
+                session.resyncClock()
+                engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
                 _ = engine.startOutput()
             }
         }

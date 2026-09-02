@@ -266,4 +266,16 @@ public final class PracticeSession: ObservableObject {
         let clamped = min(220, max(40, value))
         if clamped != bpm { bpm = clamped }
     }
+
+    /// Pone el reloj a 0 y limpia el estado. Se llama cuando el audio arranca de
+    /// verdad (tras decodificar), para que `currentTick == 0` coincida con el
+    /// primer golpe de la instrumental y la rejilla caiga sobre los golpes.
+    public func resyncClock() {
+        currentTick = 0
+        crPhaseStart = 0
+        traceBuffer.removeAll()
+        platterVelocity = 0
+        platterPosition = posLo
+        if crPhase != .off { crPhase = .listen }
+    }
 }

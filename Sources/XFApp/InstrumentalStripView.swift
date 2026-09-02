@@ -91,10 +91,13 @@ struct InstrumentalStripView: NSViewRepresentable {
             guard w > 1, h > 4 else { return }
 
             // --- mismo mapeo tick->x que HighwayLayout, en pixeles 1:1 ---
-            // (HighwayScene con .resizeFill NO escala el contenido: redimensiona
-            //  la escena, asi que x=playheadX cae en el mismo pixel absoluto).
+            // HighwayScene con .resizeFill toma el ANCHO REAL de la vista en
+            // `didChangeSize` (`geometry.size = size`), asi que su cabeza de
+            // lectura queda en `anchoReal * playheadFraction`, no en el nominal.
+            // Como la tira y la autopista comparten columna (mismo `w`), usamos
+            // el mismo calculo. `pixelsPerBeat` sí es fijo en las dos.
             let pxPerTick = geometry.pixelsPerTick(ppq: ppq)
-            let playheadX = geometry.playheadX
+            let playheadX = w * geometry.playheadFraction
             let now = tick()
             func x(_ t: Double) -> CGFloat { playheadX + CGFloat(t - now) * pxPerTick }
             // rango de ticks visible en ESTA tira (por su ancho real)
