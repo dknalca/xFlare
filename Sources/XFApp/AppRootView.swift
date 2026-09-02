@@ -178,6 +178,9 @@ public struct AppRootView: View {
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
+                onScore: { session in
+                    model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)
+                },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

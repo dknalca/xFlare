@@ -55,6 +55,9 @@ public struct LivePracticeView: View {
     private let metronomeOn: Bool
     private let onExit: () -> Void
     private let onMetronomeChanged: (Bool) -> Void
+    /// Puntúa la última toma grabada (`XFAnalysis` → pantalla de resultados).
+    /// Sin efecto en Freestyle (no hay patrón que puntuar).
+    private let onScore: (XFSession) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -65,6 +68,7 @@ public struct LivePracticeView: View {
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
+                onScore: @escaping (XFSession) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -74,6 +78,7 @@ public struct LivePracticeView: View {
         self.content = content
         self.metronomeOn = metronomeOn
         self.onMetronomeChanged = onMetronomeChanged
+        self.onScore = onScore
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -349,6 +354,26 @@ public struct LivePracticeView: View {
                 Button("Importar…") { importLine() }
                     .buttonStyle(.plain).font(XFFont.body(9)).foregroundColor(XFColor.text)
                     .disabled(active)
+            }
+
+            // puntuar la toma contra el patron (XFAnalysis -> resultados).
+            // En Freestyle no hay patron: no aparece.
+            if !freestyle, let rec = lastRecording, !active {
+                Button {
+                    onScore(rec)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "checkmark.seal").font(.system(size: 9))
+                        Text("Puntuar la toma").font(XFFont.bodyMedium(10))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundColor(XFColor.accent)
+                    .padding(.vertical, 4).padding(.horizontal, XFSpacing.xs)
+                    .frame(maxWidth: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 5)
+                        .fill(XFColor.accent.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
             }
 
             if session.playingBack {

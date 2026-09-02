@@ -5,6 +5,8 @@ import Combine
 import XFNotation
 import XFPersistence
 import XFProfiles
+import XFCapture
+import XFAnalysis
 
 /// El coordinador de la app: es dueño del contenido (`Catalog`), la base
 /// (`XFDatabase`) y el motor de audio (`EngineHandle`), lleva la navegacion entre
@@ -247,6 +249,24 @@ public final class AppModel: ObservableObject {
             starReasons: starReasons, diagnostics: diagnostics,
             isBestScore: attempt.score > (previousBest ?? -1))
         refreshHome()
+        screen = .results
+    }
+
+    // MARK: - puntuar una toma grabada (practica rudimentaria)
+
+    /// Puntua una toma (`.xfsession` grabado en la practica) contra su patron con
+    /// `XFAnalysis` y va a la pantalla de resultados con el diagnostico
+    /// accionable. **No persiste** ni mueve estrellas / progreso: la practica
+    /// rudimentaria todavia no es una sesion de verdad (sin cuenta atras ni
+    /// series, eso es XFEngine). Es "enseñar, no puntuar" sin el ciclo completo.
+    public func scoreTake(_ session: XFSession, exerciseId: String, variantId: String) {
+        guard let scratch = scratch(exerciseId: exerciseId, variantId: variantId) else { return }
+        let take = Take(motion: session.motion, fader: session.fader, clock: session.clockMap)
+        let takeBpm = Int(session.header.tempoBPM.rounded())
+        let atTarget = takeBpm == (catalog.exercise(id: exerciseId)?.startBpm ?? takeBpm)
+        let report = DefaultScorer().score(take, against: scratch, atTargetBpm: atTarget)
+
+        lastResults = ResultsSummary.build(report: report, isBestScore: false)
         screen = .results
     }
 

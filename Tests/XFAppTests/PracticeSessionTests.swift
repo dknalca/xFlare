@@ -3,6 +3,7 @@ import XCTest
 @testable import XFApp
 import XFNotation
 import XFCapture
+import XFAnalysis
 
 /// El motor de la practica rudimentaria: reloj musical propio + plato de juguete.
 /// Aqui se prueba la fisica (que es pura); el pegamento con `NSView` no.
@@ -237,6 +238,31 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(p.playbackInstrName, "mi_base_90bpm")
         p.stopPlayback()
         XCTAssertEqual(p.playbackInstrName, "")
+    }
+
+    func testUnaTomaGrabadaSePuntuaConXFAnalysis() throws {
+        // el wire práctica -> XFAnalysis: una toma grabada se convierte en `Take`
+        // y `DefaultScorer` la puntúa sin reventar, con score en [0, maxScore].
+        let sc = try scratch("baby")
+        let s = PracticeSession(scratch: sc, bpm: 90)
+        s.startRecording()
+        for i in 0..<240 {
+            s.scrollBy(sin(Double(i) * 0.13) * 40)
+            s.advance(by: 1.0 / 60.0)
+        }
+        let take = try XCTUnwrap(s.stopRecording())
+
+        let t = Take(motion: take.motion, fader: take.fader, clock: take.clockMap)
+        let report = DefaultScorer().score(t, against: sc, atTargetBpm: true)
+
+        XCTAssertEqual(report.maxScore, ScoreEvents(of: sc).maxScore)
+        XCTAssertGreaterThanOrEqual(report.score, 0)
+        XCTAssertLessThanOrEqual(report.score, report.maxScore)
+        XCTAssert((0...3).contains(report.stars))
+
+        // y se traduce a lo que pinta la pantalla de resultados
+        let summary = ResultsSummary.build(report: report, isBestScore: false)
+        XCTAssertEqual(summary.stars.count, 3)
     }
 
     func testCue1VuelveAlInicioDelSample() throws {

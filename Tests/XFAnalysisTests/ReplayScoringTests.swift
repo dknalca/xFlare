@@ -73,4 +73,26 @@ final class ReplayScoringTests: XCTestCase {
         XCTAssertLessThan(r.stars, 2)   // un evento a 0 -> no llega a 2 estrellas
         XCTAssertTrue(r.diagnostics.contains { $0.kind == .missedClicks })
     }
+
+    /// toma que se corta antes de acabar el patron: los checkpoints posteriores
+    /// al ultimo sample NO deben reventar (resta de `UInt64` con underflow en
+    /// `MotionResampler.velocity`). Antes de esto crasheaba con SIGILL.
+    func testTomaMasCortaQueElPatronNoRevienta() throws {
+        let sc = try flare2c()
+        let full = SyntheticTake.make(for: sc, clock: clock())
+        // deja solo el primer tercio de las muestras de movimiento
+        let cut = max(2, full.motion.count / 3)
+        let short = Take(motion: Array(full.motion.prefix(cut)),
+                         fader: full.fader, clock: full.clock)
+
+        let r = DefaultScorer().score(short, against: sc, atTargetBpm: true)
+        XCTAssertFalse(r.finished)
+        XCTAssertGreaterThanOrEqual(r.score, 0)
+        XCTAssertLessThanOrEqual(r.score, r.maxScore)
+
+        // y el resampler devuelve el extremo, no revienta, pasado el ultimo sample
+        let past = short.motion.last!.hostTime + 10_000_000
+        XCTAssertEqual(MotionResampler.velocity(short.motion, atHostTime: past),
+                       short.motion.last!.velocity)
+    }
 }

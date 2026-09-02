@@ -29,17 +29,21 @@ enum MotionResampler {
     }
 
     /// Velocidad del usuario en el `hostTime` dado (la de la muestra mas cercana).
+    /// Fuera del rango de la toma devuelve la del extremo: si el patron dura mas
+    /// que lo grabado, los checkpoints que caen despues del final leen la ultima
+    /// muestra en vez de reventar (resta de `UInt64` con underflow).
     static func velocity(_ motion: [MotionSample], atHostTime host: UInt64) -> Double? {
         guard !motion.isEmpty else { return nil }
+        if host <= motion.first!.hostTime { return motion.first!.velocity }
+        if host >= motion.last!.hostTime { return motion.last!.velocity }
+        // busqueda binaria del primer sample con hostTime >= host
         var lo = 0, hi = motion.count - 1
         while lo < hi {
             let mid = (lo + hi) / 2
             if motion[mid].hostTime < host { lo = mid + 1 } else { hi = mid }
         }
-        if lo > 0 {
-            let a = motion[lo - 1], b = motion[lo]
-            return (host - a.hostTime) < (b.hostTime - host) ? a.velocity : b.velocity
-        }
-        return motion[lo].velocity
+        // con los guardas de arriba: 1 <= lo <= count-1, motion[lo-1] < host <= motion[lo]
+        let a = motion[lo - 1], b = motion[lo]
+        return (host - a.hostTime) < (b.hostTime - host) ? a.velocity : b.velocity
     }
 }
