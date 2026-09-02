@@ -6,8 +6,10 @@ import Foundation
 /// **offline** al cargar la instrumental: así la rejilla de compás cae sobre los
 /// golpes de verdad y no sobre un 4/4 nominal.
 ///
-/// - Onset: subida de energía RMS con compresión logarítmica (aguanta mejor el
-///   rango dinámico), envolvente suavizada.
+/// - Onset: flux **multibanda** (grave / medio / agudo por filtros de un polo),
+///   suma de las subidas de energía RMS log-comprimida de cada banda. Coge el
+///   bombo, la caja y el charles, que suben en bandas distintas (idea de los
+///   detectores tipo Serato/Traktor, sin llegar a la FFT por banda de octava).
 /// - Tempo: autocorrelación con **suma armónica** (premia el periodo cuyos
 ///   múltiplos también correlacionan → la negra, no su mitad ni su doble) y un
 ///   **prior** gaussiano en log2 centrado en 120 BPM (Ellis 2007). Interpolación
@@ -50,18 +52,42 @@ public enum TempoAnalyzer {
         let nFrames = pcm.count / hop
         guard nFrames > 64 else { return nil }
 
-        // --- envolvente de onset: subida de energia RMS, comprimida en log ---
-        var env = [Double](repeating: 0, count: nFrames)
-        var prev = 0.0
+        // --- envolvente de onset MULTIBANDA (mas cerca de Serato/Traktor que un
+        // flux broadband: el bombo, la caja y el charles suben de energia en
+        // bandas distintas; sumando el flux de cada banda se cogen los tres). ---
+        // Tres bandas por filtros de un polo: grave (< ~160 Hz), agudo (> ~4 kHz)
+        // y medio (el resto).
+        let sr = sampleRate
+        func onePoleCoef(_ hz: Double) -> Double { exp(-2.0 * Double.pi * hz / sr) }
+        let aLow = onePoleCoef(160), aHigh = onePoleCoef(4000)
+        var lp = 0.0, lpH = 0.0
+        var band = [[Double]](repeating: [Double](repeating: 0, count: nFrames), count: 3)
         for f in 0..<nFrames {
             let base = f * hop
-            var e = 0.0
-            for i in 0..<hop { let s = Double(pcm[base + i]); e += s * s }
-            let cur = log(1.0 + 1000.0 * (e / Double(hop)).squareRoot())
-            env[f] = max(0, cur - prev)
-            prev = cur
+            var eLo = 0.0, eMid = 0.0, eHi = 0.0
+            for i in 0..<hop {
+                let s = Double(pcm[base + i])
+                lp = (1 - aLow) * s + aLow * lp             // grave
+                lpH = (1 - aHigh) * s + aHigh * lpH         // corte para agudo
+                let hi = s - lpH                            // agudo = lo que pasa de 4 kHz
+                let mid = s - lp - hi                       // medio = resto
+                eLo += lp * lp; eMid += mid * mid; eHi += hi * hi
+            }
+            let inv = 1.0 / Double(hop)
+            band[0][f] = log(1.0 + 1000.0 * (eLo * inv).squareRoot())
+            band[1][f] = log(1.0 + 1000.0 * (eMid * inv).squareRoot())
+            band[2][f] = log(1.0 + 1000.0 * (eHi * inv).squareRoot())
         }
-        // suavizado 3-tap (quita ruido sin borrar los transitorios)
+        // flux por banda (subida, rectificada) y suma
+        var env = [Double](repeating: 0, count: nFrames)
+        for b in 0..<3 {
+            var prev = band[b][0]
+            for f in 1..<nFrames {
+                env[f] += max(0, band[b][f] - prev)
+                prev = band[b][f]
+            }
+        }
+        // suavizado 3-tap simetrico (quita ruido sin desplazar los transitorios)
         if nFrames > 3 {
             var sm = env
             for i in 1..<(nFrames - 1) { sm[i] = 0.25 * env[i - 1] + 0.5 * env[i] + 0.25 * env[i + 1] }

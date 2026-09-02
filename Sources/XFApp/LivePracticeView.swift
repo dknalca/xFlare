@@ -225,20 +225,26 @@ public struct LivePracticeView: View {
                 Button("×2") { retempo(2.0) }.buttonStyle(.plain).font(XFFont.mono(10))
             }
             .foregroundColor(XFColor.textMuted)
-            // ajuste fino de la FASE de la rejilla respecto a la base
-            HStack(spacing: 4) {
-                Text("Fase").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+            // mover la REJILLA respecto a la base para cuadrarla con los golpes
+            HStack(spacing: 6) {
+                Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer()
-                Button { session.nudgePhase(Double(scratch.ppq) / 48) } label: {
-                    Image(systemName: "arrow.left")
-                }.buttonStyle(.plain)
-                Button { session.nudgePhase(-Double(scratch.ppq) / 48) } label: {
-                    Image(systemName: "arrow.right")
-                }.buttonStyle(.plain)
+                gridShiftButton("chevron.left") { session.nudgeGrid(Double(scratch.ppq) / 12) }
+                gridShiftButton("chevron.right") { session.nudgeGrid(-Double(scratch.ppq) / 12) }
             }
-            .font(XFFont.body(10))
-            .foregroundColor(XFColor.text)
         }
+    }
+
+    /// Un botón de desplazar rejilla, con área de toque decente.
+    private func gridShiftButton(_ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 11, weight: .bold))
+                .frame(width: 22, height: 18)
+                .background(RoundedRectangle(cornerRadius: 3).fill(XFColor.surfaceRaised))
+                .foregroundColor(XFColor.text)
+        }
+        .buttonStyle(.plain)
     }
 
     /// ÷2 / ×2: corrige la **rejilla**, no la velocidad de la base. Si el tempo
