@@ -136,6 +136,7 @@ public struct LivePracticeView: View {
                             s.jumpToCue()
                             engine?.seekScratch(0)
                         },
+                        onRestartInstrumental: { restartInstrumental() },   // 2
                         onBPM: { bpm in
                             s.setBPM(bpm)
                             engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
@@ -300,6 +301,13 @@ public struct LivePracticeView: View {
             }
 
             HStack(spacing: 5) {
+                // reinicia la base desde el "1" (tambien con la tecla 2)
+                Text("Reiniciar (2)").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                Spacer(minLength: 0)
+                chip("arrow.counterclockwise", icon: true) { restartInstrumental() }
+            }
+
+            HStack(spacing: 5) {
                 Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer(minLength: 0)
                 chip("chevron.left", icon: true) { gridShift += gridStep }
@@ -434,6 +442,16 @@ public struct LivePracticeView: View {
             engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
             gridShift = 0
         }
+    }
+
+    /// Tecla `2` / botón: reinicia la instrumental desde el principio y realinea
+    /// el reloj de la sesión (rejilla + fantasma) con ella. El scratch y el cue 1
+    /// no se tocan: esto es solo la base.
+    private func restartInstrumental() {
+        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
+        session.resyncClock()
+        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        gridShift = 0
     }
 
     private func retempo(_ factor: Double) {
@@ -678,7 +696,7 @@ public struct LivePracticeView: View {
     private var hintBar: some View {
         HStack(spacing: XFSpacing.md) {
             Text("Trackpad: gira el plato   ·   A / D: atrás / adelante   ·   "
-                 + "Espacio: fader cerrado   ·   P: congelar   ·   1: cue   ·   ↑ ↓: BPM   ·   Esc: salir")
+                 + "Espacio: fader cerrado   ·   P: congelar   ·   1: cue   ·   2: reiniciar base   ·   ↑ ↓: BPM   ·   Esc: salir")
                 .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
             Spacer()
         }

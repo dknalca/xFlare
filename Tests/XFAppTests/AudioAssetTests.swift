@@ -4,13 +4,24 @@ import XCTest
 
 /// `AudioAsset`: decodifica los audios de la práctica a mono float. Usa los
 /// ficheros reales del repo (`Audio/`), resueltos por `RepoContentLoader`.
+///
+/// `Audio/` NO está en git (samples con copyright, CLAUDE.md §12): en una
+/// máquina de dev con esa carpeta estos tests corren; en CI se **saltan**
+/// (`XCTSkip`) en vez de fallar.
 final class AudioAssetTests: XCTestCase {
 
     private let content = RepoContentLoader()
 
+    /// Resuelve un audio del repo o salta el test si `Audio/` no está presente.
+    private func requireAudio(_ relPath: String) throws -> URL {
+        guard let url = content.url(relPath) else {
+            throw XCTSkip("falta \(relPath) (Audio/ no está en git, CLAUDE.md §12)")
+        }
+        return url
+    }
+
     func testDecodificaElSampleDeScratch() throws {
-        let url = try XCTUnwrap(content.url(AudioAsset.scratchRelPath),
-                                "falta \(AudioAsset.scratchRelPath) en el repo")
+        let url = try requireAudio(AudioAsset.scratchRelPath)
         let pcm = try XCTUnwrap(AudioAsset.loadMono(url, sampleRate: 48_000))
         XCTAssertGreaterThan(pcm.count, 4_800, "al menos 0,1 s")
         XCTAssertGreaterThan(pcm.map { abs($0) }.max() ?? 0, 0.01, "no está en silencio")
@@ -18,15 +29,14 @@ final class AudioAssetTests: XCTestCase {
     }
 
     func testDecodificaLaBaseInstrumental() throws {
-        let url = try XCTUnwrap(content.url(AudioAsset.instrumentalRelPath),
-                                "falta \(AudioAsset.instrumentalRelPath) en el repo")
+        let url = try requireAudio(AudioAsset.instrumentalRelPath)
         let pcm = try XCTUnwrap(AudioAsset.loadMono(url, sampleRate: 48_000))
         XCTAssertGreaterThan(pcm.count, 48_000, "al menos 1 s de loop")
         XCTAssertGreaterThan(pcm.map { abs($0) }.max() ?? 0, 0.01)
     }
 
     func testReamuestreaALaFrecuenciaPedida() throws {
-        let url = try XCTUnwrap(content.url(AudioAsset.instrumentalRelPath))
+        let url = try requireAudio(AudioAsset.instrumentalRelPath)
         let at48 = try XCTUnwrap(AudioAsset.loadMono(url, sampleRate: 48_000))
         let at24 = try XCTUnwrap(AudioAsset.loadMono(url, sampleRate: 24_000))
         // la mitad de frecuencia -> ~la mitad de muestras para la misma duración

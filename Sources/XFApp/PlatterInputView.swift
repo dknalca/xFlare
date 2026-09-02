@@ -13,6 +13,7 @@ import AppKit
 /// - `Espacio`  : mantener = crossfader cerrado (chirp)
 /// - `P`        : congelar / descongelar (para la reproduccion sin salir)
 /// - `1`        : cue 1 (volver al inicio del sample)
+/// - `2`        : reinicia la instrumental desde el principio
 /// - `flechas ↑↓`: BPM +/- 1
 /// - `Esc`      : salir
 struct PlatterInputView: NSViewRepresentable {
@@ -22,6 +23,7 @@ struct PlatterInputView: NSViewRepresentable {
     var onFaderClosed: (Bool) -> Void
     var onFreeze: () -> Void
     var onCue: () -> Void
+    var onRestartInstrumental: () -> Void = {}
     var onBPM: (Int) -> Void
     var currentBPM: () -> Int
     var onExit: () -> Void
@@ -72,6 +74,7 @@ struct PlatterInputView: NSViewRepresentable {
             case 49:  owner.onFaderClosed(true)            // Espacio
             case 35:  owner.onFreeze()                     // P
             case 18:  owner.onCue()                        // 1  (cue 1)
+            case 19:  owner.onRestartInstrumental()        // 2  (reinicia la base)
             case 126: owner.onBPM(owner.currentBPM() + 5)  // flecha arriba
             case 125: owner.onBPM(owner.currentBPM() - 5)  // flecha abajo
             case 53:  owner.onExit()                       // Esc
