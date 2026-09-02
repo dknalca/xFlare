@@ -111,11 +111,11 @@ public struct AppRootView: View {
                 model.goHome()
             })
 
-        case .practice(let ex, _):
-            livePractice(exerciseId: ex)
+        case .practice(let ex, let variant):
+            livePractice(exerciseId: ex, variantId: variant)
 
         case .freeMode:
-            if let scratch = model.continueExerciseId.flatMap(model.scratch(exerciseId:)) {
+            if let scratch = model.continueExerciseId.flatMap({ model.scratch(exerciseId: $0) }) {
                 FreeModeView(scratch: scratch,
                              highwayGeometry: HighwayGeometry(size: CGSize(width: 1000, height: 380)),
                              tick: { [weak model] in model?.engine?.tick ?? 0 },
@@ -133,10 +133,11 @@ public struct AppRootView: View {
     /// y el trackpad / teclado mueven el plato (`PracticeSession`). Todavia **sin
     /// scoring** — eso necesita el callback de audio (B4.2). De momento sirve
     /// para ver el movimiento y probar la entrada.
-    @ViewBuilder private func livePractice(exerciseId: String) -> some View {
+    @ViewBuilder private func livePractice(exerciseId: String, variantId: String) -> some View {
         let ex = model.catalog.exercise(id: exerciseId)
-        let name = ex.flatMap { model.catalog.library.scratch(id: $0.scratchId)?.name } ?? "Práctica"
-        if let scratch = model.scratch(exerciseId: exerciseId) {
+        let variantName = model.catalog.variant(id: variantId).map { $0.isBase ? "" : " · \($0.name)" } ?? ""
+        let name = (ex.flatMap { model.catalog.library.scratch(id: $0.scratchId)?.name } ?? "Práctica") + variantName
+        if let scratch = model.scratch(exerciseId: exerciseId, variantId: variantId) {
             LivePracticeView(
                 scratch: scratch,
                 exerciseName: name,

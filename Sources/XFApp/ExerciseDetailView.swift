@@ -23,9 +23,13 @@ public struct ExerciseDetailView: View {
         self.display = display
         self.onPractice = onPractice
         self.onBack = onBack
-        // arranca en la primera variante desbloqueada (la base siempre lo está)
+        // arranca en el punto de entrada del gym (1 compas) si está, si no en la
+        // primera variante desbloqueada
+        let entry = display.variants.first { $0.option.variantId == "sub-1-2" && $0.option.isUnlocked }
         _selected = State(initialValue:
-            display.variants.first(where: { $0.option.isUnlocked })?.option.variantId ?? "base")
+            entry?.option.variantId
+            ?? display.variants.first(where: { $0.option.isUnlocked })?.option.variantId
+            ?? "base")
     }
 
     public var body: some View {

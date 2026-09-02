@@ -12,6 +12,33 @@
       "unlock": null
     },
     {
+      "id": "sub-1-2",
+      "name": "1 por compas",
+      "desc": "El gesto ocupa un compas entero: un ciclo por compas, blancas. El punto de partida del gym.",
+      "transform": "subdivision",
+      "params": { "div": "1/2" },
+      "difficulty": 0.7,
+      "unlock": null
+    },
+    {
+      "id": "sub-1-4",
+      "name": "2 por compas",
+      "desc": "Dos ciclos por compas, negras.",
+      "transform": "subdivision",
+      "params": { "div": "1/4" },
+      "difficulty": 0.85,
+      "unlock": { "variant": "sub-1-2", "stars": 2 }
+    },
+    {
+      "id": "sub-1-8",
+      "name": "4 por compas",
+      "desc": "Cuatro ciclos por compas, corcheas. De momento el gym no baja de aqui.",
+      "transform": "subdivision",
+      "params": { "div": "1/8" },
+      "difficulty": 1.0,
+      "unlock": { "variant": "sub-1-4", "stars": 2 }
+    },
+    {
       "id": "off25",
       "name": "Entrada a 1/4",
       "desc": "Empiezas por el primer cuarto del ciclo en vez de por el principio.",

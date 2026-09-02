@@ -12,13 +12,18 @@ public struct Catalog: Sendable {
     public var levels: [LevelInfo]
     public var exercises: [ExerciseInfo]
     public var variants: [VariantInfo]
+    /// Primitivas de composición (`data/primitives/*.json`). Las necesitan las
+    /// variantes que recomponen el patrón (`offset`, `subdivision`).
+    public var primitives: PrimitiveSet
 
     public init(library: ScratchLibrary, levels: [LevelInfo],
-                exercises: [ExerciseInfo], variants: [VariantInfo]) {
+                exercises: [ExerciseInfo], variants: [VariantInfo],
+                primitives: PrimitiveSet = PrimitiveSet(handPatterns: [:], faderPatterns: [:])) {
         self.library = library
         self.levels = levels
         self.exercises = exercises
         self.variants = variants
+        self.primitives = primitives
     }
 
     /// El ejercicio cuyo `scratchId` coincide, o `nil`.
@@ -60,11 +65,32 @@ public struct VariantInfo: Sendable, Equatable, Identifiable {
         public let variant: String
         public let stars: Int
     }
+    /// Qué transformación aplica sobre el patrón base (docs/VARIANTS.md §3).
+    /// `dropout` no transforma el patrón (es lógica de sesión): aquí es identidad.
+    public enum Transform: Sendable, Equatable {
+        case identity
+        case offset(fraction: Double)
+        case amplitude(scale: Double)
+        case mirror
+        case swing(ratio: Double)
+        case subdivision(div: String)
+        case dropout
+    }
     public let id: String
     public let name: String
     public let difficulty: Double
-    /// Condicion de desbloqueo, o `nil` para la base.
+    public let transform: Transform
+    /// Condicion de desbloqueo, o `nil` para las variantes de entrada.
     public let requirement: Requirement?
 
-    public var isBase: Bool { requirement == nil }
+    public var isBase: Bool { id == "base" }
+
+    public init(id: String, name: String, difficulty: Double,
+                transform: Transform = .identity, requirement: Requirement? = nil) {
+        self.id = id
+        self.name = name
+        self.difficulty = difficulty
+        self.transform = transform
+        self.requirement = requirement
+    }
 }

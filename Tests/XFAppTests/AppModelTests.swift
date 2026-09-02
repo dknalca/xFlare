@@ -2,6 +2,7 @@
 import XCTest
 @testable import XFApp
 import XFPersistence
+import XFNotation
 
 /// El coordinador de la app: navegacion + datos montados con los assemblers.
 final class AppModelTests: XCTestCase {
@@ -50,6 +51,45 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.screen, .home)
     }
 
+    // MARK: - variantes cableadas al patron que se practica (ADR-043)
+
+    func testLaVarianteBaseDevuelveElPatronTalCual() throws {
+        let m = try model()
+        let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
+        XCTAssertEqual(base.div, "1/8")
+        XCTAssertEqual(base.id, "baby")
+    }
+
+    func testLaEscaleraDeSubdivisionRecomponeElPatron() throws {
+        let m = try model()
+        // sub-1-2: un ciclo por compas (blancas). Conserva la longitud musical.
+        let slow = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "sub-1-2"))
+        let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
+        XCTAssertEqual(slow.div, "1/2")
+        XCTAssertLessThan(slow.cycles, base.cycles, "menos ciclos por compas")
+        XCTAssertEqual(slow.lengthTicks, base.lengthTicks, "misma longitud musical")
+
+        // sub-1-8: cuatro por compas (corcheas) = como la base del baby
+        let fast = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "sub-1-8"))
+        XCTAssertEqual(fast.div, "1/8")
+        XCTAssertEqual(fast.lengthTicks, base.lengthTicks)
+    }
+
+    func testMirrorInvierteElGesto() throws {
+        let m = try model()
+        let base = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "base"))
+        let mir  = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "mirror"))
+        // el primer tramo del baby va hacia delante; espejado, va hacia atras
+        XCTAssertEqual(base.record.first?.dir, .fwd)
+        XCTAssertEqual(mir.record.first?.dir, .rev)
+    }
+
+    func testUnaVarianteDesconocidaCaeALaBase() throws {
+        let m = try model()
+        let s = try XCTUnwrap(m.scratch(exerciseId: "ex-l1-baby", variantId: "no-existe"))
+        XCTAssertEqual(s.div, "1/8")
+    }
+
     func testFinishPracticeAsientaYVaAResultados() throws {
         let m = try model()
         let a = Attempt(id: "a1", exerciseId: "ex-l1-baby", variantId: "base",
@@ -95,7 +135,7 @@ final class AppModelTests: XCTestCase {
     func testVariantOptions() throws {
         let m = try model()
         let opts = m.variantOptions(exerciseId: "ex-l1-baby")
-        XCTAssertEqual(opts.count, 10)
+        XCTAssertEqual(opts.count, 13)   // + escalera de subdivision (ADR-043)
         XCTAssertTrue(opts.first { $0.variantId == "base" }?.isUnlocked ?? false)
         XCTAssertFalse(opts.first { $0.variantId == "off50" }?.isUnlocked ?? true)
     }

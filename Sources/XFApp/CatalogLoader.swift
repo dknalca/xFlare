@@ -20,6 +20,13 @@ public enum CatalogLoader {
         let varDoc = try JSONDecoder().decode(
             VariantsDoc.self, from: content.data("data/curriculum/variants.json"))
 
+        // Primitivas (`data/primitives/*.json`): las variantes que recomponen el
+        // patrón (offset, subdivision) las necesitan. Si faltan, `PrimitiveSet`
+        // lanza y el arranque cae a `.error(...)`.
+        let primitives = try PrimitiveSet(
+            handPatternsJSON: content.data("data/primitives/hand_patterns.json"),
+            faderPatternsJSON: content.data("data/primitives/fader_patterns.json"))
+
         return Catalog(
             library: library,
             levels: levelsDoc.levels,
@@ -30,10 +37,12 @@ public enum CatalogLoader {
             },
             variants: varDoc.variants.map {
                 VariantInfo(id: $0.id, name: $0.name, difficulty: $0.difficulty,
+                            transform: $0.parsedTransform,
                             requirement: $0.unlock.map {
                                 .init(variant: $0.variant, stars: $0.stars)
                             })
-            })
+            },
+            primitives: primitives)
     }
 
     // MARK: - formas de los JSON (solo para decodificar)
@@ -56,11 +65,33 @@ public enum CatalogLoader {
 
     private struct VariantsDoc: Decodable {
         struct Unlock: Decodable { let variant: String; let stars: Int }
+        struct Params: Decodable {
+            let fraction: Double?
+            let scale: Double?
+            let ratio: Double?
+            let div: String?
+        }
         struct Row: Decodable {
             let id: String
             let name: String
             let difficulty: Double
+            let transform: String
+            let params: Params?
             let unlock: Unlock?
+
+            /// Traduce `transform` + `params` del JSON al enum tipado. Si algún
+            /// parámetro falta, cae a un valor neutro (no rompe el arranque).
+            var parsedTransform: VariantInfo.Transform {
+                switch transform {
+                case "offset":      return .offset(fraction: params?.fraction ?? 0)
+                case "amplitude":   return .amplitude(scale: params?.scale ?? 1)
+                case "mirror":      return .mirror
+                case "swing":       return .swing(ratio: params?.ratio ?? 0.5)
+                case "subdivision": return .subdivision(div: params?.div ?? "1/8")
+                case "dropout":     return .dropout
+                default:            return .identity
+                }
+            }
         }
         let variants: [Row]
     }

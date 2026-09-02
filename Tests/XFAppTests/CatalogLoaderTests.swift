@@ -14,7 +14,7 @@ final class CatalogLoaderTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(c.library.scratches.count, 25)
         XCTAssertEqual(c.levels.map(\.id), ["L1", "L2", "L3", "L4", "L5", "L6"])
         XCTAssertEqual(c.exercises.count, 25)
-        XCTAssertEqual(c.variants.count, 10)
+        XCTAssertEqual(c.variants.count, 13)   // 10 + escalera de subdivision (ADR-043)
     }
 
     func testCadaEjercicioApuntaAUnScratchReal() throws {

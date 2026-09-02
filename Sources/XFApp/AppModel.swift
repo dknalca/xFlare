@@ -198,11 +198,32 @@ public final class AppModel: ObservableObject {
                                       activeProfileId: activeProfileId)
     }
 
-    /// El `Scratch` a practicar. Por ahora la variante base; las variantes
-    /// (offset/amplitude/mirror…) se recomponen cuando se cablee el `Composer`.
-    public func scratch(exerciseId: String) -> Scratch? {
-        guard let ex = catalog.exercise(id: exerciseId) else { return nil }
-        return catalog.library.scratch(id: ex.scratchId)
+    /// El `Scratch` a practicar, con la **variante** ya aplicada sobre el patrón
+    /// base (offset / amplitude / mirror / swing / subdivision). `dropout`
+    /// (blind) no toca el patrón: es cosa de la sesión. Si la recomposición
+    /// falla (dato malo), se practica la base.
+    public func scratch(exerciseId: String, variantId: String = "base") -> Scratch? {
+        guard let ex = catalog.exercise(id: exerciseId),
+              let base = catalog.library.scratch(id: ex.scratchId) else { return nil }
+        guard let v = catalog.variant(id: variantId), !v.isBase else { return base }
+
+        switch v.transform {
+        case .identity, .dropout:
+            return base
+        case .amplitude(let scale):
+            return base.withAmplitude(scale: scale)
+        case .mirror:
+            return base.mirrored()
+        case .swing(let ratio):
+            return base.withSwing(ratio: ratio, ppq: base.ppq)
+        case .subdivision(let div):
+            return (try? Composer.composeWithSubdivision(
+                base, to: div, ppq: base.ppq, primitives: catalog.primitives)) ?? base
+        case .offset(let fraction):
+            return (try? Composer.composeWithOffset(
+                hand: base.hand, fader: base.fader, division: base.div, cycles: base.cycles,
+                fraction: fraction, ppq: base.ppq, primitives: catalog.primitives)) ?? base
+        }
     }
 
     // MARK: - resultado de una practica

@@ -13,11 +13,20 @@ mitad, con la mitad de recorrido o con swing suena a otra cosa y se toca distint
 
 Identificador: `ejercicio@variante` → `flare-2c@off50`, `crab@div16`.
 
+**Estan cableadas a la practica (ADR-043):** `AppModel.scratch(exerciseId:variantId:)`
+aplica el transform sobre el patron base antes de practicarlo. `sub-1-2/4/8` son
+la **escalera de subdivision del gym**: el truco arranca ocupando 1 compas
+(`sub-1-2`, un ciclo por compas) y se va a 2 y 4 ciclos por compas — corcheas es
+el tope de momento. `dropout` (blind) no transforma el patron: es logica de sesion.
+
 ## 2. Catalogo
 
 | id | Nombre | Transformacion | Dificultad | Se desbloquea con |
 |---|---|---|---|---|
 | `base` | Base | identidad | 1.00 | — |
+| `sub-1-2` | 1 por compas | `subdivision(1/2)` | 0.70 | — (entrada del gym) |
+| `sub-1-4` | 2 por compas | `subdivision(1/4)` | 0.85 | 2★ en sub-1-2 |
+| `sub-1-8` | 4 por compas | `subdivision(1/8)` | 1.00 | 2★ en sub-1-4 |
 | `off25` | Entrada a 1/4 | `offset(0.25)` | 1.15 | 2★ en base |
 | `off50` | Entrada a la mitad | `offset(0.50)` | 1.25 | 2★ en base |
 | `off75` | Entrada a 3/4 | `offset(0.75)` | 1.30 | 2★ en off50 |
