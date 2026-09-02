@@ -29,6 +29,7 @@ recordings/
 spike/b1-latency/passthrough
 spike/b1-pilot-fader/pilot_fader
 spike/b4-audio-sandbox/sandbox
+spike/b5-timecode/tcprobe
 spike/**/*.o
 spike/**/*.dSYM/
 

@@ -38,14 +38,30 @@ junto con `xf_timecode.c`.
     'long long' to 'int' [-Wshorten-64-to-32]`. Aparecen solo en la build de
     release (que activa ese warning). Inofensivos; son estilo del upstream.
 
-## 3. Wrapper `xf_timecode` (pendiente, bloque B5.2)
+## 3. Wrapper `xf_timecode`
 
 El wrapper expone el decoder en **modo relativo** (ADR-004): solo velocidad y
-dirección, sin posición absoluta. Aquí se documentará su API y cualquier
-adaptación necesaria sobre el timecoder de xwax (que consume mono, mientras que la
-captura llega en estéreo, etc.).
+dirección, sin posición absoluta.
+
+**Estado (B5.2–B5.4, hecho):** `xf_timecoder` opaco sobre `struct timecoder` de
+xwax. `create(def_name, sample_rate)` / `submit(pcm16 estéreo)` / `velocity()`
+(con signo, del filtro α-β `pitch_current`) / `position()` (relativa) /
+`confidence()` / `forwards()`. Header público **sin** `timecoder.h`
+(module-safe, como `xf_ring.h`). Hamster/reverse por `set_reversed(true)`
+(intercambia canales antes de decodificar). `confidence` = RMS de entrada
+recortado, o 1.0 si xwax engancha el bitstream. 7 tests con **señal de
+cuadratura sintética** (validan el modo relativo contra el contrato de xwax).
+
+**Pendiente (B5.5, necesita hardware):** pasar un **vinilo de timecode real** y
+comprobar enganche, escala de velocidad (33⅓ → ~1.0, 45 → ~1.35), dirección y
+recuperación de dropout con la aguja de verdad. Procedimiento en
+`docs/HW_BRINGUP.md` paso 6. Hasta entonces el módulo no se sella.
 
 ## 4. Latencia y estabilidad del stream (bloque B1)
+
+> El **procedimiento completo con hardware** (qué correr, en qué orden, qué
+> número leer y dónde va) está en `docs/HW_BRINGUP.md`. Aquí solo viven las
+> tablas de resultados.
 
 ### 4.1 B1.1 — passthrough a 64 frames (estabilidad, no latencia)
 

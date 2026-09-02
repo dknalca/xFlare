@@ -62,6 +62,10 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *Validar barato el riesgo que puede matar el proyecto.*
 
+> **El día que conectes el hardware:** `docs/HW_BRINGUP.md` tiene la secuencia
+> completa (B1.1→B1.7, B4.5, B5.5, B6.7) — comando, número a leer, dónde se
+> anota y la puerta de cada paso. Los tres spikes compilan a 2026-09-02.
+
 - [~] **B1.1** Prototipo desechable: CoreAudio passthrough a 64 frames `CXFAudioCore`
       - Criterio: suena sin cortes 5 min
       - Estado: spike escrito en `spike/b1-latency/` (fuera de Package.swift, desechable). `passthrough.c` + `build.sh`, compila universal (x86_64+arm64). Una sola AudioUnit HAL dúplex sobre el mismo dispositivo, passthrough dentro del callback sin ring buffer (el ring buffer es B4). Cuenta overloads (listener `kAudioDeviceProcessorOverload`), render errors y jitter entre callbacks; imprime PASS/FAIL. Smoke test OK en `Built-in Output`: fija 64 frames, 0 overloads, gap 1,2–1,7 ms. **Falta la corrida real de 5 min con la Rane 72** (esta máquina no tiene dispositivo dúplex): `./passthrough --in-out "Rane" --frames 64 --seconds 300`, y anotar el resultado en `docs/TIMECODE.md` §4.1.
@@ -167,7 +171,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: no se cuelga al levantar la aguja
       - Hecho: con señal, `confidence()` > 0,5; con silencio, cae < 0,2 y la velocidad decae hacia 0 — **sin colgarse**. Ruido blanco no engancha ni dispara la velocidad. `submit` con 0 frames no revienta. `confidence` = RMS de entrada recortado, o 1.0 si xwax engancha el bitstream.
 - [ ] **B5.5** **SELLAR CXFTimecode** `CXFTimecode`
-      - Bloqueado: los tests usan señal de cuadratura **sintética** (validan el modo relativo contra el contrato de xwax). Antes de congelar hay que pasar **un vinilo de timecode real** por un interface y comprobar enganche, escala de velocidad y dropout con la aguja de verdad.
+      - Bloqueado por hardware: los tests usan señal de cuadratura **sintética** (validan el modo relativo contra el contrato de xwax). Antes de congelar hay que pasar **un vinilo de timecode real** por un interface y comprobar enganche, escala de velocidad y dropout con la aguja de verdad.
+      - **Listo para el día del hardware:** `spike/b5-timecode/tcprobe` (compila 2026-09-02) abre la entrada, la pasa por `xf_timecoder` y muestra vel/pos/conf/dir en vivo. Procedimiento en `docs/HW_BRINGUP.md` paso 6.
 
 ## B5b — XFProfiles
 
