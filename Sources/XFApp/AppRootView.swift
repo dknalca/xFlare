@@ -152,10 +152,7 @@ public struct AppRootView: View {
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
-                bufferFrames: model.settings.bufferFrames,
-                bufferOptions: AppSettings.bufferOptions,
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
-                onBufferChanged: { model.settings.bufferFrames = $0 },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

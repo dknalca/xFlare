@@ -42,7 +42,8 @@ public enum TempoAnalyzer {
 
     public static func analyze(_ pcm: [Float], sampleRate: Double,
                                hintBPM: Double? = nil,
-                               minBPM: Double = 60, maxBPM: Double = 200) -> Result? {
+                               minBPM: Double = 60, maxBPM: Double = 200,
+                               preferredRange: ClosedRange<Double> = 70...140) -> Result? {
         guard sampleRate > 0, pcm.count > Int(sampleRate) else { return nil }
 
         let hop = 256
@@ -113,6 +114,17 @@ public enum TempoAnalyzer {
                 }
             }
             bpm = 60.0 * envRate / refined
+        }
+
+        // --- plegar a un rango razonable (por defecto 70..140) ---
+        // Un tempo detectado a doble/mitad -180 en vez de 90- se dobla o parte
+        // hasta caer en el rango. Con un 2 % de margen para no plegar algo que
+        // cae justo en el borde (139-142 se queda). Si venia por nombre de
+        // fichero (hint), se respeta tal cual. Se hace ANTES de la fase para que
+        // todo lo de abajo (periodo, negras) use ya el BPM plegado.
+        if hintBPM == nil {
+            while bpm > preferredRange.upperBound * 1.02 { bpm /= 2 }
+            while bpm < preferredRange.lowerBound / 1.02 { bpm *= 2 }
         }
 
         // --- fase de negra ---

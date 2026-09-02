@@ -26,13 +26,10 @@ public struct LivePracticeView: View {
     @State private var sampleVol: Double = 0.5
     @State private var instruVol: Double = 0.5
     // Sensibilidad del trackpad, PROVISIONAL: a ojo el gesto va rapido.
-    @State private var sensitivity: Double = 0.5
+    @State private var sensitivity: Double = 1.0
     // Amplitud del movimiento: a que fraccion del sample llega el pico del
     // patron. 2/3 por defecto; el principio siempre abajo (inicio del sample).
     @State private var amplitude: Double = AudioAsset.scratchPatternTopFraction
-    // Buffer de audio en caliente: al cambiarlo se reabre el motor solo.
-    @State private var bufferSel: Int
-    @State private var restarting = false
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
@@ -47,10 +44,8 @@ public struct LivePracticeView: View {
     private let engine: EngineHandle?
     private let content: ContentLoader
     private let metronomeOn: Bool
-    private let bufferOptions: [Int]
     private let onExit: () -> Void
     private let onMetronomeChanged: (Bool) -> Void
-    private let onBufferChanged: (Int) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -59,10 +54,7 @@ public struct LivePracticeView: View {
                 engine: EngineHandle? = nil,
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
-                bufferFrames: Int = 512,
-                bufferOptions: [Int] = [64, 128, 256, 512, 1024, 2048],
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
-                onBufferChanged: @escaping (Int) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -70,12 +62,9 @@ public struct LivePracticeView: View {
         self.engine = engine
         self.content = content
         self.metronomeOn = metronomeOn
-        self.bufferOptions = bufferOptions
         self.onMetronomeChanged = onMetronomeChanged
-        self.onBufferChanged = onBufferChanged
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
-        _bufferSel = State(initialValue: bufferFrames)
         // Arranca al tempo de la instrumental para que suene coherente desde el
         // primer compas (el `bpm` del ejercicio manda cuando se cambie a mano).
         _ = bpm
@@ -175,7 +164,6 @@ public struct LivePracticeView: View {
             // seguir; no toca la libertad de movimiento ni el sample.
             volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
             instrumentalPicker
-            bufferControl
             Divider().background(XFColor.stroke)
             callResponsePanel
         }
@@ -214,9 +202,9 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// Cargar otra instrumental: detecta su BPM y ajusta el tempo del ejercicio.
+    /// Cargar otra instrumental + su BPM detectado + ajuste ×2 / ÷2.
     private var instrumentalPicker: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 3) {
             HStack {
                 Text("Base").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
                 Spacer()
@@ -230,42 +218,20 @@ public struct LivePracticeView: View {
                 .foregroundColor(XFColor.text)
             }
             .buttonStyle(.plain)
+            HStack(spacing: 4) {
+                Text("\(session.bpm) BPM").font(XFFont.mono(11)).foregroundColor(XFColor.accent)
+                Spacer()
+                Button("÷2") { retempo(0.5) }.buttonStyle(.plain).font(XFFont.mono(10))
+                Button("×2") { retempo(2.0) }.buttonStyle(.plain).font(XFFont.mono(10))
+            }
+            .foregroundColor(XFColor.textMuted)
         }
     }
 
-    /// Cambia el buffer de audio en caliente: reabre el motor solo (sin
-    /// reiniciar la app) para poder ver si el tamano de buffer es lo que hace
-    /// que el sonido crepite. PROVISIONAL, panel de pruebas.
-    private var bufferControl: some View {
-        VStack(spacing: 2) {
-            HStack {
-                Text("Buffer").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
-                Spacer()
-                if restarting {
-                    Text("…").font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
-                }
-            }
-            Picker("", selection: $bufferSel) {
-                ForEach(bufferOptions, id: \.self) { Text("\($0)").tag($0) }
-            }
-            .labelsHidden()
-            .controlSize(.mini)
-            .disabled(restarting)
-            .onChange(of: bufferSel) { newVal in
-                guard let engine = engine, newVal != engine.currentMaxFrames else { return }
-                restarting = true
-                // se aplaza un tick para que el spinner pinte antes del reinicio
-                // (parar + recrear + recargar bloquea unas decenas de ms)
-                DispatchQueue.main.async {
-                    engine.restartOutput(maxFrames: newVal)
-                    applyEngineParams()
-                    let applied = engine.currentMaxFrames
-                    onBufferChanged(applied)
-                    if applied != newVal { bufferSel = applied }   // el motor no acepto el pedido
-                    restarting = false
-                }
-            }
-        }
+    /// Multiplica el tempo del ejercicio (y de la base) por `factor` (÷2 / ×2).
+    private func retempo(_ factor: Double) {
+        session.setBPM(Int((Double(session.bpm) * factor).rounded()))
+        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
     }
 
     private var clipMeter: some View {

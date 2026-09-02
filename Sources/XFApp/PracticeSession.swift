@@ -101,14 +101,16 @@ public final class PracticeSession: ObservableObject {
 
     // --- sintonia (a ojo; se afina cuando haya mesa) ---
     /// Decaimiento exponencial de la velocidad al soltar, en 1/s. Mas bajo =
-    /// rueda mas y cuesta menos llegar a los extremos del recorrido.
-    private let frictionPerSecond = 2.5
+    /// rueda mas y cuesta menos llegar a los extremos del recorrido. Bajado de
+    /// 2.5 a 1.8 para poder llegar al final del sample (n=1.5) con un gesto.
+    private let frictionPerSecond = 1.8
     /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
     /// recorrido del plato es ~1,5x el span del patron; un gesto normal tiene
-    /// que poder cubrirlo entero (hasta el final del sample) en las dos direcciones.
-    private let scrollGain = 0.26
+    /// que poder cubrirlo entero (hasta el final del sample) en las dos
+    /// direcciones. Subido de 0.26 a 0.40.
+    private let scrollGain = 0.40
     /// Impulso de una pulsacion de A / D, en unidades/s.
-    private let keyImpulse = 1.6
+    private let keyImpulse = 2.2
 
     /// Sensibilidad del trackpad, PROVISIONAL para las pruebas sin mesa. Escala
     /// el scroll antes de convertirlo en velocidad del plato (1.0 = base). Un

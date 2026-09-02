@@ -34,6 +34,26 @@ final class TempoAnalyzerTests: XCTestCase {
         }
     }
 
+    func testPliegaElTempoAlRango70a140() throws {
+        let sr = 48_000.0
+        // 160 BPM -> se parte a 80; 60 BPM -> se dobla a 120
+        let fast = try XCTUnwrap(TempoAnalyzer.analyze(clickTrack(bpm: 160, seconds: 8, sr: sr),
+                                                       sampleRate: sr))
+        XCTAssertGreaterThanOrEqual(fast.bpm, 70)
+        XCTAssertLessThanOrEqual(fast.bpm, 140)
+        XCTAssertEqual(fast.bpm, 80, accuracy: 3.0)
+
+        let slow = try XCTUnwrap(TempoAnalyzer.analyze(clickTrack(bpm: 60, seconds: 10, sr: sr),
+                                                       sampleRate: sr))
+        XCTAssertGreaterThanOrEqual(slow.bpm, 70)
+        XCTAssertEqual(slow.bpm, 120, accuracy: 3.0)
+
+        // con hint del nombre, NO se pliega (el nombre manda)
+        let hinted = try XCTUnwrap(TempoAnalyzer.analyze(clickTrack(bpm: 160, seconds: 8, sr: sr),
+                                                         sampleRate: sr, hintBPM: 160))
+        XCTAssertEqual(hinted.bpm, 160, accuracy: 0.001)
+    }
+
     func testEncuentraLaFaseDelPrimerGolpe() throws {
         let sr = 48_000.0
         let phase = 7_000
