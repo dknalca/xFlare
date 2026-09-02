@@ -211,17 +211,25 @@ public final class PracticeSession: ObservableObject {
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)
 
+    private var cachedTick: Double = 0
+    private var cachedTickAt: CFTimeInterval = -1
+
     /// Tick "de ahora mismo". Entre dos pasos del timer (que llega con jitter)
     /// se **extrapola** con el reloj de pared: `currentTick + (tiempo desde el
-    /// ultimo paso) * ritmo`. Asi el scroll es suave (sin los saltos del timer) y
-    /// la autopista y la tira de la instrumental, que llaman aqui las dos, ven
-    /// SIEMPRE el mismo valor -> no se descorrelacionan. Sin timer (tests) se
-    /// devuelve el crudo.
+    /// ultimo paso) * ritmo`. Ademas se **cachea ~4 ms**: la autopista y las dos
+    /// tiras llaman aqui dentro del mismo frame (con microsegundos de diferencia)
+    /// y asi obtienen EXACTAMENTE el mismo valor -> la rejilla cae en la misma X
+    /// en las tres. Sin timer (tests) se devuelve el crudo.
     public func tick() -> Double {
         guard timer != nil else { return currentTick }
+        let now = CACurrentMediaTime()
+        if now - cachedTickAt >= 0, now - cachedTickAt < 0.004 { return cachedTick }
         let rate = (Double(bpm) / 60.0) * ppq
-        let extra = (CACurrentMediaTime() - lastFrameTime) * rate
-        return currentTick + min(max(0, extra), 0.05 * rate)
+        let extra = (now - lastFrameTime) * rate
+        let v = currentTick + min(max(0, extra), 0.05 * rate)
+        cachedTick = v
+        cachedTickAt = now
+        return v
     }
     public func trace() -> [TracePoint] { traceBuffer }
 

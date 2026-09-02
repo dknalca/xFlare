@@ -277,9 +277,8 @@ public struct LivePracticeView: View {
     }
 
     private func start() {
-        session.start()
         session.scrollSensitivity = sensitivity
-        guard let engine = engine else { return }
+        guard let engine = engine else { session.start(); return }
 
         applyEngineParams()
 
@@ -350,12 +349,14 @@ public struct LivePracticeView: View {
                 instrWave = instrW
                 instrLoopTicks = loopTicks
                 // el tempo de la sesion pasa a ser el de la cancion, y el reloj
-                // se pone a 0 justo cuando arranca el audio: el "1" del bucle
-                // coincide con tick 0 y la rejilla con los golpes.
+                // ARRANCA aqui (no antes): asi la practica empieza en tick 0
+                // -patron desde abajo- justo cuando suena el audio, sin el medio
+                // segundo de scroll "a mitad de movimiento" mientras decodifica.
                 session.setBPM(bpmRounded)
                 session.resyncClock()
                 engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
                 _ = engine.startOutput()
+                session.start()
             }
         }
     }

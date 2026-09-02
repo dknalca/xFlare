@@ -39,9 +39,12 @@ public struct TTMThumbnail: Equatable, Sendable {
     }
 
     /// - Parameter samples: resolución de muestreo de la curva a lo ancho.
+    ///
+    /// Se dibuja **un solo ciclo** del patrón (`lengthTicks / cycles`), como la
+    /// referencia TTM: un gesto, no el ejercicio entero repetido.
     public static func build(scratch: Scratch, samples: Int = 120) -> TTMThumbnail {
         let n = max(8, samples)
-        let length = max(1, scratch.lengthTicks)
+        let length = max(1, scratch.lengthTicks / max(1, scratch.cycles))
         let L = Double(length)
 
         // Rango vertical de TODA la curva (abierta o no), para una escala estable.
@@ -59,8 +62,8 @@ public struct TTMThumbnail: Equatable, Sendable {
                     y: y(PositionSampler.position(of: scratch, atTick: min(length, max(0, t)))))
         }
 
-        // Intervalos con el fader abierto, en ticks.
-        let events = scratch.faderEvents.sorted { $0.t < $1.t }
+        // Intervalos con el fader abierto, en ticks. Solo el primer ciclo.
+        let events = scratch.faderEvents.filter { $0.t < length }.sorted { $0.t < $1.t }
         var openIntervals: [(Int, Int)] = []
         if events.isEmpty {
             openIntervals = [(0, length)]
