@@ -35,7 +35,7 @@ final class BundleContentLoaderTests: XCTestCase {
         XCTAssertTrue(loader.hasCatalog)
 
         let catalog = try CatalogLoader.load(from: loader)
-        XCTAssertEqual(catalog.exercises.count, 25)
+        XCTAssertEqual(catalog.exercises.count, 21)
         XCTAssertFalse(catalog.library.scratches.isEmpty)
     }
 

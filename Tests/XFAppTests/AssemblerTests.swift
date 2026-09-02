@@ -53,7 +53,7 @@ final class AssemblerTests: XCTestCase {
         if let flare2c = byScratch["flare-2c"] {
             XCTAssertEqual(flare2c.state, .locked)
         }
-        XCTAssertEqual(s.cells.count, 25)
+        XCTAssertEqual(s.cells.count, 21)
     }
 
     func testHomeContinueTarget() throws {

@@ -13,7 +13,7 @@ final class CatalogLoaderTests: XCTestCase {
         let c = try catalog()
         XCTAssertGreaterThanOrEqual(c.library.scratches.count, 25)
         XCTAssertEqual(c.levels.map(\.id), ["L1", "L2", "L3", "L4", "L5", "L6"])
-        XCTAssertEqual(c.exercises.count, 25)
+        XCTAssertEqual(c.exercises.count, 21)   // 25 - 4 (baby-16, lo/hi-flare, flare-2c-16)
         XCTAssertEqual(c.variants.count, 13)   // 10 + escalera de subdivision (ADR-043)
     }
 

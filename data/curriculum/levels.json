@@ -28,7 +28,6 @@
       "name": "Control de mano",
       "goal": "Partir el movimiento y sostener velocidades distintas.",
       "scratches": [
-        "baby-16",
         "reverse-cut",
         "tear",
         "scribble",
@@ -61,8 +60,6 @@
       "name": "Flares",
       "goal": "Dominar el click y su colocacion dentro del trazo.",
       "scratches": [
-        "flare-1c-lo",
-        "flare-1c-hi",
         "flare-2c",
         "orbit-1c",
         "tear-flare-1c",
@@ -95,9 +92,7 @@
       "id": "L6",
       "name": "Velocidad",
       "goal": "Los mismos patrones, al doble.",
-      "scratches": [
-        "flare-2c-16"
-      ],
+      "scratches": [],
       "unlock": {
         "accuracy": 0.88,
         "bpm": 100,

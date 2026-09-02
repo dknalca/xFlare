@@ -144,41 +144,6 @@
       ]
     },
     {
-      "id": "ex-l2-baby-16",
-      "scratchId": "baby-16",
-      "level": "L2",
-      "name": "Control de mano - Baby 1/16",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.82,
-        "consecutiveBars": 8
-      },
-      "focus": [
-        "timing",
-        "pitchContour"
-      ],
-      "coachHints": [
-        "Mismo gesto al doble de velocidad."
-      ]
-    },
-    {
       "id": "ex-l2-reverse-cut",
       "scratchId": "reverse-cut",
       "level": "L2",
@@ -461,78 +426,6 @@
       ],
       "coachHints": [
         "El salto de nivel: el fader interrumpe un sonido continuo."
-      ]
-    },
-    {
-      "id": "ex-l4-flare-1c-lo",
-      "scratchId": "flare-1c-lo",
-      "level": "L4",
-      "name": "Flares - Lo-1C Flare",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.85,
-        "consecutiveBars": 12
-      },
-      "focus": [
-        "timing",
-        "pitchContour",
-        "clickPlacement"
-      ],
-      "coachHints": [
-        "Click adelantado. Cambia el groove por completo."
-      ]
-    },
-    {
-      "id": "ex-l4-flare-1c-hi",
-      "scratchId": "flare-1c-hi",
-      "level": "L4",
-      "name": "Flares - Hi-1C Flare",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.85,
-        "consecutiveBars": 12
-      },
-      "focus": [
-        "timing",
-        "pitchContour",
-        "clickPlacement"
-      ],
-      "coachHints": [
-        "Click retrasado."
       ]
     },
     {
@@ -856,42 +749,6 @@
       ],
       "coachHints": [
         "Cuatro dedos contra el pulgar. El examen final del nivel medio."
-      ]
-    },
-    {
-      "id": "ex-l6-flare-2c-16",
-      "scratchId": "flare-2c-16",
-      "level": "L6",
-      "name": "Velocidad - 2-Click Flare 1/16",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.88,
-        "consecutiveBars": 16
-      },
-      "focus": [
-        "timing",
-        "pitchContour",
-        "clickPlacement"
-      ],
-      "coachHints": [
-        "El mismo patron al doble de tempo."
       ]
     }
   ]
