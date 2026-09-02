@@ -16,7 +16,7 @@ import XFNotation
 public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
-    @State private var waveEnvelope: [Float] = []
+    @State private var sampleWave = WaveformColored.Data(levels: [], colors: [])
     // Onda de la instrumental (tira superior) + longitud musical de su bucle.
     @State private var instrWave = WaveformColored.Data(levels: [], colors: [])
     @State private var instrLoopTicks: Double = 0
@@ -303,7 +303,9 @@ public struct LivePracticeView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
             let rawInstr   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
-            let env = scratchPCM.map { WaveformEnvelope.build($0) } ?? []
+            let sampleW = scratchPCM.map {
+                WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))
+            } ?? WaveformColored.Data(levels: [], colors: [])
 
             // Analiza la instrumental: tempo real + fase del primer golpe. Si
             // sale, se ROTA el PCM para que empiece en el "1" y se usa ese BPM;
@@ -344,7 +346,7 @@ public struct LivePracticeView: View {
                 if let instrPCM {
                     engine.loadInstrumental(instrPCM, nativeBPM: instrBPM)
                 }
-                waveEnvelope = env
+                sampleWave = sampleW
                 instrWave = instrW
                 instrLoopTicks = loopTicks
                 // el tempo de la sesion pasa a ser el de la cancion, y el reloj
@@ -359,7 +361,7 @@ public struct LivePracticeView: View {
     }
 
     private var waveStrip: some View {
-        WaveformStripView(envelope: waveEnvelope,
+        WaveformStripView(wave: sampleWave,
                           progress: { engine?.scratchProgress ?? 0 },
                           visibleFraction: 0.9)
             .frame(height: 54)
