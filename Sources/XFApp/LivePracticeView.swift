@@ -326,7 +326,7 @@ public struct LivePracticeView: View {
                     Image(systemName: rec ? "stop.fill" : (arming ? "metronome" : "record.circle"))
                         .font(.system(size: rec ? 9 : 11))
                     Text(rec ? String(format: "Parar · %.0fs", recSeconds)
-                         : (arming ? "Claqueta…" : "Grabar"))
+                         : (arming ? "Claqueta · \(session.recCountBeats)" : "Grabar"))
                         .font(XFFont.bodyMedium(11))
                     Spacer(minLength: 0)
                 }
@@ -363,6 +363,19 @@ public struct LivePracticeView: View {
                     .foregroundColor(XFColor.accent)
                 }
                 .buttonStyle(.plain)
+
+                // si la toma se grabó sobre otra base, avisa (se reproduce
+                // igual, cuadrada de fase, pero los golpes no son los mismos).
+                if !session.playbackInstrName.isEmpty,
+                   session.playbackInstrName != PracticeSession.slug(instrName) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 7))
+                        Text("grabada sobre \(session.playbackInstrName)")
+                            .font(XFFont.body(8)).lineLimit(1).truncationMode(.middle)
+                    }
+                    .foregroundColor(Color(hex: 0xF5C542))
+                }
             }
         }
     }
@@ -400,6 +413,10 @@ public struct LivePracticeView: View {
 
     private func retempo(_ factor: Double) {
         session.setBPM(Int((Double(session.bpm) * factor).rounded()))
+        // ÷2/×2 reinterpreta la rejilla: el mismo audio pasa a tener la mitad /
+        // el doble de compases, asi que su bucle en TICKS escala con el factor.
+        instrLoopTicks *= factor
+        session.setInstrumentalLoopTicks(instrLoopTicks)
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         session.resyncClock()
@@ -541,8 +558,10 @@ public struct LivePracticeView: View {
                 instrWave = wave
                 instrLoopTicks = loopTicks
                 // la sesion necesita la longitud del bucle para cuadrar las
-                // tomas grabadas a un multiplo entero de el.
+                // tomas grabadas a un multiplo entero de el, y el nombre para la
+                // cabecera de la toma.
                 session.setInstrumentalLoopTicks(loopTicks)
+                session.setInstrumentalName(instrName)
                 // el tempo del EJERCICIO pasa a ser el de esta instrumental
                 session.setBPM(bpmRounded)
                 session.resyncClock()

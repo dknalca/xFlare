@@ -201,11 +201,14 @@ final class PracticeSessionTests: XCTestCase {
     func testLaClaquetaRetrasaElInicioYLaTomaCuadraACompases() throws {
         // ppq 480, 4/4 -> 1 compas = 1920 ticks. A 120 bpm son 0,5 s (~30 fps).
         let s = PracticeSession(scratch: try scratch(), bpm: 120)
+        s.setInstrumentalLoopTicks(1920 * 2)      // bucle de 2 compases
+        s.setInstrumentalName("mi base 90bpm")
         s.advance(by: 1.0 / 60.0)
 
         s.armRecording()
         XCTAssertTrue(s.recArming)
         XCTAssertFalse(s.recording)
+        XCTAssertGreaterThan(s.recCountBeats, 0, "hay cuenta de claqueta")
 
         var startedAt = -1
         for i in 0..<400 {
@@ -216,17 +219,24 @@ final class PracticeSessionTests: XCTestCase {
         // la grabacion no arranca durante la claqueta (al menos ~medio compas)
         XCTAssertGreaterThan(startedAt, 15, "no graba durante la claqueta")
         XCTAssertFalse(s.recArming)
+        XCTAssertEqual(s.recCountBeats, 0)
 
         let take = try XCTUnwrap(s.stopRecording())
-        // la longitud del bucle viaja en la cabecera y es multiplo de compas
+        // la longitud del bucle viaja en la cabecera y es multiplo del bucle
+        // de la instrumental (2 compases = 3840 ticks)
         let loop = try XCTUnwrap(PracticeSession.parseLoopTicks(take.header.notes))
-        XCTAssertGreaterThanOrEqual(loop, 1920)
-        XCTAssertEqual(loop.truncatingRemainder(dividingBy: 1920), 0, accuracy: 1e-3)
+        XCTAssertGreaterThanOrEqual(loop, 3840)
+        XCTAssertEqual(loop.truncatingRemainder(dividingBy: 3840), 0, accuracy: 1e-3)
+        // y el nombre de la base (sin espacios)
+        XCTAssertEqual(PracticeSession.parseInstrName(take.header.notes), "mi_base_90bpm")
 
-        // y esa toma se reproduce anclada (plato movido por el fichero)
+        // al reproducirla, la sesion expone sobre que base se grabo
         let p = PracticeSession(scratch: try scratch(), bpm: 120)
         p.loadPlayback(take)
         XCTAssertTrue(p.playingBack)
+        XCTAssertEqual(p.playbackInstrName, "mi_base_90bpm")
+        p.stopPlayback()
+        XCTAssertEqual(p.playbackInstrName, "")
     }
 
     func testCue1VuelveAlInicioDelSample() throws {

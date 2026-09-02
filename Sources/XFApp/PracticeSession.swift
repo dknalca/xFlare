@@ -65,6 +65,12 @@ public final class PracticeSession: ObservableObject {
     /// `true` durante la **claqueta**: 1 compás de metrónomo antes de que la
     /// grabación empiece de verdad, para poder entrar en el "1".
     @Published public private(set) var recArming = false
+    /// Negras que quedan de claqueta (para el contador 3·2·1 de la vista). 0 si
+    /// no hay claqueta en curso.
+    @Published public private(set) var recCountBeats = 0
+    /// Nombre de la instrumental de la última línea importada (de su cabecera).
+    /// Vacío si la toma no lo trae o no se está reproduciendo nada.
+    @Published public private(set) var playbackInstrName = ""
     private var recMotion: [MotionSample] = []
     private var recFader: [FaderSample] = []
     private var recStartHost: UInt64 = 0
@@ -77,6 +83,9 @@ public final class PracticeSession: ObservableObject {
     /// Longitud del bucle de la instrumental cargada, en ticks (la fija la vista).
     /// La toma se redondea a un múltiplo de esto para que encaje sin deriva.
     private var instrLoopTicksHint: Double = 0
+    /// Nombre de la instrumental cargada (lo fija la vista); viaja en la cabecera
+    /// de la toma para saber sobre qué base se grabó.
+    private var instrNameHint = ""
     // Playback: `t` y `pbClock`/`pbLen` van en TICKS musicales (antes segundos),
     // así la línea corre al mismo reloj que la instrumental y no se desfasa.
     private var pbMotion: [(t: Double, pos: Double)] = []
@@ -224,9 +233,16 @@ public final class PracticeSession: ObservableObject {
         currentTick += step * (Double(bpm) / 60.0) * ppq
 
         // fin de la claqueta -> empieza a grabar en el downbeat
-        if recArming, currentTick >= recArmFireTick {
-            recArming = false
-            beginRecordingNow()
+        if recArming {
+            if currentTick >= recArmFireTick {
+                recArming = false
+                recCountBeats = 0
+                beginRecordingNow()
+            } else {
+                // negras que faltan, para el contador 3·2·1 de la vista
+                let left = Int(((recArmFireTick - currentTick) / ppq).rounded(.up))
+                if left != recCountBeats { recCountBeats = max(0, left) }
+            }
         }
 
         // llamada y respuesta: alterna escucha <-> tu turno cada `crBars` compases
@@ -378,6 +394,19 @@ public final class PracticeSession: ObservableObject {
         instrLoopTicksHint = max(0, ticks)
     }
 
+    /// La vista informa del nombre de la instrumental cargada. Viaja en la
+    /// cabecera de la toma (`instr=<slug>`, sin espacios).
+    public func setInstrumentalName(_ name: String) {
+        instrNameHint = Self.slug(name)
+    }
+
+    /// Nombre apto para la cabecera: sin espacios ni separadores del formato.
+    /// `internal` para que la vista compare el nombre de la toma con el de la
+    /// instrumental cargada con el mismo criterio.
+    static func slug(_ s: String) -> String {
+        String(s.map { ($0 == " " || $0 == ";" || $0 == "=") ? "_" : $0 })
+    }
+
     /// Arranca una **claqueta** de ~1 compás y empieza a grabar en el downbeat
     /// siguiente. La vista enciende el metrónomo mientras `recArming`. Los tests
     /// y el arranque directo usan `startRecording()` (sin claqueta).
@@ -388,6 +417,7 @@ public final class PracticeSession: ObservableObject {
         var fire = ((currentTick / bt).rounded(.down) + 1) * bt
         if fire - currentTick < bt * 0.5 { fire += bt }   // al menos medio compás
         recArmFireTick = fire
+        recCountBeats = max(1, Int(((fire - currentTick) / ppq).rounded(.up)))
         recArming = true
     }
 
@@ -395,6 +425,7 @@ public final class PracticeSession: ObservableObject {
     public func startRecording() {
         stopPlayback()
         recArming = false
+        recCountBeats = 0
         beginRecordingNow()
     }
 
@@ -414,6 +445,7 @@ public final class PracticeSession: ObservableObject {
     public func stopRecording() -> XFSession? {
         recording = false
         recArming = false
+        recCountBeats = 0
         guard recMotion.count > 2,
               let a = recMotion.first?.hostTime,
               let b = recMotion.last?.hostTime, b > a else { return nil }
@@ -434,7 +466,8 @@ public final class PracticeSession: ObservableObject {
                           anchorHostTime: recStartHost,
                           anchorTick: Int(recAnchorTick.rounded()),
                           hostNumer: hc.numer, hostDenom: hc.denom,
-                          notes: "xfl loop=\(Int(loopTicks.rounded())) bar=\(Int(barTicks.rounded()))"),
+                          notes: "xfl loop=\(Int(loopTicks.rounded())) bar=\(Int(barTicks.rounded()))"
+                                 + (instrNameHint.isEmpty ? "" : " instr=\(instrNameHint)")),
             motion: recMotion, fader: recFader)
     }
 
@@ -445,6 +478,15 @@ public final class PracticeSession: ObservableObject {
             if let n = Double(tok.dropFirst(5)), n > 0 { return n }
         }
         return nil
+    }
+
+    /// Nombre de la instrumental codificado en las notas ("… instr=<slug> …").
+    static func parseInstrName(_ notes: String) -> String {
+        for tok in notes.split(whereSeparator: { $0 == " " || $0 == ";" })
+        where tok.hasPrefix("instr=") {
+            return String(tok.dropFirst(6))
+        }
+        return ""
     }
 
     /// Segundos grabados hasta ahora.
@@ -472,11 +514,13 @@ public final class PracticeSession: ObservableObject {
         // es antiguo y no la trae, la última muestra.
         pbLen = Self.parseLoopTicks(s.header.notes) ?? (pbMotion.last?.t ?? 0)
         pbClock = 0
+        playbackInstrName = Self.parseInstrName(s.header.notes)
         playingBack = pbLen > 0
     }
 
     public func stopPlayback() {
         playingBack = false
+        playbackInstrName = ""
         pbMotion.removeAll(); pbFader.removeAll(); pbLen = 0
     }
 
