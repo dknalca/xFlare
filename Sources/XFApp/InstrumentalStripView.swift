@@ -6,10 +6,12 @@ import XFRender
 
 /// Tira **superior** con la forma de onda de la instrumental (en bucle) y la
 /// rejilla de compás/negra. Se desplaza al mismo ritmo que la autopista y sus
-/// líneas de compás caen en la **misma X** que las de la autopista: se dibuja
-/// con la misma geometría (`HighwayGeometry`) y el mismo mapeo tick→x que
-/// `HighwayLayout`, y como la escena de la autopista y esta tira ocupan la misma
-/// columna (mismo ancho), la escala nominal→pantalla es idéntica en las dos.
+/// líneas de compás caen en la **misma X**: usa la misma `HighwayGeometry` y el
+/// mismo mapeo `x(tick) = playheadX + (tick - now)·pxPerTick`, en **coordenadas
+/// de píxel 1:1**, igual que `HighwayScene` (cuyo `scaleMode = .resizeFill`
+/// **redimensiona** la escena, no escala el contenido). Como la tira y la
+/// autopista comparten columna (mismo borde izquierdo), un tick cae en la misma
+/// X en las dos.
 ///
 /// No es XFRender (que está SELLADO): es una vista de XFApp que **replica** el
 /// trozo de geometría que necesita. La duplicación es unas pocas líneas y está
@@ -88,40 +90,39 @@ struct InstrumentalStripView: NSViewRepresentable {
             bounds.fill()
             guard w > 1, h > 4 else { return }
 
-            // --- mismo mapeo tick->x que HighwayLayout, escalado nominal->pantalla ---
-            let nominalW = max(1, geometry.size.width)
-            let scale = w / nominalW
-            let pxPerTick = geometry.pixelsPerTick(ppq: ppq)          // nominal
-            let playheadXNom = geometry.playheadX                     // nominal
+            // --- mismo mapeo tick->x que HighwayLayout, en pixeles 1:1 ---
+            // (HighwayScene con .resizeFill NO escala el contenido: redimensiona
+            //  la escena, asi que x=playheadX cae en el mismo pixel absoluto).
+            let pxPerTick = geometry.pixelsPerTick(ppq: ppq)
+            let playheadX = geometry.playheadX
             let now = tick()
-            func xAct(_ t: Double) -> CGFloat {
-                (playheadXNom + CGFloat(t - now) * pxPerTick) * scale
-            }
-            let tMin = now + Double((-playheadXNom) / pxPerTick)
-            let tMax = now + Double((nominalW - playheadXNom) / pxPerTick)
+            func x(_ t: Double) -> CGFloat { playheadX + CGFloat(t - now) * pxPerTick }
+            // rango de ticks visible en ESTA tira (por su ancho real)
+            let tMin = now + Double((0 - playheadX) / pxPerTick)
+            let tMax = now + Double((w - playheadX) / pxPerTick)
 
-            // --- onda de la instrumental: cada columna de píxel -> tick -> fracción del bucle ---
+            // --- onda de la instrumental: cada columna de pixel -> tick -> fraccion del bucle ---
             let count = envelope.count
             if count > 1 {
                 wave.setStroke()
                 let path = NSBezierPath()
                 path.lineWidth = 1
                 let half = h / 2
-                var x: CGFloat = 0
-                while x <= w {
-                    let t = now + Double((x / scale - playheadXNom) / pxPerTick)
+                var px: CGFloat = 0
+                while px <= w {
+                    let t = now + Double((px - playheadX) / pxPerTick)
                     var frac = t.truncatingRemainder(dividingBy: loopTicks) / loopTicks
                     if frac < 0 { frac += 1 }
                     let idx = min(count - 1, max(0, Int(frac * Double(count))))
                     let amp = CGFloat(envelope[idx]) * (half - 2)
-                    path.move(to: CGPoint(x: x, y: half - amp))
-                    path.line(to: CGPoint(x: x, y: half + amp))
-                    x += 1
+                    path.move(to: CGPoint(x: px, y: half - amp))
+                    path.line(to: CGPoint(x: px, y: half + amp))
+                    px += 1
                 }
                 path.stroke()
             }
 
-            // --- rejilla: mismas X y misma clasificación que HighwayLayout ---
+            // --- rejilla: mismas X y misma clasificacion que HighwayLayout ---
             let beatsPerBar = max(1, geometry.beatsPerBar)
             let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
             let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
@@ -134,17 +135,17 @@ struct InstrumentalStripView: NSViewRepresentable {
                     (isBar ? barLine : beatLine).setStroke()
                     let line = NSBezierPath()
                     line.lineWidth = isBar ? 1.5 : 1
-                    let px = xAct(t).rounded()
-                    line.move(to: CGPoint(x: px, y: 0))
-                    line.line(to: CGPoint(x: px, y: h))
+                    let lx = x(t).rounded()
+                    line.move(to: CGPoint(x: lx, y: 0))
+                    line.line(to: CGPoint(x: lx, y: h))
                     line.stroke()
                 }
             }
 
-            // aguja en la cabeza de lectura (misma fracción que la autopista)
+            // aguja en la cabeza de lectura (misma X absoluta que la autopista)
             playhead.setStroke()
             let n = NSBezierPath()
-            let hx = (playheadXNom * scale).rounded()
+            let hx = playheadX.rounded()
             n.move(to: CGPoint(x: hx, y: 0))
             n.line(to: CGPoint(x: hx, y: h))
             n.lineWidth = 1
