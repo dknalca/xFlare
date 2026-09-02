@@ -30,9 +30,16 @@ final class AppModelTests: XCTestCase {
         m.goHome();        XCTAssertEqual(m.screen, .home)
     }
 
-    func testSeleccionarUnScratchAbrePracticaConSuEjercicio() throws {
+    func testSeleccionarUnScratchAbreLaFichaNoLaPractica() throws {
         let m = try model()
         m.selectScratch("baby")
+        XCTAssertEqual(m.screen, .exerciseDetail(scratchId: "baby"))
+        // la ficha trae dibujo + descripción + variantes
+        let d = try XCTUnwrap(m.exerciseDetail(scratchId: "baby"))
+        XCTAssertEqual(d.exerciseId, "ex-l1-baby")
+        XCTAssertFalse(d.variants.isEmpty)
+        // y desde ahí se lanza la práctica
+        m.startPractice(exerciseId: "ex-l1-baby")
         XCTAssertEqual(m.screen, .practice(exerciseId: "ex-l1-baby", variantId: "base"))
         XCTAssertEqual(m.continueExerciseId, "ex-l1-baby")
     }

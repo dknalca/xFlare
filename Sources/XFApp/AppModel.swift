@@ -16,6 +16,8 @@ public final class AppModel: ObservableObject {
     public enum Screen: Equatable {
         case home
         case calibration
+        /// Ficha de un truco antes de practicarlo: dibujo + historia + variantes.
+        case exerciseDetail(scratchId: String)
         case practice(exerciseId: String, variantId: String)
         case results
         case library
@@ -150,10 +152,11 @@ public final class AppModel: ObservableObject {
         screen = .progress(exerciseId: exerciseId, variantId: variantId)
     }
 
-    /// Desde una celda de la matriz o del navegador (recibe `scratchId`).
+    /// Desde una celda de la matriz o del navegador (recibe `scratchId`): abre la
+    /// **ficha** del truco, no la práctica. Desde la ficha se pulsa "Practicar".
     public func selectScratch(_ scratchId: String) {
-        guard let ex = catalog.exercise(forScratch: scratchId) else { return }
-        startPractice(exerciseId: ex.id)
+        guard catalog.library.scratch(id: scratchId) != nil else { return }
+        screen = .exerciseDetail(scratchId: scratchId)
     }
 
     // MARK: - datos para las pantallas
@@ -171,6 +174,11 @@ public final class AppModel: ObservableObject {
 
     public func variantOptions(exerciseId: String) -> [VariantOption] {
         (try? VariantAssembler.options(catalog: catalog, exerciseId: exerciseId, db: db)) ?? []
+    }
+
+    /// Ficha de detalle de un truco para la pantalla `.exerciseDetail`.
+    public func exerciseDetail(scratchId: String) -> ExerciseDetailDisplay? {
+        (try? ExerciseDetailAssembler.display(catalog: catalog, db: db, scratchId: scratchId)) ?? nil
     }
 
     public func progressDisplay(exerciseId: String, variantId: String) -> ExerciseProgressDisplay? {

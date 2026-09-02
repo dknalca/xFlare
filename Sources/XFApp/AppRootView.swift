@@ -68,6 +68,20 @@ public struct AppRootView: View {
             LibraryView(browser: model.library ?? .init(entries: []),
                         onSelect: { model.selectScratch($0) })
 
+        case .exerciseDetail(let scratchId):
+            if let d = model.exerciseDetail(scratchId: scratchId) {
+                ExerciseDetailView(
+                    display: d,
+                    onPractice: { variantId in
+                        if let ex = d.exerciseId {
+                            model.startPractice(exerciseId: ex, variantId: variantId)
+                        }
+                    },
+                    onBack: { model.openLibrary() })
+            } else {
+                emptyPanel("No se encuentra el truco \(scratchId).")
+            }
+
         case .myTable:
             MyTableView(table: model.myTable(),
                         onActivate: { model.activeProfileId = $0 })

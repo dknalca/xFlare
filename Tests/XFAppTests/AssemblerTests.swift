@@ -151,4 +151,46 @@ final class AssemblerTests: XCTestCase {
         XCTAssertTrue(try db.isMastered(exerciseId: "ex-l4-flare-2c"))
         XCTAssertNotNil(try db.reviewItem(exerciseId: "ex-l4-flare-2c", variantId: "base"))
     }
+
+    // MARK: - Ventana de detalle del truco
+
+    func testDetalleDeUnTrucoTraeDibujoDescripcionVariantesYMarca() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+        // una marca en la base del flare 2C
+        try setStars(db, exercise: "ex-l4-flare-2c", variant: "base", stars: 2)
+
+        let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
+            catalog: c, db: db, scratchId: "flare-2c"))
+
+        XCTAssertEqual(d.name, "2-Click Flare")
+        XCTAssertEqual(d.exerciseId, "ex-l4-flare-2c")
+        XCTAssertEqual(d.level, 4, "nivel del curriculo, no el del scratch")
+        XCTAssertNotNil(d.thumbnail)
+        XCTAssertFalse(d.description.isEmpty)
+        XCTAssertNotNil(d.history, "el flare tiene nota de historia")
+
+        // la base va primero, desbloqueada, con 2 estrellas y su mejor marca
+        let base = try XCTUnwrap(d.variants.first { $0.option.variantId == "base" })
+        XCTAssertTrue(base.option.isUnlocked)
+        XCTAssertEqual(base.stars, 2)
+        XCTAssertNotEqual(base.bestScore, "—")
+
+        // una variante que pide estrellas sigue bloqueada
+        XCTAssertTrue(d.variants.contains { if case .locked = $0.option.lock { return true }; return false })
+    }
+
+    func testDetalleDeUnScratchInexistenteEsNil() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+        XCTAssertNil(try ExerciseDetailAssembler.display(catalog: c, db: db, scratchId: "no-existe"))
+    }
+
+    func testDescripcionSinteticaMencionaLosClicks() throws {
+        let c = try catalog()
+        let db = try XFDatabase.inMemory()
+        let d = try XCTUnwrap(try ExerciseDetailAssembler.display(
+            catalog: c, db: db, scratchId: "flare-3c"))
+        XCTAssertTrue(d.description.contains("clicks de fader"), d.description)
+    }
 }

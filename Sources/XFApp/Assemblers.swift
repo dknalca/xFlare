@@ -107,6 +107,48 @@ public enum LibraryAssembler {
     }
 }
 
+// MARK: - Ventana de detalle de un truco
+
+public enum ExerciseDetailAssembler {
+
+    /// Arma la ventana de detalle de `scratchId`: dibujo TTM + descripción +
+    /// historia, y la lista de variantes con las estrellas / mejor marca que se
+    /// llevan sacadas. `nil` si el scratch no existe en la librería.
+    public static func display(catalog: Catalog, db: XFDatabase,
+                               scratchId: String) throws -> ExerciseDetailDisplay? {
+        guard let scratch = catalog.library.scratch(id: scratchId) else { return nil }
+        let ex = catalog.exercise(forScratch: scratchId)
+
+        // Nivel del CURRÍCULO (donde se practica), no el del scratch.
+        let level: Int? = ex.flatMap { Int($0.level.drop(while: { !$0.isNumber })) }
+
+        var rows: [ExerciseDetailDisplay.VariantRow] = []
+        if let ex {
+            let options = try VariantAssembler.options(catalog: catalog, exerciseId: ex.id, db: db)
+            for opt in options {
+                let p = try db.progress(exerciseId: ex.id, variantId: opt.variantId)
+                rows.append(.init(
+                    option: opt,
+                    stars: p?.stars ?? 0,
+                    bestScore: p?.bestScore.map(ExerciseProgressDisplay.grouped) ?? "—",
+                    attempts: p?.attempts ?? 0))
+            }
+        }
+
+        return ExerciseDetailDisplay(
+            scratchId: scratch.id,
+            name: scratch.name,
+            family: scratch.family,
+            level: level,
+            technique: scratch.technique,
+            description: ScratchLore.description(for: scratch),
+            history: ScratchLore.history(for: scratch),
+            thumbnail: TTMThumbnail.build(scratch: scratch),
+            exerciseId: ex?.id,
+            variants: rows)
+    }
+}
+
 // MARK: - Selector de variantes
 
 public enum VariantAssembler {
