@@ -152,10 +152,42 @@ public struct LivePracticeView: View {
                 session.scrollSensitivity = v
             }
             bufferControl
+            Divider().background(XFColor.stroke)
+            callResponsePanel
         }
         .frame(width: 108)
         .padding(XFSpacing.sm)
         .background(XFColor.surface)
+    }
+
+    /// Llamada y respuesta: la máquina toca `n` compases con el fantasma
+    /// moviendo el sample, luego los imitas de oído. `n` en múltiplos de 2.
+    private var callResponsePanel: some View {
+        VStack(spacing: 3) {
+            Button {
+                session.setCallResponse(session.crPhase == .off)
+            } label: {
+                HStack(spacing: XFSpacing.xs) {
+                    Image(systemName: session.crPhase == .off
+                          ? "questionmark.circle" : "questionmark.circle.fill")
+                    Text(crLabel).font(XFFont.body(10))
+                }
+                .foregroundColor(crColor)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 4) {
+                Text("Compases").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+                Button { session.setCallResponseBars(session.crBars / 2) } label: { Text("−") }
+                    .buttonStyle(.plain).disabled(session.crBars <= 2)
+                Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 16)
+                Button { session.setCallResponseBars(session.crBars * 2) } label: { Text("+") }
+                    .buttonStyle(.plain).disabled(session.crBars >= 16)
+            }
+            .foregroundColor(XFColor.text)
+        }
     }
 
     /// Cambia el buffer de audio en caliente: reabre el motor solo (sin
@@ -367,19 +399,6 @@ public struct LivePracticeView: View {
                     Text("Metrónomo").font(XFFont.body(11))
                 }
                 .foregroundColor(metroOn ? XFColor.text : XFColor.textMuted)
-            }
-            .buttonStyle(.plain)
-
-            // llamada y respuesta
-            Button {
-                session.setCallResponse(session.crPhase == .off)
-            } label: {
-                HStack(spacing: XFSpacing.xs) {
-                    Image(systemName: session.crPhase == .off
-                          ? "questionmark.circle" : "questionmark.circle.fill")
-                    Text(crLabel).font(XFFont.body(11))
-                }
-                .foregroundColor(crColor)
             }
             .buttonStyle(.plain)
 

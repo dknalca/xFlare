@@ -49,9 +49,9 @@ public final class PracticeSession: ObservableObject {
 
     // --- llamada y respuesta ---
     @Published public private(set) var crPhase: CallResponsePhase = .off
-    /// Cuántos compases dura cada fase. Se fija a un múltiplo entero de la
-    /// longitud del patrón (así cada `listen` toca la misma frase completa).
-    private var crBars: Int = 2
+    /// Cuántos compases dura cada fase (la máquina toca `crBars`, tú imitas
+    /// `crBars`). Se elige desde la vista en múltiplos de 2.
+    @Published public private(set) var crBars: Int = 2
     private var crPhaseLenTicks: Double = 0
     private var crPhaseStart: Double = 0
 
@@ -115,12 +115,9 @@ public final class PracticeSession: ObservableObject {
         self.ppq = Double(max(1, scratch.ppq))
         self.historyTicks = self.ppq * 8
 
-        // llamada y respuesta: ~2 compases, redondeado a un número entero de
-        // repeticiones del patrón para que la frase sea siempre la misma.
-        let barTicks = 4.0 * Double(max(1, scratch.ppq))
-        let patternBars = max(1, Int((Double(max(1, scratch.lengthTicks)) / barTicks).rounded()))
-        self.crBars = patternBars * max(1, Int((2.0 / Double(patternBars)).rounded()))
-        self.crPhaseLenTicks = Double(self.crBars) * barTicks
+        // llamada y respuesta: 2 compases por defecto (ajustable desde la vista).
+        self.crBars = 2
+        self.crPhaseLenTicks = 2.0 * 4.0 * self.ppq
 
         // El patron (fantasma) va de `range.lowerBound` (pico bajo = sample 0) a
         // `range.upperBound` (pico alto = 2/3 del sample). El PLATO puede ir mas
@@ -229,6 +226,15 @@ public final class PracticeSession: ObservableObject {
             crPhase = .off
             platterVelocity = 0
         }
+    }
+
+    /// Nº de compases de cada fase, forzado a par y a [2, 16]. La fase en curso
+    /// no se corta: el cambio entra en la siguiente.
+    public func setCallResponseBars(_ n: Int) {
+        let even = max(2, min(16, (n / 2) * 2))
+        guard even != crBars else { return }
+        crBars = even
+        crPhaseLenTicks = Double(crBars) * 4.0 * ppq
     }
 
     /// Posición del fantasma en `tick`, envuelta al patrón (para `listen`).

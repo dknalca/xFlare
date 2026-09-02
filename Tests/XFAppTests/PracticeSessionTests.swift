@@ -183,6 +183,31 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertTrue(sawListenAgain, "y vuelve a escucha")
     }
 
+    func testCrBarsEsParYAcotado() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 90)
+        XCTAssertEqual(s.crBars, 2)
+        s.setCallResponseBars(4);  XCTAssertEqual(s.crBars, 4)
+        s.setCallResponseBars(8);  XCTAssertEqual(s.crBars, 8)
+        s.setCallResponseBars(3);  XCTAssertEqual(s.crBars, 2, "impar -> par por debajo")
+        s.setCallResponseBars(99); XCTAssertEqual(s.crBars, 16, "tope 16")
+        s.setCallResponseBars(0);  XCTAssertEqual(s.crBars, 2, "minimo 2")
+    }
+
+    func testMasCompasesAlargaLaFase() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        s.setCallResponseBars(2)
+        s.setCallResponse(true)
+        // a 120 bpm, 2 compases = 4 s -> a los ~2 s sigue en listen
+        for _ in 0..<120 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.crPhase, .listen, "con 2 compases ya habria cambiado si fuese 1")
+        // con 8 compases, tras 4 s sigue en la primera fase
+        let s2 = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        s2.setCallResponseBars(8)
+        s2.setCallResponse(true)
+        for _ in 0..<300 { s2.advance(by: 1.0 / 60.0) }   // 5 s
+        XCTAssertEqual(s2.crPhase, .listen, "8 compases = 16 s: sigue escuchando")
+    }
+
     func testApagarCallResponseVuelveAControlManual() throws {
         let s = PracticeSession(scratch: try scratch("baby"), bpm: 90)
         s.setCallResponse(true)
