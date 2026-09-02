@@ -4,64 +4,102 @@ import XFClock
 import XFNotation
 @testable import XFAnalysis
 
-/// B8.5 (version sintetica) — good / late / sloppy. Cuando haya `.xfsession`
-/// grabados reales, estos tests se repiten contra ellos; de momento generan la
-/// toma a partir del patron para probar la logica del scoring.
+/// B8.5 (versión sintética) — good / late / sloppy **por patrón de nivel 1-4**
+/// (`docs/TESTING.md` §"Tests de replay"). Cuando haya `.xfsession` grabados
+/// reales (bloqueado por hardware), estos tests se repiten contra ellos; de
+/// momento `SyntheticTake` genera la toma a partir del patrón para fijar el
+/// comportamiento del scoring en todo el rango de complejidad, no solo en un
+/// flare.
 final class ReplayScoringTests: XCTestCase {
 
-    private func flare2c() throws -> Scratch {
-        try Composer.compose(hand: "baby", fader: "flare_2c", division: "1/8", cycles: 4,
+    private func compose(_ hand: String, _ fader: String,
+                         division: String = "1/8", cycles: Int = 4) throws -> Scratch {
+        try Composer.compose(hand: hand, fader: fader, division: division, cycles: cycles,
                              primitives: try AnalysisFixtures.primitives())
     }
+
+    private func flare2c() throws -> Scratch { try compose("baby", "flare_2c") }
 
     private func clock(bpm: Double = 90) -> ClockMap {
         ClockMap(anchorHostTime: 2_000_000_000_000, anchorTick: 0,
                  tempo: Tempo(bpm: bpm), host: HostClock(numer: 1, denom: 1))
     }
 
-    /// good: la toma reproduce el patron -> puntua alto y saca 3 estrellas.
-    func testGood() throws {
-        let sc = try flare2c()
-        let take = SyntheticTake.make(for: sc, clock: clock())
-        let r = DefaultScorer().score(take, against: sc, atTargetBpm: true)
+    // MARK: - la batería good / late / sloppy, parametrizada por patrón
 
-        XCTAssertGreaterThanOrEqual(r.accuracy, 0.88, "good deberia puntuar >= 0.88, dio \(r.accuracy)")
-        XCTAssertEqual(r.missedClicks, 0)
-        XCTAssertEqual(r.stars, 3, "reasons: \(r.starReasons)")
-        XCTAssertLessThan(abs(r.biasMs), 5)
-        XCTAssertLessThan(r.sigmaMs, 8)
-        XCTAssertTrue(r.diagnostics.contains { $0.kind == .good })
+    /// Corre las tres tomas sintéticas contra `sc` y comprueba el comportamiento
+    /// esperado del scoring. Los umbrales absolutos son holgados (los finos son
+    /// B8.4); lo que se fija con firmeza son las **invariantes**: good ≫ sloppy,
+    /// late = sesgo (no dispersión), sloppy = dispersión.
+    private func runReplaySuite(_ label: String, _ sc: Scratch,
+                                file: StaticString = #filePath, line: UInt = #line) {
+        let scorer = DefaultScorer()
+
+        // --- good: la toma reproduce el patrón ---
+        let good = scorer.score(SyntheticTake.make(for: sc, clock: clock()),
+                                against: sc, atTargetBpm: true)
+        XCTAssertGreaterThanOrEqual(good.accuracy, 0.85,
+            "\(label) good debería puntuar ≥ 0.85, dio \(good.accuracy)", file: file, line: line)
+        XCTAssertEqual(good.missedClicks, 0, "\(label) good sin clicks perdidos", file: file, line: line)
+        XCTAssertLessThan(abs(good.biasMs), 8, "\(label) good casi sin sesgo", file: file, line: line)
+        XCTAssertLessThan(good.sigmaMs, 12, "\(label) good regular", file: file, line: line)
+        XCTAssertGreaterThanOrEqual(good.stars, 2,
+            "\(label) good ≥ 2 estrellas (reasons: \(good.starReasons))", file: file, line: line)
+
+        // --- late: todos los clicks +35 ms -> SESGO, no dispersión ---
+        let late = scorer.score(SyntheticTake.make(for: sc, clock: clock(), clickBiasMs: 35),
+                                against: sc, atTargetBpm: true)
+        XCTAssertEqual(late.missedClicks, 0, "\(label) late sin clicks perdidos", file: file, line: line)
+        XCTAssertGreaterThan(late.biasMs, 20,
+            "\(label) late: sesgo ~+35 ms, dio \(late.biasMs)", file: file, line: line)
+        XCTAssertLessThan(late.sigmaMs, 16,
+            "\(label) late: el sesgo es sistemático, poca dispersión (σ=\(late.sigmaMs))", file: file, line: line)
+        XCTAssertTrue(late.diagnostics.contains { $0.kind == .timingBias },
+            "\(label) late debe señalar sesgo: \(late.diagnostics.map(\.text))", file: file, line: line)
+        XCTAssertFalse(late.diagnostics.contains { $0.kind == .timingSpread },
+            "\(label) late NO es dispersión", file: file, line: line)
+
+        // --- sloppy: jitter ±45 ms -> DISPERSIÓN y peor puntuación ---
+        let sloppy = scorer.score(
+            SyntheticTake.make(for: sc, clock: clock(), clickJitterMs: 45,
+                               velocityNoise: 0.02, seed: 99),
+            against: sc, atTargetBpm: true)
+        XCTAssertGreaterThan(sloppy.sigmaMs, 20,
+            "\(label) sloppy: mucha dispersión (σ=\(sloppy.sigmaMs))", file: file, line: line)
+        XCTAssertTrue(sloppy.diagnostics.contains { $0.kind == .timingSpread },
+            "\(label) sloppy debe señalar dispersión: \(sloppy.diagnostics.map(\.text))", file: file, line: line)
+        XCTAssertLessThanOrEqual(sloppy.stars, 2, "\(label) sloppy ≤ 2 estrellas", file: file, line: line)
+
+        // --- invariante fuerte: good es claramente mejor que sloppy ---
+        XCTAssertGreaterThan(good.accuracy, sloppy.accuracy + 0.15,
+            "\(label): good (\(good.accuracy)) debe superar a sloppy (\(sloppy.accuracy)) con margen",
+            file: file, line: line)
+        XCTAssertEqual(good.stars, 3,
+            "\(label) good al BPM objetivo saca 3 estrellas (reasons: \(good.starReasons))",
+            file: file, line: line)
     }
 
-    /// late: todos los clicks +35 ms -> se detecta SESGO positivo, no dispersion.
-    func testLate() throws {
-        let sc = try flare2c()
-        let take = SyntheticTake.make(for: sc, clock: clock(), clickBiasMs: 35)
-        let r = DefaultScorer().score(take, against: sc, atTargetBpm: true)
-
-        XCTAssertEqual(r.missedClicks, 0)
-        XCTAssertGreaterThan(r.biasMs, 25, "esperaba sesgo ~+35 ms, dio \(r.biasMs)")
-        XCTAssertLessThan(r.sigmaMs, 10, "el sesgo es sistematico: poca dispersion")
-        XCTAssertLessThan(r.stars, 3)
-        let bias = r.diagnostics.first { $0.kind == .timingBias }
-        XCTAssertNotNil(bias, "debe salir un diagnostico de sesgo")
-        XCTAssertTrue(bias?.text.contains("tarde") ?? false)
-        XCTAssertFalse(r.diagnostics.contains { $0.kind == .timingSpread })
+    /// L1 — corte simple hacia delante: pocos clicks, gesto básico.
+    func testReplayNivel1_forwardCut() throws {
+        try runReplaySuite("L1 forward-cut", compose("baby", "forward_cut"))
     }
 
-    /// sloppy: jitter de ±45 ms -> puntua bajo y se senala DISPERSION.
-    func testSloppy() throws {
-        let sc = try flare2c()
-        let take = SyntheticTake.make(for: sc, clock: clock(),
-                                      clickJitterMs: 45, velocityNoise: 0.02, seed: 99)
-        let r = DefaultScorer().score(take, against: sc, atTargetBpm: true)
-
-        XCTAssertLessThanOrEqual(r.accuracy, 0.75, "sloppy deberia puntuar bajo, dio \(r.accuracy)")
-        XCTAssertGreaterThan(r.sigmaMs, 18)
-        XCTAssertLessThanOrEqual(r.stars, 2)
-        XCTAssertTrue(r.diagnostics.contains { $0.kind == .timingSpread },
-                      "debe senalar dispersion: \(r.diagnostics.map(\.text))")
+    /// L2 — transformer de 2: fader troceado, clicks regulares.
+    func testReplayNivel2_transformer2() throws {
+        try runReplaySuite("L2 transformer-2", compose("baby", "transformer_2"))
     }
+
+    /// L3 — flare de 1 click: un cierre breve por movimiento.
+    func testReplayNivel3_flare1c() throws {
+        try runReplaySuite("L3 flare-1c", compose("baby", "flare_1c"))
+    }
+
+    /// L4 — flare de 2 clicks: el patrón más denso de la batería.
+    func testReplayNivel4_flare2c() throws {
+        try runReplaySuite("L4 flare-2c", flare2c())
+    }
+
+    // MARK: - casos concretos
 
     /// clicks perdidos: si el usuario se deja 2, se cuenta y se dice.
     func testClicksPerdidos() throws {

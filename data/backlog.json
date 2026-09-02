@@ -346,7 +346,7 @@
           "module": "CXFTimecode",
           "acceptance": "-",
           "status": "todo",
-          "note": "bloqueado: tests con senal de cuadratura sintetica. Antes de sellar, pasar un vinilo de timecode real por un interface (enganche, escala de velocidad, dropout con la aguja de verdad)."
+          "note": "Bloqueado por hardware: tests con senal de cuadratura sintetica. Antes de sellar, pasar un vinilo de timecode real por un interface (enganche, escala de velocidad, dropout). PREPARACION LISTA (2026-09-02): spike/b5-timecode/tcprobe compila y abre la entrada -> xf_timecoder -> vel/pos/conf/dir en vivo. El dia del vinilo: correr tcprobe (docs/HW_BRINGUP.md paso 6) + make seal M=CXFTimecode."
         }
       ]
     },
@@ -593,7 +593,7 @@
           "module": "XFAnalysis",
           "acceptance": "segun docs/TESTING.md",
           "status": "wip",
-          "note": "version sintetica hecha (ReplayScoringTests + SyntheticTake generan el Take desde el patron): good>=0.88 y 3 estrellas, late(+35ms) sesgo sistematico, sloppy(+/-45ms) dispersion, clicks perdidos contados. Falta: .xfsession grabados reales (hardware)."
+          "note": "Version sintetica COMPLETA: ReplayScoringTests + SyntheticTake corren good/late/sloppy contra un patron representativo de CADA nivel 1-4 (forward-cut L1, transformer-2 L2, flare-1c L3, flare-2c L4), no solo el flare. good>=0.85 y 3 estrellas; late(+35ms) sesgo sistematico (no dispersion); sloppy(+/-45ms) dispersion y peor puntuacion con margen; clicks perdidos contados. Invariante: good >> sloppy por patron. Falta: .xfsession grabados reales (hardware) para cerrar la tarea y desbloquear B8.8."
         },
         {
           "id": "B8.6",

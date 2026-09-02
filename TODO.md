@@ -293,7 +293,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho: `Diagnoser` — clicks perdidos, luego **sesgo** (`|media| ≥ 12 ms` y σ baja → "llegas X ms tarde, adelanta el click") vs **dispersión** (`σ ≥ 18 ms` → "es que no llegas siempre igual, metrónomo"), amplitud, contorno. Umbrales provisionales (se afinan con tomas reales).
 - [~] **B8.5** Tests de replay: good / late / sloppy por patron de nivel 1-4 `XFAnalysis`
       - Criterio: segun docs/TESTING.md
-      - Estado: **versión sintética** hecha (`ReplayScoringTests` + `SyntheticTake` generan el `Take` desde el patrón): good → ≥0.88 y 3★, late(+35 ms) → sesgo detectado como sistemático, sloppy(±45 ms) → dispersión señalada, clicks perdidos contados. **Falta**: `.xfsession` grabados reales (hardware) — `flare-2c__good/late/sloppy`.
+      - Estado: **versión sintética completa** (`ReplayScoringTests` + `SyntheticTake` generan el `Take` desde el patrón). La batería good/late/sloppy corre ahora contra **un patrón representativo de cada nivel 1-4** (forward-cut L1, transformer-2 L2, flare-1c L3, flare-2c L4), no solo el flare: good → ≥0.85 y 3★, late(+35 ms) → sesgo (no dispersión), sloppy(±45 ms) → dispersión + peor puntuación con margen, clicks perdidos contados. Invariante fija: good ≫ sloppy en cada patrón. **Falta**: `.xfsession` grabados reales (hardware) — `<patrón>__good/late/sloppy` — para cerrar la tarea y desbloquear B8.8.
 - [x] **B8.6** Puntuacion por evento y total sobre maxScore `XFAnalysis`
       - Criterio: docs/SCORING.md seccion 1
       - Hecho: `DefaultScorer` suma clicks + pitch + amplitud; `maxScore` de `XFNotation.ScoreEvents`; `accuracy = score/maxScore`. Tablas en `ScoringConstants` (copia del contrato de `scoring.json`).
