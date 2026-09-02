@@ -280,12 +280,19 @@ public struct LivePracticeView: View {
             var instrPCM = rawInstr
             var instrBPM = AudioAsset.instrumentalNativeBPM
             var loopTicks = Double(beatsPerBar * ppq)
+            // si el nombre del fichero trae el BPM (080bpm_beat.wav), fiarse de
+            // el y usar el analizador solo para la fase del "1".
+            let hint = TempoAnalyzer.bpmHint(fromFilename: AudioAsset.instrumentalRelPath)
             if let pcm = rawInstr {
-                if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr) {
+                if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
                     instrBPM = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
                     instrPCM = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
-                    loopTicks = Double(a.beatsInLoop) * Double(ppq)
+                    // unidad de bucle para la tira: si es un loop corto, sus
+                    // negras; si es una pista larga, su longitud musical entera.
+                    loopTicks = a.isShortLoop
+                        ? Double(a.beats) * Double(ppq)
+                        : (Double(pcm.count) / sr) * (a.bpm / 60.0) * Double(ppq)
                 } else {
                     let beats = Double(pcm.count) / sr * (instrBPM / 60.0)
                     let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
