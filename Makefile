@@ -1,7 +1,7 @@
 # xFlare — atajos de desarrollo.
 # `make verify` en verde es la condicion para cerrar cualquier tarea.
 
-.PHONY: verify build run app test test-advisory status golden-update seal clean lint profiles-check universal archs toolchain-check
+.PHONY: verify build run app dmg test test-advisory status golden-update seal clean lint profiles-check universal archs toolchain-check
 
 # ---------------------------------------------------------------------------
 # Toolchain de DESARROLLO (ADR-029, resuelto 2026-08-31).
@@ -84,6 +84,27 @@ app: build
 	echo "  hecho: xFlare.app$${ICON:+  (con icono)}"; \
 	echo "  abrelo: clic derecho sobre xFlare.app > Abrir > Abrir  (solo la 1a vez)"; \
 	echo "  o sin Gatekeeper:  xFlare.app/Contents/MacOS/xFlare"
+
+# DMG PLANO con el .app dentro (B12a.4). Sin fondo ni layout estilado (eso es
+# B12b.2, pospuesto). Solo xFlare.app + un enlace a /Applications para arrastrar.
+# El artefacto que se sube a Releases se compila antes con `make universal`
+# (ADR-023); esto empaqueta el .app que haya (por defecto el de `make app`).
+dmg: app
+	@command -v hdiutil >/dev/null 2>&1 || (echo "  hdiutil no disponible (no es macOS?)"; exit 1); \
+	VER=$$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' xFlare.app/Contents/Info.plist 2>/dev/null || echo 0.1); \
+	OUT="xFlare-$$VER.dmg"; \
+	STAGE=$$(mktemp -d /tmp/xflare-dmg.XXXXXX); \
+	cp -R xFlare.app "$$STAGE/"; \
+	ln -s /Applications "$$STAGE/Applications"; \
+	find "$$STAGE" -name .DS_Store -delete; \
+	rm -f "$$OUT"; \
+	hdiutil create -quiet -volname "xFlare" -srcfolder "$$STAGE" -ov -format UDZO "$$OUT"; \
+	rm -rf "$$STAGE"; \
+	SZ=$$(du -h "$$OUT" | cut -f1); \
+	codesign --force --sign - "$$OUT" 2>/dev/null || true; \
+	echo "  hecho: $$OUT  ($$SZ)"; \
+	echo "  DMG plano (sin notarizar). Al abrirlo: arrastra xFlare.app a Applications."; \
+	echo "  1er arranque: clic derecho sobre la app > Abrir > Abrir (rodeo de Gatekeeper)."
 
 # Ejecucion real de tests. Estricto: corta si algo falla.
 test:

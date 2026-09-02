@@ -37,8 +37,9 @@ spike/**/*.dSYM/
 # (salida, pequena, para no obligar a regenerar). El iconset intermedio no.
 icon/xflare.iconset/
 
-# app de andamiaje empaquetada (make app)
+# app de andamiaje empaquetada (make app) y su DMG (make dmg)
 xFlare.app/
+xFlare-*.dmg
 
 # audio de pruebas del autor (copyright de terceros, NO se distribuye — CLAUDE.md §12)
 Audio/

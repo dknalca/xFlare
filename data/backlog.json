@@ -882,15 +882,15 @@
           "module": "XFApp",
           "status": "wip",
           "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run",
-          "note": "2026-09-01: BundleContentLoader + `make app` copia data/ y profiles/ a Contents/Resources/ y firma ad-hoc. Falta el DMG (hdiutil) y el binario universal para cerrar B12a."
+          "note": "2026-09-02: BundleContentLoader + make app copia data/ y profiles/ a Contents/Resources/ y firma ad-hoc; make dmg empaqueta. Falta: smoke test lanzando la app desde /Applications sin el repo delante (accion manual)."
         },
         {
           "id": "B12a.1",
           "title": "Info.plist del .app: NSMicrophoneUsageDescription, CFBundleIdentifier, version, icono",
           "module": "-",
-          "status": "wip",
+          "status": "done",
           "acceptance": "sin NSMicrophoneUsageDescription la captura de timecode falla sin decir por que",
-          "note": "Info.plist con NSMicrophoneUsageDescription ya en `make app`; falta icono definitivo."
+          "note": "make app escribe Info.plist con NSMicrophoneUsageDescription, CFBundleIdentifier (app.xflare.xFlare), CFBundleShortVersionString, LSMinimumSystemVersion 11.0, NSHighResolutionCapable e icono (icon/xflare.icns)."
         },
         {
           "id": "B12a.2",
@@ -903,16 +903,17 @@
           "id": "B12a.3",
           "title": "Firma ad-hoc (codesign -s -)",
           "module": "-",
-          "status": "wip",
+          "status": "done",
           "acceptance": "en Apple Silicon un .app sin ninguna firma no arranca; no se notariza",
-          "note": "`make app` firma ad-hoc con `codesign -s -`."
+          "note": "make app: codesign --force --deep --sign - xFlare.app. make dmg re-firma el .dmg. Verificado: codesign -dv -> flags=0x2(adhoc)."
         },
         {
           "id": "B12a.4",
           "title": "DMG plano con el .app dentro, publicado en GitHub Releases",
           "module": "-",
           "acceptance": "-",
-          "status": "todo"
+          "status": "wip",
+          "note": "Hecho (2026-09-02): make dmg -> hdiutil create -format UDZO sobre staging con xFlare.app + enlace a /Applications. Sin fondo/layout (eso es B12b.2). Sale xFlare-<version>.dmg (~43 MB), monta y trae el bundle completo. El binario de Releases se compila antes con make universal (el de make app es debug x86_64). Falta: publicar en GitHub Releases (manual/CI). Al cerrarlo, marcar B12a.0 hecho."
         },
         {
           "id": "B12a.5",

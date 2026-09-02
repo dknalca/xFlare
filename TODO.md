@@ -423,25 +423,33 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (p. ej. `swift run`) -> `RepoContentLoader`. 4 tests (monta una carpeta con
         la forma de `Contents/Resources/` y comprueba que sirve el mismo catalogo
         que el repo; carpeta vacia -> `hasCatalog == false`).
-      - **Falta**: el copiado fisico de `data/` y `profiles/` a
-        `xFlare.app/Contents/Resources/` — lo hace el script de empaquetado del DMG
-        (B12a.4), no SwiftPM (los recursos de SwiftPM tienen que vivir dentro de la
-        carpeta del target). Cerrar B12a.0 cuando exista ese script y la app
-        empaquetada arranque sin el repo delante.
-- [ ] **B12a.1** `Info.plist` del `.app`
-      - `NSMicrophoneUsageDescription` (obligatorio: sin el la captura de timecode
-        falla sin decir por que), `CFBundleIdentifier`, version, icono.
+      - **Hecho el copiado (2026-09-02):** `make app` monta `xFlare.app/Contents/
+        {MacOS,Resources}` y hace `cp -R data profiles` a `Contents/Resources/`;
+        `make dmg` lo empaqueta. **Falta**: smoke test lanzando la app desde
+        `/Applications` (o el DMG) sin el repo delante — acción manual, como la
+        parte de hardware.
+- [x] **B12a.1** `Info.plist` del `.app`
+      - Hecho: `make app` escribe el `Info.plist` con `NSMicrophoneUsageDescription`
+        ("xFlare necesita la entrada de audio para leer el vinilo de control"),
+        `CFBundleIdentifier` (`app.xflare.xFlare`), `CFBundleShortVersionString`,
+        `LSMinimumSystemVersion 11.0`, `NSHighResolutionCapable`, e icono
+        (`icon/xflare.icns`, se genera de `xflare.svg` si falta).
 - [ ] **B12a.2** Verificar binario universal `x86_64 + arm64` en las dos maquinas
       - Criterio: PLATFORM_SUPPORT.md seccion 9 completa. ADR-028 no se relaja.
-- [ ] **B12a.3** Firma ad-hoc (`codesign -s -`)
-      - En Apple Silicon un `.app` sin ninguna firma no arranca. No se notariza.
-- [ ] **B12a.4** Script de empaquetado + DMG plano con el `.app` dentro
-      - `swift build -c release --arch x86_64 --arch arm64`, montar
-        `xFlare.app/Contents/{MacOS,Resources}`, **`cp -R data profiles` a
-        `Contents/Resources/`** (lo que consume `BundleContentLoader`, B12a.0),
-        `Info.plist` (B12a.1), firma ad-hoc (B12a.3), `hdiutil` para el DMG.
-      - Sin fondo ni layout. Publicado en GitHub Releases.
-      - Al cerrar esto, marcar B12a.0 como hecho (la app empaquetada arranca sin el repo).
+      - `make universal` + `make archs` (`lipo -archs`) ya lo comprueba en esta
+        maquina; falta la corrida en la segunda (si la hay).
+- [x] **B12a.3** Firma ad-hoc (`codesign -s -`)
+      - Hecho: `make app` hace `codesign --force --deep --sign - xFlare.app`;
+        `make dmg` re-firma el `.dmg`. Verificado: `codesign -dv` da
+        `flags=0x2(adhoc)`.
+- [~] **B12a.4** Script de empaquetado + DMG plano con el `.app` dentro
+      - Hecho (2026-09-02): `make dmg` — `hdiutil create ... -format UDZO` sobre
+        un staging con `xFlare.app` + enlace a `/Applications`. Sin fondo ni
+        layout (eso es B12b.2). Sale `xFlare-<version>.dmg` (~43 MB), monta y
+        contiene el bundle completo. El binario que se sube a Releases se compila
+        antes con `make universal` (el de `make app` es debug x86_64).
+      - **Falta**: publicarlo en GitHub Releases (acción manual / CI).
+      - Al cerrarlo del todo, marcar B12a.0 como hecho.
 - [ ] **B12a.5** Nota de release
       - Rodeo de Gatekeeper (clic derecho -> Abrir, o `xattr -dr com.apple.quarantine xFlare.app`).
       - GPL-3.0: enlazar el tag exacto del fuente correspondiente.
