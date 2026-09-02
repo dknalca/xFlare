@@ -128,13 +128,15 @@ public final class PracticeSession: ObservableObject {
         self.crPhaseLenTicks = 2.0 * 4.0 * self.ppq
 
         // El patron (fantasma) va de `range.lowerBound` a `range.upperBound`. El
-        // PLATO recorre SIEMPRE mas: hasta el final del sample. Con
-        // `patternFill = 2/3` y `posHi` a 1,5 spans, la traza del usuario llega
-        // justo al borde superior de la autopista.
+        // PLATO tiene un techo GENEROSO (2,5x el span del patron): puede
+        // scratchear bien mas alla del final del sample; `PracticeScene` mapea
+        // el rango propio del patron (n=0..1) a toda la autopista y lo que se
+        // pasa se sale por arriba ("infinito"). El audio satura en el final del
+        // sample (`normalizedPosition` <= 1).
         let range = HighwayLayout(scratch: scratch).positionRange
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
-        self.posHi = range.lowerBound + patternSpan / AudioAsset.scratchPatternTopFraction
+        self.posHi = range.lowerBound + patternSpan * 2.5
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))

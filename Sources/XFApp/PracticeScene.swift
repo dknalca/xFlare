@@ -318,13 +318,16 @@ final class PracticeScene: SKScene {
         let playheadX = geometry.playheadX
         let (yb, yt) = geometry.curveBand
 
-        // rango del plato en unidades de posicion: [lo, lo + span/topFraction]
+        // Mapeo LINEAL SIN TECHO: el rango PROPIO del patron [lo, lo+span]
+        // (n = 0…1) ocupa toda la banda [yb, yt]. Si el plato se pasa del pico
+        // del patron (n > 1) la traza SIGUE subiendo por encima del borde y la
+        // recorta el `SKCropNode` ("infinito" hacia adelante). La onda fantasma,
+        // en cambio, se queda mas baja (la escala `ghostScale` con la amplitud).
         let lo = layout.positionRange.lowerBound
         let span = max(1e-9, layout.positionRange.upperBound - lo)
-        let hi = lo + span / AudioAsset.scratchPatternTopFraction   // = lo + 1.5·span
         func mapY(_ p: Double) -> CGFloat {
-            let f = (p - lo) / (hi - lo)
-            return yb + CGFloat(min(1.02, max(-0.02, f))) * (yt - yb)
+            let n = (p - lo) / span
+            return yb + CGFloat(min(2.5, max(-0.1, n))) * (yt - yb)
         }
 
         // parte la polilinea donde cambia el nivel (nil <-> .miss)
@@ -575,9 +578,10 @@ final class PracticeScene: SKScene {
             let (yb, yt) = geometry.curveBand
             let lo = layout.positionRange.lowerBound
             let span = max(1e-9, layout.positionRange.upperBound - lo)
-            let hi = lo + span / AudioAsset.scratchPatternTopFraction
-            let f = (last.position - lo) / (hi - lo)
-            return yb + CGFloat(min(1.02, max(-0.02, f))) * (yt - yb)
+            // el rail es el sample: la aguja se queda en [yb, yt] aunque el
+            // plato se pase del final.
+            let n = (last.position - lo) / span
+            return yb + CGFloat(min(1, max(0, n))) * (yt - yb)
         }
         guard let frame else { return fallback }
         var bestY = fallback
