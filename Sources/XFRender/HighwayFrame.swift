@@ -49,11 +49,17 @@ public struct HighwayFrame: Equatable, Sendable {
     /// (compatibilidad: patrones sin fader, o quien no distinga tramos).
     public var discSegments: [[CGPoint]]
 
+    /// Puntos donde el disco **cambia de sentido** con el fader abierto (ADR-044):
+    /// ahí el vinilo se para un instante y ese silencio corta el sonido sin
+    /// mover el fader — el *phantom click* del manual TTM. Se pintan más
+    /// discretos que los cortes de fader.
+    public var phantomMarks: [CGPoint]
+
     public init(discCurve: [CGPoint], openMarks: [CGPoint], closeMarks: [CGPoint],
                 faderBands: [FaderBand], playheadX: CGFloat,
                 userSegments: [TintedPolyline] = [], hitMarks: [TintedMark] = [],
                 beatLines: [CGFloat] = [], barLines: [CGFloat] = [],
-                discSegments: [[CGPoint]] = []) {
+                discSegments: [[CGPoint]] = [], phantomMarks: [CGPoint] = []) {
         self.discCurve = discCurve
         self.openMarks = openMarks
         self.closeMarks = closeMarks
@@ -64,5 +70,6 @@ public struct HighwayFrame: Equatable, Sendable {
         self.beatLines = beatLines
         self.barLines = barLines
         self.discSegments = discSegments
+        self.phantomMarks = phantomMarks
     }
 }

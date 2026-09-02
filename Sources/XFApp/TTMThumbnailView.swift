@@ -37,6 +37,19 @@ struct TTMThumbnailView: View {
                     }
                 }
                 .stroke(XFColor.accent, lineWidth: 1)
+
+                // phantom clicks: tick vertical corto sobre la curva (el disco
+                // se para al cambiar de sentido). Más discreto que un círculo.
+                Path { path in
+                    let half: CGFloat = 3
+                    for c in thumbnail.phantomCuts {
+                        let x = c.x * w
+                        let y = (1 - c.y) * h
+                        path.move(to: CGPoint(x: x, y: y - half))
+                        path.addLine(to: CGPoint(x: x, y: y + half))
+                    }
+                }
+                .stroke(XFColor.textMuted, lineWidth: 1)
             }
         }
         .accessibilityHidden(true)   // decorativo; el nombre ya nombra el truco

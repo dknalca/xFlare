@@ -153,6 +153,30 @@ public struct HighwayLayout {
             }
         }
 
+        // --- phantom clicks (ADR-044): cambios de sentido del disco con el
+        // fader abierto. El vinilo se para un instante ahi; ese silencio corta
+        // el sonido sin mover el fader (manual TTM). Se recorre por copia visible
+        // del patron, como las marcas de fader; el estado de fader se mira por
+        // `wrapped` (posicion en el patron) para no romper la invariancia. ---
+        var phantomMarks: [CGPoint] = []
+        for copy in firstCopy...max(firstCopy, lastCopy) {
+            let base = Double(copy) * Double(length)
+            for i in 1..<max(1, scratch.record.count) {
+                let prev = scratch.record[i - 1].dir
+                let cur = scratch.record[i].dir
+                let reversal = (prev == .fwd && cur == .rev) || (prev == .rev && cur == .fwd)
+                guard reversal else { continue }
+                let localT = scratch.record[i].t
+                guard localT > 0, localT < length else { continue }
+                let absTick = base + Double(localT)
+                guard absTick >= tMin - 1, absTick <= tMax + 1 else { continue }
+                guard PositionSampler.faderState(of: scratch, atTick: wrapped(Double(localT))) == .open
+                else { continue }
+                let p = PositionSampler.position(of: scratch, atTick: localT)
+                phantomMarks.append(CGPoint(x: x(forTick: absTick), y: y(forPosition: p)))
+            }
+        }
+
         // --- carril de fader: tramos de estado constante entre transiciones ---
         var boundaries: [Double] = [tMin]
         for copy in firstCopy...max(firstCopy, lastCopy) {
@@ -222,6 +246,6 @@ public struct HighwayLayout {
                             faderBands: bands, playheadX: playheadX,
                             userSegments: userSegments, hitMarks: hitMarks,
                             beatLines: beatLines, barLines: barLines,
-                            discSegments: discSegments)
+                            discSegments: discSegments, phantomMarks: phantomMarks)
     }
 }

@@ -18,4 +18,13 @@
 <circle class="open" cx="360.0000" cy="312.0000" r="5" fill="none" stroke="#7A8794" stroke-width="2"/>
 <circle class="open" cx="763.2000" cy="312.0000" r="5" fill="none" stroke="#7A8794" stroke-width="2"/>
 <circle class="open" cx="1166.4000" cy="312.0000" r="5" fill="none" stroke="#7A8794" stroke-width="2"/>
+<line class="phantom" x1="43.2000" y1="7.0000" x2="43.2000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="158.4000" y1="307.0000" x2="158.4000" y2="317.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="244.8000" y1="7.0000" x2="244.8000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="446.4000" y1="7.0000" x2="446.4000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="561.6000" y1="307.0000" x2="561.6000" y2="317.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="648.0000" y1="7.0000" x2="648.0000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="849.6000" y1="7.0000" x2="849.6000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="964.8000" y1="307.0000" x2="964.8000" y2="317.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
+<line class="phantom" x1="1051.2000" y1="7.0000" x2="1051.2000" y2="17.0000" stroke="#7A8794" stroke-opacity="0.6" stroke-width="2"/>
 </svg>

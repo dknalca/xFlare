@@ -68,6 +68,11 @@ public enum HighwaySVG {
             lines.append("<circle class=\"close\" cx=\"\(f(p.x))\" cy=\"\(f(fy(p.y)))\" r=\"5\" fill=\"#34E1C4\"/>")
         }
 
+        // phantom clicks (ADR-044): tick vertical corto sobre la curva
+        for p in frame.phantomMarks {
+            lines.append("<line class=\"phantom\" x1=\"\(f(p.x))\" y1=\"\(f(fy(p.y) - 5))\" x2=\"\(f(p.x))\" y2=\"\(f(fy(p.y) + 5))\" stroke=\"#7A8794\" stroke-opacity=\"0.6\" stroke-width=\"2\"/>")
+        }
+
         lines.append("</svg>")
         return lines.joined(separator: "\n") + "\n"
     }

@@ -21,9 +21,16 @@ public struct TTMThumbnail: Equatable, Sendable {
     /// Puntos sobre la curva donde el fader abre o cierra (los círculos).
     public var cuts: [CGPoint]
 
-    public init(segments: [[CGPoint]], cuts: [CGPoint]) {
+    /// Puntos donde el disco **cambia de sentido** con el fader abierto: ahí el
+    /// vinilo se para un instante y ese silencio corta el sonido sin mover el
+    /// fader — el *phantom click* del manual TTM. Se marcan aparte de los cortes
+    /// de fader (docs/MATRIX_MAPPING.md §3b).
+    public var phantomCuts: [CGPoint]
+
+    public init(segments: [[CGPoint]], cuts: [CGPoint], phantomCuts: [CGPoint] = []) {
         self.segments = segments
         self.cuts = cuts
+        self.phantomCuts = phantomCuts
     }
 
     /// - Parameter samples: resolución de muestreo de la curva a lo ancho.
@@ -84,6 +91,22 @@ public struct TTMThumbnail: Equatable, Sendable {
             cuts.append(pointAt(e.t))
         }
 
-        return TTMThumbnail(segments: segments, cuts: cuts)
+        // Phantom clicks: el disco cambia de sentido (fwd<->rev) y ahí se para un
+        // instante. Solo cuentan con el fader abierto (si está cerrado, ya está
+        // mudo). El cambio de sentido en t=0 no es un corte.
+        var phantomCuts: [CGPoint] = []
+        for i in 1..<max(1, scratch.record.count) {
+            let prev = scratch.record[i - 1].dir
+            let cur = scratch.record[i].dir
+            let reversal = (prev == .fwd && cur == .rev) || (prev == .rev && cur == .fwd)
+            guard reversal else { continue }
+            let t = scratch.record[i].t
+            if t > 0, t < length,
+               PositionSampler.faderState(of: scratch, atTick: t) == .open {
+                phantomCuts.append(pointAt(t))
+            }
+        }
+
+        return TTMThumbnail(segments: segments, cuts: cuts, phantomCuts: phantomCuts)
     }
 }

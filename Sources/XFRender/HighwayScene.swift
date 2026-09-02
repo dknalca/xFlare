@@ -37,12 +37,14 @@ public final class HighwayScene: SKScene {
     private let gridLayer = SKNode()
     private let laneLayer = SKNode()
     private let marksLayer = SKNode()
+    private let phantomLayer = SKNode()             // phantom clicks (ADR-044)
     private let userLayer = SKNode()
     private let hitLayer = SKNode()
     private var beatPool: [SKShapeNode] = []
     private var barPool: [SKShapeNode] = []
     private var bandPool: [SKShapeNode] = []
     private var markPool: [SKShapeNode] = []
+    private var phantomPool: [SKShapeNode] = []
     private var userPool: [SKShapeNode] = []
     private var hitPool: [SKShapeNode] = []
 
@@ -57,6 +59,9 @@ public final class HighwayScene: SKScene {
     // (tokens XFColor.gridBeat / XFColor.grid de docs/UI_DESIGN.md §2).
     private let gridBeatColor = SKColor(red: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1.0)
     private let gridBarColor  = SKColor(red: 0x23/255, green: 0x2A/255, blue: 0x32/255, alpha: 1.0)
+    // Phantom click (ADR-044): tick corto y apagado, ni tan visible como el corte
+    // de fader ni tan al fondo como la rejilla.
+    private let phantomColor  = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.6)
 
     public init(geometry: HighwayGeometry) {
         self.geometry = geometry
@@ -76,6 +81,7 @@ public final class HighwayScene: SKScene {
         addChild(curveLayer)     // fantasma en tramos (ADR-040)
         addChild(userLayer)      // tu curva delante
         addChild(marksLayer)
+        addChild(phantomLayer)   // phantom clicks (ADR-044)
         addChild(hitLayer)
         addChild(playheadNode)
     }
@@ -158,6 +164,21 @@ public final class HighwayScene: SKScene {
             node.path = CGPath(ellipseIn: CGRect(x: -5, y: -5, width: 10, height: 10), transform: nil)
             node.fillColor = closes ? closeColor : .clear
             node.strokeColor = closes ? closeColor : openColor
+            node.lineWidth = 2
+        }
+
+        // phantom clicks (ADR-044): tick vertical corto sobre la curva
+        ensurePool(&phantomPool, count: frame.phantomMarks.count, into: phantomLayer)
+        for (i, node) in phantomPool.enumerated() {
+            guard i < frame.phantomMarks.count else { node.isHidden = true; continue }
+            node.isHidden = false
+            node.position = frame.phantomMarks[i]
+            let p = CGMutablePath()
+            p.move(to: CGPoint(x: 0, y: -5))
+            p.addLine(to: CGPoint(x: 0, y: 5))
+            node.path = p
+            node.strokeColor = phantomColor
+            node.fillColor = .clear
             node.lineWidth = 2
         }
 

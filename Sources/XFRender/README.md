@@ -60,6 +60,7 @@ public struct HighwayFrame: Equatable, Sendable {
     public var beatLines: [CGFloat]          // x de las negras (ADR-038)
     public var barLines: [CGFloat]           // x de los compases (cada beatsPerBar negras)
     public var discSegments: [[CGPoint]]     // la sombra partida donde el fader cierra (ADR-040)
+    public var phantomMarks: [CGPoint]       // cambios de sentido con fader abierto = phantom click (ADR-044)
 }
 
 public struct FaderBand: Equatable, Sendable { public var xRange: ClosedRange<CGFloat>; public var isOpen: Bool }

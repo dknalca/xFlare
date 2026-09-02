@@ -85,4 +85,38 @@ final class HighwayGhostSegmentsTests: XCTestCase {
             XCTAssertFalse(f.discSegments.isEmpty, "\(sc.id)")
         }
     }
+
+    // ADR-044 — phantom clicks: el baby (fader abierto, ida y vuelta) tiene un
+    // cambio de sentido por medio ciclo; ahí va una marca phantom.
+    func testBabyTienePhantomClicksEnLosCambiosDeSentido() throws {
+        let s = try scratch("baby")
+        let f = HighwayLayout(scratch: s).frame(atTick: 0, geometry: geo)
+        XCTAssertFalse(f.phantomMarks.isEmpty, "el baby cambia de sentido y eso corta el sonido")
+        // caen sobre la curva del fantasma (misma banda vertical)
+        let ys = f.discCurve.map(\.y)
+        for m in f.phantomMarks {
+            XCTAssertGreaterThanOrEqual(m.y, (ys.min() ?? 0) - 1)
+            XCTAssertLessThanOrEqual(m.y, (ys.max() ?? 0) + 1)
+        }
+    }
+
+    func testForwardCutNoTienePhantomsDondeElFaderEstaCerrado() throws {
+        // en el forward cut la vuelta va con el fader cerrado: el cambio de
+        // sentido de vuelta->ida ocurre en mute, no cuenta como phantom.
+        let s = try scratch("forward-cut")
+        let f = HighwayLayout(scratch: s).frame(atTick: 0, geometry: geo)
+        // hay menos phantoms que cambios de sentido totales
+        let reversals = zip(s.record, s.record.dropFirst()).filter {
+            ($0.0.dir == .fwd && $0.1.dir == .rev) || ($0.0.dir == .rev && $0.1.dir == .fwd)
+        }.count
+        XCTAssertLessThan(f.phantomMarks.count, reversals * 3, "algunos caen en mute y se descartan")
+    }
+
+    func testPhantomMarksInvarianteTrasUnLoop() throws {
+        let s = try scratch("baby")
+        let layout = HighwayLayout(scratch: s)
+        let L = Double(s.lengthTicks)
+        XCTAssertEqual(layout.frame(atTick: 133, geometry: geo).phantomMarks,
+                       layout.frame(atTick: 133 + L, geometry: geo).phantomMarks)
+    }
 }
