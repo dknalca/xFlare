@@ -4,7 +4,7 @@ import AppKit
 import simd
 
 /// Pre-renderiza una `WaveformColored.Data` a un `CGImage` de un tamaño dado.
-/// Se hace **una vez** al cargar el audio; luego `WaveformScene` solo desplaza
+/// Se hace **una vez** al cargar el audio; luego `PracticeScene` solo desplaza
 /// esa imagen como textura → sin tirones. Interpolación lineal entre tramos.
 enum WaveformImage {
 

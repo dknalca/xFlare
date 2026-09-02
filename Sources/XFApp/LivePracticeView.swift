@@ -82,26 +82,23 @@ public struct LivePracticeView: View {
         return VStack(spacing: 0) {
             topBar
             HStack(spacing: 0) {
-                // Columna de la autopista: la onda de la instrumental va ENCIMA,
-                // con la misma anchura, para que la rejilla de compas caiga en la
-                // misma X en las dos.
-                VStack(spacing: 0) {
-                    InstrumentalStripView(
-                        wave: instrWave,
-                        loopTicks: instrLoopTicks,
+                // UNA sola visualizacion: la autopista, la onda de la
+                // instrumental (banda superior) y la del sample (rail izquierdo
+                // vertical) se pintan en la misma escena y el mismo reloj de
+                // fotograma, asi la rejilla de compas no se puede desfasar.
+                ZStack {
+                    PracticeSceneView(
+                        scratch: scratch,
                         geometry: geometry,
-                        ppq: scratch.ppq,
-                        patternLengthTicks: scratch.lengthTicks,
-                        tick: { s.tick() })
-                        .frame(height: 46)
-
-                    ZStack {
-                        HighwayView(scratch: scratch, geometry: geometry,
-                                    tick: { s.tick() },
-                                    userTrace: { s.trace() })
-                            // en "tu turno" el fantasma se apaga: imitas de oido
-                            .opacity(s.crPhase == .respond ? 0.12 : 1)
-                        PlatterInputView(
+                        tick: { s.tick() },
+                        trace: { s.trace() },
+                        instrumentalWave: instrWave,
+                        instrumentalLoopTicks: instrLoopTicks,
+                        sampleWave: sampleWave,
+                        sampleProgress: { engine?.scratchProgress ?? 0 },
+                        // en "tu turno" del call & response el fantasma se atenua
+                        ghostDimmed: s.crPhase == .respond)
+                    PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
                         onFaderClosed: { closed in
@@ -116,11 +113,9 @@ public struct LivePracticeView: View {
                         },
                         currentBPM: { s.bpm },
                         onExit: onExit)
-                    }
                 }
                 rightPanel
             }
-            waveStrip
             hintBar
         }
         .background(XFColor.bg)
@@ -359,14 +354,6 @@ public struct LivePracticeView: View {
                 session.start()
             }
         }
-    }
-
-    private var waveStrip: some View {
-        WaveformStripView(wave: sampleWave,
-                          progress: { engine?.scratchProgress ?? 0 },
-                          visibleFraction: 0.9)
-            .frame(height: 54)
-            .background(XFColor.surface)
     }
 
     private func stop() {

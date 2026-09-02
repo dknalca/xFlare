@@ -3,8 +3,8 @@
 import Foundation
 
 /// Reduce un PCM mono a una **envolvente** de pico absoluto por tramo,
-/// normalizada a `0…1`. Es lo que dibuja `WaveformStripView` (la forma de onda
-/// del sample de scratch). Puro y testeable.
+/// normalizada a `0…1`. Envolvente simple del sample de scratch (la que se
+/// pinta con color por frecuencia es `WaveformColored`). Puro y testeable.
 public enum WaveformEnvelope {
 
     /// - Parameters:
