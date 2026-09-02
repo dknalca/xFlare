@@ -118,12 +118,12 @@ primitivas de fader, y solo usa nombres que son de verdad comunes en la comunida
       fader abierto, y deja claro que el vocabulario canonico es de ~10 moves.
 - [ ] Los terminos STC/HC/OC/DC/Tazer/Squat/Phasor **no salen en el manual** — son
       del poster. Si algun dia se quieren, verificar con la comunidad, no adivinar.
-- [ ] Confirmar el convenio de marcadores: ¿circulo hueco = abrir y relleno = cerrar,
-      o al reves? La leyenda del poster dice "Open Fader / Click Fader" — hay que
-      mirarla a alta resolucion. **Nuestro convenio actual esta documentado en
-      `NOTATION.md` §4 y es autoconsistente aunque no coincida.**
-- [ ] Modelar el **phantom click** en la sombra/miniatura: marcar el cambio de
-      direccion en los scratches de fader abierto (baby, flare, orbit).
+- [x] Convenio de marcadores en la miniatura (`TTMThumbnail`): fader **abre** =
+      circulo **hueco** ○ (empieza el sonido); fader **cierra** = circulo
+      **relleno** ● (el corte / click). Guardados por separado
+      (`openMarks`/`closeMarks`). Falta contrastar con el poster a alta resolucion.
+- [x] Phantom click en la sombra/miniatura: tick corto en el cambio de sentido
+      con fader abierto (ADR-044).
 - [ ] Decidir si merece la pena contactar a TTM Academy para una colaboracion o
       licencia oficial. Seria un diferenciador enorme y evita cualquier zona gris.
 - [ ] Ampliar `fader_patterns.json` con las familias de confianza Media/Baja una vez

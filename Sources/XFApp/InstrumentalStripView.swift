@@ -51,8 +51,12 @@ struct InstrumentalStripView: NSViewRepresentable {
 
         if coord.waveCount != wave.levels.count {
             coord.waveCount = wave.levels.count
+            // El ancho natural del bucle puede ser decenas de miles de px; el
+            // maximo de textura de Metal es 16384. Se renderiza a <=16000 y el
+            // sprite la escala (filtrado lineal, la onda no pierde nada).
             let pxPerTick = geometry.pixelsPerBeat / CGFloat(max(1, ppq))
-            let w = min(80_000, max(1, Int((CGFloat(loopTicks) * pxPerTick).rounded())))
+            let natural = Int((CGFloat(loopTicks) * pxPerTick).rounded())
+            let w = min(16_000, max(1, natural))
             s.image = WaveformImage.render(wave, width: w, height: Int(Self.height))
         }
     }

@@ -18,7 +18,7 @@ final class TTMThumbnailTests: XCTestCase {
         let thumb = TTMThumbnail.build(scratch: baby)
 
         XCTAssertEqual(thumb.segments.count, 1)
-        XCTAssertTrue(thumb.cuts.isEmpty)
+        XCTAssertTrue(thumb.openMarks.isEmpty && thumb.closeMarks.isEmpty)
         let pts = thumb.segments[0]
         XCTAssertGreaterThan(pts.count, 8)
         XCTAssertEqual(Double(try XCTUnwrap(pts.first?.x)), 0, accuracy: 1e-9)
@@ -38,12 +38,14 @@ final class TTMThumbnailTests: XCTestCase {
         let thumb = TTMThumbnail.build(scratch: flare)
 
         XCTAssertGreaterThan(thumb.segments.count, 1, "la curva se corta en los mutes")
-        XCTAssertFalse(thumb.cuts.isEmpty)
+        XCTAssertFalse(thumb.openMarks.isEmpty && thumb.closeMarks.isEmpty)
         // hueco entre tramos: el último x de un tramo < primer x del siguiente
         for (a, b) in zip(thumb.segments, thumb.segments.dropFirst()) {
             XCTAssertLessThan(a.last!.x, b.first!.x)
         }
-        for c in thumb.cuts { XCTAssert((0...1).contains(c.x) && (0...1).contains(c.y)) }
+        for c in thumb.openMarks + thumb.closeMarks {
+            XCTAssert((0...1).contains(c.x) && (0...1).contains(c.y))
+        }
     }
 
     func testSeConstruyeParaTodaLaLibreria() throws {
@@ -51,6 +53,17 @@ final class TTMThumbnailTests: XCTestCase {
             let thumb = TTMThumbnail.build(scratch: s)
             XCTAssertFalse(thumb.segments.isEmpty)
         }
+    }
+
+    func testElChirpDistingueAperturasDeCierres() throws {
+        // chirp: abre al arrancar (○, empieza el sonido) y cierra al frenar (●),
+        // en cada trazo. La miniatura los guarda por separado.
+        let chirp = try XCTUnwrap(try library().scratch(id: "chirp"))
+        let t = TTMThumbnail.build(scratch: chirp)
+        XCTAssertFalse(t.openMarks.isEmpty, "el chirp abre el fader")
+        XCTAssertFalse(t.closeMarks.isEmpty, "y lo cierra")
+        // aproximadamente una apertura por cada cierre
+        XCTAssertEqual(t.openMarks.count, t.closeMarks.count, accuracy: 1)
     }
 
     func testHomeAssemblerPoneMiniaturaEnTodosLosEjerciciosDelCurriculo() throws {

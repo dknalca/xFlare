@@ -18,8 +18,11 @@ public struct TTMThumbnail: Equatable, Sendable {
     /// fader **abierto**. Entre tramos el fader está cerrado (no se dibuja).
     public var segments: [[CGPoint]]
 
-    /// Puntos sobre la curva donde el fader abre o cierra (los círculos).
-    public var cuts: [CGPoint]
+    /// Puntos donde el fader **abre** (empieza a sonar): círculo **hueco** ○.
+    public var openMarks: [CGPoint]
+
+    /// Puntos donde el fader **cierra** (el corte / click): círculo **relleno** ●.
+    public var closeMarks: [CGPoint]
 
     /// Puntos donde el disco **cambia de sentido** con el fader abierto: ahí el
     /// vinilo se para un instante y ese silencio corta el sonido sin mover el
@@ -27,9 +30,11 @@ public struct TTMThumbnail: Equatable, Sendable {
     /// de fader (docs/MATRIX_MAPPING.md §3b).
     public var phantomCuts: [CGPoint]
 
-    public init(segments: [[CGPoint]], cuts: [CGPoint], phantomCuts: [CGPoint] = []) {
+    public init(segments: [[CGPoint]], openMarks: [CGPoint] = [], closeMarks: [CGPoint] = [],
+                phantomCuts: [CGPoint] = []) {
         self.segments = segments
-        self.cuts = cuts
+        self.openMarks = openMarks
+        self.closeMarks = closeMarks
         self.phantomCuts = phantomCuts
     }
 
@@ -85,10 +90,13 @@ public struct TTMThumbnail: Equatable, Sendable {
             segments.append(seg)
         }
 
-        // Círculos en cada transición de fader (el evento inicial en t=0 no cuenta).
-        var cuts: [CGPoint] = []
+        // Círculos por transición de fader: abrir (○, empieza a sonar) y cerrar
+        // (●, el corte). El evento inicial en t=0 no cuenta.
+        var openMarks: [CGPoint] = []
+        var closeMarks: [CGPoint] = []
         for (idx, e) in events.enumerated() where !(idx == 0 && e.t == 0) {
-            cuts.append(pointAt(e.t))
+            if e.state == .open { openMarks.append(pointAt(e.t)) }
+            else { closeMarks.append(pointAt(e.t)) }
         }
 
         // Phantom clicks: el disco cambia de sentido (fwd<->rev) y ahí se para un
@@ -107,6 +115,7 @@ public struct TTMThumbnail: Equatable, Sendable {
             }
         }
 
-        return TTMThumbnail(segments: segments, cuts: cuts, phantomCuts: phantomCuts)
+        return TTMThumbnail(segments: segments, openMarks: openMarks,
+                            closeMarks: closeMarks, phantomCuts: phantomCuts)
     }
 }

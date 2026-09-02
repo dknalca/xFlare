@@ -4,8 +4,9 @@ import SwiftUI
 import XFDesign
 
 /// Dibuja una `TTMThumbnail` escalada al tamaño disponible: los tramos de la
-/// curva del disco (con hueco donde el fader está cerrado) y un círculo pequeño
-/// en cada apertura/cierre del fader.
+/// curva del disco (hueco donde el fader está cerrado), un círculo **hueco** ○
+/// donde el fader abre (empieza el sonido) y uno **relleno** ● donde cierra
+/// (el corte), más un tick corto en cada phantom click.
 struct TTMThumbnailView: View {
 
     let thumbnail: TTMThumbnail
@@ -28,15 +29,25 @@ struct TTMThumbnailView: View {
                 .stroke(XFColor.textMuted,
                         style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
 
-                // círculos de corte del fader
+                // fader ABRE: círculo hueco ○ (empieza a sonar)
                 Path { path in
-                    let r: CGFloat = 2.2
-                    for c in thumbnail.cuts {
+                    let r: CGFloat = 2.4
+                    for c in thumbnail.openMarks {
                         let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
                         path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
                     }
                 }
-                .stroke(XFColor.accent, lineWidth: 1)
+                .stroke(XFColor.accent, lineWidth: 1.1)
+
+                // fader CIERRA: círculo relleno ● (el corte / click)
+                Path { path in
+                    let r: CGFloat = 2.4
+                    for c in thumbnail.closeMarks {
+                        let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
+                        path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
+                    }
+                }
+                .fill(XFColor.accent)
 
                 // phantom clicks: tick vertical corto sobre la curva (el disco
                 // se para al cambiar de sentido). Más discreto que un círculo.
