@@ -281,7 +281,11 @@ final class PracticeScene: SKScene {
         if size != lastLaidOut { layoutContainers() }
 
         let now = currentTick()
-        let frame = layout?.frame(atTick: now, geometry: geometry, userTrace: userTrace())
+        // la traza del usuario NO pasa por `HighwayLayout.frame` (su mapeo `y()`
+        // con `patternFill` la dejaba con techo a 2/3): la dibujamos aparte con
+        // un mapeo lineal propio, de abajo del todo (inicio del sample) a arriba
+        // del todo (final). Ver `renderUserTrace`.
+        let frame = layout?.frame(atTick: now, geometry: geometry)
 
         if let frame { renderHighway(frame, height: geometry.size.height) }
         highwayContainer.alpha = ghostDimmed ? 0.14 : 1
@@ -294,8 +298,63 @@ final class PracticeScene: SKScene {
         ghostContainer.position = CGPoint(x: 0, y: yb * (1 - s))
 
         renderFullGrid(now: now)
+        renderUserTrace(now: now)
         renderStrip(now: now)
         renderRail(frame)
+    }
+
+    /// Dibuja la traza del usuario con un mapeo vertical LINEAL propio: el rango
+    /// entero del plato (`[posLo, posHi]`, es decir el sample de principio a fin)
+    /// ocupa toda la banda de la curva. Sin techo a 2/3. Los tramos con el fader
+    /// cerrado (`.miss`) se pintan apagados.
+    private func renderUserTrace(now: Double) {
+        guard let layout else {
+            for n in userPool { n.isHidden = true }
+            return
+        }
+        let pts = userTrace()
+        let ppq = CGFloat(max(1, patternPPQ))
+        let pxPerTick = geometry.pixelsPerBeat / ppq
+        let playheadX = geometry.playheadX
+        let (yb, yt) = geometry.curveBand
+
+        // rango del plato en unidades de posicion: [lo, lo + span/topFraction]
+        let lo = layout.positionRange.lowerBound
+        let span = max(1e-9, layout.positionRange.upperBound - lo)
+        let hi = lo + span / AudioAsset.scratchPatternTopFraction   // = lo + 1.5·span
+        func mapY(_ p: Double) -> CGFloat {
+            let f = (p - lo) / (hi - lo)
+            return yb + CGFloat(min(1.02, max(-0.02, f))) * (yt - yb)
+        }
+
+        // parte la polilinea donde cambia el nivel (nil <-> .miss)
+        var runs: [(muted: Bool, pts: [CGPoint])] = []
+        var cur: (muted: Bool, pts: [CGPoint])?
+        for tp in pts {
+            let muted = (tp.level == .miss)
+            let pt = CGPoint(x: playheadX + CGFloat(tp.tick - now) * pxPerTick, y: mapY(tp.position))
+            if cur == nil || cur!.muted != muted {
+                if var c = cur { c.pts.append(pt); runs.append(c) }   // punto de corte compartido
+                cur = (muted, [pt])
+            } else {
+                cur!.pts.append(pt)
+            }
+        }
+        if let c = cur { runs.append(c) }
+
+        ensurePool(&userPool, count: runs.count, into: userLayer)
+        for (i, node) in userPool.enumerated() {
+            guard i < runs.count, runs[i].pts.count >= 2 else { node.isHidden = true; continue }
+            node.isHidden = false
+            node.position = .zero
+            let path = CGMutablePath()
+            path.addLines(between: runs[i].pts)
+            node.path = path
+            node.strokeColor = runs[i].muted ? SKColor(XFColor.textMuted) : accentColor
+            node.lineWidth = 3
+            node.lineJoin = .round
+            node.fillColor = .clear
+        }
     }
 
     // MARK: - rejilla + cabezal de altura completa (tira + autopista)
@@ -396,22 +455,8 @@ final class PracticeScene: SKScene {
             node.lineWidth = 2
         }
 
-        ensurePool(&userPool, count: frame.userSegments.count, into: userLayer)
-        for (i, node) in userPool.enumerated() {
-            guard i < frame.userSegments.count, frame.userSegments[i].points.count >= 2 else {
-                node.isHidden = true; continue
-            }
-            let segment = frame.userSegments[i]
-            node.isHidden = false
-            node.position = .zero
-            let path = CGMutablePath()
-            path.addLines(between: segment.points)
-            node.path = path
-            node.strokeColor = color(for: segment.level)
-            node.lineWidth = 3
-            node.lineJoin = .round
-            node.fillColor = .clear
-        }
+        // la traza del usuario la pinta `renderUserTrace` (mapeo lineal propio,
+        // sin techo), no esta capa.
 
         ensurePool(&hitPool, count: frame.hitMarks.count, into: hitLayer)
         for (i, node) in hitPool.enumerated() {
@@ -523,14 +568,18 @@ final class PracticeScene: SKScene {
     }
 
     /// Y (en coords de la zona de autopista) de la linea bajo el cabezal:
-    /// primero la del usuario (ultimo punto de su traza, que cae en el
-    /// cabezal), y si no hay traza, la del fantasma (curva del disco).
+    /// donde esta el plato del usuario ahora (mismo mapeo lineal que la traza),
+    /// y si aun no hay traza, la del fantasma (curva del disco).
     private func railMarkerY(_ frame: HighwayFrame?, fallback: CGFloat) -> CGFloat {
-        guard let frame else { return fallback }
-        if let seg = frame.userSegments.last(where: { !$0.points.isEmpty }),
-           let last = seg.points.last {
-            return last.y
+        if let layout, let last = userTrace().last {
+            let (yb, yt) = geometry.curveBand
+            let lo = layout.positionRange.lowerBound
+            let span = max(1e-9, layout.positionRange.upperBound - lo)
+            let hi = lo + span / AudioAsset.scratchPatternTopFraction
+            let f = (last.position - lo) / (hi - lo)
+            return yb + CGFloat(min(1.02, max(-0.02, f))) * (yt - yb)
         }
+        guard let frame else { return fallback }
         var bestY = fallback
         var bestD = CGFloat.greatestFiniteMagnitude
         for pt in frame.discCurve {

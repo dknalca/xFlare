@@ -160,6 +160,22 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
     }
 
+    func testCue1VuelveAlInicioDelSample() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        // aleja el plato del inicio
+        for _ in 0..<120 { s.scrollBy(60); s.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan(s.normalizedPosition, 0.2)
+
+        var cued: (v: Double, pos: Double)?
+        s.onAdvance = { v, pos, _ in cued = (v, pos) }
+        s.jumpToCue()
+
+        XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-9, "cue 1 = inicio del sample")
+        XCTAssertEqual(s.platterVelocity, 0)
+        XCTAssertEqual(cued?.pos, 0, "avisa al motor de que el sample vuelve a 0")
+        XCTAssertEqual(cued?.v, 0)
+    }
+
     func testElFaderCerradoEsUnFlag() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         XCTAssertFalse(s.faderClosed)

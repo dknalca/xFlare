@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import SwiftUI
+import AppKit
 import XFDesign
 import XFRender
 import XFNotation
@@ -35,6 +36,8 @@ public struct LivePracticeView: View {
     @State private var meterPeak: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
+    // Nombre (sin extension) de la instrumental cargada, para el panel.
+    @State private var instrName: String = "080bpm_beat"
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -121,6 +124,11 @@ public struct LivePracticeView: View {
                             engine?.setTransport(bpm: Double(s.bpm), ppq: 480,
                                                  playing: !s.frozen)
                         },
+                        onCue: {
+                            // 1: cue 1 = vuelve al inicio del sample.
+                            s.jumpToCue()
+                            engine?.seekScratch(0)
+                        },
                         onBPM: { bpm in
                             s.setBPM(bpm)
                             engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
@@ -166,6 +174,7 @@ public struct LivePracticeView: View {
             // "Amplitud" solo cambia el ALTO de la onda fantasma que hay que
             // seguir; no toca la libertad de movimiento ni el sample.
             volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
+            instrumentalPicker
             bufferControl
             Divider().background(XFColor.stroke)
             callResponsePanel
@@ -202,6 +211,25 @@ public struct LivePracticeView: View {
                     .buttonStyle(.plain).disabled(session.crBars >= 16)
             }
             .foregroundColor(XFColor.text)
+        }
+    }
+
+    /// Cargar otra instrumental: detecta su BPM y ajusta el tempo del ejercicio.
+    private var instrumentalPicker: some View {
+        VStack(spacing: 2) {
+            HStack {
+                Text("Base").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+            }
+            Button(action: pickInstrumental) {
+                HStack(spacing: 4) {
+                    Image(systemName: "waveform")
+                    Text(instrName).font(XFFont.body(9)).lineLimit(1).truncationMode(.middle)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .foregroundColor(XFColor.text)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -311,68 +339,90 @@ public struct LivePracticeView: View {
             engine.setScratchTarget(normPos * full)
         }
 
-        // decodificar los audios fuera del hilo principal (el MP3 tarda)
-        let ppq = scratch.ppq
-        let beatsPerBar = geometry.beatsPerBar
+        // 1) el SAMPLE de scratch (fijo). 2) la instrumental (por defecto la del
+        // asset; `loadInstrumental` arranca el reloj y la sesion al terminar).
         DispatchQueue.global(qos: .userInitiated).async {
             let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
-            let rawInstr   = AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
             let sampleW = scratchPCM.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
+            DispatchQueue.main.async {
+                if let scratchPCM {
+                    engine.loadSample(scratchPCM)
+                    engine.seekScratch(0)
+                }
+                sampleWave = sampleW
+                loadInstrumental(url: nil, initial: true)
+            }
+        }
+    }
 
-            // Analiza la instrumental: tempo real + fase del primer golpe. Si
-            // sale, se ROTA el PCM para que empiece en el "1" y se usa ese BPM;
-            // así la rejilla cae sobre los golpes de verdad. Si no, 80 BPM y
-            // longitud redondeada a compás (como antes).
-            var instrPCM = rawInstr
-            var instrBPM = AudioAsset.instrumentalNativeBPM
+    /// Decodifica una instrumental (la del asset si `url == nil`, o la elegida
+    /// por el usuario), le detecta el BPM y la fase del "1", **ajusta el tempo
+    /// del ejercicio** a ese BPM y la deja sonando en bucle. En el arranque
+    /// (`initial`) tambien pone en marcha la salida de audio y el reloj de la
+    /// sesion (asi la practica empieza en tick 0, con el audio, sin arrancar a
+    /// mitad de movimiento).
+    private func loadInstrumental(url: URL?, initial: Bool) {
+        guard let engine = engine else { return }
+        let sr = engine.sampleRateHz
+        let ppq = scratch.ppq
+        let beatsPerBar = geometry.beatsPerBar
+        let name = url?.lastPathComponent ?? AudioAsset.instrumentalRelPath
+        instrName = url?.deletingPathExtension().lastPathComponent ?? "080bpm_beat"
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
+                ?? AudioAsset.loadMono(AudioAsset.instrumentalRelPath, from: content)
+
+            var pcmOut = raw
+            var bpm = AudioAsset.instrumentalNativeBPM
             var loopTicks = Double(beatsPerBar * ppq)
-            // si el nombre del fichero trae el BPM (080bpm_beat.wav), fiarse de
-            // el y usar el analizador solo para la fase del "1".
-            let hint = TempoAnalyzer.bpmHint(fromFilename: AudioAsset.instrumentalRelPath)
-            if let pcm = rawInstr {
+            let hint = TempoAnalyzer.bpmHint(fromFilename: name)
+            if let pcm = raw {
                 if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
-                    instrBPM = a.bpm
+                    bpm = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
-                    instrPCM = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
-                    // unidad de bucle para la tira: si es un loop corto, sus
-                    // negras; si es una pista larga, su longitud musical entera.
+                    pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = a.isShortLoop
                         ? Double(a.beats) * Double(ppq)
                         : (Double(pcm.count) / sr) * (a.bpm / 60.0) * Double(ppq)
                 } else {
-                    let beats = Double(pcm.count) / sr * (instrBPM / 60.0)
+                    let beats = Double(pcm.count) / sr * (bpm / 60.0)
                     let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
                     loopTicks = bars * Double(beatsPerBar) * Double(ppq)
                 }
             }
-            let instrW = instrPCM.map {
+            let wave = pcmOut.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 64, 300_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
-            let bpmRounded = Int(instrBPM.rounded())
+            let bpmRounded = Int(bpm.rounded())
 
             DispatchQueue.main.async {
-                if let scratchPCM {
-                    engine.loadSample(scratchPCM)
-                    engine.seekScratch(0)          // el sample arranca desde el principio
-                }
-                if let instrPCM {
-                    engine.loadInstrumental(instrPCM, nativeBPM: instrBPM)
-                }
-                sampleWave = sampleW
-                instrWave = instrW
+                if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
+                instrWave = wave
                 instrLoopTicks = loopTicks
-                // el tempo de la sesion pasa a ser el de la cancion, y el reloj
-                // ARRANCA aqui (no antes): asi la practica empieza en tick 0
-                // -patron desde abajo- justo cuando suena el audio, sin el medio
-                // segundo de scroll "a mitad de movimiento" mientras decodifica.
+                // el tempo del EJERCICIO pasa a ser el de esta instrumental
                 session.setBPM(bpmRounded)
                 session.resyncClock()
                 engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
-                _ = engine.startOutput()
-                session.start()
+                if initial {
+                    _ = engine.startOutput()
+                    session.start()
+                }
             }
+        }
+    }
+
+    /// Abre un selector de fichero y carga esa instrumental (ajusta el BPM).
+    private func pickInstrumental() {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Cargar"
+        if panel.runModal() == .OK, let url = panel.url {
+            loadInstrumental(url: url, initial: false)
         }
     }
 
@@ -449,7 +499,7 @@ public struct LivePracticeView: View {
     private var hintBar: some View {
         HStack(spacing: XFSpacing.md) {
             Text("Trackpad: gira el plato   ·   A / D: atrás / adelante   ·   "
-                 + "Espacio: fader cerrado   ·   P: congelar   ·   ↑ ↓: BPM   ·   Esc: salir")
+                 + "Espacio: fader cerrado   ·   P: congelar   ·   1: cue   ·   ↑ ↓: BPM   ·   Esc: salir")
                 .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
             Spacer()
         }

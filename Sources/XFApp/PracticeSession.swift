@@ -313,6 +313,15 @@ public final class PracticeSession: ObservableObject {
         if !frozen { lastFrameTime = CACurrentMediaTime() }
     }
 
+    /// Tecla 1: **cue 1**. Salta el plato al inicio del sample (`posLo`), que es
+    /// donde está el cue 1 por defecto. Deja el plato quieto y avisa al motor
+    /// (por `onAdvance`) para que el sample vuelva al principio.
+    public func jumpToCue() {
+        platterPosition = posLo
+        platterVelocity = 0
+        onAdvance?(0, 0, currentTick)
+    }
+
     public func setBPM(_ value: Int) {
         let clamped = min(220, max(40, value))
         if clamped != bpm { bpm = clamped }
