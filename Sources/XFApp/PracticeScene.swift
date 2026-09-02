@@ -251,10 +251,9 @@ final class PracticeScene: SKScene {
 
         stripBG.path = CGPath(rect: CGRect(x: railWidth, y: hh, width: hw, height: stripHeight),
                               transform: nil)
-        // el rail ocupa la misma franja vertical que la curva de la autopista
-        let (yb, yt) = geometry.curveBand
-        railBG.path = CGPath(rect: CGRect(x: 0, y: yb, width: railWidth, height: max(1, yt - yb)),
-                             transform: nil)
+        // el rail = el sample ENTERO, toda la franja de la autopista (0…hh). El
+        // movimiento, dentro, llega solo hasta `amplitude` (por defecto 2/3).
+        railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
         lastLaidOut = size
     }
 
@@ -477,27 +476,27 @@ final class PracticeScene: SKScene {
     // MARK: - rail del sample
 
     private func renderRail(_ frame: HighwayFrame?) {
-        // el rail ocupa EXACTAMENTE la banda vertical de la curva de la autopista
-        // (`curveBand`), no la zona entera: asi la onda del sample y el recorrido
-        // del movimiento usan el mismo rango de alto, sin "techo".
-        let (yb, yt) = geometry.curveBand
-        let bandH = max(1, yt - yb)
+        // el rail = el SAMPLE ENTERO, toda la franja de la autopista (0…hh). El
+        // slider de amplitud solo cambia hasta donde llega el MOVIMIENTO dentro,
+        // no estira ni encoge el sample de aqui.
+        let hh = highwayHeight
 
         let ax = CGMutablePath()
-        ax.move(to: CGPoint(x: railWidth / 2, y: yb))
-        ax.addLine(to: CGPoint(x: railWidth / 2, y: yt))
+        ax.move(to: CGPoint(x: railWidth / 2, y: 0))
+        ax.addLine(to: CGPoint(x: railWidth / 2, y: hh))
         railAxis.path = ax
 
         if let s = sampleSprite {
-            // pre-giro: el eje largo (tiempo) mide el alto de la banda; el corto,
+            // pre-giro: el eje largo (tiempo) mide el alto de la zona; el corto,
             // el ancho del rail. Con `zRotation = .pi/2` queda vertical.
-            s.position = CGPoint(x: railWidth / 2, y: (yb + yt) / 2)
-            s.size = CGSize(width: bandH, height: railWidth)
+            s.position = CGPoint(x: railWidth / 2, y: hh / 2)
+            s.size = CGSize(width: hh, height: railWidth)
         }
 
         // la aguja va a la MISMA altura que la linea de la autopista bajo el
-        // cabezal: asi "donde estas en el sample" = "donde estas en la autopista".
-        let y = min(yt, max(yb, railMarkerY(frame, fallback: (yb + yt) / 2)))
+        // cabezal: como el movimiento vive en `[yBottom, patternTopY≈2/3]`, la
+        // aguja recorre esa parte de abajo del rail = "vas por 2/3 del sample".
+        let y = min(hh, max(0, railMarkerY(frame, fallback: hh / 2)))
         let mk = CGMutablePath()
         mk.move(to: CGPoint(x: 0, y: y))
         mk.addLine(to: CGPoint(x: railWidth, y: y))

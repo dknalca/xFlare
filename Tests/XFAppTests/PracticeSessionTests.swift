@@ -150,6 +150,39 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertGreaterThan(s.currentTick, tickAntes, "al descongelar el reloj vuelve a correr")
     }
 
+    func testLaAmplitudCambiaHastaDondeLlegaElMovimientoEnElSample() throws {
+        // a plena marcha del plato, el pico del PATRON (fantasma, en su tope
+        // natural) mapea a `amplitud` del sample; con el plato al maximo se
+        // llega igualmente al final (normalizedPosition = 1).
+        func maxReach(_ amp: Double) throws -> Double {
+            let s = PracticeSession(scratch: try scratch(), bpm: 90)
+            s.setAmplitude(amp)
+            for _ in 0..<500 { s.scrollBy(80); s.advance(by: 1.0 / 60.0) }
+            return s.normalizedPosition
+        }
+        XCTAssertEqual(try maxReach(1.0), 1, accuracy: 1e-6)
+        XCTAssertEqual(try maxReach(2.0 / 3.0), 1, accuracy: 1e-6)
+
+        // el fantasma (pico natural del patron, n=1) sí llega distinto: para eso
+        // se comprueba la posicion en la fase de escucha, donde el patron manda.
+        func ghostPeak(_ amp: Double) throws -> Double {
+            let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+            s.setAmplitude(amp)
+            s.setCallResponse(true)                 // .listen: el fantasma mueve el plato
+            var peak = 0.0
+            for _ in 0..<240 { s.advance(by: 1.0 / 60.0); peak = max(peak, s.normalizedPosition) }
+            return peak
+        }
+        let peakFull = try ghostPeak(1.0)
+        let peakTwoThirds = try ghostPeak(2.0 / 3.0)
+        XCTAssertGreaterThan(peakFull, peakTwoThirds + 0.15, "menos amplitud, el fantasma llega menos lejos")
+        XCTAssertEqual(peakTwoThirds, 2.0 / 3.0, accuracy: 0.08)
+
+        // clamp
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.setAmplitude(9); s.setAmplitude(-1)   // no revienta
+    }
+
     func testElFaderCerradoEsUnFlag() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         XCTAssertFalse(s.faderClosed)

@@ -33,15 +33,20 @@ public final class PracticeSession: ObservableObject {
     // --- constantes del patron ---
     private let ppq: Double
     /// Extremos del recorrido del PLATO. `posLo` = posicion 0 del sample (el
-    /// pico bajo del patron); `posHi` = final del sample. El pico ALTO del
-    /// patron cae en `posLo + patternSpan` (< `posHi`): el plato puede seguir
-    /// scratcheando mas alla.
+    /// pico bajo del patron). `posHi` depende de `amplitude` (ver abajo).
     private let posLo: Double
-    private let posHi: Double
+    private var posHi: Double
     /// Span propio del patron (pico bajo -> pico alto), en unidades de posicion.
     private let patternSpan: Double
     /// Cuanta historia de traza guardamos, en ticks (~8 negras).
     private let historyTicks: Double
+
+    /// **Amplitud** del movimiento (slider de la vista): a que fraccion del
+    /// sample llega el PICO del patron. `2/3` por defecto (el pico cae a 2/3 del
+    /// "Ahh"); `1.0` = el patron recorre el sample entero. El principio del
+    /// movimiento SIEMPRE es el principio del sample (`posLo`); solo cambia
+    /// donde acaba. El sample de la izquierda no se toca.
+    private var amplitude: Double = AudioAsset.scratchPatternTopFraction
 
     // --- estado observable (barra superior) ---
     @Published public private(set) var bpm: Int
@@ -81,17 +86,17 @@ public final class PracticeSession: ObservableObject {
                             _ tick: Double) -> Void)?
 
     /// Posicion del plato como fraccion 0…1 del **sample entero**: 0 al empezar
-    /// (posicion 0 del sample), `patternTopFraction` (2/3) cuando el patron esta
-    /// en su pico, 1 en el final del sample. Se puede llegar a 1.
+    /// (posicion 0 del sample), `amplitude` cuando el patron esta en su pico, 1
+    /// en el final del sample. Se puede llegar a 1.
     public var normalizedPosition: Double {
         let rel = (platterPosition - posLo) / patternSpan   // 1.0 en el pico del patron
-        return min(1, max(0, rel * AudioAsset.scratchPatternTopFraction))
+        return min(1, max(0, rel * amplitude))
     }
 
     /// Derivada exacta de `normalizedPosition`: para que el cabezal del audio y
     /// la traza de la autopista no se separen.
     public var normalizedVelocity: Double {
-        platterVelocity / patternSpan * AudioAsset.scratchPatternTopFraction
+        platterVelocity / patternSpan * amplitude
     }
 
     // --- bucle ---
@@ -124,18 +129,28 @@ public final class PracticeSession: ObservableObject {
         self.crBars = 2
         self.crPhaseLenTicks = 2.0 * 4.0 * self.ppq
 
-        // El patron (fantasma) va de `range.lowerBound` a `range.upperBound` y su
-        // curva llena la autopista entera (patternFill 1.0). El PLATO puede ir
-        // mas alla del pico, hasta el final del sample: `posHi` esta por encima
-        // de `range.upperBound` y esa traza extra se sale por el borde superior.
+        // El patron (fantasma) va de `range.lowerBound` a `range.upperBound`. El
+        // PLATO puede ir mas alla del pico, hasta el final del sample y un poco
+        // mas (para no toparse con un muro): `posHi` depende de `amplitude`.
         let range = HighwayLayout(scratch: scratch).positionRange
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
-        //   rel(posHi) = 1 / (2/3) = 1.5  ->  normalizedPosition(posHi) = 1.0 (final del sample)
-        self.posHi = range.lowerBound + patternSpan / AudioAsset.scratchPatternTopFraction
+        //   n(posHi) = 1/amp  ->  y(posHi) = borde superior; normalizedPosition = 1
+        self.posHi = range.lowerBound + patternSpan / amplitude
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
+    }
+
+    /// Slider de amplitud de la vista: a que fraccion del sample llega el pico
+    /// del movimiento (`0.3…1.0`; `2/3` por defecto). Recalcula el tope del plato
+    /// y lo reencuadra si se ha quedado fuera. El principio no cambia.
+    public func setAmplitude(_ value: Double) {
+        let a = min(1.0, max(0.3, value))
+        guard a != amplitude else { return }
+        amplitude = a
+        posHi = posLo + patternSpan / amplitude
+        if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
     }
 
     // MARK: - ciclo de vida

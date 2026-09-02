@@ -140,12 +140,13 @@ public struct AppRootView: View {
                 scratch: scratch,
                 exerciseName: name,
                 bpm: ex?.startBpm ?? 90,
-                // patternFill 1.0: el patron llena la autopista de arriba abajo,
-                // igual que la tira del sample (revisado 2026-09-02, feedback;
-                // antes 2/3 con headroom, ADR-041).
+                // `patternFill` = amplitud del movimiento; lo controla el slider
+                // "Amplitud" de la vista (por defecto 2/3: el pico del patron a
+                // 2/3 del sample). Margenes minimos para que el movimiento
+                // arranque casi pegado al borde inferior, como el rail del sample.
                 geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
-                                          curveInset: 12,
-                                          patternFill: 1.0),
+                                          laneHeight: 8, curveInset: 8,
+                                          patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,

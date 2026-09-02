@@ -26,6 +26,9 @@ public struct LivePracticeView: View {
     @State private var instruVol: Double = 0.5
     // Sensibilidad del trackpad, PROVISIONAL: a ojo el gesto va rapido.
     @State private var sensitivity: Double = 0.5
+    // Amplitud del movimiento: a que fraccion del sample llega el pico del
+    // patron. 2/3 por defecto; el principio siempre abajo (inicio del sample).
+    @State private var amplitude: Double = AudioAsset.scratchPatternTopFraction
     // Buffer de audio en caliente: al cambiarlo se reabre el motor solo.
     @State private var bufferSel: Int
     @State private var restarting = false
@@ -89,7 +92,10 @@ public struct LivePracticeView: View {
                 ZStack {
                     PracticeSceneView(
                         scratch: scratch,
-                        geometry: geometry,
+                        // `patternFill` = amplitud del slider: hasta donde llega
+                        // el pico del movimiento (el sample de la izquierda no
+                        // cambia).
+                        geometry: geometryWithAmplitude,
                         tick: { s.tick() },
                         trace: { s.trace() },
                         instrumentalWave: instrWave,
@@ -141,6 +147,13 @@ public struct LivePracticeView: View {
 
     // MARK: - panel derecho: medidor + volumenes (provisional)
 
+    /// La geometría base con el `patternFill` puesto a la amplitud del slider.
+    private var geometryWithAmplitude: HighwayGeometry {
+        var g = geometry
+        g.patternFill = CGFloat(amplitude)
+        return g
+    }
+
     private var rightPanel: some View {
         VStack(spacing: XFSpacing.sm) {
             clipMeter
@@ -152,6 +165,12 @@ public struct LivePracticeView: View {
             }
             volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
                 session.scrollSensitivity = v
+            }
+            // amplitud: hasta donde llega el pico del movimiento respecto al
+            // sample (el sample de la izquierda no cambia). 100 % = arriba del
+            // todo; por defecto ~67 % (2/3).
+            volSlider("Amplitud", $amplitude, range: 0.3...1.0) { v in
+                session.setAmplitude(v)
             }
             bufferControl
             Divider().background(XFColor.stroke)
@@ -280,6 +299,7 @@ public struct LivePracticeView: View {
 
     private func start() {
         session.scrollSensitivity = sensitivity
+        session.setAmplitude(amplitude)
         guard let engine = engine else { session.start(); return }
 
         applyEngineParams()
