@@ -403,27 +403,10 @@ final class PracticeScene: SKScene {
             s.size = CGSize(width: imgW, height: stripHeight)
         }
 
-        // rejilla: MISMA formula y clasificacion que HighwayLayout (por `wrapped`
-        // sobre la longitud del patron), asi las lineas coinciden con la autopista.
-        let tMin = now + Double((0 - playheadX) / pxPerTick)
-        let tMax = now + Double((w - playheadX) / pxPerTick)
-        let bpb = max(1, geometry.beatsPerBar)
-        let len = Double(max(1, patternLengthTicks))
-        let ippq = max(1, patternPPQ)
-        let firstBeat = Int((tMin / Double(ippq)).rounded(.up))
-        let lastBeat = Int((tMax / Double(ippq)).rounded(.down))
-
-        var beats: [CGFloat] = []
-        var bars: [CGFloat] = []
-        if firstBeat <= lastBeat {
-            for b in firstBeat...lastBeat {
-                let t = Double(b * ippq)
-                let m = t.truncatingRemainder(dividingBy: len)
-                let beatInPattern = Int(m < 0 ? m + len : m) / ippq
-                let x = playheadX + CGFloat(t - now) * pxPerTick
-                if beatInPattern % bpb == 0 { bars.append(x) } else { beats.append(x) }
-            }
-        }
+        let (beats, bars) = Self.stripGridXs(
+            now: now, width: w, playheadX: playheadX, pxPerTick: pxPerTick,
+            ppq: max(1, patternPPQ), patternLen: max(1, patternLengthTicks),
+            beatsPerBar: max(1, geometry.beatsPerBar))
         placeStripGrid(&stripBeatPool, at: beats, color: gridBeatColor, width: 1)
         placeStripGrid(&stripBarPool, at: bars, color: stripBarColor, width: 1.5)
 
@@ -431,6 +414,33 @@ final class PracticeScene: SKScene {
         np.move(to: CGPoint(x: playheadX, y: 0))
         np.addLine(to: CGPoint(x: playheadX, y: stripHeight))
         stripNeedle.path = np
+    }
+
+    /// X (locales a la tira, = locales a la autopista) de las lineas de negra y
+    /// de compas visibles en `now`. **Misma formula y clasificacion** que
+    /// `HighwayLayout.frame` (rejilla por `wrapped` sobre la longitud del
+    /// patron): asi las lineas de la tira caen sobre las de la autopista hasta
+    /// el pixel. `internal` para poder comprobarlo en un test contra
+    /// `HighwayLayout`.
+    static func stripGridXs(now: Double, width w: CGFloat, playheadX: CGFloat,
+                            pxPerTick: CGFloat, ppq: Int, patternLen: Int,
+                            beatsPerBar: Int) -> (beats: [CGFloat], bars: [CGFloat]) {
+        let tMin = now + Double((0 - playheadX) / pxPerTick)
+        let tMax = now + Double((w - playheadX) / pxPerTick)
+        let len = Double(max(1, patternLen))
+        let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
+        let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
+        var beats: [CGFloat] = []
+        var bars: [CGFloat] = []
+        guard firstBeat <= lastBeat else { return ([], []) }
+        for b in firstBeat...lastBeat {
+            let t = Double(b * ppq)
+            let m = t.truncatingRemainder(dividingBy: len)
+            let beatInPattern = Int(m < 0 ? m + len : m) / ppq
+            let x = playheadX + CGFloat(t - now) * pxPerTick
+            if beatInPattern % max(1, beatsPerBar) == 0 { bars.append(x) } else { beats.append(x) }
+        }
+        return (beats, bars)
     }
 
     private func placeStripGrid(_ pool: inout [SKShapeNode], at xs: [CGFloat],
