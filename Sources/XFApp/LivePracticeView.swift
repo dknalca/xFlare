@@ -95,7 +95,7 @@ public struct LivePracticeView: View {
                         // el slider "Amplitud" solo escala la onda fantasma; con
                         // amplitud 2/3 la escala es 1 (pico a 2/3), con 1.0 -> 1.5
                         // (pico arriba del todo). La traza del usuario no se toca.
-                        ghostScale: CGFloat(1.5 * amplitude))
+                        patternAmplitude: CGFloat(amplitude))
                     PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
@@ -156,7 +156,7 @@ public struct LivePracticeView: View {
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
                 }
                 panelSection("Base") { instrumentalPicker }
-                panelSection("Llamada y respuesta") { callResponsePanel }
+                panelSection("Repite conmigo") { callResponsePanel }
                 panelSection("Ajuste rápido") {
                     volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
                         session.scrollSensitivity = v
@@ -168,7 +168,7 @@ public struct LivePracticeView: View {
             }
             .padding(XFSpacing.sm)
         }
-        .frame(width: 136)
+        .frame(width: 176)
         .background(XFColor.surface)
     }
 
@@ -186,46 +186,52 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// Botón "chip" pequeño (texto o icono) para el panel.
+    /// Botón "chip" (texto o icono) para el panel. Tamaño fijo y borde: no se
+    /// aplasta y se ve que es pulsable.
     private func chip(_ label: String, icon: Bool = false, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Group {
-                if icon { Image(systemName: label).font(.system(size: 10, weight: .bold)) }
-                else { Text(label).font(XFFont.mono(10)) }
+                if icon { Image(systemName: label).font(.system(size: 11, weight: .bold)) }
+                else { Text(label).font(XFFont.mono(11)) }
             }
-            .frame(width: 26, height: 18)
-            .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surface))
+            .frame(width: 30, height: 22)
+            .background(RoundedRectangle(cornerRadius: 5).fill(XFColor.surface))
+            .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
             .foregroundColor(XFColor.text)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .fixedSize()
     }
 
-    /// Llamada y respuesta: la máquina toca `n` compases con el fantasma
-    /// moviendo el sample, luego los imitas de oído. `n` en múltiplos de 2.
+    /// "Repite conmigo": la máquina toca `n` compases con el fantasma moviendo el
+    /// sample, luego los imitas de oído. `n` en múltiplos de 2. Compacto.
     private var callResponsePanel: some View {
-        VStack(spacing: XFSpacing.xs) {
+        HStack(spacing: XFSpacing.xs) {
             Button {
                 session.setCallResponse(session.crPhase == .off)
             } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 4) {
                     Image(systemName: session.crPhase == .off ? "play.circle" : "stop.circle.fill")
-                    Text(crLabel).font(XFFont.body(10))
-                    Spacer()
+                    Text(crShort).font(XFFont.body(10))
                 }
                 .foregroundColor(crColor)
             }
             .buttonStyle(.plain)
+            Spacer(minLength: 0)
+            chip("−") { session.setCallResponseBars(session.crBars / 2) }
+                .disabled(session.crBars <= 2)
+            Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 14)
+            chip("+") { session.setCallResponseBars(session.crBars * 2) }
+                .disabled(session.crBars >= 16)
+        }
+    }
 
-            HStack(spacing: 5) {
-                Text("Compases").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                Spacer()
-                chip("−") { session.setCallResponseBars(session.crBars / 2) }
-                    .disabled(session.crBars <= 2)
-                Text("\(session.crBars)").font(XFFont.mono(11)).frame(width: 14)
-                chip("+") { session.setCallResponseBars(session.crBars * 2) }
-                    .disabled(session.crBars >= 16)
-            }
-            .foregroundColor(XFColor.text)
+    private var crShort: String {
+        switch session.crPhase {
+        case .off:     return "Activar"
+        case .listen:  return "Escucha"
+        case .respond: return "Tu turno"
         }
     }
 
@@ -244,21 +250,24 @@ public struct LivePracticeView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 5) {
-                Text("\(session.bpm)").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
-                Text("BPM").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                Spacer()
+                Text("\(session.bpm) BPM").font(XFFont.mono(12)).foregroundColor(XFColor.accent)
+                Spacer(minLength: 0)
                 chip("÷2") { retempo(0.5) }
                 chip("×2") { retempo(2.0) }
             }
 
             HStack(spacing: 5) {
                 Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                Spacer()
-                chip("chevron.left", icon: true) { session.nudgeGrid(Double(scratch.ppq) / 12) }
-                chip("chevron.right", icon: true) { session.nudgeGrid(-Double(scratch.ppq) / 12) }
+                Spacer(minLength: 0)
+                chip("chevron.left", icon: true) { session.nudgeGrid(gridStep) }
+                chip("chevron.right", icon: true) { session.nudgeGrid(-gridStep) }
             }
         }
     }
+
+    /// Paso de cada pulsación de ◀ / ▶ de rejilla: 1/8 de negra (~40 ms a 90 BPM,
+    /// ~15 px en pantalla). Se acumula.
+    private var gridStep: Double { Double(scratch.ppq) / 8 }
 
     /// ÷2 / ×2: corrige la **rejilla**, no la velocidad de la base. Si el tempo
     /// se detecto al doble (180 en un hiphop de 90), ÷2 deja la rejilla a 90 y
@@ -484,13 +493,6 @@ public struct LivePracticeView: View {
         .background(XFColor.surface)
     }
 
-    private var crLabel: String {
-        switch session.crPhase {
-        case .off:     return "Llamada y respuesta"
-        case .listen:  return "Escucha…"
-        case .respond: return "Tu turno"
-        }
-    }
     private var crColor: Color {
         switch session.crPhase {
         case .off:     return XFColor.textMuted

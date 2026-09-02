@@ -36,11 +36,12 @@ final class PracticeScene: SKScene {
     var userTrace: () -> [TracePoint] = { [] }
     /// En "tu turno" del call & response el fantasma se atenua: imitas de oido.
     var ghostDimmed = false
-    /// Escala vertical de la ONDA FANTASMA (la que hay que seguir), respecto al
-    /// borde inferior de la banda de la curva. `1` = tal cual (pico a 2/3);
-    /// `1.5` = pico arriba del todo. El slider de "Amplitud" lo mueve. NO afecta
-    /// a la traza del usuario, que siempre puede ir de abajo arriba del todo.
-    var ghostScale: CGFloat = 1
+    /// **Amplitud** del slider (`0.3…1.0`; `2/3` por defecto). A que fraccion de
+    /// la banda llega el pico del patron. Escala IGUAL la onda fantasma y la
+    /// traza del usuario: asi en "repite conmigo" el teal auto-generado cae
+    /// EXACTAMENTE sobre la onda gris. La traza NO se recorta arriba: si el plato
+    /// se pasa del pico (n > 1/amplitud) sigue subiendo y se sale.
+    var patternAmplitude: CGFloat = 2.0 / 3.0
 
     /// Parametros de encuadre de la autopista. `size` lo fija la escena segun el
     /// tamano real de la vista menos el rail y la tira; el resto (pixelsPerBeat,
@@ -291,9 +292,12 @@ final class PracticeScene: SKScene {
         highwayContainer.alpha = ghostDimmed ? 0.14 : 1
 
         // escala vertical de la onda fantasma alrededor del borde inferior de la
-        // banda: `y' = yb + (y - yb)·s`  ->  offset = yb·(1 - s).
+        // banda. `HighwayLayout` la dibuja con `patternFill = 2/3`; para que su
+        // pico quede a `patternAmplitude` de la banda hace falta yScale =
+        // amplitud / (2/3) = 1.5·amplitud. (La traza usa el mismo factor en
+        // `traceY`, asi coinciden.)
         let yb = geometry.curveBand.bottom
-        let s = max(0.1, ghostScale)
+        let s = max(0.1, 1.5 * patternAmplitude)
         ghostContainer.yScale = s
         ghostContainer.position = CGPoint(x: 0, y: yb * (1 - s))
 
@@ -303,19 +307,19 @@ final class PracticeScene: SKScene {
         renderRail(frame)
     }
 
-    /// Y de una posicion de plato en la autopista. Mapeo LINEAL SIN TECHO: el
-    /// rango PROPIO del patron `[lo, lo+span]` (n = 0…1) ocupa toda la banda
-    /// `[yb, yt]`. Si el plato se pasa del pico del patron (n > 1) sube por
-    /// encima del borde (lo recorta el `SKCropNode`): "infinito hacia adelante".
-    /// Lo usan la traza del usuario Y la aguja del rail del sample: la aguja
-    /// tambien sigue al teal aunque se salga.
+    /// Y de una posicion de plato en la autopista. **Mismo mapeo que la onda
+    /// fantasma**: `n=0` (pico bajo del patron) -> `yb`; `n=1` (pico alto del
+    /// patron) -> `yb + amplitud·(yt-yb)`. Asi en "repite conmigo" la traza
+    /// auto-generada cae EXACTAMENTE sobre la gris. Si el plato se pasa del pico
+    /// del patron (`n > 1`) la traza SIGUE subiendo -> a `n = 1/amplitud` llega
+    /// al borde y de ahi para arriba se sale (lo recorta el `SKCropNode`).
     private func traceY(_ position: Double) -> CGFloat {
         guard let layout else { return geometry.curveBand.bottom }
         let (yb, yt) = geometry.curveBand
         let lo = layout.positionRange.lowerBound
         let span = max(1e-9, layout.positionRange.upperBound - lo)
         let n = (position - lo) / span
-        return yb + CGFloat(min(4.0, max(-0.1, n))) * (yt - yb)
+        return yb + CGFloat(min(4.0, max(-0.1, n)) * Double(patternAmplitude)) * (yt - yb)
     }
 
     /// Dibuja la traza del usuario. Los tramos con el fader cerrado (`.miss`) se

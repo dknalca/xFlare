@@ -21,7 +21,7 @@ struct PracticeSceneView: NSViewRepresentable {
     let sampleWave: WaveformColored.Data
     let ghostDimmed: Bool
     /// Escala vertical de la onda fantasma (slider "Amplitud"). Ver `PracticeScene`.
-    let ghostScale: CGFloat
+    let patternAmplitude: CGFloat
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -54,7 +54,7 @@ struct PracticeSceneView: NSViewRepresentable {
         s.currentTick = tick
         s.userTrace = trace
         s.ghostDimmed = ghostDimmed
-        s.ghostScale = ghostScale
+        s.patternAmplitude = patternAmplitude
         s.geometry = geometry            // `size` lo sobrescribe la escena
         s.patternPPQ = scratch.ppq
         s.patternLengthTicks = max(1, scratch.lengthTicks)
