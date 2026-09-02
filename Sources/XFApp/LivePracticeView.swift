@@ -95,7 +95,6 @@ public struct LivePracticeView: View {
                         instrumentalWave: instrWave,
                         instrumentalLoopTicks: instrLoopTicks,
                         sampleWave: sampleWave,
-                        sampleProgress: { engine?.scratchProgress ?? 0 },
                         // en "tu turno" del call & response el fantasma se atenua
                         ghostDimmed: s.crPhase == .respond)
                     PlatterInputView(
@@ -106,6 +105,14 @@ public struct LivePracticeView: View {
                             // .onChange de session.faderClosed (asi tambien
                             // funciona cuando el fader lo mueve el fantasma).
                             s.setFaderClosed(closed)
+                        },
+                        onFreeze: {
+                            // P: congela la imagen. La instrumental y el
+                            // metronomo se paran con el transporte; el scratch
+                            // del sample sigue vivo (la sesion no toca el motor).
+                            s.toggleFreeze()
+                            engine?.setTransport(bpm: Double(s.bpm), ppq: 480,
+                                                 playing: !s.frozen)
                         },
                         onBPM: { bpm in
                             s.setBPM(bpm)
@@ -372,6 +379,14 @@ public struct LivePracticeView: View {
             Button(action: onExit) { Image(systemName: "chevron.left") }
                 .buttonStyle(.plain)
             Text(exerciseName).font(XFFont.bodyMedium(14))
+            if session.frozen {
+                Text("CONGELADO")
+                    .font(XFFont.mono(10))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(XFColor.accent.opacity(0.18))
+                    .foregroundColor(XFColor.accent)
+                    .cornerRadius(3)
+            }
             Spacer()
             HStack(spacing: XFSpacing.xs) {
                 Circle()
@@ -419,7 +434,7 @@ public struct LivePracticeView: View {
     private var hintBar: some View {
         HStack(spacing: XFSpacing.md) {
             Text("Trackpad: gira el plato   ·   A / D: atrás / adelante   ·   "
-                 + "Espacio: fader cerrado   ·   ↑ ↓: BPM   ·   Esc: salir")
+                 + "Espacio: fader cerrado   ·   P: congelar   ·   ↑ ↓: BPM   ·   Esc: salir")
                 .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
             Spacer()
         }

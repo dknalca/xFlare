@@ -124,6 +124,32 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.bpm, 40)
     }
 
+    func testCongelarParaElRelojYLaTrazaPeroNoElPlato() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 120)
+        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
+        let tickAntes = s.currentTick
+        let trazaAntes = s.trace().count
+        XCTAssertGreaterThan(tickAntes, 0)
+
+        s.toggleFreeze()
+        XCTAssertTrue(s.frozen)
+
+        // empuja el plato y deja correr "congelado"
+        s.scrollBy(60)
+        var vistoMovimiento = false
+        s.onAdvance = { vel, _, _ in if abs(vel) > 1e-6 { vistoMovimiento = true } }
+        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
+
+        XCTAssertEqual(s.currentTick, tickAntes, "el reloj no avanza congelado")
+        XCTAssertEqual(s.trace().count, trazaAntes, "la traza no crece congelada")
+        XCTAssertTrue(vistoMovimiento, "el plato sigue vivo: se puede scratchear")
+
+        s.toggleFreeze()
+        XCTAssertFalse(s.frozen)
+        for _ in 0..<10 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan(s.currentTick, tickAntes, "al descongelar el reloj vuelve a correr")
+    }
+
     func testElFaderCerradoEsUnFlag() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         XCTAssertFalse(s.faderClosed)

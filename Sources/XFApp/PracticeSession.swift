@@ -46,6 +46,11 @@ public final class PracticeSession: ObservableObject {
     // --- estado observable (barra superior) ---
     @Published public private(set) var bpm: Int
     @Published public private(set) var faderClosed = false
+    /// Congelado (tecla P): el reloj y la autopista se paran en el instante
+    /// actual y la traza deja de crecer, pero el plato sigue vivo -> puedes
+    /// scratchear el sample sobre la imagen congelada. La instrumental la para
+    /// la vista (transporte del motor).
+    @Published public private(set) var frozen = false
 
     // --- llamada y respuesta ---
     @Published public private(set) var crPhase: CallResponsePhase = .off
@@ -166,6 +171,19 @@ public final class PracticeSession: ObservableObject {
         let step = min(0.05, max(0, dt))   // acota saltos si el hilo se atasca
         guard step > 0 else { return }
 
+        // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
+        // plato sigue con su fisica y se sigue empujando el motor de audio ->
+        // puedes scratchear el sample sobre la imagen quieta, sin dibujar.
+        if frozen {
+            platterVelocity *= exp(-frictionPerSecond * step)
+            if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
+            platterPosition += platterVelocity * step
+            if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
+            if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+            onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
+            return
+        }
+
         // reloj musical
         currentTick += step * (Double(bpm) / 60.0) * ppq
 
@@ -222,6 +240,7 @@ public final class PracticeSession: ObservableObject {
     /// en las tres. Sin timer (tests) se devuelve el crudo.
     public func tick() -> Double {
         guard timer != nil else { return currentTick }
+        if frozen { return currentTick }     // imagen congelada: no se extrapola
         let now = CACurrentMediaTime()
         if now - cachedTickAt >= 0, now - cachedTickAt < 0.004 { return cachedTick }
         let rate = (Double(bpm) / 60.0) * ppq
@@ -285,6 +304,13 @@ public final class PracticeSession: ObservableObject {
 
     public func setFaderClosed(_ closed: Bool) {
         if faderClosed != closed { faderClosed = closed }
+    }
+
+    /// Tecla P: congela / descongela. Al congelar corta el impulso del reloj
+    /// (`lastFrameTime` se refresca al descongelar para no pegar un salto).
+    public func toggleFreeze() {
+        frozen.toggle()
+        if !frozen { lastFrameTime = CACurrentMediaTime() }
     }
 
     public func setBPM(_ value: Int) {

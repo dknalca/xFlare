@@ -118,7 +118,28 @@ public struct TTMThumbnail: Equatable, Sendable {
             }
         }
 
+        // En el manual TTM cada marca es un evento distinto. Si un phantom click
+        // cae justo sobre un circulo de fader (o dos circulos de fader casi
+        // coinciden), en la miniatura se ven como "dos puntos juntos" que no
+        // deberian serlo -> se quita el redundante. La autopista si los separa
+        // (ahi se ve el hueco de mute); la miniatura es demasiado pequena.
+        func near(_ a: CGPoint, _ b: CGPoint) -> Bool {
+            abs(a.x - b.x) < 0.035 && abs(a.y - b.y) < 0.06
+        }
+        let faderPts = openMarks + closeMarks
+        phantomCuts = phantomCuts.filter { pc in !faderPts.contains { near($0, pc) } }
+        closeMarks = dedup(closeMarks, near: near)
+        openMarks = dedup(openMarks, near: near)
+
         return TTMThumbnail(segments: segments, openMarks: openMarks,
                             closeMarks: closeMarks, phantomCuts: phantomCuts)
+    }
+
+    /// Quita puntos casi coincidentes de una lista, conservando el primero.
+    private static func dedup(_ pts: [CGPoint],
+                              near: (CGPoint, CGPoint) -> Bool) -> [CGPoint] {
+        var out: [CGPoint] = []
+        for p in pts where !out.contains(where: { near($0, p) }) { out.append(p) }
+        return out
     }
 }

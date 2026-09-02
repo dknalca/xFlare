@@ -18,11 +18,13 @@ import XFNotation
 ///
 /// La geometria de la autopista la sigue calculando `HighwayLayout` (publico y
 /// puro, de XFRender, modulo sellado): aqui solo se PINTA su `HighwayFrame`,
-/// reutilizando nodos para no reservar memoria por fotograma. La tira de la
-/// instrumental usa EXACTAMENTE la misma formula de X que `HighwayLayout`
-/// (`playheadX + (t - now)·pxPerTick`), y su contenedor esta desplazado por el
-/// mismo ancho de rail, asi que sus lineas y las de la autopista caen en la
-/// misma X hasta el pixel.
+/// reutilizando nodos para no reservar memoria por fotograma.
+///
+/// La rejilla de negras/compas y el cabezal se dibujan como lineas **de altura
+/// completa** (tira + autopista) en una capa a nivel de escena: asi la rejilla
+/// de la tira y la de la autopista son literalmente la misma linea, sin hueco.
+/// Los contenedores de la autopista y de la tira van dentro de un `SKCropNode`
+/// para que su contenido no se salga por la izquierda encima del rail.
 final class PracticeScene: SKScene {
 
     // MARK: - entradas (las refresca `PracticeSceneView` en cada `updateNSView`)
@@ -32,9 +34,6 @@ final class PracticeScene: SKScene {
     var currentTick: () -> Double = { 0 }
     /// Traza del disco del usuario (capa de acento sobre el fantasma).
     var userTrace: () -> [TracePoint] = { [] }
-    /// Posicion actual de reproduccion del sample, 0…1 sobre el sample entero
-    /// (`EngineHandle.scratchProgress`). Mueve la aguja del rail izquierdo.
-    var sampleProgress: () -> Double = { 0 }
     /// En "tu turno" del call & response el fantasma se atenua: imitas de oido.
     var ghostDimmed = false
 
@@ -75,14 +74,27 @@ final class PracticeScene: SKScene {
     private let stripBG = SKShapeNode()
     private let railBG = SKShapeNode()
 
+    // recorte: el contenido de la autopista / la tira no debe salirse por la
+    // izquierda y pintarse encima del rail del sample.
+    private let highwayCrop = SKCropNode()
+    private let stripCrop = SKCropNode()
+    private let highwayMask = SKSpriteNode(color: .white, size: CGSize(width: 1, height: 1))
+    private let stripMask = SKSpriteNode(color: .white, size: CGSize(width: 1, height: 1))
+
     // contenedores: cada uno lleva su origen local; asi la X de la autopista y
     // la de la tira coinciden con solo desplazar el contenedor por `railWidth`.
     private let highwayContainer = SKNode()
     private let stripContainer = SKNode()
     private let railContainer = SKNode()
 
-    // --- autopista (replica fiel de HighwayScene, modulo sellado) ---
-    private let gridLayer = SKNode()
+    // rejilla + cabezal a nivel de escena, altura completa (tira + autopista).
+    private let fullGridLayer = SKNode()
+    private var fullBeatPool: [SKShapeNode] = []
+    private var fullBarPool: [SKShapeNode] = []
+    private let fullPlayhead = SKShapeNode()
+
+    // --- autopista (replica fiel de HighwayScene, modulo sellado; sin rejilla:
+    // esa va en `fullGridLayer`) ---
     private let laneLayer = SKNode()
     private let curveNode = SKShapeNode()
     private let curveLayer = SKNode()
@@ -90,9 +102,6 @@ final class PracticeScene: SKScene {
     private let marksLayer = SKNode()
     private let phantomLayer = SKNode()
     private let hitLayer = SKNode()
-    private let playheadNode = SKShapeNode()
-    private var beatPool: [SKShapeNode] = []
-    private var barPool: [SKShapeNode] = []
     private var bandPool: [SKShapeNode] = []
     private var curvePool: [SKShapeNode] = []
     private var markPool: [SKShapeNode] = []
@@ -102,10 +111,6 @@ final class PracticeScene: SKScene {
 
     // --- tira de la instrumental ---
     private var instrSprites: [SKSpriteNode] = []
-    private let stripGridLayer = SKNode()
-    private var stripBeatPool: [SKShapeNode] = []
-    private var stripBarPool: [SKShapeNode] = []
-    private let stripNeedle = SKShapeNode()
 
     // --- rail del sample ---
     private var sampleSprite: SKSpriteNode?
@@ -125,7 +130,6 @@ final class PracticeScene: SKScene {
     private let gridBeatColor = SKColor(red: 0x3A/255, green: 0x44/255, blue: 0x4F/255, alpha: 1.0)
     private let gridBarColor  = SKColor(red: 0x23/255, green: 0x2A/255, blue: 0x32/255, alpha: 1.0)
     private let phantomColor  = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.6)
-    private let stripBarColor = SKColor(red: 0x5A/255, green: 0x66/255, blue: 0x74/255, alpha: 1.0)
     private let needleColor   = SKColor(red: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 0.6)
     private let axisColor     = SKColor(red: 0x2A/255, green: 0x32/255, blue: 0x3B/255, alpha: 1.0)
 
@@ -137,23 +141,25 @@ final class PracticeScene: SKScene {
         backgroundColor = bgColor
 
         // `ignoresSiblingOrder` deja a SpriteKit reordenar nodos de igual
-        // zPosition; los fondos (SKShapeNode rellenos) podrian taparse con los
-        // sprites de onda. Se les da una zPosition claramente por detras.
+        // zPosition; se ordena todo con zPosition explicita.
         stripBG.strokeColor = .clear
         stripBG.fillColor = stripBGColor
         stripBG.zPosition = -10
         railBG.strokeColor = .clear
         railBG.fillColor = stripBGColor
-        railBG.zPosition = -10
+        railBG.zPosition = 5           // por encima de la autopista: tapa cualquier resto
+
+        fullGridLayer.zPosition = -5    // rejilla al fondo, sobre los fondos
+        highwayCrop.zPosition = 0
+        stripCrop.zPosition = 1
+        railContainer.zPosition = 6     // rail (onda + aguja) sobre su fondo
 
         curveNode.strokeColor = ghostColor
         curveNode.lineWidth = 3
         curveNode.lineJoin = .round
-        playheadNode.strokeColor = playheadColor
-        playheadNode.lineWidth = 1
+        fullPlayhead.strokeColor = playheadColor
+        fullPlayhead.lineWidth = 1
 
-        stripNeedle.strokeColor = needleColor
-        stripNeedle.lineWidth = 1.5
         railAxis.strokeColor = axisColor
         railAxis.lineWidth = 1
         sampleMarker.strokeColor = needleColor
@@ -161,17 +167,22 @@ final class PracticeScene: SKScene {
 
         addChild(stripBG)
         addChild(railBG)
+        addChild(fullGridLayer)
+        fullGridLayer.addChild(fullPlayhead)
         addChild(railContainer)
-        addChild(stripContainer)
-        addChild(highwayContainer)
+        addChild(stripCrop)
+        addChild(highwayCrop)
+
+        highwayCrop.maskNode = highwayMask
+        highwayCrop.addChild(highwayContainer)
+        stripCrop.maskNode = stripMask
+        stripCrop.addChild(stripContainer)
 
         // sublayers de la autopista, en el mismo orden que HighwayScene
-        for n in [gridLayer, laneLayer, curveNode, curveLayer, userLayer,
-                  marksLayer, phantomLayer, hitLayer, playheadNode] {
+        for n in [laneLayer, curveNode, curveLayer, userLayer,
+                  marksLayer, phantomLayer, hitLayer] {
             highwayContainer.addChild(n)
         }
-        stripContainer.addChild(stripGridLayer)
-        stripContainer.addChild(stripNeedle)
         railContainer.addChild(railAxis)
         railContainer.addChild(sampleMarker)
     }
@@ -218,17 +229,30 @@ final class PracticeScene: SKScene {
 
     private var lastLaidOut: CGSize = .zero
 
+    /// Alto de la zona de autopista (la escena menos la tira de arriba).
+    private var highwayHeight: CGFloat { max(1, size.height - stripHeight) }
+
     private func layoutContainers() {
         let hw = max(1, size.width - railWidth)
-        let hh = max(1, size.height - stripHeight)
+        let hh = highwayHeight
         geometry.size = CGSize(width: hw, height: hh)
+
         highwayContainer.position = CGPoint(x: railWidth, y: 0)
         stripContainer.position = CGPoint(x: railWidth, y: hh)
         railContainer.position = .zero
+
+        // mascaras de recorte: exactamente la zona de cada contenedor
+        highwayMask.anchorPoint = CGPoint(x: 0, y: 0)
+        highwayMask.position = CGPoint(x: railWidth, y: 0)
+        highwayMask.size = CGSize(width: hw, height: hh)
+        stripMask.anchorPoint = CGPoint(x: 0, y: 0)
+        stripMask.position = CGPoint(x: railWidth, y: hh)
+        stripMask.size = CGSize(width: hw, height: stripHeight)
+
         stripBG.path = CGPath(rect: CGRect(x: railWidth, y: hh, width: hw, height: stripHeight),
                               transform: nil)
-        railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: size.height),
-                             transform: nil)
+        // el rail solo ocupa la zona de autopista (no se mete bajo la tira)
+        railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
         lastLaidOut = size
     }
 
@@ -244,24 +268,60 @@ final class PracticeScene: SKScene {
         if size != lastLaidOut { layoutContainers() }
 
         let now = currentTick()
+        let frame = layout?.frame(atTick: now, geometry: geometry, userTrace: userTrace())
 
-        if let layout {
-            let frame = layout.frame(atTick: now, geometry: geometry,
-                                     userTrace: userTrace())
-            renderHighway(frame, height: geometry.size.height)
-        }
+        if let frame { renderHighway(frame, height: geometry.size.height) }
         highwayContainer.alpha = ghostDimmed ? 0.14 : 1
 
+        renderFullGrid(frame)
         renderStrip(now: now)
-        renderRail()
+        renderRail(frame)
     }
 
-    // MARK: - autopista (replica de HighwayScene.render)
+    // MARK: - rejilla + cabezal de altura completa (tira + autopista)
+
+    private func renderFullGrid(_ frame: HighwayFrame?) {
+        guard let frame else {
+            for n in fullBeatPool { n.isHidden = true }
+            for n in fullBarPool { n.isHidden = true }
+            fullPlayhead.path = nil
+            return
+        }
+        // frame.beatLines / barLines vienen en X locales a la autopista; se
+        // desplazan por `railWidth` y se dibujan de y=0 a y=alto de escena.
+        drawFullLines(pool: &fullBeatPool, xs: frame.beatLines, color: gridBeatColor, width: 1)
+        drawFullLines(pool: &fullBarPool, xs: frame.barLines, color: gridBarColor, width: 2)
+
+        let p = CGMutablePath()
+        let px = (railWidth + frame.playheadX).rounded()
+        p.move(to: CGPoint(x: px, y: 0))
+        p.addLine(to: CGPoint(x: px, y: size.height))
+        fullPlayhead.path = p
+    }
+
+    private func drawFullLines(pool: inout [SKShapeNode], xs: [CGFloat],
+                               color: SKColor, width: CGFloat) {
+        while pool.count < xs.count {
+            let n = SKShapeNode()
+            fullGridLayer.addChild(n)
+            pool.append(n)
+        }
+        for (i, n) in pool.enumerated() {
+            guard i < xs.count else { n.isHidden = true; continue }
+            n.isHidden = false
+            let path = CGMutablePath()
+            let x = (railWidth + xs[i]).rounded()
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: size.height))
+            n.path = path
+            n.strokeColor = color
+            n.lineWidth = width
+        }
+    }
+
+    // MARK: - autopista (replica de HighwayScene.render, sin la rejilla)
 
     private func renderHighway(_ frame: HighwayFrame, height h: CGFloat) {
-        drawGrid(pool: &beatPool, xs: frame.beatLines, color: gridBeatColor, width: 1, h: h)
-        drawGrid(pool: &barPool, xs: frame.barLines, color: gridBarColor, width: 2, h: h)
-
         if !frame.discSegments.isEmpty {
             curveNode.path = nil
             drawDiscSegments(frame.discSegments)
@@ -275,11 +335,6 @@ final class PracticeScene: SKScene {
                 curveNode.path = nil
             }
         }
-
-        let vertical = CGMutablePath()
-        vertical.move(to: CGPoint(x: frame.playheadX, y: 0))
-        vertical.addLine(to: CGPoint(x: frame.playheadX, y: h))
-        playheadNode.path = vertical
 
         ensurePool(&bandPool, count: frame.faderBands.count, into: laneLayer)
         for (i, node) in bandPool.enumerated() {
@@ -348,6 +403,7 @@ final class PracticeScene: SKScene {
             node.fillColor = mark.closes ? color(for: mark.level) : .clear
             node.lineWidth = 2
         }
+        _ = h
     }
 
     private func color(for level: HitLevel?) -> SKColor {
@@ -370,28 +426,12 @@ final class PracticeScene: SKScene {
         }
     }
 
-    private func drawGrid(pool: inout [SKShapeNode], xs: [CGFloat],
-                          color: SKColor, width: CGFloat, h: CGFloat) {
-        ensurePool(&pool, count: xs.count, into: gridLayer)
-        for (i, node) in pool.enumerated() {
-            guard i < xs.count else { node.isHidden = true; continue }
-            node.isHidden = false
-            let path = CGMutablePath()
-            path.move(to: CGPoint(x: xs[i], y: 0))
-            path.addLine(to: CGPoint(x: xs[i], y: h))
-            node.path = path
-            node.strokeColor = color
-            node.lineWidth = width
-        }
-    }
-
     // MARK: - tira de la instrumental
 
     private func renderStrip(now: Double) {
         let ppq = CGFloat(max(1, patternPPQ))
         let pxPerTick = geometry.pixelsPerBeat / ppq
         let playheadX = geometry.playheadX
-        let w = geometry.size.width
         let loop = max(1, instrumentalLoopTicks)
         let imgW = CGFloat(loop) * pxPerTick
 
@@ -402,26 +442,13 @@ final class PracticeScene: SKScene {
             s.position = CGPoint(x: baseX + CGFloat(i - 1) * imgW, y: stripHeight / 2)
             s.size = CGSize(width: imgW, height: stripHeight)
         }
-
-        let (beats, bars) = Self.stripGridXs(
-            now: now, width: w, playheadX: playheadX, pxPerTick: pxPerTick,
-            ppq: max(1, patternPPQ), patternLen: max(1, patternLengthTicks),
-            beatsPerBar: max(1, geometry.beatsPerBar))
-        placeStripGrid(&stripBeatPool, at: beats, color: gridBeatColor, width: 1)
-        placeStripGrid(&stripBarPool, at: bars, color: stripBarColor, width: 1.5)
-
-        let np = CGMutablePath()
-        np.move(to: CGPoint(x: playheadX, y: 0))
-        np.addLine(to: CGPoint(x: playheadX, y: stripHeight))
-        stripNeedle.path = np
     }
 
     /// X (locales a la tira, = locales a la autopista) de las lineas de negra y
     /// de compas visibles en `now`. **Misma formula y clasificacion** que
     /// `HighwayLayout.frame` (rejilla por `wrapped` sobre la longitud del
-    /// patron): asi las lineas de la tira caen sobre las de la autopista hasta
-    /// el pixel. `internal` para poder comprobarlo en un test contra
-    /// `HighwayLayout`.
+    /// patron). `internal` para poder comprobarlo en un test contra
+    /// `HighwayLayout`: prueba que la tira y la autopista comparten regla.
     static func stripGridXs(now: Double, width w: CGFloat, playheadX: CGFloat,
                             pxPerTick: CGFloat, ppq: Int, patternLen: Int,
                             beatsPerBar: Int) -> (beats: [CGFloat], bars: [CGFloat]) {
@@ -443,46 +470,49 @@ final class PracticeScene: SKScene {
         return (beats, bars)
     }
 
-    private func placeStripGrid(_ pool: inout [SKShapeNode], at xs: [CGFloat],
-                                color: SKColor, width: CGFloat) {
-        while pool.count < xs.count {
-            let n = SKShapeNode()
-            stripGridLayer.addChild(n)
-            pool.append(n)
-        }
-        for (i, n) in pool.enumerated() {
-            guard i < xs.count else { n.isHidden = true; continue }
-            n.isHidden = false
-            let p = CGMutablePath()
-            p.move(to: CGPoint(x: xs[i].rounded(), y: 0))
-            p.addLine(to: CGPoint(x: xs[i].rounded(), y: stripHeight))
-            n.path = p
-            n.strokeColor = color
-            n.lineWidth = width
-        }
-    }
-
     // MARK: - rail del sample
 
-    private func renderRail() {
+    private func renderRail(_ frame: HighwayFrame?) {
+        let hh = highwayHeight
+
         let ax = CGMutablePath()
         ax.move(to: CGPoint(x: railWidth / 2, y: 0))
-        ax.addLine(to: CGPoint(x: railWidth / 2, y: size.height))
+        ax.addLine(to: CGPoint(x: railWidth / 2, y: hh))
         railAxis.path = ax
 
         if let s = sampleSprite {
-            s.position = CGPoint(x: railWidth / 2, y: size.height / 2)
-            // pre-giro: el eje largo (tiempo) mide el alto de la escena; el corto,
-            // el ancho del rail. Con `zRotation = .pi/2` queda vertical.
-            s.size = CGSize(width: size.height, height: railWidth)
+            // pre-giro: el eje largo (tiempo) mide el alto de la ZONA de
+            // autopista; el corto, el ancho del rail. Con `zRotation = .pi/2`
+            // queda vertical y ocupa exactamente la misma franja que la autopista.
+            s.position = CGPoint(x: railWidth / 2, y: hh / 2)
+            s.size = CGSize(width: hh, height: railWidth)
         }
 
-        let p = CGFloat(max(0, min(1, sampleProgress())))
-        let y = (p * size.height).rounded()
+        // la aguja va a la MISMA altura que la linea de la autopista bajo el
+        // cabezal: asi "donde estas en el sample" = "donde estas en la autopista".
+        let y = min(hh, max(0, railMarkerY(frame, fallback: hh / 2)))
         let mk = CGMutablePath()
         mk.move(to: CGPoint(x: 0, y: y))
         mk.addLine(to: CGPoint(x: railWidth, y: y))
         sampleMarker.path = mk
+    }
+
+    /// Y (en coords de la zona de autopista) de la linea bajo el cabezal:
+    /// primero la del usuario (ultimo punto de su traza, que cae en el
+    /// cabezal), y si no hay traza, la del fantasma (curva del disco).
+    private func railMarkerY(_ frame: HighwayFrame?, fallback: CGFloat) -> CGFloat {
+        guard let frame else { return fallback }
+        if let seg = frame.userSegments.last(where: { !$0.points.isEmpty }),
+           let last = seg.points.last {
+            return last.y
+        }
+        var bestY = fallback
+        var bestD = CGFloat.greatestFiniteMagnitude
+        for pt in frame.discCurve {
+            let d = abs(pt.x - frame.playheadX)
+            if d < bestD { bestD = d; bestY = pt.y }
+        }
+        return bestY
     }
 
     // MARK: - util

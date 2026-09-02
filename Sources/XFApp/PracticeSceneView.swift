@@ -19,7 +19,6 @@ struct PracticeSceneView: NSViewRepresentable {
     let instrumentalWave: WaveformColored.Data
     let instrumentalLoopTicks: Double
     let sampleWave: WaveformColored.Data
-    let sampleProgress: () -> Double
     let ghostDimmed: Bool
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -52,7 +51,6 @@ struct PracticeSceneView: NSViewRepresentable {
     private func configure(_ s: PracticeScene, coord: Coordinator) {
         s.currentTick = tick
         s.userTrace = trace
-        s.sampleProgress = sampleProgress
         s.ghostDimmed = ghostDimmed
         s.geometry = geometry            // `size` lo sobrescribe la escena
         s.patternPPQ = scratch.ppq
