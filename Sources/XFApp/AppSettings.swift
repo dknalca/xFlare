@@ -92,7 +92,7 @@ public struct AppSettings: Equatable, Sendable {
         var seen = Set<String>()
         self.sampleLibrary = sampleLibrary.filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(12).map { $0 }
         var seenI = Set<String>()
-        self.instrumentalLibrary = instrumentalLibrary.filter { !$0.isEmpty && seenI.insert($0).inserted }.prefix(24).map { $0 }
+        self.instrumentalLibrary = instrumentalLibrary.filter { !$0.isEmpty && seenI.insert($0).inserted }.prefix(200).map { $0 }
         self.videoFps = AppSettings.videoFpsOptions.contains(videoFps) ? videoFps : 30
         self.videoLongSide = AppSettings.videoLongSideOptions.contains(videoLongSide) ? videoLongSide : 1600
         // Debug: rangos amplios pero acotados para no romper el motor.

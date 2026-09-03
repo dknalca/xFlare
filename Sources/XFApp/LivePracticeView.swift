@@ -154,6 +154,9 @@ public struct LivePracticeView: View {
     /// Samples de scratch recordados (F.3). `onSampleLibraryChanged` los persiste.
     private let sampleLibrary: [String]
     private let onSampleLibraryChanged: ([String]) -> Void
+    /// Análisis de tempo ya hecho para una ruta de instrumental (caché de la
+    /// Librería, fase 2). `nil` = no hay, se analiza al vuelo.
+    private let cachedAnalysis: (String) -> TempoAnalyzer.Result?
     /// Ajustes de "tacto" del plato (ventana Ajustes › Debug). Se aplican al
     /// abrir la práctica.
     private let platterGlideMs: Double
@@ -188,6 +191,7 @@ public struct LivePracticeView: View {
                     -> (stars: Int, accuracyPercent: Int, oxidationMessage: String?)? = { _, _, _ in nil },
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
+                cachedAnalysis: @escaping (String) -> TempoAnalyzer.Result? = { _ in nil },
                 onExit: @escaping () -> Void = {}) {
         self.warmupSteps = warmupSteps
         self.scratch = warmupSteps.first?.scratch ?? scratch
@@ -213,6 +217,7 @@ public struct LivePracticeView: View {
         self.onWarmupScore = onWarmupScore
         self.onScratchSampleChanged = onScratchSampleChanged
         self.onSampleLibraryChanged = onSampleLibraryChanged
+        self.cachedAnalysis = cachedAnalysis
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -1197,6 +1202,9 @@ public struct LivePracticeView: View {
         let beatsPerBar = geometry.beatsPerBar
         let name = url?.lastPathComponent ?? AudioAsset.instrumentalRelPath
         instrName = url?.deletingPathExtension().lastPathComponent ?? "080bpm_beat"
+        // análisis ya hecho (librería, fase 2): se captura AQUÍ, en el hilo
+        // principal, y se pasa al bloque de fondo — así no se re-analiza.
+        let cached: TempoAnalyzer.Result? = url.flatMap { cachedAnalysis($0.path) }
 
         DispatchQueue.global(qos: .userInitiated).async {
             let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
@@ -1215,7 +1223,8 @@ public struct LivePracticeView: View {
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
                 fileSeconds = Double(pcm.count) / sr
-                let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
+                // caché primero (instantáneo); si no, analiza ahora.
+                let a = cached ?? TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
 
                 if let a = a, !a.isShortLoop {
                     // pista larga con tempo detectado (asset o fichero del

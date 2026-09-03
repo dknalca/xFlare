@@ -190,10 +190,20 @@ abre la ficha del truco.
 
 Menú aparte, dos pestañas: **Instrumentales** (loops / bases) y **Samples** (de
 scratch). El usuario guarda aquí sus ficheros para tenerlos a mano en la práctica
-(`AppSettings.instrumentalLibrary` / `sampleLibrary`; añadir con NSOpenPanel,
-quitar con la ✕). *Pendiente:* pre-análisis del tempo al añadir (para que cargar
-en la práctica sea instantáneo) y asignar samples a botones MIDI para cambiar
-entre varios en mitad de una sesión.
+(`AppSettings.instrumentalLibrary` / `sampleLibrary`). Se añaden por
+**NSOpenPanel** (ficheros o **una carpeta**, con casilla "subcarpetas") o
+**arrastrando y soltando** audios sobre la lista; se quitan con la ✕.
+
+Las **instrumentales se pre-analizan** (`InstrumentalAnalysisCache`): al añadir
+una, se calcula el tempo/fase/compases una vez en segundo plano y se guarda en
+`~/Library/Application Support/xFlare/instrumental-analysis.json`. En la práctica,
+cargarla es instantáneo (lee del caché). La tarjeta muestra "analizando…" o
+"≈ N BPM · M compases". Si se añaden **≥ 20 pistas** de golpe, avisa antes
+(analizar tarda ~1 s por pista). El caché se invalida solo si el fichero cambia
+(tamaño/fecha) o el motor corre a otra sample rate.
+
+*Pendiente:* asignar samples a botones MIDI para cambiar entre varios en mitad de
+una sesión.
 
 ### 3.7 Ajustes
 

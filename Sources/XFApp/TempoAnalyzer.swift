@@ -22,7 +22,7 @@ import Foundation
 ///   futuro (haría falta separar por bandas).
 public enum TempoAnalyzer {
 
-    public struct Result: Equatable, Sendable {
+    public struct Result: Equatable, Sendable, Codable {
         public var bpm: Double
         /// Frame del primer golpe fuerte (para rotar el PCM y empezar en el "1").
         public var phaseFrames: Int

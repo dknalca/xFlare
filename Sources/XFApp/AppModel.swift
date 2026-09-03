@@ -45,8 +45,17 @@ public final class AppModel: ObservableObject {
 
     @Published public private(set) var screen: Screen = .home
     @Published public var settings: AppSettings {
-        didSet { Self.persist(settings); rebuildMidiCommandMap() }
+        didSet {
+            Self.persist(settings)
+            rebuildMidiCommandMap()
+            // pre-analiza las instrumentales nuevas para que carguen al instante.
+            analysisCache.analyzeAll(settings.instrumentalLibrary,
+                                     sampleRate: engine?.sampleRateHz ?? 48_000)
+        }
     }
+
+    /// Caché de análisis de tempo de las instrumentales de la librería (fase 2).
+    public let analysisCache = InstrumentalAnalysisCache()
     @Published public var activeProfileId: String? {
         didSet { rebuildMidiCommandMap() }
     }
