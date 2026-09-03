@@ -18,13 +18,40 @@ exactamente donde falla tu mano y tu fader.
   máquina de referencia, ≤ 15 ms aceptable en el Intel de 2015. Es puerta de
   calidad del bloque B1 / B4. Ver `docs/PLATFORM_SUPPORT.md` §7.
 
+## Estado
+
+**Preview jugable sin mesa.** Ya funciona: navegacion completa, matriz de trucos
+con su grafico TTM, practica en vivo con audio (scratch por trackpad/teclado +
+base instrumental + metronomo), Freestyle, grabar una linea y exportarla a
+`.xfsession` o a **video** (con audio, con la proporcion de la ventana),
+calentamiento adaptativo, "Mi mesa" (perfiles), Ajustes con reasignacion de
+comandos por MIDI. El render de la autopista va a **60 fps estables** en el
+MacBook Pro Intel de 2015 (medido).
+
+**Falta para la v1:** la puerta de latencia de audio y el timecode reales — todo
+lo que necesita la Rane 72 delante (bloques B1/B4/B5/B6/B8 de `TODO.md`). Sin
+mesa, la practica va con raton/teclado.
+
+### Probarlo
+
+```bash
+swift run xFlare            # desde el repo, con toolchain de dev
+# o un .app / .dmg:
+make app                    # xFlare.app (debug, con sonido si tienes Audio/)
+make dmg REL=1              # xFlare-<version>.dmg (release universal, SIN samples)
+```
+
+El DMG no esta notarizado: al abrirlo la primera vez, **clic derecho sobre la app
+> Abrir > Abrir**. El release universal no incluye samples de audio (con
+copyright, `CLAUDE.md` §12); carga los tuyos desde Ajustes / "Cargar sample…".
+
 ## Documentacion
 
 | Fichero | Que contiene |
 |---|---|
 | `CLAUDE.md` | Instrucciones permanentes para Claude Code. Leer primero. |
 | `PLAN.md` | Plan estrategico: definicion del MVP (v1), hoja de ruta de iteraciones, criterios de aceptacion y riesgos. |
-| `docs/DECISIONS.md` | **Todos los ADR (001 a 053).** Decisiones de arquitectura. |
+| `docs/DECISIONS.md` | **Todos los ADR (001 a 058).** Decisiones de arquitectura. |
 | `docs/TIMECODE.md` | Notas del decoder: xwax 1.10 vendorizado, warnings, latencia. |
 | `docs/NOTATION.md` | XFN: como se representa y dibuja un scratch. |
 | `docs/CURRICULUM.md` | El gym: niveles, sesiones, scoring, diagnostico. |

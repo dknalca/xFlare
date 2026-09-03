@@ -441,10 +441,15 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         la forma de `Contents/Resources/` y comprueba que sirve el mismo catalogo
         que el repo; carpeta vacia -> `hasCatalog == false`).
       - **Hecho el copiado (2026-09-02):** `make app` monta `xFlare.app/Contents/
-        {MacOS,Resources}` y hace `cp -R data profiles` a `Contents/Resources/`;
-        `make dmg` lo empaqueta. **Falta**: smoke test lanzando la app desde
-        `/Applications` (o el DMG) sin el repo delante — acción manual, como la
-        parte de hardware.
+        {MacOS,Resources}` y hace `cp -R data profiles citas.md` a
+        `Contents/Resources/`; `make dmg` lo empaqueta.
+      - **Smoke test hecho (2026-09-03):** `xFlare.app` copiada a `/Applications`
+        y lanzada desde ahí → arranca, monta el catálogo entero (6 niveles, 18
+        trucos, matriz + leyenda) desde `Contents/Resources/` (`BundleContentLoader`
+        gana sobre `RepoContentLoader`). Navegación OK.
+      - **Fix de copyright (2026-09-03):** `make app REL=1` **ya NO empaqueta
+        `Audio/`** (samples con copyright, `CLAUDE.md` §12). El DMG de Releases va
+        sin sonido de fábrica; el usuario carga los suyos ("Cargar sample…").
 - [x] **B12a.1** `Info.plist` del `.app`
       - Hecho: `make app` escribe el `Info.plist` con `NSMicrophoneUsageDescription`
         ("xFlare necesita la entrada de audio para leer el vinilo de control"),
@@ -467,18 +472,26 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho (2026-09-02/03): `make dmg` — `hdiutil create ... -format UDZO`
         sobre un staging con `xFlare.app` + enlace a `/Applications`. Sin fondo
         ni layout (eso es B12b.2). **`make dmg REL=1`** empaqueta el binario
-        RELEASE UNIVERSAL (verificado: el `.app` del DMG da `Mach-O universal
-        (x86_64 arm64)`, `Signature=adhoc`). `xFlare-<version>.dmg` ~45 MB.
-      - **Falta**: publicarlo en GitHub Releases (acción manual / CI, ver
-        `docs/RELEASE.md` §3).
-      - Al cerrarlo del todo, marcar B12a.0 como hecho.
+        RELEASE UNIVERSAL.
+      - **Verificado (2026-09-03):** `xFlare-0.1-preview.dmg` (8,2 MB, UDZO).
+        Montado: `xFlare.app` + symlink a `/Applications`; el `.app` de dentro
+        da `lipo -archs` = `x86_64 arm64`, `codesign` = `flags=0x2(adhoc)`, y
+        Resources = `citas.md data profiles xflare.icns` (**sin `Audio/`**).
+      - **Falta (manual):** `gh release create` con un tag de versión (ver
+        `docs/RELEASE.md` §3). No lo hace Claude: publica un artefacto público.
 - [x] **B12a.5** Nota de release
       - Hecho (2026-09-03): `docs/RELEASE.md` — lista de comprobación pre-flight,
         cómo construir (`make universal` + `make dmg REL=1`), cómo publicar
         (`gh release create`), y la **plantilla del texto de la nota** con el
         rodeo de Gatekeeper (clic derecho → Abrir / `xattr -dr
         com.apple.quarantine`) y el enlace al tag exacto del fuente (GPL-3.0).
-- [ ] **B12a.6** README publico, capturas, video de 30 s
+- [~] **B12a.6** README publico, capturas, video de 30 s
+      - Hecho (2026-09-03): README con seccion **"Estado"** (que funciona ya /
+        que falta para la v1) y **"Probarlo"** (`swift run` / `make app` / `make
+        dmg REL=1`, rodeo de Gatekeeper, nota de que el release va sin samples).
+        Rango de ADR corregido (001–058).
+      - **Falta:** capturas commiteadas en el repo + un video de 30 s (Home →
+        practica → grabar → exportar). Accion manual (grabar pantalla).
 - [ ] **B12a.7** 5 DJs probandolo y sus notas
       - Criterio: el examen de verdad
 
