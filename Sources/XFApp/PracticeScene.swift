@@ -59,6 +59,15 @@ final class PracticeScene: SKScene {
     /// exportar el vídeo con la misma proporción que la ventana.
     var onHighwaySize: ((CGSize) -> Void)?
 
+    /// Overlay de fotogramas por segundo (diagnóstico B7.2b). Lo enciende el
+    /// ajuste "Mostrar FPS".
+    var showFPS = false {
+        didSet { fpsLabel.isHidden = !showFPS }
+    }
+    private var fpsMeter = FrameRateMeter()
+    private let fpsLabel = SKLabelNode(fontNamed: "Menlo")
+    private var fpsRefresh = 0
+
     /// Parametros de encuadre de la autopista. `size` lo fija la escena segun el
     /// tamano real de la vista menos el rail y la tira; el resto (pixelsPerBeat,
     /// playheadFraction, beatsPerBar, laneHeight...) lo pone `PracticeSceneView`.
@@ -214,6 +223,14 @@ final class PracticeScene: SKScene {
         }
         railContainer.addChild(railAxis)
         railContainer.addChild(sampleMarker)
+
+        fpsLabel.fontSize = 10
+        fpsLabel.fontColor = NSColor(white: 0.85, alpha: 0.9)
+        fpsLabel.horizontalAlignmentMode = .right
+        fpsLabel.verticalAlignmentMode = .top
+        fpsLabel.zPosition = 100
+        fpsLabel.isHidden = true
+        addChild(fpsLabel)
     }
 
     @available(*, unavailable)
@@ -301,6 +318,23 @@ final class PracticeScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         guard size.width > railWidth + 8, size.height > stripHeight + 8 else { return }
         if size != lastLaidOut { layoutContainers() }
+
+        // medidor de fps: se alimenta SIEMPRE (para tener dato al encenderlo);
+        // el texto solo se rehace ~5 veces/s y solo si el overlay esta visible.
+        fpsMeter.tick(currentTime)
+        if showFPS {
+            fpsRefresh += 1
+            if fpsRefresh >= 12 {
+                fpsRefresh = 0
+                let target = Double((view?.preferredFramesPerSecond ?? 60) > 0
+                                    ? view!.preferredFramesPerSecond : 60)
+                fpsLabel.text = fpsMeter.summary(targetFPS: target)
+                fpsLabel.fontColor = fpsMeter.averageFPS >= target - 5
+                    ? NSColor(white: 0.85, alpha: 0.9)
+                    : NSColor(red: 1, green: 0.3, blue: 0.37, alpha: 0.95)
+            }
+            fpsLabel.position = CGPoint(x: size.width - 6, y: size.height - 4)
+        }
 
         // `gridShift` (botones ◀/▶) desplaza la REJILLA + la onda fantasma + la
         // traza respecto a la instrumental. La onda de la instrumental (tira de

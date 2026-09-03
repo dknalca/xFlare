@@ -32,16 +32,18 @@ public struct AppSettings: Equatable, Sendable {
     /// Clave = nombre del comando (`cue`, `freeze`, …); valor = `"note:1:36"`.
     /// Se serializa como `cue=note:1:36;freeze=cc:0:64`.
     public var midiCommandOverrides: [String: String]
+    /// Muestra el contador de fotogramas en la práctica (diagnóstico, B7.2b).
+    public var showFPS: Bool
 
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true,
-        lastScratchSamplePath: "", midiCommandOverrides: [:])
+        lastScratchSamplePath: "", midiCommandOverrides: [:], showFPS: false)
 
     public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool,
                 allUnlocked: Bool = true, lastScratchSamplePath: String = "",
-                midiCommandOverrides: [String: String] = [:]) {
+                midiCommandOverrides: [String: String] = [:], showFPS: Bool = false) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -52,6 +54,7 @@ public struct AppSettings: Equatable, Sendable {
         self.allUnlocked = allUnlocked
         self.lastScratchSamplePath = lastScratchSamplePath
         self.midiCommandOverrides = midiCommandOverrides
+        self.showFPS = showFPS
     }
 
     // MARK: - clave/valor
@@ -67,6 +70,7 @@ public struct AppSettings: Equatable, Sendable {
         static let allUnlocked = "progression.allUnlocked"
         static let lastSample = "practice.lastScratchSample"
         static let midiCommands = "midi.commandOverrides"
+        static let showFPS = "diag.showFPS"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -98,7 +102,8 @@ public struct AppSettings: Equatable, Sendable {
             reduceMotion: bool(Key.motion, d.reduceMotion),
             allUnlocked: bool(Key.allUnlocked, d.allUnlocked),
             lastScratchSamplePath: raw[Key.lastSample] ?? d.lastScratchSamplePath,
-            midiCommandOverrides: AppSettings.parseMidi(raw[Key.midiCommands] ?? ""))
+            midiCommandOverrides: AppSettings.parseMidi(raw[Key.midiCommands] ?? ""),
+            showFPS: bool(Key.showFPS, d.showFPS))
     }
 
     public var raw: [String: String] {
@@ -113,6 +118,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.allUnlocked: allUnlocked ? "1" : "0",
             Key.lastSample: lastScratchSamplePath,
             Key.midiCommands: AppSettings.serializeMidi(midiCommandOverrides),
+            Key.showFPS: showFPS ? "1" : "0",
         ]
     }
 }

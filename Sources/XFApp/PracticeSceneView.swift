@@ -29,6 +29,8 @@ struct PracticeSceneView: NSViewRepresentable {
     /// Se llama con el tamaño real de la zona de autopista (para exportar el
     /// vídeo con la proporción de la ventana).
     var onHighwaySize: (CGSize) -> Void = { _ in }
+    /// Muestra el overlay de fps (ajuste de diagnóstico, B7.2b).
+    var showFPS: Bool = false
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -37,11 +39,14 @@ struct PracticeSceneView: NSViewRepresentable {
         var instrWaveCount = -1
         var instrLoopTicks = -1.0
         var sampleWaveCount = -1
+        var syncedToScreen = false
     }
 
     func makeNSView(context: Context) -> SKView {
         let v = SKView()
-        v.preferredFramesPerSecond = 120       // SpriteKit lo capa al refresco real
+        // arranca a 60; se ajusta al refresco real cuando la vista tiene ventana
+        // (ADR-024: 60 en Intel, 120 si el panel lo da).
+        v.preferredFramesPerSecond = 60
         v.ignoresSiblingOrder = true
         let start = CGSize(width: max(1, geometry.size.width),
                            height: max(1, geometry.size.height))
@@ -54,6 +59,10 @@ struct PracticeSceneView: NSViewRepresentable {
 
     func updateNSView(_ v: SKView, context: Context) {
         guard let scene = context.coordinator.scene else { return }
+        if !context.coordinator.syncedToScreen, v.window != nil {
+            context.coordinator.syncedToScreen = true
+            v.preferredFramesPerSecond = ScreenRefresh.fps(for: v.window)
+        }
         configure(scene, coord: context.coordinator)
     }
 
@@ -66,6 +75,7 @@ struct PracticeSceneView: NSViewRepresentable {
         s.gridShift = gridShift
         s.geometry = geometry            // `size` lo sobrescribe la escena
         s.onHighwaySize = onHighwaySize
+        s.showFPS = showFPS
         s.patternPPQ = scratch.ppq
         s.patternLengthTicks = max(1, scratch.lengthTicks)
         s.instrumentalLoopTicks = max(1, instrumentalLoopTicks)

@@ -147,6 +147,7 @@ public struct AppRootView: View {
                     engine: model.engine,
                     content: model.content,
                     metronomeOn: model.settings.metronomeEnabled,
+                    showFPS: model.settings.showFPS,
                     commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onExit: { model.goHome() })
@@ -188,6 +189,7 @@ public struct AppRootView: View {
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
                 scratchSamplePath: model.settings.lastScratchSamplePath,
+                showFPS: model.settings.showFPS,
                 commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in

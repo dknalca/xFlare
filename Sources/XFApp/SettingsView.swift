@@ -69,6 +69,12 @@ public struct SettingsView: View {
                     Toggle("Reducir movimiento", isOn: bind(\.reduceMotion))
                 }
 
+                section("Diagnóstico") {
+                    Toggle("Mostrar FPS en la práctica", isOn: bind(\.showFPS))
+                    note("Contador de fotogramas en una esquina de la autopista. "
+                         + "Rojo si baja de 55.")
+                }
+
                 section("MIDI · comandos") {
                     note("Nota o CC por comando. Formato note:canal:nº o cc:canal:nº "
                          + "(canal 0 = cualquiera). Vacío = usar lo del perfil de mesa.")

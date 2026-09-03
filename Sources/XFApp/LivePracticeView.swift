@@ -79,6 +79,8 @@ public struct LivePracticeView: View {
     /// fader…). Los publica `AppModel`; aquí se enrutan a las mismas acciones que
     /// el teclado. Por defecto un publisher vacío (sin mesa MIDI).
     private let commandEvents: AnyPublisher<PracticeCommandEvent, Never>
+    /// Overlay de fps en la autopista (ajuste de diagnóstico, B7.2b).
+    private let showFPS: Bool
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -89,6 +91,7 @@ public struct LivePracticeView: View {
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
                 scratchSamplePath: String = "",
+                showFPS: Bool = false,
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
@@ -103,6 +106,7 @@ public struct LivePracticeView: View {
         self.content = content
         self.metronomeOn = metronomeOn
         self.scratchSamplePath = scratchSamplePath
+        self.showFPS = showFPS
         self.commandEvents = commandEvents
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
@@ -143,7 +147,8 @@ public struct LivePracticeView: View {
                         // (pico arriba del todo). La traza del usuario no se toca.
                         patternAmplitude: CGFloat(amplitude),
                         gridShift: gridShift,
-                        onHighwaySize: { highwaySize = $0 })
+                        onHighwaySize: { highwaySize = $0 },
+                        showFPS: showFPS)
                     PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },

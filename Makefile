@@ -69,7 +69,10 @@ app:
 	cp "$$BIN" xFlare.app/Contents/MacOS/xFlare; \
 	cp -R data profiles xFlare.app/Contents/Resources/; \
 	cp citas.md xFlare.app/Contents/Resources/ 2>/dev/null || true; \
-	[ -d Audio ] && cp -R Audio xFlare.app/Contents/Resources/ || echo "  (sin Audio/ local: la practica ira sin sonido)"; \
+	if [ -n "$(REL)" ]; then \
+	  echo "  RELEASE: NO se empaqueta Audio/ (samples con copyright, CLAUDE.md 12); el DMG va sin sonido de fabrica"; \
+	elif [ -d Audio ]; then cp -R Audio xFlare.app/Contents/Resources/; \
+	else echo "  (sin Audio/ local: la practica ira sin sonido)"; fi; \
 	ICON=""; \
 	if [ -f icon/xflare.icns ]; then ICON="icon/xflare.icns"; \
 	elif [ -f icon/xflare.svg ]; then sh icon/build-icns.sh >/dev/null 2>&1 && ICON="icon/xflare.icns"; fi; \

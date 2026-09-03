@@ -243,8 +243,22 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Hecho: `XFColor` (paleta de §2, `Color(hex:)`), `XFSpacing` (4/8/12/16/24/32/48), `XFRadius` (10/16/24), `XFStroke`, `XFFont` (title/body/mono — `design: .monospaced` para cifras a ancho fijo, sin `monospacedDigit()` que es macOS 12), `HitLevel` (escala de acierto: color **+ forma** por daltonismo, `init(absOffsetMs:)` con las ventanas de SCORING.md).
 - [x] **B7.2** Componentes base: tarjeta, boton, stepper de BPM, badge de acierto `XFDesign`
       - Hecho: `XFCard` (superficie + radio 16 + borde 1px, `raised` para modales), `XFButtonStyle` (.filled/.bordered, radio 10, easeOut 180 ms), `BPMStepper` (`‹ 80 BPM ›`, número monoespaciado, respeta `range`), `HitBadge` + `HitShape` (dibuja círculo lleno/círculo/rombo/triángulo/cruz según el nivel). 7 tests: valores de token, clasificación de `HitLevel`, formas distintas, los componentes se construyen. macOS 11.
-- [ ] **B7.2b** Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024) `XFRender`
+- [x] **B7.2b** Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024) `XFRender`
       - Criterio: 60 fps estables en el MacBook Pro 2015 con la autopista completa
+      - Hecho (2026-09-03): **medido en el propio MBP 2015 Intel**: la práctica
+        completa (autopista + fantasma + traza + rejilla + tira de instrumental +
+        rail del sample, todo en `PracticeScene`) va a **60 fps · peor 17,8 ms ·
+        0 saltos de vsync / 120** en régimen estable. El único pico es el arranque
+        (decodificar audio + rasterizar las ondas), ~59 fps un par de segundos.
+      - `FrameRateMeter` (XFApp, puro, 6 tests): media de fps, peor fotograma y
+        "saltos de vsync" = fotogramas > 1,5 periodos (a 60 → > 25 ms; el jitter
+        de borde no cuenta). Overlay en la esquina de la autopista con el ajuste
+        **"Mostrar FPS"** (`AppSettings.showFPS`, rojo si baja del objetivo −5).
+      - `ScreenRefresh.fps(for:)` lee el refresco real del panel (modo del display
+        + `CVDisplayLink`) y `PracticeSceneView` fija `preferredFramesPerSecond`
+        a 60 / 120 según el hardware, en vez del 120 fijo anterior (ADR-024).
+      - Sin tocar XFRender (sellado): `HighwayLayout` sigue siendo la geometría;
+        todo esto vive en `PracticeScene`/`PracticeSceneView` (XFApp).
 - [x] **B7.3** Escena SpriteKit de la autopista, sincronizada al reloj de AUDIO `XFRender`
       - Criterio: sin deriva tras 10 min; 120 fps en ProMotion
       - Hecho (2026-09-01): `HighwayLayout` — geometria **pura** (sin SpriteKit, testeable): dado un `Scratch` + el tick de AUDIO actual + `HighwayGeometry`, produce `HighwayFrame` (polilinea de la curva del disco, marcas ○/● de fader sobre la curva, tramos del carril de fader, X de la cabeza de lectura al 30%). El patron hace loop con el modulo. `HighwayScene` (SKScene delgada, reutiliza nodos, 0 reservas por fotograma) y `HighwayView` (`NSViewRepresentable` sobre `SKView`) leen el tick en `update(_:)`, que SpriteKit llama al **refresco real**: el QUE se dibuja sale del reloj de audio, no de un contador propio. 11 tests, foco anti-deriva: `frame(T) == frame(T+L)` bit a bit tras 300 loops, cada click cae en `playheadX + t·pxPerTick` exacto, fotograma determinista. **Pendiente en la maquina**: los 120 fps de ProMotion (necesita un Mac Apple Silicon, R8) y el conteo real de fotogramas; se comprueba con la app corriendo (relacionado con B7.2b).
@@ -273,7 +287,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         default; pintado en `HighwayScene`/`HighwaySVG`; 25 goldens regenerados). Los 34
         tests sellados intactos + 7 nuevos (`HighwayGridTests`, foco en la invariancia
         `frame(T)==frame(T+L)`). `apiVersion` sigue 1. XFRender: 41 verdes.
-      - Hecho (2026-09-01): `make seal M=XFDesign` (7 tests) y `make seal M=XFRender` (34 tests) en verde. `Sources/XFRender/README.md` escrito; `Sources/XFDesign/README.md` actualizado a SEALED. `Package.swift` excluye el README de XFRender. `docs/MODULE_STATUS.md` → ambos SEALED 2026-09-01, `apiVersion = 1`. **ADR-036** (layout puro + escena delgada, sincronizacion al reloj de AUDIO, golden SVG, Lissajous reconstruido). **B7.2b** queda pendiente: es medir fps en las dos maquinas + `SKView`, aditivo, no cambia contrato.
+      - Hecho (2026-09-01): `make seal M=XFDesign` (7 tests) y `make seal M=XFRender` (34 tests) en verde. `Sources/XFRender/README.md` escrito; `Sources/XFDesign/README.md` actualizado a SEALED. `Package.swift` excluye el README de XFRender. `docs/MODULE_STATUS.md` → ambos SEALED 2026-09-01, `apiVersion = 1`. **ADR-036** (layout puro + escena delgada, sincronizacion al reloj de AUDIO, golden SVG, Lissajous reconstruido). **B7.2b cerrado (2026-09-03)** en XFApp (overlay `FrameRateMeter` + `ScreenRefresh`), sin tocar XFRender: 60 fps estables medidos en el MBP 2015.
 
 ## B8 — XFAnalysis
 
