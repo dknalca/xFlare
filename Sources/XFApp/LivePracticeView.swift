@@ -1116,19 +1116,28 @@ public struct LivePracticeView: View {
             var pcmOut = raw
             var bpm = AudioAsset.instrumentalNativeBPM
             var loopTicks = Double(beatsPerBar * ppq)
-            // Si el usuario sube su fichero se trata SIEMPRE como un loop de N
-            // compases (`userLoopBars`): suena a velocidad natural y el BPM de la
-            // rejilla se deriva de N y de la duración. Así el metrónomo y el
-            // compás quedan clavados al bucle para siempre, sin depender de que
-            // la detección de tempo acierte (solo la usamos para adivinar N).
+            // `userLoopBars != nil` -> "modo loop": el fichero es un bucle de N
+            // compases, suena a velocidad natural y el BPM se DERIVA de N y la
+            // duración. Solo se usa cuando el fichero PARECE un loop (corto, o sin
+            // tempo detectable). Una pista larga con tempo claro va por la
+            // detección normal — BPM + fase del "1" — como la base del asset.
             var userLoopBars: Int? = nil
             var fileSeconds = 0.0
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
                 fileSeconds = Double(pcm.count) / sr
-                if url != nil {
-                    // fichero del usuario -> modo loop (cálculo puro en `InstrumentalLoop`)
-                    let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
+                let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
+
+                if let a = a, !a.isShortLoop {
+                    // pista larga con tempo detectado (asset o fichero del
+                    // usuario): rejilla al BPM detectado y alineada al "1".
+                    bpm = a.bpm
+                    let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
+                    pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
+                    loopTicks = fileSeconds * (a.bpm / 60.0) * Double(ppq)
+                } else if url != nil {
+                    // fichero del usuario que parece un loop (corto, o sin tempo):
+                    // modo loop de N compases (`InstrumentalLoop`, cálculo puro).
                     let loop = InstrumentalLoop.guess(
                         fileSeconds: fileSeconds, beatsPerBar: beatsPerBar,
                         ppq: ppq, analyzedBeats: a.map { $0.beats })
@@ -1136,15 +1145,15 @@ public struct LivePracticeView: View {
                     bpm = loop.bpm
                     loopTicks = loop.loopTicks
                     pcmOut = pcm            // un loop empieza en su "1": no se rota
-                } else if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
-                    // base por defecto del asset: detección normal
+                } else if let a = a {
+                    // asset y ES un loop corto: BPM + fase de la detección, bucle
+                    // de `beats` negras.
                     bpm = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
-                    loopTicks = a.isShortLoop
-                        ? Double(a.beats) * Double(ppq)
-                        : fileSeconds * (a.bpm / 60.0) * Double(ppq)
+                    loopTicks = Double(a.beats) * Double(ppq)
                 } else {
+                    // asset sin tempo detectable: cuadra a compases enteros.
                     let beats = fileSeconds * (bpm / 60.0)
                     let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
                     loopTicks = bars * Double(beatsPerBar) * Double(ppq)

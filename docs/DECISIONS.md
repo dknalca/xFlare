@@ -2153,11 +2153,21 @@ no, sonaba a velocidad natural pero con el BPM del ejercicio, que no tenía nada
 que ver con el loop. Además, al "reiniciar la base" el metrónomo (que va con
 `e->tick` del motor, no con el reloj de la sesión) no se rearmaba y se descuadraba.
 
-**Decisión.** Un fichero que sube el usuario se trata **siempre** como un bucle de
-`N` compases a **velocidad natural** (nunca se estira el audio). El BPM de la
-rejilla se **deriva**: `bpm = N · compases/compás · 60 / duración`. Así el
-metrónomo y las líneas de compás quedan clavados al bucle pase lo que pase con la
-detección. `InstrumentalLoop` (puro) hace el cálculo: `guess(...)` adivina `N` de
+> **Corrección (2026-09-03, misma jornada).** "Siempre" era demasiado: tratar
+> una **pista larga** (una canción de 3 min) como un loop de N compases rompía la
+> detección de tempo y la alineación de rejilla que antes funcionaba. Ahora el
+> "modo loop" solo se aplica cuando el fichero **parece** un loop —
+> `TempoAnalyzer` lo marca `isShortLoop`, o no detecta tempo en absoluto. Una
+> pista larga con tempo claro (suba el usuario o sea el asset) va por la
+> detección normal: BPM detectado + rotación de fase para alinear el "1",
+> `loopTicks` de la duración. Sin botones −/+ (no es un loop).
+
+**Decisión.** Un fichero que sube el usuario **y que parece un loop** (corto o sin
+tempo detectable) se trata como un bucle de `N` compases a **velocidad natural**
+(nunca se estira el audio). El BPM de la rejilla se **deriva**:
+`bpm = N · compases/compás · 60 / duración`. Así el metrónomo y las líneas de
+compás quedan clavados al bucle pase lo que pase con la detección.
+`InstrumentalLoop` (puro) hace el cálculo: `guess(...)` adivina `N` de
 las negras del análisis (o ~2 s/compás sin él) y parte/dobla hasta que el BPM cae
 en 70…180; `locked(...)` lo fija a mano. En el panel Base, botones **−/+** para
 corregir los compases (recalcula el BPM). Todas las rutas que reinician la base
