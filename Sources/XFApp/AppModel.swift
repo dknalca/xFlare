@@ -53,6 +53,9 @@ public final class AppModel: ObservableObject {
     /// con `ingest`; la práctica se suscribe a este subject.
     public let midiCommands = MidiCommandSource()
     public let practiceCommandEvents = PassthroughSubject<PracticeCommandEvent, Never>()
+    /// "MIDI Learn" de Ajustes: escucha CoreMIDI mientras esa pantalla está
+    /// abierta y asigna el control que se mueva al comando seleccionado.
+    public let midiLearn = MidiLearnModel()
     /// Ejercicio en curso para la tarjeta "Continuar" (en memoria por ahora).
     @Published public var continueExerciseId: String?
 
@@ -76,6 +79,11 @@ public final class AppModel: ObservableObject {
         // suscribe la práctica.
         self.midiCommands.onCommand = { [weak self] event in
             self?.practiceCommandEvents.send(event)
+        }
+        // Al aprender un control MIDI, se guarda como override del comando (esto
+        // dispara `settings.didSet` → persiste + reconstruye el mapa).
+        self.midiLearn.onLearn = { [weak self] cmd, binding in
+            self?.settings.midiCommandOverrides[cmd.rawValue] = binding.text
         }
         rebuildMidiCommandMap()
     }

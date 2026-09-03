@@ -2112,6 +2112,36 @@ aportaba. `docs/PLATFORM_SUPPORT.md` §4 debería listar `Form` como a evitar.
 
 ---
 
+## ADR-059 — MIDI Learn para los comandos de práctica (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada · complementa ADR-054
+
+**Contexto.** ADR-054 dejó la asignación de comandos MIDI como texto a mano
+(`note:1:36`). El autor pidió el flujo habitual: seleccionar el comando y pulsar
+un botón para que el siguiente control MIDI que se mueva quede asignado.
+
+**Decisión.** `MidiMonitorConnector` (XFCapture) — mismo patrón que
+`MidiFaderConnector` pero **genérico**: se engancha a todas las fuentes CoreMIDI
+y entrega cada mensaje troceado a un bloque. `MidiLearnModel` (XFApp,
+`ObservableObject`) lleva el estado: `selected`, `armed`, `lastSeen`; `start()` /
+`stop()` abren y cierran el monitor y los llama `SettingsView` en
+`onAppear` / `onDisappear` (solo escucha mientras Ajustes está abierto).
+`MidiBinding.learned(status:data1:data2:)` traduce el mensaje a asignación (Note
+On → `note`, CC → `cc`; el resto `nil`). Al aprender, `AppModel` lo guarda como
+override (`settings.midiCommandOverrides`). En la UI cada comando es un radio,
+hay un botón "Aprender MIDI" y se conserva el campo de texto + un botón de
+limpiar por fila.
+
+**Alternativas descartadas.** Un `MidiLearn` por fila (más botones, más ruido).
+Reutilizar `MidiFaderConnector`: es específico del crossfader (filtra por CC y
+canal). Escuchar CoreMIDI siempre: gasto y sorpresas fuera de Ajustes.
+
+**Consecuencias.** El núcleo (`MidiBinding.learned`, `MidiLearnModel.handle`) se
+prueba sin hardware; el monitor CoreMIDI no (como sus hermanos). Si no hay
+dispositivo, la sección sigue funcionando a mano.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

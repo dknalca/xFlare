@@ -191,9 +191,11 @@ telemetria**.
 
 - **MIDI · comandos**: asigna una nota o un CC a cada comando de la practica (cue,
   reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
-  repite conmigo) — los mismos que el teclado. Formato de texto `note:canal:nº` /
-  `cc:canal:nº`; vacio = usar lo que traiga el perfil de mesa (seccion
-  `[transport]` del `.conf`, ver `DEVICE_PROFILES.md` §3).
+  repite conmigo) — los mismos que el teclado. **MIDI Learn**: seleccionas el
+  comando, pulsas "Aprender MIDI" y el siguiente control que muevas queda
+  asignado (mientras Ajustes esta abierto se escucha CoreMIDI). Tambien se puede
+  escribir a mano (`note:canal:nº` / `cc:canal:nº`); vacio = lo que traiga el
+  perfil de mesa (seccion `[transport]` del `.conf`, ver `DEVICE_PROFILES.md` §3).
 - Layout manual (`ScrollView` + tarjetas), **sin `Form`** de SwiftUI: en macOS 11
   se quedaba en blanco con listas dinamicas (ADR-058).
 

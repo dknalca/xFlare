@@ -103,6 +103,7 @@ public struct AppRootView: View {
         case .settings:
             SettingsView(settings: model.settings,
                          profileBindings: model.profileCommandBindings,
+                         learn: model.midiLearn,
                          onChange: { model.settings = $0 })
 
         case .progress(let ex, let v):

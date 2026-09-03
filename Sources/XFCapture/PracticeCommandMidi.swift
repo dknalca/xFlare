@@ -83,6 +83,18 @@ public struct MidiBinding: Equatable, Sendable, Codable {
 
     public var text: String { "\(kind.rawValue):\(channel):\(number)" }
 
+    /// "MIDI Learn": a partir de un mensaje recibido, la asignación que le
+    /// corresponde. Note On (vel > 0) → `note:canal:nota`; Control Change →
+    /// `cc:canal:cc`. Cualquier otra cosa (Note Off, pitch bend, aftertouch,
+    /// tiempo real…) devuelve `nil` — no sirve para aprender.
+    public static func learned(status: UInt8, data1: UInt8, data2: UInt8) -> MidiBinding? {
+        let hi = status & 0xF0
+        let ch = Int(status & 0x0F) + 1
+        if hi == 0x90, data2 > 0 { return MidiBinding(kind: .note, channel: ch, number: Int(data1)) }
+        if hi == 0xB0 { return MidiBinding(kind: .cc, channel: ch, number: Int(data1)) }
+        return nil
+    }
+
     /// ¿Este mensaje MIDI (ya troceado) casa con esta asignación? (el sentido
     /// on/off lo resuelve `MidiCommandMap.event`).
     func matches(status: UInt8, data1: UInt8) -> Bool {

@@ -143,7 +143,9 @@ el teclado). Formato del valor: `tipo:canal:numero`, con `tipo` = `note` | `cc`,
 
 Todos son disparos discretos salvo `command.fader`, que sigue el estado del
 control (nota mantenida / CC continuo). El usuario puede pisar cualquiera de
-estas asignaciones desde Ajustes → *MIDI · comandos* sin tocar el `.conf`.
+estas asignaciones desde Ajustes → *MIDI · comandos* sin tocar el `.conf`: con
+**MIDI Learn** (selecciona el comando, pulsa "Aprender MIDI", mueve el control)
+o escribiendo la nota/CC a mano.
 
 ### `[quirks]`
 Claves relevantes para arquitectura, ademas de las de la propia mesa:

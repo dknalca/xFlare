@@ -84,6 +84,20 @@ final class PracticeCommandMidiTests: XCTestCase {
         XCTAssertNil(m.bindings[.record])
     }
 
+    func testMidiLearnTraduceElMensajeAAsignacion() {
+        // Note On -> note:canal:nota
+        XCTAssertEqual(MidiBinding.learned(status: 0x90, data1: 36, data2: 100)?.text, "note:1:36")
+        XCTAssertEqual(MidiBinding.learned(status: 0x95, data1: 60, data2: 1)?.text, "note:6:60")
+        // Control Change -> cc:canal:cc (cualquier valor, tambien 0)
+        XCTAssertEqual(MidiBinding.learned(status: 0xB0, data1: 24, data2: 127)?.text, "cc:1:24")
+        XCTAssertEqual(MidiBinding.learned(status: 0xB3, data1: 7, data2: 0)?.text, "cc:4:7")
+        // Note Off / Note On vel 0 / pitch bend / aftertouch -> nada que aprender
+        XCTAssertNil(MidiBinding.learned(status: 0x80, data1: 36, data2: 0))
+        XCTAssertNil(MidiBinding.learned(status: 0x90, data1: 36, data2: 0))
+        XCTAssertNil(MidiBinding.learned(status: 0xE0, data1: 0, data2: 64))
+        XCTAssertNil(MidiBinding.learned(status: 0xD0, data1: 20, data2: 0))
+    }
+
     func testElOverrideDelUsuarioGana() {
         let base = map([(.cue, "note:1:36"), (.freeze, "note:1:40")])
         let merged = base.merging(userOverrides: [.cue: MidiBinding("note:2:60")!])
