@@ -52,6 +52,11 @@ public struct LivePracticeView: View {
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
     @State private var instruVol: Double = 0.5
+    // EQ Lo/Mid/Hi del sample de scratch, en dB (por sesion; 0 = plano). Solo
+    // afecta al scratch, no a la base ni al metronomo.
+    @State private var eqLowDb: Double = 0
+    @State private var eqMidDb: Double = 0
+    @State private var eqHighDb: Double = 0
     // Sensibilidad del trackpad, PROVISIONAL: a ojo el gesto va rapido.
     @State private var sensitivity: Double = 1.0
     // Amplitud del movimiento: a que fraccion del sample llega el pico del
@@ -343,6 +348,7 @@ public struct LivePracticeView: View {
                         if !faderClosed { engine?.setScratchGain(Float(v)) }
                     }
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
+                    sampleEQ
                     samplePicker
                     if let info = sampleLoopInfo {
                         Text(info).font(XFFont.body(9)).foregroundColor(Color(hex: 0xF5C542))
@@ -933,6 +939,43 @@ public struct LivePracticeView: View {
                 .font(XFFont.mono(9))
                 .foregroundColor(clip ? Color(hex: 0xFF4D5E) : XFColor.textMuted)
         }
+    }
+
+    /// EQ Lo/Mid/Hi del sample de scratch (dB). Cada mando 0 = plano; el motor no
+    /// filtra si los tres están a 0. No toca la base ni el metrónomo.
+    private var sampleEQ: some View {
+        VStack(spacing: 2) {
+            HStack {
+                Text("EQ sample").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+                Button("plano") { eqLowDb = 0; eqMidDb = 0; eqHighDb = 0; applyEQ() }
+                    .buttonStyle(.plain)
+                    .font(XFFont.body(9))
+                    .foregroundColor((eqLowDb == 0 && eqMidDb == 0 && eqHighDb == 0)
+                                     ? XFColor.textMuted : XFColor.accent)
+            }
+            eqSlider("Lo", $eqLowDb)
+            eqSlider("Mid", $eqMidDb)
+            eqSlider("Hi", $eqHighDb)
+        }
+    }
+
+    private func eqSlider(_ label: String, _ db: Binding<Double>) -> some View {
+        HStack(spacing: 4) {
+            Text(label).font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
+                .frame(width: 20, alignment: .leading)
+            Slider(value: Binding(get: { db.wrappedValue },
+                                  set: { db.wrappedValue = $0; applyEQ() }),
+                   in: -24...6, step: 1)
+                .controlSize(.mini)
+            Text(db.wrappedValue == 0 ? "0" : String(format: "%+.0f", db.wrappedValue))
+                .font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
+                .frame(width: 22, alignment: .trailing)
+        }
+    }
+
+    private func applyEQ() {
+        engine?.setSampleEQ(lowDb: Float(eqLowDb), midDb: Float(eqMidDb), highDb: Float(eqHighDb))
     }
 
     private func volSlider(_ label: String, _ value: Binding<Double>,

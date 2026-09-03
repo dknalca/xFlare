@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 #include "xf_engine.h"
 #include "xf_player.h"
+#include "xf_eq.h"
 #include "xf_rt.h"
 
 #include <math.h>
@@ -45,6 +46,7 @@ struct xf_engine {
     _Atomic double  scratch_gain_target;  /* 0..1, solo el player de scratch */
     double          scratch_gain_cur;     /* suavizado, solo lo toca el hilo RT */
     double          scratch_gain_coef;    /* one-pole ~5 ms, precalculado */
+    xf_eq           sample_eq;            /* EQ Lo/Mid/Hi SOLO del sample de scratch */
     _Atomic double  out_peak;             /* pico de salida ANTES de limitar, para la UI */
     _Atomic double  scratch_target;       /* frame objetivo del cabezal; <0 = suelto */
 
@@ -118,6 +120,7 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     atomic_store(&e->scratch_target, -1.0);
     e->scratch_gain_cur = 1.0;
     e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
+    xf_eq_init(&e->sample_eq, sample_rate);   /* plano por defecto */
     atomic_store(&e->reported_tick, 0.0);
     e->capture_input = 1;
     return e;
@@ -234,6 +237,11 @@ void xf_engine_set_scratch_gain(xf_engine *e, float gain) {
     atomic_store(&e->scratch_gain_target, (double)gain);
 }
 
+void xf_engine_set_sample_eq(xf_engine *e, float low_db, float mid_db, float high_db) {
+    if (!e) return;
+    xf_eq_set_gains_db(&e->sample_eq, low_db, mid_db, high_db);
+}
+
 xf_ring_t   *xf_engine_input_ring(xf_engine *e) { return e ? &e->input_ring : NULL; }
 xf_metronome *xf_engine_metronome(xf_engine *e) { return e ? e->metronome : NULL; }
 
@@ -327,6 +335,10 @@ void xf_engine_render(xf_engine *e,
         }
         e->scratch_gain_cur = g;
     }
+
+    /* EQ de 3 bandas SOLO sobre el scratch (la base y el metronomo NO se tocan).
+     * En plano (por defecto) `xf_eq_process_block` no hace nada. */
+    xf_eq_process_block(&e->sample_eq, e->mono, nframes);
 
     /* La base instrumental solo suena con el transporte EN MARCHA. Al pausar
      * (`set_transport(..., false)`, p. ej. la tecla P de "congelar" en la

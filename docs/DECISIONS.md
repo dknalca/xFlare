@@ -2179,6 +2179,53 @@ costura en el punto de wrap.
 
 ---
 
+## ADR-061 — EQ de 3 bandas sobre el sample de scratch + limpieza del hilo RT (2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** El autor pidió (a) que el motor de audio fuera "lo más ligero
+posible" y (b) una EQ Lo/Mid/Hi para el sample, como el kill-EQ de una mesa.
+
+**Decisión — optimización.** El bucle más caliente es `xf_player_render` (sinc de
+32 taps, dos veces por bloque: scratch + base). Cambios que NO alteran el
+comportamiento (los tests espectrales siguen en verde con sus tolerancias):
+acumular la convolución en `float` en vez de `double` (error ~1e-6, el doble de
+rápido); un camino contiguo sin ramas cuando la ventana de 32 taps cae entera
+dentro del sample (el 99 % de las muestras), dejando los bordes y el envoltorio
+del bucle para el camino lento; `floor()` → truncado a `int64_t` (el cabezal
+siempre es ≥ 0); y **saltarse los 32 taps del todo cuando la puerta de velocidad
+daría ~0** (plato parado: idle, fase de "escucha" del repite-conmigo) escribiendo
+silencio exacto — mata denormales y deja el coste del scratch en reposo casi a 0.
+
+**Decisión — EQ.** `xf_eq` (módulo propio, testeable): low-shelf 200 Hz, peaking
+1 kHz (Q 0,9), high-shelf 4 kHz (fórmulas RBJ), en biquads **forma directa II
+traspuesta**. Se aplica **solo al reproductor de scratch** (la base instrumental
+y el metrónomo no se tocan). `xf_engine_set_sample_eq(low_db, mid_db, high_db)`
+corre en el hilo normal y diseña los coeficientes (usa sin/cos/sqrt — NO RT-safe)
+publicándolos por **doble buffer torn-free** (mismo patrón que el swap de
+`xf_player` en `xf_engine`). El hilo RT hace una **rampa de ~20 ms** de los
+coeficientes en uso hacia el objetivo (una interpolación por bloque, no por
+muestra): así mover un mando de golpe no mete un click. Ganancias en dB acotadas
+a [-24, +12]; con 0/0/0 el objetivo es "plano" y, cuando la rampa llega, el
+filtrado se salta entero (coste 0 por defecto). En la UI, tres sliders Lo/Mid/Hi
+(−24…+6 dB, con "plano") en el panel Mezcla; no se persisten (como los volúmenes).
+
+**Alternativas descartadas.** Calcular los coeficientes en el hilo RT al mover el
+mando (sin/cos en el callback: el proyecto es estricto con §7). Interpolar los
+coeficientes por muestra (coste innecesario para un suavizado de 20 ms). Un
+crossfade entre dos cadenas de biquads (el doble de filtrado durante el cambio).
+EQ sobre la mezcla entera (el autor quería moldear el **sample**, no la base).
+`double` en la convolución "por si acaso" (medido: no aporta nada audible y
+cuesta el doble).
+
+**Consecuencias.** `xf_eq` se prueba sin hardware (7 tests de respuesta en
+frecuencia + no-click; 1 test de integración en `xf_engine`). El `module.modulemap`
+de `CXFAudioCore` incluye ahora `xf_eq.h`. No cambia la puerta de latencia
+(B4.5); si acaso, baja el coste. El sellado de `CXFAudioCore` (B4.6) sigue
+pendiente de las mediciones en hardware.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

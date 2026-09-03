@@ -149,6 +149,61 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertEqual(out.map { abs($0) }.max() ?? 0, 0, "gain 0 -> silencio")
     }
 
+    private func goertzel(_ x: [Float], _ hz: Double) -> Double {
+        let w = 2.0 * Double.pi * hz / sr
+        let c = 2.0 * cos(w)
+        var s1 = 0.0, s2 = 0.0
+        for v in x { let s0 = Double(v) + c * s1 - s2; s2 = s1; s1 = s0 }
+        return 2.0 * max(0, s1 * s1 + s2 * s2 - c * s1 * s2).squareRoot() / Double(x.count)
+    }
+
+    /// EQ del sample: subir Lo realza los graves del scratch; la base NO se toca.
+    func testLaEqDelSampleRealzaSuBandaYNoTocaLaBase() {
+        // --- (1) sobre el scratch: sample de 120 Hz, Lo +12 dB -> mas fuerte ---
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        let sample = stableSample((0..<96_000).map {
+            Float(sin(2.0 * .pi * 120.0 * Double($0) / 48_000)) * 0.4
+        })
+        defer { sample.deallocate() }
+        xf_engine_load_sample(e, sample.baseAddress, Int64(sample.count))
+        xf_engine_set_master_gain(e, 1)
+        xf_engine_set_velocity(e, 1.0)
+
+        func run() -> [Float] {
+            xf_engine_seek_scratch(e, 0)
+            var acc: [Float] = []
+            for _ in 0..<80 { acc += render(e, inL: nil, inR: nil, n: 128).l }
+            return Array(acc.suffix(4096))
+        }
+        let flat = goertzel(run(), 120)
+        xf_engine_set_sample_eq(e, 12, 0, 0)
+        let boosted = goertzel(run(), 120)
+        XCTAssertGreaterThan(boosted / max(flat, 1e-9), 1.8, "Lo +12 dB sube los graves del scratch")
+
+        // --- (2) sobre la base instrumental: la EQ del sample NO la toca ---
+        let e2 = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e2) }
+        let loop = stableSample((0..<4_800).map {
+            Float(sin(2.0 * .pi * 120.0 * Double($0) / 48_000)) * 0.4
+        })
+        defer { loop.deallocate() }
+        xf_engine_load_instrumental(e2, loop.baseAddress, Int64(loop.count), 90)
+        xf_engine_set_transport(e2, 90, 480, true)
+        xf_engine_set_master_gain(e2, 1)
+
+        func runBase() -> [Float] {
+            var acc: [Float] = []
+            for _ in 0..<80 { acc += render(e2, inL: nil, inR: nil, n: 128).l }
+            return Array(acc.suffix(4096))
+        }
+        let baseFlat = goertzel(runBase(), 120)
+        xf_engine_set_sample_eq(e2, 12, 0, 0)
+        let baseAfter = goertzel(runBase(), 120)
+        XCTAssertEqual(baseAfter, baseFlat, accuracy: baseFlat * 0.05,
+                       "la EQ del sample no toca la base instrumental")
+    }
+
     /// ADR-042 — el ancla NO mueve el cabezal (lo hace la velocidad): es un TRIM
     /// anti-deriva ACOTADO. Se comprueba que (1) con velocidad coherente el
     /// cabezal va pegado al objetivo, (2) el trim por bloque esta topado — nunca

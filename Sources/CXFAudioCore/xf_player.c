@@ -204,43 +204,64 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
             v += trim;
         }
 
-        /* 3) elige el kernel segun |v| */
+        /* 3) |v| y puerta por velocidad. La puerta se calcula AHORA, antes de la
+         *    convolucion: si el plato esta tan parado que la salida seria ~0
+         *    (el caso normal mientras NO estas scratcheando: idle, "escucha" del
+         *    repite-conmigo…), nos saltamos los 32 taps y escribimos silencio.
+         *    El cabezal y la fase siguen avanzando igual, asi no hay salto al
+         *    volver a mover. Esto quita casi todo el coste del motor en reposo. */
         double av = v < 0.0 ? -v : v;
-        int ri = xf_player_ratio_index(av);
-
-        /* 4) parte entera y fase fraccionaria del cabezal */
-        double x = p->playhead;
-        int64_t i = (int64_t)floor(x);
-        double  f = x - (double)i;
-        int ph = (int)(f * (double)XF_PLAYER_PHASES + 0.5);
-        if (ph >= XF_PLAYER_PHASES) ph = XF_PLAYER_PHASES - 1;
-
-        const float *k =
-            p->table + ((size_t)ri * XF_PLAYER_PHASES + (size_t)ph) * XF_PLAYER_TAPS;
-
-        /* 5) convolucion de TAPS puntos. Fuera del sample: 0 si el cabezal se
-         *    satura, o envuelto por modulo si esta en bucle (base instrumental). */
-        double acc = 0.0;
-        for (int t = 0; t < XF_PLAYER_TAPS; t++) {
-            int64_t si = i + (int64_t)(t - (XF_PLAYER_HALF - 1));
-            double s;
-            if (p->loop) {
-                si %= p->frames;
-                if (si < 0) si += p->frames;   /* modulo siempre en [0, frames) */
-                s = (double)src[si];
-            } else {
-                s = (si >= 0 && si <= last) ? (double)src[si] : 0.0;
-            }
-            acc += s * (double)k[t];
-        }
-
-        /* puerta por velocidad: casi parado -> casi mudo (mata el zumbido de DC) */
-        double amp = 1.0;
+        float amp = 1.0f;
         if (p->speed_gate > 0.0) {
             double g = av / p->speed_gate;
-            amp = g < 1.0 ? g : 1.0;
+            amp = g < 1.0 ? (float)g : 1.0f;
         }
-        out[n] = (float)(acc * amp);
+
+        if (amp < 1e-4f) {
+            out[n] = 0.0f;
+        } else {
+            int ri = xf_player_ratio_index(av);
+
+            /* 4) parte entera y fase fraccionaria. `x` siempre es >= 0 (no-bucle
+             *    saturado a [0, last]; bucle con fmod a [0, frames)), asi que
+             *    truncar == floor y nos ahorramos la llamada a libm. */
+            double x = p->playhead;
+            int64_t i = (int64_t)x;
+            double  f = x - (double)i;
+            int ph = (int)(f * (double)XF_PLAYER_PHASES + 0.5);
+            if (ph >= XF_PLAYER_PHASES) ph = XF_PLAYER_PHASES - 1;
+
+            const float *k =
+                p->table + ((size_t)ri * XF_PLAYER_PHASES + (size_t)ph) * XF_PLAYER_TAPS;
+
+            /* 5) convolucion de TAPS puntos, en `float` (32 taps de float*float:
+             *    error ~1e-6, muy por debajo de lo audible, y el doble de rapido
+             *    que en double — es el bucle mas caliente del motor).
+             *    Camino rapido: si la ventana entera cae dentro del sample (el
+             *    99% de las muestras) es una convolucion contigua sin ramas, que
+             *    el compilador vectoriza. Los bordes y el envoltorio del bucle
+             *    van tap a tap. */
+            const int64_t base = i - (XF_PLAYER_HALF - 1);   /* primer tap */
+            float acc = 0.0f;
+            if (base >= 0 && base + (XF_PLAYER_TAPS - 1) <= last) {
+                const float *s0 = src + base;
+                for (int t = 0; t < XF_PLAYER_TAPS; t++) acc += s0[t] * k[t];
+            } else {
+                for (int t = 0; t < XF_PLAYER_TAPS; t++) {
+                    int64_t si = base + t;
+                    float s;
+                    if (p->loop) {
+                        si %= p->frames;
+                        if (si < 0) si += p->frames;   /* siempre en [0, frames) */
+                        s = src[si];
+                    } else {
+                        s = (si >= 0 && si <= last) ? src[si] : 0.0f;
+                    }
+                    acc += s * k[t];
+                }
+            }
+            out[n] = acc * amp;
+        }
 
         /* 6) avanza el cabezal: se satura a los extremos (el plato no se sale
          *    del sample) o da la vuelta si esta en bucle. */

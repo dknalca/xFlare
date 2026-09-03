@@ -143,6 +143,13 @@ public final class EngineHandle {
     /// Ganancia solo del scratch (0…1). La base instrumental no se ve afectada.
     public func setScratchGain(_ g: Float)  { xf_engine_set_scratch_gain(engine, g) }
 
+    /// EQ de 3 bandas (Lo/Mid/Hi) **solo del sample de scratch**, en dB
+    /// ([-24, +12]). 0/0/0 = plano (el motor se salta el filtrado). No toca ni la
+    /// base instrumental ni el metrónomo. El cambio se ramplea ~20 ms (sin click).
+    public func setSampleEQ(lowDb: Float, midDb: Float, highDb: Float) {
+        xf_engine_set_sample_eq(engine, lowDb, midDb, highDb)
+    }
+
     public var sampleRateHz: Double { sampleRate }
 
     public var tick: Double { xf_engine_tick(engine) }

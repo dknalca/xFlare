@@ -90,6 +90,14 @@ void xf_engine_set_master_gain(xf_engine *e, float gain);
  * pasar de 1 a 0 (fader cerrado / mute). Atomica. Por defecto 1. */
 void xf_engine_set_scratch_gain(xf_engine *e, float gain);
 
+/* EQ de 3 bandas (Lo / Mid / Hi) **solo sobre el sample de scratch** — la base
+ * instrumental y el metronomo no se tocan. Ganancias en dB, se acotan a
+ * [-24, +12]; 0/0/0 = plano y el motor se salta el filtrado. NO RT-SAFE (disena
+ * los filtros con sin/cos/sqrt); los coeficientes se publican por doble buffer y
+ * el estado de los biquads no se resetea, asi que mover un mando no mete un
+ * click. Lo shelf 200 Hz, Mid peak 1 kHz (Q 0,9), Hi shelf 4 kHz. */
+void xf_engine_set_sample_eq(xf_engine *e, float low_db, float mid_db, float high_db);
+
 /* ---- lo que consulta / usa Swift ---- */
 
 /* El ring de PCM de entrada: **estereo intercalado de 16 bits**. Swift lo drena
