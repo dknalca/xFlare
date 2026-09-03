@@ -119,9 +119,31 @@ reverse_default = true
 > valores `hid.*` salen de leer el descriptor HID del aparato (asistente de §8, o
 > `hidutil`/`ioreg`). La lectura la implementa `XFCapture.HIDFaderSource`.
 
-### `[linefader.deckN]`, `[transport]`, `[pads]`
+### `[linefader.deckN]`, `[pads]`
 Misma logica. Los controles se escriben `tipo:canal:numero`, por ejemplo
 `cc:1:24` o `note:1:0x30`.
+
+### `[transport]` — comandos de practica por MIDI
+
+Asigna una nota o un CC a cada comando de la sesion de practica (los mismos que
+el teclado). Formato del valor: `tipo:canal:numero`, con `tipo` = `note` | `cc`,
+`canal` 1-16 (o `0` = cualquiera) y `numero` 0-127 (acepta hex, `0x30`).
+
+| Clave | Comando | Disparo |
+|---|---|---|
+| `command.cue` | Cue: el sample vuelve al inicio | Note On, o CC ≥ 64 |
+| `command.restart_base` | Reinicia la instrumental desde el "1" | Note On, o CC ≥ 64 |
+| `command.freeze` | Congela / descongela | Note On, o CC ≥ 64 |
+| `command.record` | Arranca / para la grabacion de linea | Note On, o CC ≥ 64 |
+| `command.bpm_up` | BPM +1 | Note On, o CC ≥ 64 |
+| `command.bpm_down` | BPM −1 | Note On, o CC ≥ 64 |
+| `command.fader` | **Momentaneo**: pulsado = crossfader cerrado | Note On/Off, o CC (≥ 64 cerrado) |
+| `command.metronome` | Toggle del metronomo | Note On, o CC ≥ 64 |
+| `command.call_response` | Toggle de "Repite conmigo" | Note On, o CC ≥ 64 |
+
+Todos son disparos discretos salvo `command.fader`, que sigue el estado del
+control (nota mantenida / CC continuo). El usuario puede pisar cualquiera de
+estas asignaciones desde Ajustes → *MIDI · comandos* sin tocar el `.conf`.
 
 ### `[quirks]`
 Claves relevantes para arquitectura, ademas de las de la propia mesa:

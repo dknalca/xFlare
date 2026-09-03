@@ -42,9 +42,17 @@ public final class AppModel: ObservableObject {
 
     @Published public private(set) var screen: Screen = .home
     @Published public var settings: AppSettings {
-        didSet { Self.persist(settings) }
+        didSet { Self.persist(settings); rebuildMidiCommandMap() }
     }
-    @Published public var activeProfileId: String?
+    @Published public var activeProfileId: String? {
+        didSet { rebuildMidiCommandMap() }
+    }
+
+    /// Comandos de práctica que llegan por MIDI (cue, reiniciar base, congelar,
+    /// grabar, fader, …). El conector CoreMIDI (hardware) alimenta `midiCommands`
+    /// con `ingest`; la práctica se suscribe a este subject.
+    public let midiCommands = MidiCommandSource()
+    public let practiceCommandEvents = PassthroughSubject<PracticeCommandEvent, Never>()
     /// Ejercicio en curso para la tarjeta "Continuar" (en memoria por ahora).
     @Published public var continueExerciseId: String?
 
@@ -63,6 +71,43 @@ public final class AppModel: ObservableObject {
         self.profiles = profiles
         self.settings = settings
         self.content = content
+
+        // El decodificador MIDI reenvía cada comando al subject al que se
+        // suscribe la práctica.
+        self.midiCommands.onCommand = { [weak self] event in
+            self?.practiceCommandEvents.send(event)
+        }
+        rebuildMidiCommandMap()
+    }
+
+    // MARK: - MIDI de comandos
+
+    /// Reconstruye el mapa MIDI de comandos: base del perfil activo (sección
+    /// `[transport]` del `.conf`) + los overrides del usuario por encima. Se
+    /// llama al arrancar y cada vez que cambian el perfil o los ajustes.
+    func rebuildMidiCommandMap() {
+        let base = activeProfileId
+            .flatMap { profiles.profile(id: $0)?.raw }
+            .map(MidiCommandMap.fromProfile) ?? MidiCommandMap()
+
+        var overrides: [PracticeCommand: MidiBinding] = [:]
+        for (key, value) in settings.midiCommandOverrides {
+            if let cmd = PracticeCommand(rawValue: key), let bind = MidiBinding(value) {
+                overrides[cmd] = bind
+            }
+        }
+        midiCommands.map = base.merging(userOverrides: overrides)
+    }
+
+    /// Asignaciones MIDI que trae el perfil activo (`comando -> "note:1:36"`),
+    /// para mostrarlas como valor por defecto en Ajustes.
+    public var profileCommandBindings: [String: String] {
+        guard let ini = activeProfileId.flatMap({ profiles.profile(id: $0)?.raw }) else { return [:] }
+        var out: [String: String] = [:]
+        for (cmd, bind) in MidiCommandMap.fromProfile(ini).bindings {
+            out[cmd.rawValue] = bind.text
+        }
+        return out
     }
 
     // MARK: - arranque

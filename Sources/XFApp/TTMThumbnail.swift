@@ -10,23 +10,25 @@ import XFNotation
 ///  - La curva del disco se dibuja **solo donde suena** (fader abierto). El
 ///    tramo mudo NO se pinta — mute = ausencia, igual que la autopista y el TTM
 ///    real. Así "Forward Cut" o "Stab" no arrastran la vuelta silenciosa.
-///  - Cada **corte** (el fader se cierra) es un **círculo relleno ●** en una
-///    **fila horizontal fija** en el borde superior — la "pista de fader" del
-///    TTM. Puestos así, los cortes de un flare quedan alineados y simétricos, y
-///    el del chirp cae sobre el vértice.
+///  - Cada **corte** (el fader se cierra) es un **círculo relleno ●**. Dónde va
+///    depende de la familia:
+///     · **flare / orbit / crab** (fader abierto, cierres momentáneos): todos los
+///       ● en **una misma horizontal**, repartidos **simétricos** — así se lee
+///       "toca-corta-toca-corta" de un vistazo (feedback 2026-09-03).
+///     · **chirp**: un solo ● en el **vértice** del movimiento (el fader cierra
+///       al frenar).
+///     · resto (cut, transformer, tear): el ● **sobre la curva**, donde deja de
+///       sonar.
 ///
 /// Todo normalizado al cuadrado unidad (`x` = tiempo 0→1, `y` = 0 abajo → 1
 /// arriba entre el mínimo y el máximo de la posición). Puro y testeable.
 public struct TTMThumbnail: Equatable, Sendable {
 
-    /// Y (normalizada) de la fila de cortes, cerca del borde superior.
-    public static let cutLineY: CGFloat = 0.98
-
     /// Tramos de la curva del disco **donde suena** (fader abierto), de
     /// izquierda a derecha. Un baby (fader siempre abierto) tiene uno solo.
     public var segments: [[CGPoint]]
 
-    /// Puntos de corte (el fader cierra), en la fila `cutLineY`. ● relleno.
+    /// Puntos de corte (el fader cierra), **sobre la curva**. ● relleno.
     public var cuts: [CGPoint]
 
     public init(segments: [[CGPoint]], cuts: [CGPoint] = []) {
@@ -38,7 +40,7 @@ public struct TTMThumbnail: Equatable, Sendable {
     ///
     /// Se dibuja **un solo ciclo** del patrón (`lengthTicks / cycles`), como la
     /// referencia TTM: un gesto, no el ejercicio entero repetido.
-    public static func build(scratch: Scratch, samples: Int = 120) -> TTMThumbnail {
+    public static func build(scratch: Scratch, samples: Int = 160) -> TTMThumbnail {
         let n = max(8, samples)
         let length = max(1, scratch.lengthTicks / max(1, scratch.cycles))
         let L = Double(length)
@@ -62,10 +64,10 @@ public struct TTMThumbnail: Equatable, Sendable {
             PositionSampler.faderState(of: scratch, atTick: min(length - 1, max(0, t))) == .open
         }
 
-        // recorre las muestras acumulando tramos donde el fader esta abierto;
-        // al cerrar, marca un corte en la fila superior con la x de ese instante
+        // recorre las muestras: acumula tramos con el fader abierto; al cerrar,
+        // cierra el tramo y anota el corte en su ÚLTIMO punto (sobre la curva).
         var segments: [[CGPoint]] = []
-        var cuts: [CGPoint] = []
+        var rawCuts: [CGPoint] = []
         var current: [CGPoint] = []
         var prevOpen = false
 
@@ -75,28 +77,62 @@ public struct TTMThumbnail: Equatable, Sendable {
             if open {
                 current.append(point(t))
             } else if prevOpen {
-                // se acaba de cerrar: cierra el tramo y anota el corte
                 if current.count >= 2 { segments.append(current) }
+                if let last = current.last { addCut(&rawCuts, last) }
                 current.removeAll(keepingCapacity: true)
-                addCut(&cuts, x: CGFloat(min(1, Double(t) / L)))
             }
             prevOpen = open
         }
         if current.count >= 2 { segments.append(current) }
+        rawCuts.sort { $0.x < $1.x }
 
-        // cortes explicitos del patron por si el muestreo se los salta (chirp:
-        // cierre muy al final del tramo)
-        for e in scratch.faderEvents where e.state == .closed && e.t < length {
-            addCut(&cuts, x: CGFloat(min(1, Double(e.t) / L)))
+        // vértice del movimiento (punto más alto de la curva), para el chirp
+        var peak = CGPoint(x: 0.5, y: 0.9)
+        for i in 0...n {
+            let p = point(tickAt(i))
+            if p.y > peak.y { peak = p }
         }
 
-        return TTMThumbnail(segments: segments, cuts: cuts.sorted { $0.x < $1.x })
+        let cuts = place(rawCuts, family: scratch.family, peak: peak)
+        return TTMThumbnail(segments: segments, cuts: cuts)
     }
 
-    private static func addCut(_ cuts: inout [CGPoint], x: CGFloat) {
-        guard x > 0.001, x < 0.999 else { return }
-        if !cuts.contains(where: { abs($0.x - x) < 0.04 }) {
-            cuts.append(CGPoint(x: x, y: cutLineY))
+    /// Añade un corte si no hay ya uno muy cerca (dedup por proximidad).
+    private static func addCut(_ cuts: inout [CGPoint], _ p: CGPoint) {
+        guard p.x > 0.01, p.x < 0.99 else { return }
+        if !cuts.contains(where: { abs($0.x - p.x) < 0.05 && abs($0.y - p.y) < 0.08 }) {
+            cuts.append(p)
+        }
+    }
+
+    /// Coloca los ● según la familia (ver la nota de la cabecera).
+    private static func place(_ raw: [CGPoint], family: String, peak: CGPoint) -> [CGPoint] {
+        guard !raw.isEmpty else { return [] }
+
+        switch family {
+        case "flare", "orbit", "crab", "twiddle":
+            // Todos a la misma altura (media de las alturas reales, con margen
+            // para no rozar el borde) y repartidos simétricos respecto al centro.
+            let avgY = raw.map { $0.y }.reduce(0, +) / CGFloat(raw.count)
+            let yLine = min(0.82, max(0.18, avgY))
+            let m = raw.count
+            var out: [CGPoint] = []
+            for i in 0..<m {
+                let j = m - 1 - i
+                // media entre x_i y el espejo de su pareja: fuerza la simetría
+                let xs = (raw[i].x + (1 - raw[j].x)) / 2
+                out.append(CGPoint(x: min(0.94, max(0.06, xs)), y: yLine))
+            }
+            return out.sorted { $0.x < $1.x }
+
+        case "chirp":
+            // Un único ● en el vértice del movimiento (el fader cierra al frenar).
+            // `y` con un pelín de margen para que el círculo no se coma el borde.
+            return [CGPoint(x: peak.x, y: min(0.92, peak.y))]
+
+        default:
+            // cut, transformer, tear…: el ● se queda sobre la curva.
+            return raw
         }
     }
 }

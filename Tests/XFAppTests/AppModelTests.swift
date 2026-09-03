@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import XCTest
+import Combine
 @testable import XFApp
 import XFPersistence
 import XFNotation
+import XFCapture
 
 /// El coordinador de la app: navegacion + datos montados con los assemblers.
 final class AppModelTests: XCTestCase {
@@ -138,6 +140,23 @@ final class AppModelTests: XCTestCase {
         let m = AppModel.failed("boom")
         XCTAssertEqual(m.screen, .error("boom"))
         XCTAssertEqual(m.catalog.exercises.count, 0)
+    }
+
+    // MARK: - comandos por MIDI
+
+    func testUnOverrideDeUsuarioSeEnrutaAlSubjectDeComandos() throws {
+        let m = try model()
+        // el usuario asigna Note On 36 (canal 1) al comando "cue"
+        m.settings.midiCommandOverrides = ["cue": "note:1:36"]
+
+        var got: [PracticeCommandEvent] = []
+        let c = m.practiceCommandEvents.sink { got.append($0) }
+        defer { c.cancel() }
+
+        m.midiCommands.ingest(bytes: [0x90, 36, 100])   // Note On 36
+        m.midiCommands.ingest(bytes: [0x90, 40, 100])   // otra nota: nada
+
+        XCTAssertEqual(got, [.trigger(.cue)])
     }
 
     func testBootMontaTodoDesdeElRepo() throws {

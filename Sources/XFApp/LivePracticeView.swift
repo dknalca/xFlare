@@ -2,6 +2,7 @@
 
 import SwiftUI
 import AppKit
+import Combine
 import XFDesign
 import XFRender
 import XFNotation
@@ -71,6 +72,10 @@ public struct LivePracticeView: View {
     private let scratchSamplePath: String
     /// Se llama al cargar un sample nuevo, con su ruta (para persistirla).
     private let onScratchSampleChanged: (String) -> Void
+    /// Comandos que llegan por MIDI (cue, reiniciar base, congelar, grabar,
+    /// fader…). Los publica `AppModel`; aquí se enrutan a las mismas acciones que
+    /// el teclado. Por defecto un publisher vacío (sin mesa MIDI).
+    private let commandEvents: AnyPublisher<PracticeCommandEvent, Never>
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -81,6 +86,8 @@ public struct LivePracticeView: View {
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
                 scratchSamplePath: String = "",
+                commandEvents: AnyPublisher<PracticeCommandEvent, Never>
+                    = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
@@ -93,6 +100,7 @@ public struct LivePracticeView: View {
         self.content = content
         self.metronomeOn = metronomeOn
         self.scratchSamplePath = scratchSamplePath
+        self.commandEvents = commandEvents
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
         self.onScratchSampleChanged = onScratchSampleChanged
@@ -184,6 +192,7 @@ public struct LivePracticeView: View {
             // apagado; al terminar (empieza a grabar o se cancela) se restablece.
             engine?.metronomeEnabled = arming ? true : metroOn
         }
+        .onReceive(commandEvents) { handleCommand($0) }
         .onAppear { quote = Quotes.random(from: content); start() }
         .onDisappear { stop() }
 
@@ -548,6 +557,56 @@ public struct LivePracticeView: View {
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         session.resyncClock()
         gridShift = 0
+    }
+
+    // MARK: - comandos por MIDI
+
+    /// Enruta un comando recibido por MIDI a la misma acción que dispara el
+    /// teclado. El fader es momentáneo (pulsar = cerrado); el resto, discretos.
+    private func handleCommand(_ event: PracticeCommandEvent) {
+        let s = session
+        switch event {
+        case .faderClosed(let closed):
+            // solo avisa a la sesión; el gain lo pone el `.onChange` de
+            // `session.faderClosed` (igual que el fader del trackpad).
+            s.setFaderClosed(closed)
+
+        case .trigger(.fader):
+            break   // el fader nunca llega como trigger
+
+        case .trigger(.cue):
+            s.jumpToCue()
+            engine?.seekScratch(0)
+
+        case .trigger(.restartBase):
+            restartInstrumental()
+
+        case .trigger(.freeze):
+            s.toggleFreeze()
+            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: !s.frozen)
+
+        case .trigger(.record):
+            if s.recording { lastRecording = s.stopRecording() }
+            else if s.recArming { s.stopRecording() }
+            else { s.stopPlayback(); s.armRecording() }
+
+        case .trigger(.bpmUp):
+            s.setBPM(s.bpm + 1)
+            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+
+        case .trigger(.bpmDown):
+            s.setBPM(s.bpm - 1)
+            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+
+        case .trigger(.metronome):
+            metroOn.toggle()
+            engine?.metronomeEnabled = metroOn
+            onMetronomeChanged(metroOn)
+
+        case .trigger(.callResponse):
+            guard !freestyle else { break }
+            s.setCallResponse(s.crPhase == .off)
+        }
     }
 
     private var clipMeter: some View {

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 import SwiftUI
+import Combine
 import XFDesign
 import XFRender
 import XFNotation
@@ -100,7 +101,9 @@ public struct AppRootView: View {
                         onActivate: { model.activeProfileId = $0 })
 
         case .settings:
-            SettingsView(settings: model.settings, onChange: { model.settings = $0 })
+            SettingsView(settings: model.settings,
+                         profileBindings: model.profileCommandBindings,
+                         onChange: { model.settings = $0 })
 
         case .progress(let ex, let v):
             if let d = model.progressDisplay(exerciseId: ex, variantId: v) {
@@ -144,6 +147,7 @@ public struct AppRootView: View {
                     engine: model.engine,
                     content: model.content,
                     metronomeOn: model.settings.metronomeEnabled,
+                    commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onExit: { model.goHome() })
             } else {
@@ -184,6 +188,7 @@ public struct AppRootView: View {
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
                 scratchSamplePath: model.settings.lastScratchSamplePath,
+                commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)

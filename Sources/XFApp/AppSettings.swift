@@ -28,15 +28,20 @@ public struct AppSettings: Equatable, Sendable {
     /// Ruta del último sample de scratch que cargó el usuario (F.3). Vacío = el
     /// asset por defecto. Se recarga al abrir la práctica si el fichero sigue ahí.
     public var lastScratchSamplePath: String
+    /// Reasignaciones MIDI de comandos hechas por el usuario (pisan al perfil).
+    /// Clave = nombre del comando (`cue`, `freeze`, …); valor = `"note:1:36"`.
+    /// Se serializa como `cue=note:1:36;freeze=cc:0:64`.
+    public var midiCommandOverrides: [String: String]
 
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true,
-        lastScratchSamplePath: "")
+        lastScratchSamplePath: "", midiCommandOverrides: [:])
 
     public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool,
-                allUnlocked: Bool = true, lastScratchSamplePath: String = "") {
+                allUnlocked: Bool = true, lastScratchSamplePath: String = "",
+                midiCommandOverrides: [String: String] = [:]) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -46,6 +51,7 @@ public struct AppSettings: Equatable, Sendable {
         self.reduceMotion = reduceMotion
         self.allUnlocked = allUnlocked
         self.lastScratchSamplePath = lastScratchSamplePath
+        self.midiCommandOverrides = midiCommandOverrides
     }
 
     // MARK: - clave/valor
@@ -60,6 +66,20 @@ public struct AppSettings: Equatable, Sendable {
         static let motion = "a11y.reduceMotion"
         static let allUnlocked = "progression.allUnlocked"
         static let lastSample = "practice.lastScratchSample"
+        static let midiCommands = "midi.commandOverrides"
+    }
+
+    /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
+    private static func parseMidi(_ s: String) -> [String: String] {
+        var out: [String: String] = [:]
+        for pair in s.split(separator: ";") {
+            let kv = pair.split(separator: "=", maxSplits: 1)
+            if kv.count == 2 { out[String(kv[0])] = String(kv[1]) }
+        }
+        return out
+    }
+    private static func serializeMidi(_ d: [String: String]) -> String {
+        d.sorted { $0.key < $1.key }.map { "\($0.key)=\($0.value)" }.joined(separator: ";")
     }
 
     public init(raw: [String: String]) {
@@ -77,7 +97,8 @@ public struct AppSettings: Equatable, Sendable {
             highContrast: bool(Key.contrast, d.highContrast),
             reduceMotion: bool(Key.motion, d.reduceMotion),
             allUnlocked: bool(Key.allUnlocked, d.allUnlocked),
-            lastScratchSamplePath: raw[Key.lastSample] ?? d.lastScratchSamplePath)
+            lastScratchSamplePath: raw[Key.lastSample] ?? d.lastScratchSamplePath,
+            midiCommandOverrides: AppSettings.parseMidi(raw[Key.midiCommands] ?? ""))
     }
 
     public var raw: [String: String] {
@@ -91,6 +112,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.motion: reduceMotion ? "1" : "0",
             Key.allUnlocked: allUnlocked ? "1" : "0",
             Key.lastSample: lastScratchSamplePath,
+            Key.midiCommands: AppSettings.serializeMidi(midiCommandOverrides),
         ]
     }
 }

@@ -44,16 +44,35 @@ final class TTMThumbnailTests: XCTestCase {
                           "la vuelta silenciosa no se dibuja")
     }
 
-    func testLosCortesVanEnUnaFilaHorizontal() throws {
-        // flare: varios cortes, todos a la misma y (la "pista de fader")
+    func testLosCortesDelFlareVanEnUnaHorizontalYSonSimetricos() throws {
+        // flare-2c: fader open, 2 clicks por trazo -> los ● se alinean en una
+        // misma horizontal y se reparten simétricos respecto al centro.
         let flare = try XCTUnwrap(try library().scratch(id: "flare-2c"))
         let t = TTMThumbnail.build(scratch: flare)
-        XCTAssertGreaterThanOrEqual(t.cuts.count, 2)
-        let ys = Set(t.cuts.map { Double(($0.y * 1000).rounded()) })
-        XCTAssertEqual(ys.count, 1, "todos los ● en la misma horizontal")
-        XCTAssertEqual(t.cuts.first?.y ?? 0, TTMThumbnail.cutLineY, accuracy: 1e-6)
-        // y en orden por x (simétricos por diseño del patrón)
-        for (a, b) in zip(t.cuts, t.cuts.dropFirst()) { XCTAssertLessThan(a.x, b.x) }
+        let cuts = t.cuts
+
+        XCTAssertGreaterThanOrEqual(cuts.count, 2)
+        XCTAssertEqual(cuts.count % 2, 0, "pares espejo")
+        // ninguno se sale del cuadro, y con margen de sobra respecto al borde
+        for c in cuts { XCTAssert((0.05...0.95).contains(c.x) && (0.1...0.9).contains(c.y)) }
+        // todos a la MISMA altura
+        let ys = cuts.map { Double($0.y) }
+        XCTAssertEqual(ys.max()! - ys.min()!, 0, accuracy: 1e-9, "una sola horizontal")
+        // ordenados por x y simétricos respecto al centro (x_i + x_{n-1-i} ≈ 1)
+        for (a, b) in zip(cuts, cuts.dropFirst()) { XCTAssertLessThan(a.x, b.x) }
+        for i in 0..<(cuts.count / 2) {
+            let a = cuts[i], b = cuts[cuts.count - 1 - i]
+            XCTAssertEqual(Double(a.x + b.x), 1.0, accuracy: 0.02, "x simétrica")
+        }
+    }
+
+    func testElChirpPoneUnPuntoEnElVertice() throws {
+        // chirp: un único ● y cae en el vértice del movimiento (arriba del todo).
+        let chirp = try XCTUnwrap(try library().scratch(id: "chirp"))
+        let t = TTMThumbnail.build(scratch: chirp)
+        XCTAssertEqual(t.cuts.count, 1, "un solo corte visible")
+        let c = try XCTUnwrap(t.cuts.first)
+        XCTAssertGreaterThan(Double(c.y), 0.75, "cerca del punto más alto de la curva")
     }
 
     func testElChirpTieneUnCorteYAlgoQueSuena() throws {
