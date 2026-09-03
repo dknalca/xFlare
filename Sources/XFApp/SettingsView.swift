@@ -35,6 +35,7 @@ public struct SettingsView: View {
         TabView {
             generalTab.tabItem { Text("General") }
             midiTab.tabItem { Text("MIDI") }
+            debugTab.tabItem { Text("Debug") }
         }
         .padding(.top, XFSpacing.xs)
         .background(XFColor.bg)
@@ -151,6 +152,58 @@ public struct SettingsView: View {
             .padding(XFSpacing.xl)
         }
         .background(XFColor.bg)
+    }
+
+    // MARK: - pestaña Debug (afinar el "tacto" del plato)
+
+    private var debugTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: XFSpacing.lg) {
+                section("Tacto del plato") {
+                    note("Para dejar fino el scratch mientras no hay mesa. Se aplica "
+                         + "al abrir la práctica; se guarda en tu Mac.")
+                    debugSlider("Glide (ms)", bind(\.platterGlideMs),
+                                in: 0.5...12, step: 0.5, fmt: "%.1f")
+                    note("Suavizado de la velocidad del plato. Menos = más seco, el "
+                         + "audio sigue mejor al gesto (menos delay); más = más "
+                         + "suave pero con retardo.")
+                    debugSlider("Puerta de velocidad", bind(\.platterSpeedGate),
+                                in: 0...0.4, step: 0.01, fmt: "%.2f")
+                    note("Por debajo de esta velocidad el scratch enmudece (mata el "
+                         + "zumbido del cabezal quieto). 0 = sin puerta.")
+                    debugSlider("Fricción", bind(\.platterFriction),
+                                in: 0.3...6, step: 0.1, fmt: "%.1f")
+                    note("Cómo de rápido frena el plato al soltar. Menos = rueda más "
+                         + "y llega más fácil a los extremos.")
+                    debugSlider("Sensibilidad trackpad", bind(\.trackpadSensitivity),
+                                in: 0.2...2.0, step: 0.1, fmt: "%.1f")
+                    Button("Restablecer valores") {
+                        settings.platterGlideMs = AppSettings.defaults.platterGlideMs
+                        settings.platterSpeedGate = AppSettings.defaults.platterSpeedGate
+                        settings.platterFriction = AppSettings.defaults.platterFriction
+                        settings.trackpadSensitivity = AppSettings.defaults.trackpadSensitivity
+                        onChange(settings)
+                    }
+                    .xfButton(.bordered)
+                }
+            }
+            .frame(maxWidth: 460, alignment: .leading)
+            .padding(XFSpacing.xl)
+        }
+        .background(XFColor.bg)
+    }
+
+    private func debugSlider(_ label: String, _ value: Binding<Double>,
+                             in range: ClosedRange<Double>, step: Double,
+                             fmt: String) -> some View {
+        row(label) {
+            HStack(spacing: XFSpacing.xs) {
+                Slider(value: value, in: range, step: step).frame(width: 180)
+                Text(String(format: fmt, value.wrappedValue))
+                    .font(XFFont.mono(12)).foregroundColor(XFColor.textMuted)
+                    .frame(width: 40, alignment: .trailing)
+            }
+        }
     }
 
     // MARK: - MIDI Learn

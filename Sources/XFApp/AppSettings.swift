@@ -47,6 +47,19 @@ public struct AppSettings: Equatable, Sendable {
     /// Lado mayor del vídeo exportado, en píxeles (F.4).
     public var videoLongSide: Int
 
+    // MARK: - Debug: "tacto" del plato (ventana Ajustes › Debug)
+    /// Suavizado (ms) de la velocidad del plato de scratch. Menos = más seco y el
+    /// audio sigue mejor al gesto; más = más suave pero con retardo. Def. 3.
+    public var platterGlideMs: Double
+    /// |v| por debajo de la cual el scratch enmudece (mata el zumbido del cabezal
+    /// quieto). Def. 0,12. `0` = sin puerta.
+    public var platterSpeedGate: Double
+    /// Fricción del plato: cómo de rápido frena al soltar (1/s del decaimiento
+    /// exponencial). Más = frena antes. Def. 1,8.
+    public var platterFriction: Double
+    /// Multiplicador de la sensibilidad del trackpad al girar el plato. Def. 1,0.
+    public var trackpadSensitivity: Double
+
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true,
@@ -57,7 +70,9 @@ public struct AppSettings: Equatable, Sendable {
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool,
                 allUnlocked: Bool = true, lastScratchSamplePath: String = "",
                 midiCommandOverrides: [String: String] = [:], showFPS: Bool = false,
-                sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600) {
+                sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600,
+                platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.12,
+                platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -74,6 +89,11 @@ public struct AppSettings: Equatable, Sendable {
         self.sampleLibrary = sampleLibrary.filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(12).map { $0 }
         self.videoFps = AppSettings.videoFpsOptions.contains(videoFps) ? videoFps : 30
         self.videoLongSide = AppSettings.videoLongSideOptions.contains(videoLongSide) ? videoLongSide : 1600
+        // Debug: rangos amplios pero acotados para no romper el motor.
+        self.platterGlideMs      = min(12.0, max(0.5, platterGlideMs))
+        self.platterSpeedGate    = min(0.4,  max(0.0, platterSpeedGate))
+        self.platterFriction     = min(6.0,  max(0.3, platterFriction))
+        self.trackpadSensitivity = min(2.0,  max(0.2, trackpadSensitivity))
     }
 
     // MARK: - clave/valor
@@ -93,6 +113,10 @@ public struct AppSettings: Equatable, Sendable {
         static let sampleLibrary = "practice.sampleLibrary"
         static let videoFps = "video.fps"
         static let videoLongSide = "video.longSide"
+        static let platterGlideMs = "debug.platterGlideMs"
+        static let platterSpeedGate = "debug.platterSpeedGate"
+        static let platterFriction = "debug.platterFriction"
+        static let trackpadSensitivity = "debug.trackpadSensitivity"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -128,7 +152,11 @@ public struct AppSettings: Equatable, Sendable {
             showFPS: bool(Key.showFPS, d.showFPS),
             sampleLibrary: (raw[Key.sampleLibrary] ?? "").split(separator: "\n").map(String.init),
             videoFps: int(Key.videoFps, d.videoFps),
-            videoLongSide: int(Key.videoLongSide, d.videoLongSide))
+            videoLongSide: int(Key.videoLongSide, d.videoLongSide),
+            platterGlideMs: dbl(Key.platterGlideMs, d.platterGlideMs),
+            platterSpeedGate: dbl(Key.platterSpeedGate, d.platterSpeedGate),
+            platterFriction: dbl(Key.platterFriction, d.platterFriction),
+            trackpadSensitivity: dbl(Key.trackpadSensitivity, d.trackpadSensitivity))
     }
 
     public var raw: [String: String] {
@@ -147,6 +175,10 @@ public struct AppSettings: Equatable, Sendable {
             Key.sampleLibrary: sampleLibrary.joined(separator: "\n"),
             Key.videoFps: String(videoFps),
             Key.videoLongSide: String(videoLongSide),
+            Key.platterGlideMs: String(platterGlideMs),
+            Key.platterSpeedGate: String(platterSpeedGate),
+            Key.platterFriction: String(platterFriction),
+            Key.trackpadSensitivity: String(trackpadSensitivity),
         ]
     }
 }

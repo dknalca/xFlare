@@ -145,7 +145,8 @@ public final class PracticeSession: ObservableObject {
     /// Decaimiento exponencial de la velocidad al soltar, en 1/s. Mas bajo =
     /// rueda mas y cuesta menos llegar a los extremos del recorrido. Bajado de
     /// 2.5 a 1.8 para poder llegar al final del sample (n=1.5) con un gesto.
-    private let frictionPerSecond = 1.8
+    /// `var` para poder afinarlo desde la ventana Debug de Ajustes.
+    public var frictionPerSecond: Double = 1.8
     /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
     /// recorrido del plato es ~1,5x el span del patron; un gesto normal tiene
     /// que poder cubrirlo entero (hasta el final del sample) en las dos

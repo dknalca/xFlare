@@ -152,6 +152,12 @@ public struct LivePracticeView: View {
     /// Samples de scratch recordados (F.3). `onSampleLibraryChanged` los persiste.
     private let sampleLibrary: [String]
     private let onSampleLibraryChanged: ([String]) -> Void
+    /// Ajustes de "tacto" del plato (ventana Ajustes › Debug). Se aplican al
+    /// abrir la práctica.
+    private let platterGlideMs: Double
+    private let platterSpeedGate: Double
+    private let platterFriction: Double
+    private let trackpadSensitivity: Double
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -168,6 +174,10 @@ public struct LivePracticeView: View {
                 videoFps: Int = 30,
                 videoLongSide: Int = 1600,
                 sampleLibrary: [String] = [],
+                platterGlideMs: Double = 3.0,
+                platterSpeedGate: Double = 0.12,
+                platterFriction: Double = 1.8,
+                trackpadSensitivity: Double = 1.0,
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
@@ -191,6 +201,10 @@ public struct LivePracticeView: View {
         self.videoFps = videoFps
         self.videoLongSide = videoLongSide
         self.sampleLibrary = sampleLibrary
+        self.platterGlideMs = platterGlideMs
+        self.platterSpeedGate = platterSpeedGate
+        self.platterFriction = platterFriction
+        self.trackpadSensitivity = trackpadSensitivity
         self.commandEvents = commandEvents
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
@@ -319,6 +333,12 @@ public struct LivePracticeView: View {
             quote = Quotes.random(from: content)
             library = sampleLibrary
             activeSamplePath = scratchSamplePath
+            // ajustes de "tacto" del plato (Ajustes › Debug)
+            engine?.setScratchGlideMs(platterGlideMs)
+            engine?.setScratchSpeedGate(platterSpeedGate)
+            session.frictionPerSecond = platterFriction
+            session.scrollSensitivity = trackpadSensitivity
+            sensitivity = trackpadSensitivity
             start()
         }
         .onDisappear { stop() }

@@ -159,6 +159,13 @@ public final class EngineHandle {
         xf_engine_set_sample_eq(engine, lowDb, midDb, highDb)
     }
 
+    /// "Tacto" del plato (ventana Debug). `glideMs`: suavizado de la velocidad —
+    /// menos = más seco y el audio sigue mejor al gesto, más = más suave pero con
+    /// retardo. `speedGate`: |v| por debajo de la cual el scratch no suena. Se
+    /// aplican al vuelo.
+    public func setScratchGlideMs(_ ms: Double) { xf_engine_set_scratch_glide_ms(engine, ms) }
+    public func setScratchSpeedGate(_ v: Double) { xf_engine_set_scratch_speed_gate(engine, v) }
+
     public var sampleRateHz: Double { sampleRate }
 
     public var tick: Double { xf_engine_tick(engine) }

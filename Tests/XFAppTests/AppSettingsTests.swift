@@ -37,6 +37,29 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(bad.videoLongSide, 1600)
     }
 
+    func testAjustesDebugDelPlatoIdaYVueltaYAcotados() {
+        var s = AppSettings.defaults
+        s.platterGlideMs = 2.0
+        s.platterSpeedGate = 0.05
+        s.platterFriction = 3.2
+        s.trackpadSensitivity = 1.4
+        let round = AppSettings(raw: s.raw)
+        XCTAssertEqual(round.platterGlideMs, 2.0, accuracy: 1e-9)
+        XCTAssertEqual(round.platterSpeedGate, 0.05, accuracy: 1e-9)
+        XCTAssertEqual(round.platterFriction, 3.2, accuracy: 1e-9)
+        XCTAssertEqual(round.trackpadSensitivity, 1.4, accuracy: 1e-9)
+
+        // fuera de rango -> se acotan
+        let ext = AppSettings(raw: [
+            "debug.platterGlideMs": "999", "debug.platterSpeedGate": "-1",
+            "debug.platterFriction": "0.01", "debug.trackpadSensitivity": "50",
+        ])
+        XCTAssertEqual(ext.platterGlideMs, 12.0)
+        XCTAssertEqual(ext.platterSpeedGate, 0.0)
+        XCTAssertEqual(ext.platterFriction, 0.3)
+        XCTAssertEqual(ext.trackpadSensitivity, 2.0)
+    }
+
     func testValoresIlegiblesCaenAlDefault() {
         let s = AppSettings(raw: [
             "audio.bufferFrames": "999",          // no esta en bufferOptions

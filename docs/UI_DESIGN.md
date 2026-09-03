@@ -185,12 +185,17 @@ tecnica de dedos y un boton de escucha. Filtros por familia, nivel y numero de c
 
 ### 3.7 Ajustes
 
-Dos **pestañas**: **General** (perfil, audio/buffer, sesión/tolerancia,
-accesibilidad, diagnóstico de FPS, vídeo) y **MIDI**. Todo local: **sin cuenta,
-sin nube, sin telemetria**.
+Tres **pestañas**: **General** (perfil, audio/buffer, sesión/tolerancia,
+accesibilidad, diagnóstico de FPS, vídeo), **MIDI** y **Debug**. Todo local:
+**sin cuenta, sin nube, sin telemetria**.
 
 - **Vídeo**: FPS (24/30/60) y resolución (Rápida/Estándar/Alta) de la exportación
   de tomas (F.4).
+- Pestaña **Debug** — sliders para dejar fino el "tacto" del plato mientras no
+  hay mesa: **glide** (suavizado de velocidad; menos = el audio sigue mejor al
+  gesto), **puerta de velocidad** (por debajo enmudece), **fricción** (cómo frena
+  al soltar) y **sensibilidad del trackpad**. Se guardan en `AppSettings` y se
+  aplican al abrir la práctica. Botón "Restablecer valores".
 - Pestaña **MIDI** — asigna una nota o un CC a cada comando de la practica (cue,
   reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
   repite conmigo) — los mismos que el teclado. **MIDI Learn**: seleccionas el

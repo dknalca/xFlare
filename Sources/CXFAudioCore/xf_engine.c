@@ -47,6 +47,10 @@ struct xf_engine {
     double          scratch_gain_cur;     /* suavizado, solo lo toca el hilo RT */
     double          scratch_gain_coef;    /* one-pole ~5 ms, precalculado */
     xf_eq           sample_eq;            /* EQ Lo/Mid/Hi SOLO del sample de scratch */
+    /* ajustes de "tacto" del plato (ventana Debug). Solo los toca el hilo normal;
+     * se aplican al player de scratch al cargarlo y al cambiarlos. */
+    double          scratch_glide_ms;     /* suavizado de velocidad; menos = mas seco */
+    double          scratch_speed_gate;   /* |v| por debajo de la cual no suena */
     _Atomic double  out_peak;             /* pico de salida ANTES de limitar, para la UI */
     _Atomic double  scratch_target;       /* frame objetivo del cabezal; <0 = suelto */
 
@@ -120,6 +124,8 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     atomic_store(&e->scratch_target, -1.0);
     e->scratch_gain_cur = 1.0;
     e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
+    e->scratch_glide_ms = 3.0;      /* antes 5; mas seco = el audio sigue mejor al gesto */
+    e->scratch_speed_gate = 0.12;
     xf_eq_init(&e->sample_eq, sample_rate);   /* plano por defecto */
     atomic_store(&e->reported_tick, 0.0);
     e->capture_input = 1;
@@ -156,12 +162,33 @@ void xf_engine_load_sample(xf_engine *e, const float *sample, int64_t frames) {
     xf_player *np = (sample && frames >= 2)
         ? xf_player_create(sample, frames, (unsigned int)e->sample_rate)
         : NULL;
-    /* el plato casi parado no debe sonar (ni zumbar): puerta por velocidad */
-    if (np) xf_player_set_speed_gate(np, 0.12);
+    if (np) {
+        /* el plato casi parado no debe sonar (ni zumbar): puerta por velocidad */
+        xf_player_set_speed_gate(np, e->scratch_speed_gate);
+        xf_player_set_glide_ms(np, e->scratch_glide_ms);
+    }
 
     /* el retiro de 2 generaciones ya no puede estar en uso por el hilo RT */
     if (e->retired_player) { xf_player_destroy(e->retired_player); }
     e->retired_player = atomic_exchange(&e->player, np);
+}
+
+void xf_engine_set_scratch_glide_ms(xf_engine *e, double ms) {
+    if (!e) return;
+    if (ms < 0.0) ms = 0.0;
+    if (ms > 50.0) ms = 50.0;
+    e->scratch_glide_ms = ms;
+    xf_player *p = atomic_load(&e->player);
+    if (p) xf_player_set_glide_ms(p, ms);   /* escribe un `double`: torn-safe en la practica */
+}
+
+void xf_engine_set_scratch_speed_gate(xf_engine *e, double gate) {
+    if (!e) return;
+    if (gate < 0.0) gate = 0.0;
+    if (gate > 1.0) gate = 1.0;
+    e->scratch_speed_gate = gate;
+    xf_player *p = atomic_load(&e->player);
+    if (p) xf_player_set_speed_gate(p, gate);
 }
 
 void xf_engine_set_transport(xf_engine *e, double bpm, int ppq, bool playing) {

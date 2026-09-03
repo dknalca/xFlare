@@ -149,6 +149,38 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertEqual(out.map { abs($0) }.max() ?? 0, 0, "gain 0 -> silencio")
     }
 
+    func testAjustesDeTactoDelPlatoNoRevientanYElSampleSuena() {
+        // los setters de la ventana Debug (glide / speed gate) llegan al player
+        // sin recrearlo: cambiarlos en caliente no revienta y el sample sigue
+        // sonando a velocidad normal.
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        let sample = stableSample((0..<96_000).map {
+            Float(sin(2.0 * .pi * 1000.0 * Double($0) / 48_000)) * 0.4
+        })
+        defer { sample.deallocate() }
+        xf_engine_load_sample(e, sample.baseAddress, Int64(sample.count))
+        xf_engine_set_master_gain(e, 1)
+        xf_engine_set_velocity(e, 1.0)
+
+        xf_engine_set_scratch_glide_ms(e, 1.5)
+        xf_engine_set_scratch_speed_gate(e, 0.2)
+        // valores fuera de rango: se acotan dentro, no revientan
+        xf_engine_set_scratch_glide_ms(e, 999)
+        xf_engine_set_scratch_speed_gate(e, -1)
+        xf_engine_set_scratch_glide_ms(e, 3.0)
+        xf_engine_set_scratch_speed_gate(e, 0.12)
+
+        var acc: [Float] = []
+        for _ in 0..<60 { acc += render(e, inL: nil, inR: nil, n: 128).l }
+        XCTAssertGreaterThan(rms(Array(acc.suffix(4096))), 0.15, "el sample sigue sonando")
+        // y a un motor sin sample cargado los setters tampoco le hacen nada raro
+        let e2 = xf_engine_create(sr, 64)!
+        defer { xf_engine_destroy(e2) }
+        xf_engine_set_scratch_glide_ms(e2, 2.0)
+        xf_engine_set_scratch_speed_gate(e2, 0.1)
+    }
+
     private func goertzel(_ x: [Float], _ hz: Double) -> Double {
         let w = 2.0 * Double.pi * hz / sr
         let c = 2.0 * cos(w)

@@ -97,6 +97,15 @@ void xf_engine_set_master_gain(xf_engine *e, float gain);
  * pasar de 1 a 0 (fader cerrado / mute). Atomica. Por defecto 1. */
 void xf_engine_set_scratch_gain(xf_engine *e, float gain);
 
+/* "Tacto" del plato (ventana Debug). Se aplican al reproductor de scratch al
+ * cargarlo y al vuelo. NO RT-SAFE (se llaman desde el hilo normal).
+ *  - `glide_ms`: suavizado de la velocidad del plato. Menos = mas seco, el audio
+ *    sigue mejor al gesto; mas = mas suave pero con retardo. Por defecto 3 ms.
+ *  - `speed_gate`: |v| por debajo de la cual el scratch no suena (mata el zumbido
+ *    del cabezal quieto). Por defecto 0,12. `0` = sin puerta. */
+void xf_engine_set_scratch_glide_ms(xf_engine *e, double glide_ms);
+void xf_engine_set_scratch_speed_gate(xf_engine *e, double speed_gate);
+
 /* EQ de 3 bandas (Lo / Mid / Hi) **solo sobre el sample de scratch** — la base
  * instrumental y el metronomo no se tocan. Ganancias en dB, se acotan a
  * [-24, +12]; 0/0/0 = plano y el motor se salta el filtrado. NO RT-SAFE (disena
