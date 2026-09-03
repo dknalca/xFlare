@@ -530,20 +530,29 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         espaciada (`recordReviewOutcome`) y marca `setOxidized` si toca.
         12 tests (`WarmupPlannerTests`).
       - **Pantalla hecha (2026-09-03):** `WarmupView` — el plan de hoy (nº · truco
-        · variante · motivo), un botón "Practicar" por fila que entra en la
-        práctica, y "Saltar" que vuelve a Home. Nav "Calentar" (icono `flame`).
-        `AppModel.openWarmup()` genera el plan (`SystemRandomNumberGenerator`) y
-        `WarmupAssembler.rows(...)` lo resuelve contra el catálogo.
+        · variante · motivo), un botón "Empezar calentamiento" y "Saltar" que
+        vuelve a Home. Nav "Calentar" (icono `flame`).
+        `AppModel.openWarmup()` genera el plan (`SystemRandomNumberGenerator`),
+        lo guarda en `warmupPlanItems` y `WarmupAssembler.rows(...)` lo resuelve
+        contra el catálogo.
+      - **Una sola sesión encadenada (2026-09-03, feedback):** el calentamiento
+        ya no es una práctica por fila. `AppModel.startWarmupSession()` monta
+        `[WarmupStep]` (patrón + nombre + nº de frases) de todo el plan y abre la
+        práctica en el primero. `PracticeSession.reload(scratch:)` cambia el
+        patrón **en caliente** (sin parar el reloj ni recrear la sesión);
+        `LivePracticeView` cuenta las frases de "repite conmigo" completadas
+        (`.onChange(session.crPhase)`) y llama a `advanceWarmup()` al llegar a
+        `phraseCount`, saltando al siguiente `WarmupStep`. La barra superior
+        muestra "Calentamiento i/N". Al terminar el último, sale a Home.
       - **Rutina de arranque (2026-09-03, feedback):** si no hay historial (nada
         dominado), en vez de una pantalla vacía sale una rutina fija:
         **Forward Cut → Reverse Cut → Chirp → Transformer x2**, cada uno **8
         frases de 2 compases** (`WarmupPlanner.starterScratchOrder` +
         `WarmupAssembler.starterPlan`). El plan (`PlannedItem`) y la fila
         (`WarmupRow`) llevan `phraseBars`/`phraseCount`.
-      - **Arranca en "repite conmigo" (2026-09-03):** pulsar "Practicar" en el
-        calentamiento abre la práctica ya en call-response con `crBars` =
-        `phraseBars` (`AppModel.startCallResponseBars` →
-        `LivePracticeView.startInCallResponseBars`).
+      - **Arranca en "repite conmigo" (2026-09-03):** "Empezar calentamiento"
+        abre la práctica ya en call-response con `crBars` = `phraseBars`
+        (`AppModel.startCallResponseBars` → `LivePracticeView.startInCallResponseBars`).
       - Falta: que la toma de calentamiento llame a `settleWarmupTake` (la
         práctica tiene que saber que está en modo calentamiento) para que la
         oxidación se detecte de verdad — el botón "Puntuar la toma" sigue yendo

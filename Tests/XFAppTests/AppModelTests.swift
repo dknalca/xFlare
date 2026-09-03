@@ -159,6 +159,26 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(got, [.trigger(.cue)])
     }
 
+    func testCalentamientoEsUnaSolaSesionEncadenada() throws {
+        let m = try model()
+        m.openWarmup()
+        XCTAssertEqual(m.screen, .warmup)
+        XCTAssertFalse(m.warmup.isEmpty, "sin historial sale la rutina de arranque")
+
+        m.startWarmupSession()
+        // abre la practica en el primer ejercicio, con la tanda entera cargada
+        guard case .practice = m.screen else {
+            return XCTFail("startWarmupSession debe abrir la practica")
+        }
+        XCTAssertGreaterThanOrEqual(m.warmupSteps.count, 4, "Forward/Reverse/Chirp/Transformer")
+        XCTAssertEqual(m.warmupSteps.first?.phraseCount, 8)
+        XCTAssertEqual(m.startCallResponseBars, 2, "arranca en 'repite conmigo' a 2 compases")
+
+        // volver a casa limpia la tanda
+        m.goHome()
+        XCTAssertTrue(m.warmupSteps.isEmpty)
+    }
+
     func testBootMontaTodoDesdeElRepo() throws {
         let dbURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("xflare-boot-\(UUID().uuidString).sqlite")

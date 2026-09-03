@@ -162,10 +162,7 @@ public struct AppRootView: View {
 
         case .warmup:
             WarmupView(rows: model.warmup,
-                       onPractice: { row in
-                           model.startPractice(exerciseId: row.exerciseId, variantId: row.variantId,
-                                               callResponseBars: row.phraseBars)
-                       },
+                       onStart: { model.startWarmupSession() },
                        onSkip: { model.goHome() })
 
         case .error(let message):
@@ -199,6 +196,7 @@ public struct AppRootView: View {
                 scratchSamplePath: model.settings.lastScratchSamplePath,
                 showFPS: model.settings.showFPS,
                 startInCallResponseBars: model.startCallResponseBars,
+                warmupSteps: model.warmupSteps,
                 videoFps: model.settings.videoFps,
                 videoLongSide: model.settings.videoLongSide,
                 sampleLibrary: model.settings.sampleLibrary,

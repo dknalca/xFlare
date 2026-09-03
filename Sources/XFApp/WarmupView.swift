@@ -5,12 +5,14 @@ import XFDesign
 
 /// F.0 / ADR-027 — la pantalla de **calentamiento** (`docs/WARMUP.md`): el plan
 /// de hoy (4-6 ejercicios dominados con una variante distinta cada día y el
-/// motivo por el que entran), un pase por ejercicio, y un botón para saltarlo
-/// entero. No puntúa; sí registra (`mode:.warmup`).
+/// motivo por el que entran) y un botón para saltarlo entero. Todo el
+/// calentamiento es **una sola sesión**: "Empezar" abre la práctica en el primer
+/// ejercicio con "repite conmigo" en marcha y va encadenando el resto conforme
+/// se completan las frases. No puntúa; sí registra (`mode:.warmup`).
 struct WarmupView: View {
 
     let rows: [WarmupRow]
-    var onPractice: (WarmupRow) -> Void = { _ in }
+    var onStart: () -> Void = {}
     var onSkip: () -> Void = {}
 
     var body: some View {
@@ -24,7 +26,12 @@ struct WarmupView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
-                Button("Saltar", action: onSkip).xfButton(.bordered)
+                HStack(spacing: XFSpacing.sm) {
+                    Button("Saltar", action: onSkip).xfButton(.bordered)
+                    Button("Empezar calentamiento", action: onStart)
+                        .xfButton(.filled)
+                        .disabled(rows.isEmpty)
+                }
             }
 
             if rows.isEmpty {
@@ -56,8 +63,6 @@ struct WarmupView: View {
                                     .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                                 }
                                 Spacer()
-                                Button("Practicar") { onPractice(row) }
-                                    .xfButton(.filled)
                             }
                             .padding(.vertical, 8).padding(.horizontal, XFSpacing.sm)
                             .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)

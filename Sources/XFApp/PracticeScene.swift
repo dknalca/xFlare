@@ -392,7 +392,11 @@ final class PracticeScene: SKScene {
         let frame = layout?.frame(atTick: now, geometry: geometry)
 
         if let frame { renderHighway(frame, height: geometry.size.height) }
-        highwayContainer.alpha = ghostDimmed ? 0.14 : 1
+
+        // En "tu turno" del call & response se atenúa **solo el fantasma gris**
+        // (imitas de memoria); tu traza teal y el carril de fader siguen a plena
+        // luz — antes se oscurecía todo (`highwayContainer.alpha`) y no se veía.
+        highwayContainer.alpha = 1
 
         // escala vertical de la onda fantasma alrededor del borde inferior de la
         // banda. `HighwayLayout` la dibuja con `patternFill = 2/3`; para que su
@@ -400,6 +404,7 @@ final class PracticeScene: SKScene {
         // amplitud / (2/3) = 1.5·amplitud. (La traza usa el mismo factor en
         // `traceY`, asi coinciden.)
         ghostContainer.isHidden = !showGhost
+        ghostContainer.alpha = ghostDimmed ? 0.3 : 1
         let yb = geometry.curveBand.bottom
         let s = max(0.1, 1.5 * patternAmplitude)
         ghostContainer.yScale = s

@@ -299,6 +299,27 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
     }
 
+    func testReloadCambiaElPatronEnCalienteYLimpiaLaTraza() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        // acumula algo de traza y hace correr el reloj
+        s.scrollBy(20)
+        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertFalse(s.trace().isEmpty)
+        let tickBefore = s.tick()
+        XCTAssertGreaterThan(tickBefore, 0)
+
+        var advised: (v: Double, pos: Double)?
+        s.onAdvance = { v, pos, _ in advised = (v, pos) }
+
+        s.reload(scratch: try scratch("forward-cut"))
+
+        XCTAssertTrue(s.trace().isEmpty, "la traza vieja se borra al cambiar de ejercicio")
+        XCTAssertEqual(s.platterVelocity, 0, "el plato queda quieto al inicio")
+        XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6, "vuelve al inicio del sample")
+        XCTAssertGreaterThanOrEqual(s.tick(), tickBefore, "el reloj NO se reinicia: la rejilla sigue")
+        XCTAssertEqual(advised?.v, 0, "avisa al motor del reinicio")
+    }
+
     func testElFaderCerradoEsUnFlag() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         XCTAssertFalse(s.faderClosed)

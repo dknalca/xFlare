@@ -16,6 +16,18 @@ import XFCapture
 ///
 /// Cuando exista el bucle de sesion de verdad, esta vista se sustituye por
 /// `PracticeView` cableada a `XFEngine` + `XFAnalysis`.
+///
+/// Un paso del **calentamiento en una sola sesión** (F.0): el patrón + su nombre
+/// + cuántas frases de "repite conmigo" hacer antes de pasar al siguiente.
+public struct WarmupStep: Equatable {
+    public let scratch: Scratch
+    public let name: String
+    public let phraseCount: Int
+    public init(scratch: Scratch, name: String, phraseCount: Int) {
+        self.scratch = scratch; self.name = name; self.phraseCount = phraseCount
+    }
+}
+
 public struct LivePracticeView: View {
 
     @StateObject private var session: PracticeSession
@@ -62,11 +74,20 @@ public struct LivePracticeView: View {
     // Tamaño real de la autopista en pantalla, para exportar el vídeo con la
     // misma proporción que la ventana (lo reporta `PracticeScene`).
     @State private var highwaySize: CGSize = .zero
+    // F.0: calentamiento en una sola sesión. Índice del ejercicio actual, nº de
+    // frases "respondidas" del actual y la última fase vista de call-response.
+    @State private var warmupIndex = 0
+    @State private var warmupResponds = 0
+    @State private var lastCrPhase: PracticeSession.CallResponsePhase = .off
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
     private let scratch: Scratch
     private let exerciseName: String
+    /// F.0: si viene lleno, el calentamiento corre **todos** los ejercicios en
+    /// una sola sesión — cambia de patrón cada `phraseCount` frases sin recargar
+    /// audio ni salir de la práctica.
+    private let warmupSteps: [WarmupStep]
     /// Modo **Freestyle**: sin fantasma ni "repite conmigo"; grabas una línea
     /// libre y la exportas / importas. El resto (plato, base, mixer) igual.
     private let freestyle: Bool
@@ -111,6 +132,7 @@ public struct LivePracticeView: View {
                 scratchSamplePath: String = "",
                 showFPS: Bool = false,
                 startInCallResponseBars: Int? = nil,
+                warmupSteps: [WarmupStep] = [],
                 videoFps: Int = 30,
                 videoLongSide: Int = 1600,
                 sampleLibrary: [String] = [],
@@ -121,8 +143,9 @@ public struct LivePracticeView: View {
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
-        self.scratch = scratch
-        self.exerciseName = exerciseName
+        self.warmupSteps = warmupSteps
+        self.scratch = warmupSteps.first?.scratch ?? scratch
+        self.exerciseName = warmupSteps.first?.name ?? exerciseName
         self.freestyle = freestyle
         self.geometry = geometry
         self.engine = engine
@@ -145,7 +168,17 @@ public struct LivePracticeView: View {
         // primer compas (el `bpm` del ejercicio manda cuando se cambie a mano).
         _ = bpm
         _session = StateObject(wrappedValue: PracticeSession(
-            scratch: scratch, bpm: Int(AudioAsset.instrumentalNativeBPM)))
+            scratch: warmupSteps.first?.scratch ?? scratch,
+            bpm: Int(AudioAsset.instrumentalNativeBPM)))
+    }
+
+    /// Patrón / nombre del ejercicio actual (el mismo salvo en el calentamiento
+    /// multi-ejercicio, donde va cambiando).
+    private var activeScratch: Scratch {
+        warmupSteps.indices.contains(warmupIndex) ? warmupSteps[warmupIndex].scratch : scratch
+    }
+    private var activeName: String {
+        warmupSteps.indices.contains(warmupIndex) ? warmupSteps[warmupIndex].name : exerciseName
     }
 
     public var body: some View {
@@ -160,7 +193,7 @@ public struct LivePracticeView: View {
                 // fotograma, asi la rejilla de compas no se puede desfasar.
                 ZStack {
                     PracticeSceneView(
-                        scratch: scratch,
+                        scratch: activeScratch,
                         geometry: geometry,
                         tick: { s.tick() },
                         trace: { s.trace() },
@@ -229,6 +262,19 @@ public struct LivePracticeView: View {
             // apagado; al terminar (empieza a grabar o se cancela) se restablece.
             engine?.metronomeEnabled = arming ? true : metroOn
         }
+        .onChange(of: session.crPhase) { phase in
+            // calentamiento: cada vez que se completa una frase (sales de
+            // `respond`) se cuenta; al llegar a las del ejercicio, salta al
+            // siguiente patrón sin salir de la práctica.
+            guard !warmupSteps.isEmpty else { lastCrPhase = phase; return }
+            if lastCrPhase == .respond, phase != .respond {
+                warmupResponds += 1
+                let need = warmupSteps.indices.contains(warmupIndex)
+                    ? warmupSteps[warmupIndex].phraseCount : 8
+                if warmupResponds >= need { advanceWarmup() }
+            }
+            lastCrPhase = phase
+        }
         .onReceive(commandEvents) { handleCommand($0) }
         .onAppear {
             quote = Quotes.random(from: content)
@@ -243,6 +289,17 @@ public struct LivePracticeView: View {
         }
         }
         .animation(.easeOut(duration: 0.25), value: loading)
+    }
+
+    /// Calentamiento: pasa al siguiente ejercicio (cambia el patrón en caliente)
+    /// o sale si era el último.
+    private func advanceWarmup() {
+        warmupResponds = 0
+        warmupIndex += 1
+        guard warmupSteps.indices.contains(warmupIndex) else { onExit(); return }
+        session.reload(scratch: warmupSteps[warmupIndex].scratch)
+        engine?.seekScratch(0)
+        // "repite conmigo" ya está en marcha a 2 compases; solo cambia el patrón.
     }
 
     // MARK: - panel derecho: medidor + volumenes (provisional)
@@ -624,7 +681,7 @@ public struct LivePracticeView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         exportingVideo = true
         videoProgress = 0
-        let sc = scratch
+        let sc = activeScratch
         // el vídeo sale con la MISMA proporción que la autopista en pantalla
         // (si aún no se ha reportado, cae a la geometría nominal).
         var g = geometry
@@ -838,7 +895,7 @@ public struct LivePracticeView: View {
             if url != nil, let pcm, pcm.count > Int(sr / 2),
                let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint), a.isShortLoop {
                 let bars = max(1, Int((Double(a.beats) / 4.0).rounded()))
-                loopInfo = "loop ≈ \(Int(a.bpm.rounded())) BPM · \(bars) compás\(bars == 1 ? "" : "es")"
+                loopInfo = "loop ≈ \(Int(a.bpm.rounded())) BPM · \(bars) \(bars == 1 ? "compás" : "compases")"
             }
             DispatchQueue.main.async {
                 if let pcm, pcm.count > 1 {
@@ -894,6 +951,11 @@ public struct LivePracticeView: View {
             var pcmOut = raw
             var bpm = AudioAsset.instrumentalNativeBPM
             var loopTicks = Double(beatsPerBar * ppq)
+            // ¿el usuario ha subido su propio fichero y NO se le detecta tempo?
+            // Entonces es "un loop cualquiera": no le cambiamos el BPM al
+            // ejercicio, lo dejamos sonar a su velocidad natural y el bucle es el
+            // fichero ENTERO (sin redondear a compases) — así repite sin costura.
+            var keepExerciseBPM = false
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
                 if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
@@ -903,6 +965,11 @@ public struct LivePracticeView: View {
                     loopTicks = a.isShortLoop
                         ? Double(a.beats) * Double(ppq)
                         : (Double(pcm.count) / sr) * (a.bpm / 60.0) * Double(ppq)
+                } else if url != nil {
+                    // loop propio sin tempo: suena tal cual, bucle = fichero entero
+                    keepExerciseBPM = true
+                    bpm = Double(session.bpm)
+                    loopTicks = (Double(pcm.count) / sr) * (bpm / 60.0) * Double(ppq)
                 } else {
                     let beats = Double(pcm.count) / sr * (bpm / 60.0)
                     let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
@@ -923,8 +990,9 @@ public struct LivePracticeView: View {
                 // cabecera de la toma.
                 session.setInstrumentalLoopTicks(loopTicks)
                 session.setInstrumentalName(instrName)
-                // el tempo del EJERCICIO pasa a ser el de esta instrumental
-                session.setBPM(bpmRounded)
+                // el tempo del EJERCICIO pasa a ser el de esta instrumental,
+                // salvo que sea un loop propio sin tempo (se respeta el actual).
+                if !keepExerciseBPM { session.setBPM(bpmRounded) }
                 session.resyncClock()
                 engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
                 if initial {
@@ -935,6 +1003,7 @@ public struct LivePracticeView: View {
                     if !freestyle, let bars = startInCallResponseBars {
                         session.setCallResponseBars(bars)
                         session.setCallResponse(true)
+                        lastCrPhase = session.crPhase
                     }
                 }
             }
@@ -971,7 +1040,16 @@ public struct LivePracticeView: View {
                 .buttonStyle(.plain)
             XFWordmark(size: 14)
             Divider().frame(height: 16).background(XFColor.stroke)
-            Text(exerciseName).font(XFFont.bodyMedium(14))
+            Text(activeName).font(XFFont.bodyMedium(14))
+            if !warmupSteps.isEmpty {
+                // Progreso del calentamiento: en que ejercicio de la tanda vamos.
+                Text("Calentamiento \(min(warmupIndex + 1, warmupSteps.count))/\(warmupSteps.count)")
+                    .font(XFFont.mono(10))
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(XFColor.accent.opacity(0.18))
+                    .foregroundColor(XFColor.accent)
+                    .cornerRadius(3)
+            }
             if session.frozen {
                 Text("CONGELADO")
                     .font(XFFont.mono(10))

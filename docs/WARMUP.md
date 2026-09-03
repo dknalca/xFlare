@@ -4,9 +4,13 @@
 > de futuribles a peticion del autor). `WarmupPlanner` escoge el plan,
 > `WarmupOxidation` detecta la oxidacion, `AppModel.warmupPlan`/`settleWarmupTake`
 > hacen el pegamento con la BD (ya lista desde la v1), y `WarmupView` + la nav
-> "Calentar" lo enseñan. **Falta**: que la toma en modo calentamiento llame a
-> `settleWarmupTake` (la practica tiene que saber que esta calentando) y
-> engancharlo al arranque de sesion. Ver ADR-027 y `TODO.md` F.0.
+> "Calentar" lo enseñan. El calentamiento entero corre en **una sola sesion**:
+> `AppModel.startWarmupSession()` monta `[WarmupStep]` del plan, abre la practica
+> en el primero y `LivePracticeView` va encadenando el resto con
+> `PracticeSession.reload(scratch:)` conforme se completan las frases de "repite
+> conmigo". **Falta**: que la toma en modo calentamiento llame a
+> `settleWarmupTake` (la practica tiene que saber que esta calentando) para que
+> la oxidacion se detecte de verdad. Ver ADR-027 y `TODO.md` F.0.
 
 ## Que es
 
@@ -27,8 +31,10 @@ entre 4 y 6 puntuando cada candidato por:
 
 **Sin historial** (nada dominado todavia): en vez de una pantalla vacia sale una
 **rutina de arranque** fija — Forward Cut → Reverse Cut → Chirp → Transformer x2,
-cada uno **8 frases de 2 compases** (16 compases). Cada "Practicar" abre la
-practica ya en "repite conmigo" con frases de 2 compases.
+cada uno **8 frases de 2 compases** (16 compases). "Empezar calentamiento" abre
+la practica ya en "repite conmigo" con frases de 2 compases y **encadena los
+cuatro ejercicios sin salir**: al completar las 8 frases de uno, el patron cambia
+en caliente al siguiente (la barra superior marca "Calentamiento i/N").
 
 A cada uno le asigna una **variante al azar entre las desbloqueadas**, nunca la
 misma que la vez anterior. Esa aleatoriedad es lo que impide que el calentamiento
@@ -39,6 +45,9 @@ se convierta en un automatismo mas.
 - **No penaliza.** Las estrellas no bajan y no hay sensacion de examen.
 - **Si registra.** Cada toma se guarda con `countsForStars: false`.
 - Un solo pase por ejercicio, sin repetir, sin subir BPM.
+- **Es una sola sesion**: no se vuelve a la lista entre ejercicios; el patron se
+  cambia en caliente (`PracticeSession.reload`). El reloj musical no se reinicia
+  (la rejilla sigue latiendo); solo se limpia la traza y el plato vuelve al inicio.
 - Se puede saltar entero con un boton. Obligar a calentar es la mejor forma de que
   la gente deje de abrir la app.
 

@@ -29,23 +29,25 @@ public final class PracticeSession: ObservableObject {
     /// (`respond`). `off` = práctica libre normal.
     public enum CallResponsePhase: Equatable { case off, listen, respond }
 
-    // --- el patron, para que el fantasma pueda mover el sample en `listen` ---
-    private let scratch: Scratch
-    private let lengthTicks: Double
+    // --- el patron, para que el fantasma pueda mover el sample en `listen`.
+    // `var` (no `let`): el calentamiento en una sola sesión cambia de patrón sin
+    // recrear la sesión (`reload(scratch:)`).
+    private var scratch: Scratch
+    private var lengthTicks: Double
 
     // --- constantes del patron ---
-    private let ppq: Double
+    private var ppq: Double
     /// Extremos del recorrido del PLATO. `posLo` = posicion 0 del sample (el
     /// pico bajo del patron); `posHi` = final del sample. El PLATO recorre
     /// SIEMPRE todo el rango, de abajo a arriba: el slider de amplitud solo
     /// afecta a la ONDA FANTASMA que se dibuja (en `PracticeScene`), no a la
     /// libertad de movimiento ni al mapeo de audio.
-    private let posLo: Double
-    private let posHi: Double
+    private var posLo: Double
+    private var posHi: Double
     /// Span propio del patron (pico bajo -> pico alto), en unidades de posicion.
-    private let patternSpan: Double
+    private var patternSpan: Double
     /// Cuanta historia de traza guardamos, en ticks (~8 negras).
-    private let historyTicks: Double
+    private var historyTicks: Double
 
     // --- estado observable (barra superior) ---
     @Published public private(set) var bpm: Int
@@ -180,6 +182,24 @@ public final class PracticeSession: ObservableObject {
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
+    }
+
+    /// Cambia el **patrón** en caliente (calentamiento en una sola sesión): sin
+    /// recrear la sesión ni parar el reloj. Deja el plato al inicio y limpia la
+    /// traza; el `currentTick` y el BPM no se tocan (la rejilla sigue).
+    public func reload(scratch: Scratch) {
+        self.scratch = scratch
+        self.lengthTicks = Double(max(1, scratch.lengthTicks))
+        self.ppq = Double(max(1, scratch.ppq))
+        self.historyTicks = self.ppq * 8
+        let range = HighwayLayout(scratch: scratch).positionRange
+        self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
+        self.posLo = range.lowerBound
+        self.posHi = range.lowerBound + patternSpan * 2.5
+        self.platterPosition = range.lowerBound
+        self.platterVelocity = 0
+        self.traceBuffer.removeAll(keepingCapacity: true)
+        onAdvance?(0, 0, currentTick)
     }
 
     // MARK: - ciclo de vida

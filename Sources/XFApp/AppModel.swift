@@ -190,7 +190,7 @@ public final class AppModel: ObservableObject {
 
     // MARK: - navegacion
 
-    public func goHome()          { refreshHome(); screen = .home }
+    public func goHome()          { warmupSteps = []; refreshHome(); screen = .home }
     public func openCalibration() { screen = .calibration }
     public func openLibrary()     { refreshLibrary(); screen = .library }
     public func openMyTable()     { screen = .myTable }
@@ -201,11 +201,48 @@ public final class AppModel: ObservableObject {
     /// `internal`: `WarmupRow` no cruza el límite del módulo.
     @Published private(set) var warmup: [WarmupRow] = []
 
+    /// El plan crudo del calentamiento de hoy. Se fija al abrir la pantalla para
+    /// que la lista que se ve y la sesión que se lanza usen **las mismas**
+    /// variantes al azar (si no, cada llamada a `warmupPlan` sortea otras).
+    private var warmupPlanItems: [WarmupPlanner.PlannedItem] = []
+
+    /// Pasos del calentamiento en marcha. Vacío = no estamos calentando. Todo el
+    /// calentamiento es UNA sesión: `LivePracticeView` encadena estos pasos
+    /// conforme se completan las frases de "repite conmigo".
+    /// `internal`: `WarmupStep` no cruza el límite del módulo.
+    @Published private(set) var warmupSteps: [WarmupStep] = []
+
     /// Genera el plan de calentamiento y abre la pantalla.
     public func openWarmup() {
         var rng = SystemRandomNumberGenerator()
-        warmup = WarmupAssembler.rows(from: warmupPlan(rng: &rng), catalog: catalog)
+        warmupPlanItems = warmupPlan(rng: &rng)
+        warmup = WarmupAssembler.rows(from: warmupPlanItems, catalog: catalog)
         screen = .warmup
+    }
+
+    /// Monta la tanda entera y abre la práctica en el primer ejercicio con
+    /// "repite conmigo" ya en marcha. A partir de ahí `LivePracticeView` avanza
+    /// solo: no se vuelve a pasar por aquí hasta el siguiente calentamiento.
+    public func startWarmupSession() {
+        let items: [WarmupPlanner.PlannedItem]
+        if warmupPlanItems.isEmpty {
+            var rng = SystemRandomNumberGenerator()
+            items = warmupPlan(rng: &rng)
+        } else {
+            items = warmupPlanItems
+        }
+        let steps: [WarmupStep] = items.compactMap { item in
+            guard let sc = scratch(exerciseId: item.exerciseId, variantId: item.variantId)
+            else { return nil }
+            let name = catalog.exercise(id: item.exerciseId)
+                .flatMap { catalog.library.scratch(id: $0.scratchId)?.name } ?? item.exerciseId
+            return WarmupStep(scratch: sc, name: name, phraseCount: item.phraseCount)
+        }
+        guard let first = items.first, !steps.isEmpty else { goHome(); return }
+        warmupSteps = steps
+        continueExerciseId = first.exerciseId
+        startCallResponseBars = first.phraseBars
+        screen = .practice(exerciseId: first.exerciseId, variantId: first.variantId)
     }
 
     /// Compases de "repite conmigo" con los que arrancar la próxima práctica, o
@@ -215,6 +252,7 @@ public final class AppModel: ObservableObject {
 
     public func startPractice(exerciseId: String, variantId: String = "base",
                               callResponseBars: Int? = nil) {
+        warmupSteps = []          // una práctica normal no es una tanda de calentamiento
         continueExerciseId = exerciseId
         startCallResponseBars = callResponseBars
         screen = .practice(exerciseId: exerciseId, variantId: variantId)
