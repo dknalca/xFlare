@@ -32,6 +32,31 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
+        TabView {
+            generalTab.tabItem { Text("General") }
+            midiTab.tabItem { Text("MIDI") }
+        }
+        .padding(.top, XFSpacing.xs)
+        .background(XFColor.bg)
+        .onAppear {
+            // el aprendizaje escribe en ESTA copia de `settings` (la que ve la
+            // UI) y la sube con `onChange`. Si solo escribiera en `AppModel`, el
+            // `@State` local se quedaría viejo y el cuadro no se actualizaría.
+            learn.onLearn = { cmd, binding in
+                settings.midiCommandOverrides[cmd.rawValue] = binding.text
+                onChange(settings)
+            }
+            learn.start()
+        }
+        .onDisappear {
+            learn.onLearn = nil
+            learn.stop()
+        }
+    }
+
+    // MARK: - pestaña General
+
+    private var generalTab: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: XFSpacing.lg) {
 
@@ -98,7 +123,20 @@ public struct SettingsView: View {
                          + "de práctica. El audio sale con los volúmenes del mixer.")
                 }
 
-                section("MIDI · comandos") {
+                note("Todo se guarda en tu Mac. Sin cuenta, sin nube, sin telemetría.")
+            }
+            .frame(maxWidth: 460, alignment: .leading)
+            .padding(XFSpacing.xl)
+        }
+        .background(XFColor.bg)
+    }
+
+    // MARK: - pestaña MIDI
+
+    private var midiTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: XFSpacing.lg) {
+                section("Comandos de práctica") {
                     note("Selecciona un comando y pulsa Aprender: el siguiente "
                          + "control MIDI que muevas queda asignado. También puedes "
                          + "escribir la nota/CC a mano (note:canal:nº · cc:canal:nº).")
@@ -108,27 +146,11 @@ public struct SettingsView: View {
                     }
                     midiLearnControls
                 }
-
-                note("Todo se guarda en tu Mac. Sin cuenta, sin nube, sin telemetría.")
             }
             .frame(maxWidth: 460, alignment: .leading)
             .padding(XFSpacing.xl)
         }
         .background(XFColor.bg)
-        .onAppear {
-            // el aprendizaje escribe en ESTA copia de `settings` (la que ve la
-            // UI) y la sube con `onChange`. Si solo escribiera en `AppModel`, el
-            // `@State` local se quedaría viejo y el cuadro no se actualizaría.
-            learn.onLearn = { cmd, binding in
-                settings.midiCommandOverrides[cmd.rawValue] = binding.text
-                onChange(settings)
-            }
-            learn.start()
-        }
-        .onDisappear {
-            learn.onLearn = nil
-            learn.stop()
-        }
     }
 
     // MARK: - MIDI Learn

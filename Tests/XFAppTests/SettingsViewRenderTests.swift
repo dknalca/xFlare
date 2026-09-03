@@ -4,9 +4,9 @@ import SwiftUI
 import AppKit
 @testable import XFApp
 
-/// Regresión: la pantalla de Ajustes debe rendir con tamaño y con todos los
-/// campos editables (nombre + 9 comandos MIDI). El `Form` de macOS 11 se quedaba
-/// en blanco con el `ForEach` de comandos; ahora es layout manual.
+/// Regresión: la pantalla de Ajustes debe rendir con tamaño (el `Form` de
+/// macOS 11 se quedaba en blanco). Ahora son dos pestañas (General / MIDI) con
+/// layout manual.
 final class SettingsViewRenderTests: XCTestCase {
 
     private func editableFields(_ v: NSView) -> Int {
@@ -16,7 +16,12 @@ final class SettingsViewRenderTests: XCTestCase {
         return n
     }
 
-    func testSettingsRindeConCamposEditables() {
+    private func hasTabView(_ v: NSView) -> Bool {
+        if v is NSTabView { return true }
+        return v.subviews.contains { hasTabView($0) }
+    }
+
+    func testAjustesRindeConLasDosPestanas() {
         let v = SettingsView(settings: .defaults,
                              profileBindings: ["cue": "note:1:36"],
                              onChange: { _ in })
@@ -25,7 +30,9 @@ final class SettingsViewRenderTests: XCTestCase {
         host.view.layoutSubtreeIfNeeded()
 
         XCTAssertGreaterThan(host.view.fittingSize.height, 100, "no debe colapsar")
-        // 1 (nombre) + 9 (comandos MIDI)
-        XCTAssertGreaterThanOrEqual(editableFields(host.view), 10, "faltan campos de texto")
+        // la pestaña visible al abrir es "General": al menos el campo de nombre
+        XCTAssertGreaterThanOrEqual(editableFields(host.view), 1, "falta el campo Nombre")
+        // Ajustes es un TabView (General / MIDI)
+        XCTAssertTrue(hasTabView(host.view), "Ajustes debe rendir como pestañas")
     }
 }

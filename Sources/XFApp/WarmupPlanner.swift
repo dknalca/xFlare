@@ -42,7 +42,16 @@ enum WarmupPlanner {
         var variantId: String
         /// Por qué ha entrado, en una línea ("hace 9 días", "media 84 % / techo 94 %").
         var reason: String
+        /// Compases por frase de "repite conmigo" (2 por defecto).
+        var phraseBars: Int = 2
+        /// Nº de frases a hacer de este ejercicio (8 → 16 compases en total).
+        var phraseCount: Int = 8
     }
+
+    /// Rutina de arranque cuando no hay historial: estos scratches, en este
+    /// orden, cada uno 8 frases de 2 compases (16 compases). El autor: "los 16
+    /// primeros compases serán forward cut, los siguientes 16 reverse cut…".
+    static let starterScratchOrder = ["forward-cut", "reverse-cut", "chirp", "transformer-2"]
 
     // MARK: - plan
 
@@ -154,6 +163,14 @@ struct WarmupRow: Identifiable, Equatable {
     let variantName: String
     /// Por qué ha entrado ("hace 9 días", "media 84 % · techo 94 %").
     let reason: String
+    /// Compases por frase de "repite conmigo" y nº de frases.
+    var phraseBars: Int = 2
+    var phraseCount: Int = 8
+
+    /// "8 frases de 2 compases".
+    var phraseSummary: String {
+        "\(phraseCount) frases de \(phraseBars) \(phraseBars == 1 ? "compás" : "compases")"
+    }
 }
 
 enum WarmupAssembler {
@@ -166,7 +183,19 @@ enum WarmupAssembler {
                   let sc = catalog.library.scratch(id: ex.scratchId) else { return nil }
             let vName = catalog.variant(id: item.variantId).map { $0.isBase ? "" : $0.name } ?? ""
             return WarmupRow(exerciseId: item.exerciseId, variantId: item.variantId,
-                             name: sc.name, variantName: vName, reason: item.reason)
+                             name: sc.name, variantName: vName, reason: item.reason,
+                             phraseBars: item.phraseBars, phraseCount: item.phraseCount)
+        }
+    }
+
+    /// Rutina de arranque (sin historial): `WarmupPlanner.starterScratchOrder`
+    /// resuelto contra el catálogo, cada uno 8 frases de 2 compases.
+    static func starterPlan(catalog: Catalog) -> [WarmupPlanner.PlannedItem] {
+        WarmupPlanner.starterScratchOrder.compactMap { scratchId in
+            guard let ex = catalog.exercises.first(where: { $0.scratchId == scratchId }) else { return nil }
+            return WarmupPlanner.PlannedItem(
+                exerciseId: ex.id, variantId: "base",
+                reason: "Rutina de arranque", phraseBars: 2, phraseCount: 8)
         }
     }
 }

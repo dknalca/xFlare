@@ -162,7 +162,10 @@ public struct AppRootView: View {
 
         case .warmup:
             WarmupView(rows: model.warmup,
-                       onPractice: { ex, v in model.startPractice(exerciseId: ex, variantId: v) },
+                       onPractice: { row in
+                           model.startPractice(exerciseId: row.exerciseId, variantId: row.variantId,
+                                               callResponseBars: row.phraseBars)
+                       },
                        onSkip: { model.goHome() })
 
         case .error(let message):
@@ -195,6 +198,7 @@ public struct AppRootView: View {
                 metronomeOn: model.settings.metronomeEnabled,
                 scratchSamplePath: model.settings.lastScratchSamplePath,
                 showFPS: model.settings.showFPS,
+                startInCallResponseBars: model.startCallResponseBars,
                 videoFps: model.settings.videoFps,
                 videoLongSide: model.settings.videoLongSide,
                 sampleLibrary: model.settings.sampleLibrary,

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import XCTest
 @testable import XFApp
+import XFPersistence
 
 /// F.0 / ADR-027 — el planificador del calentamiento (`docs/WARMUP.md`). Lógica
 /// pura: se le dan candidatos y devuelve el plan.
@@ -136,5 +137,32 @@ final class WarmupPlannerTests: XCTestCase {
         let plan = [WarmupPlanner.PlannedItem(exerciseId: "no-existe",
                                               variantId: "base", reason: "x")]
         XCTAssertTrue(WarmupAssembler.rows(from: plan, catalog: cat).isEmpty)
+    }
+
+    // MARK: - rutina de arranque (sin historial)
+
+    func testRutinaDeArranqueEsForwardReverseChirpTransformer() throws {
+        let cat = try CatalogLoader.load(from: RepoContentLoader())
+        let plan = WarmupAssembler.starterPlan(catalog: cat)
+        let scratchIds = plan.compactMap { cat.exercise(id: $0.exerciseId)?.scratchId }
+        XCTAssertEqual(scratchIds, ["forward-cut", "reverse-cut", "chirp", "transformer-2"])
+        // cada uno: base, 8 frases de 2 compases
+        for item in plan {
+            XCTAssertEqual(item.variantId, "base")
+            XCTAssertEqual(item.phraseBars, 2)
+            XCTAssertEqual(item.phraseCount, 8)
+        }
+        let rows = WarmupAssembler.rows(from: plan, catalog: cat)
+        XCTAssertEqual(rows.first?.phraseSummary, "8 frases de 2 compases")
+    }
+
+    func testElPlanCaeALaRutinaDeArranqueSiNoHayNadaDominado() throws {
+        let cat = try CatalogLoader.load(from: RepoContentLoader())
+        let m = AppModel(catalog: cat, db: try .inMemory())   // BD vacía: nada dominado
+        var rng = SeededRNG(state: 1)
+        let plan = m.warmupPlan(rng: &rng)
+        XCTAssertEqual(plan.count, 4)
+        XCTAssertEqual(plan.map { cat.exercise(id: $0.exerciseId)?.scratchId },
+                       ["forward-cut", "reverse-cut", "chirp", "transformer-2"])
     }
 }

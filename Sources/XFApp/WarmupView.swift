@@ -10,7 +10,7 @@ import XFDesign
 struct WarmupView: View {
 
     let rows: [WarmupRow]
-    var onPractice: (_ exerciseId: String, _ variantId: String) -> Void = { _, _ in }
+    var onPractice: (WarmupRow) -> Void = { _ in }
     var onSkip: () -> Void = {}
 
     var body: some View {
@@ -28,8 +28,7 @@ struct WarmupView: View {
             }
 
             if rows.isEmpty {
-                Text("Aún no dominas ningún ejercicio (3★ en la base y 2★ en tres variantes). "
-                     + "El calentamiento aparecerá en cuanto tengas algo que repasar.")
+                Text("No se ha podido montar el calentamiento (¿falta el catálogo?).")
                     .font(XFFont.body(13)).foregroundColor(XFColor.textMuted)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.top, XFSpacing.sm)
@@ -49,11 +48,15 @@ struct WarmupView: View {
                                                 .font(XFFont.body(10)).foregroundColor(XFColor.accent)
                                         }
                                     }
-                                    Text(row.reason)
-                                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                                    HStack(spacing: 6) {
+                                        Text(row.reason)
+                                        Text("·").foregroundColor(XFColor.stroke)
+                                        Text(row.phraseSummary)
+                                    }
+                                    .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                                 }
                                 Spacer()
-                                Button("Practicar") { onPractice(row.exerciseId, row.variantId) }
+                                Button("Practicar") { onPractice(row) }
                                     .xfButton(.filled)
                             }
                             .padding(.vertical, 8).padding(.horizontal, XFSpacing.sm)

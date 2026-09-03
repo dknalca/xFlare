@@ -90,6 +90,9 @@ public struct LivePracticeView: View {
     private let commandEvents: AnyPublisher<PracticeCommandEvent, Never>
     /// Overlay de fps en la autopista (ajuste de diagnóstico, B7.2b).
     private let showFPS: Bool
+    /// Si viene del calentamiento: arranca en "repite conmigo" con N compases
+    /// por frase (F.0).
+    private let startInCallResponseBars: Int?
     /// FPS y lado mayor del vídeo exportado (F.4, vienen de Ajustes).
     private let videoFps: Int
     private let videoLongSide: Int
@@ -107,6 +110,7 @@ public struct LivePracticeView: View {
                 metronomeOn: Bool = true,
                 scratchSamplePath: String = "",
                 showFPS: Bool = false,
+                startInCallResponseBars: Int? = nil,
                 videoFps: Int = 30,
                 videoLongSide: Int = 1600,
                 sampleLibrary: [String] = [],
@@ -126,6 +130,7 @@ public struct LivePracticeView: View {
         self.metronomeOn = metronomeOn
         self.scratchSamplePath = scratchSamplePath
         self.showFPS = showFPS
+        self.startInCallResponseBars = startInCallResponseBars
         self.videoFps = videoFps
         self.videoLongSide = videoLongSide
         self.sampleLibrary = sampleLibrary
@@ -926,6 +931,11 @@ public struct LivePracticeView: View {
                     _ = engine.startOutput()
                     session.start()
                     loading = false   // ya suena: fuera la pantalla de carga
+                    // calentamiento: arranca en "repite conmigo" con N compases.
+                    if !freestyle, let bars = startInCallResponseBars {
+                        session.setCallResponseBars(bars)
+                        session.setCallResponse(true)
+                    }
                 }
             }
         }

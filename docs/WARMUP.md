@@ -25,6 +25,11 @@ entre 4 y 6 puntuando cada candidato por:
 | Variedad de familia | medio | Que no salgan cuatro flares seguidos |
 | Antiguedad del dominio | bajo | Lo aprendido hace mucho se oxida distinto |
 
+**Sin historial** (nada dominado todavia): en vez de una pantalla vacia sale una
+**rutina de arranque** fija — Forward Cut → Reverse Cut → Chirp → Transformer x2,
+cada uno **8 frases de 2 compases** (16 compases). Cada "Practicar" abre la
+practica ya en "repite conmigo" con frases de 2 compases.
+
 A cada uno le asigna una **variante al azar entre las desbloqueadas**, nunca la
 misma que la vez anterior. Esa aleatoriedad es lo que impide que el calentamiento
 se convierta en un automatismo mas.

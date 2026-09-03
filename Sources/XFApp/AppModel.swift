@@ -208,8 +208,15 @@ public final class AppModel: ObservableObject {
         screen = .warmup
     }
 
-    public func startPractice(exerciseId: String, variantId: String = "base") {
+    /// Compases de "repite conmigo" con los que arrancar la próxima práctica, o
+    /// `nil` para no forzar call-response. Lo pone el calentamiento; la práctica
+    /// lo lee al aparecer y `startPractice` lo limpia para la siguiente.
+    @Published private(set) var startCallResponseBars: Int?
+
+    public func startPractice(exerciseId: String, variantId: String = "base",
+                              callResponseBars: Int? = nil) {
         continueExerciseId = exerciseId
+        startCallResponseBars = callResponseBars
         screen = .practice(exerciseId: exerciseId, variantId: variantId)
     }
 
@@ -374,7 +381,11 @@ public final class AppModel: ObservableObject {
                 unlockedVariants: unlocked.isEmpty ? ["base"] : unlocked,
                 lastWarmupVariant: lastWarmup)
         }
-        return WarmupPlanner.plan(candidates, rng: &rng)
+        let adaptive = WarmupPlanner.plan(candidates, rng: &rng)
+        // Sin historial (nada dominado): rutina de arranque fija en vez de una
+        // pantalla vacía — Forward Cut, Reverse Cut, Chirp, Transformer, cada
+        // uno 8 frases de 2 compases (F.0, feedback 2026-09-03).
+        return adaptive.isEmpty ? WarmupAssembler.starterPlan(catalog: catalog) : adaptive
     }
 
     /// Asienta una toma de **calentamiento**: la registra (no cuenta para

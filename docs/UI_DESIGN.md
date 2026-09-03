@@ -185,19 +185,21 @@ tecnica de dedos y un boton de escucha. Filtros por familia, nivel y numero de c
 
 ### 3.7 Ajustes
 
-Audio, hardware y calibracion, hamster/reverse, tolerancias (para los cabezotas),
-tema, y exportar/importar tu progreso. Todo local: **sin cuenta, sin nube, sin
-telemetria**.
+Dos **pestañas**: **General** (perfil, audio/buffer, sesión/tolerancia,
+accesibilidad, diagnóstico de FPS, vídeo) y **MIDI**. Todo local: **sin cuenta,
+sin nube, sin telemetria**.
 
-- **MIDI · comandos**: asigna una nota o un CC a cada comando de la practica (cue,
+- **Vídeo**: FPS (24/30/60) y resolución (Rápida/Estándar/Alta) de la exportación
+  de tomas (F.4).
+- Pestaña **MIDI** — asigna una nota o un CC a cada comando de la practica (cue,
   reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
   repite conmigo) — los mismos que el teclado. **MIDI Learn**: seleccionas el
   comando, pulsas "Aprender MIDI" y el siguiente control que muevas queda
   asignado (mientras Ajustes esta abierto se escucha CoreMIDI). Tambien se puede
   escribir a mano (`note:canal:nº` / `cc:canal:nº`); vacio = lo que traiga el
   perfil de mesa (seccion `[transport]` del `.conf`, ver `DEVICE_PROFILES.md` §3).
-- Layout manual (`ScrollView` + tarjetas), **sin `Form`** de SwiftUI: en macOS 11
-  se quedaba en blanco con listas dinamicas (ADR-058).
+- Cada pestaña es `ScrollView` + tarjetas a mano, **sin `Form`** de SwiftUI: en
+  macOS 11 se quedaba en blanco con listas dinamicas (ADR-058).
 
 ### 3.8 Mi mesa (dentro de Ajustes)
 

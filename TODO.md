@@ -533,11 +533,21 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         · variante · motivo), un botón "Practicar" por fila que entra en la
         práctica, y "Saltar" que vuelve a Home. Nav "Calentar" (icono `flame`).
         `AppModel.openWarmup()` genera el plan (`SystemRandomNumberGenerator`) y
-        `WarmupAssembler.rows(...)` lo resuelve contra el catálogo. Si no
-        dominas nada, mensaje en vez de lista.
+        `WarmupAssembler.rows(...)` lo resuelve contra el catálogo.
+      - **Rutina de arranque (2026-09-03, feedback):** si no hay historial (nada
+        dominado), en vez de una pantalla vacía sale una rutina fija:
+        **Forward Cut → Reverse Cut → Chirp → Transformer x2**, cada uno **8
+        frases de 2 compases** (`WarmupPlanner.starterScratchOrder` +
+        `WarmupAssembler.starterPlan`). El plan (`PlannedItem`) y la fila
+        (`WarmupRow`) llevan `phraseBars`/`phraseCount`.
+      - **Arranca en "repite conmigo" (2026-09-03):** pulsar "Practicar" en el
+        calentamiento abre la práctica ya en call-response con `crBars` =
+        `phraseBars` (`AppModel.startCallResponseBars` →
+        `LivePracticeView.startInCallResponseBars`).
       - Falta: que la toma de calentamiento llame a `settleWarmupTake` (la
         práctica tiene que saber que está en modo calentamiento) para que la
-        oxidación se detecte de verdad; y engancharlo al arranque de sesión.
+        oxidación se detecte de verdad — el botón "Puntuar la toma" sigue yendo
+        por `scoreTake` normal.
 - [ ] **F.0b** Variantes avanzadas: encadenado, densidad creciente, rampa de tempo, un solo lado `XFNotation`
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril
