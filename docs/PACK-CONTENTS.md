@@ -8,7 +8,7 @@ paquete a la raiz del repo `xFlare/`**, fusionando con lo que ya existe
 docs/NOTATION.md              Especificacion de la notacion XFN
 docs/MATRIX_MAPPING.md        Mapeo con la Periodic Matrix + AVISO LEGAL
 docs/CURRICULUM.md            El gym: niveles, sesiones, scoring
-docs/ADR-014-028.md           ADRs nuevos, para pegar en docs/DECISIONS.md
+docs/ADR-014-onward.md           ADRs nuevos, para pegar en docs/DECISIONS.md
 
 data/primitives/*.json        10 patrones de mano + 16 de fader
 data/scratches/library-v0.1.json   25 scratches compilados

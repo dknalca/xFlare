@@ -1,5 +1,12 @@
 # Variantes
 
+> **⚠️ EN PAUSA (2026-09-02).** `data/curriculum/variants.json` se redujo a solo
+> `base` a peticion del autor ("simplifica y elimina variantes; ya las
+> introduciremos en el futuro"). El **codigo esta dormido, no borrado**:
+> `Composer` (transforms), `VariantInfo.Transform`, `VariantAssembler` y
+> `VariantPickerView` siguen ahi y probados. Este documento describe el diseno
+> que se reactivara. Ver `docs/ADR-014-onward.md` ADR-050.
+>
 > Un patron base, muchos ejercicios. Las variantes son **transformaciones**
 > generadas, no patrones escritos a mano (ADR-026).
 > Datos: `data/curriculum/variants.json`. Referencia: `tools/xfn_core.py`.

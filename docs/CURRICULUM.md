@@ -53,10 +53,11 @@ Enfriamiento              scratch libre grabado, se guarda en la libreria person
 
 ## 4.5 Variantes, puntos y estrellas
 
-Cada ejercicio tiene hasta **10 variantes** generadas por transformacion
-(`docs/VARIANTS.md`) y se puntua sobre un maximo conocido de antemano, con tres
-estrellas que miden cosas distintas (`docs/SCORING.md`). El calentamiento adaptativo
-esta disenado en `docs/WARMUP.md` y queda para despues de la v1.
+Cada ejercicio puede tener hasta **10 variantes** generadas por transformacion
+(`docs/VARIANTS.md`) — **hoy en pausa**: `variants.json` = solo `base`, el codigo
+esta dormido. Se puntua sobre un maximo conocido de antemano, con tres estrellas
+que miden cosas distintas (`docs/SCORING.md`). El **calentamiento adaptativo**
+(`docs/WARMUP.md`, F.0) ya tiene logica y pantalla, adelantado de futuribles.
 
 ## 5. Scoring
 

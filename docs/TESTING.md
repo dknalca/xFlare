@@ -39,6 +39,12 @@ Cada patron del nivel 1 al 4 necesita como minimo tres tomas grabadas:
 Son los tests que de verdad protegen el producto: describen el comportamiento
 deseado con datos reales, no con numeros inventados.
 
+**Version sintetica ya hecha (B8.5):** `XFAnalysisTests/ReplayScoringTests` +
+`SyntheticTake` generan la toma a partir del patron y corren la bateria
+good/late/sloppy contra **un patron representativo de cada nivel 1-4**
+(forward-cut, transformer-2, flare-1c, flare-2c). Los `.xfsession` **reales**
+llegan con el hardware; hasta entonces la sintetica fija el comportamiento.
+
 ## Integracion continua
 
 `.github/workflows/ci.yml` corre en cada push, todo en `macos-14` (**Apple

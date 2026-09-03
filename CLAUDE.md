@@ -229,18 +229,30 @@ El autor (xFlare) tiene:
 
 ## 10. Comandos
 
-```bash
-# Build
-xcodebuild -project xFlare.xcodeproj -scheme xFlare -configuration Debug build
+> El proyecto es **SPM** (no `.xcodeproj`, ver addenda v0.2). Se compila y testea
+> desde terminal.
 
-# Tests
-xcodebuild test -project xFlare.xcodeproj -scheme xFlare -destination 'platform=macOS'
+```bash
+# Build / tests (todo o un modulo)
+swift build
+make verify                 # build + lint + perfiles + tests (gate para cerrar tarea)
+make test                   # tests estrictos
+make test M=XFClock         # solo un modulo
+swift test --filter XFClockTests
+
+# Empaquetar la app / el DMG
+make app                    # xFlare.app (debug)
+make dmg REL=1              # xFlare-<version>.dmg (release universal, para Releases)
+make universal && make archs  # verifica los dos slices (x86_64 + arm64)
+
+# Estado del backlog
+make status
 
 # Prototipado Python
-cd tools && python -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
+cd tools && python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt
 
-# Medición de latencia (bloque B1 — script propio)
-python tools/measure_latency.py
+# Medición de latencia (bloque B1 — script propio; ver docs/HW_BRINGUP.md)
+python3 tools/measure_latency.py
 
 # Profiling de tiempo real
 # Instruments → plantilla "Audio System Trace". Buscar overloads del hilo RT.

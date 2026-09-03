@@ -1,7 +1,12 @@
-# Calentamiento (futuribles, disenado)
+# Calentamiento (F.0)
 
-> No entra en la v1, pero se diseña ahora para que la base de datos y el motor no
-> tengan que rehacerse despues. Ver ADR-027.
+> **Estado (2026-09-03):** la **logica y la pantalla estan hechas** (adelantado
+> de futuribles a peticion del autor). `WarmupPlanner` escoge el plan,
+> `WarmupOxidation` detecta la oxidacion, `AppModel.warmupPlan`/`settleWarmupTake`
+> hacen el pegamento con la BD (ya lista desde la v1), y `WarmupView` + la nav
+> "Calentar" lo enseñan. **Falta**: que la toma en modo calentamiento llame a
+> `settleWarmupTake` (la practica tiene que saber que esta calentando) y
+> engancharlo al arranque de sesion. Ver ADR-027 y `TODO.md` F.0.
 
 ## Que es
 

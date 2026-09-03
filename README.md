@@ -25,7 +25,7 @@ exactamente donde falla tu mano y tu fader.
 | `CLAUDE.md` | Instrucciones permanentes para Claude Code. Leer primero. |
 | `PLAN.md` | Plan estrategico: definicion del MVP (v1), hoja de ruta de iteraciones, criterios de aceptacion y riesgos. |
 | `docs/DECISIONS.md` | ADR-001 a 013: decisiones de arquitectura ya cerradas. |
-| `docs/ADR-014-028.md` | ADR-014 en adelante (ya por ADR-053). Pendiente fusionar en DECISIONS.md. |
+| `docs/ADR-014-onward.md` | ADR-014 en adelante (ya por ADR-053). Pendiente fusionar en DECISIONS.md. |
 | `docs/TIMECODE.md` | Notas del decoder: xwax 1.10 vendorizado, warnings, latencia. |
 | `docs/NOTATION.md` | XFN: como se representa y dibuja un scratch. |
 | `docs/CURRICULUM.md` | El gym: niveles, sesiones, scoring, diagnostico. |
@@ -39,8 +39,8 @@ exactamente donde falla tu mano y tu fader.
 | `docs/PLATFORM_SUPPORT.md` | **Minimo macOS 11, Xcode 14.2, APIs prohibidas.** |
 | `docs/ARCHITECTURES.md` | Intel y Apple Silicon: universal, CI arm64, Rosetta. |
 | `docs/SCORING.md` | Puntos, tres estrellas, progreso e historial. |
-| `docs/VARIANTS.md` | Variantes generadas por transformacion del patron base. |
-| `docs/WARMUP.md` | Calentamiento adaptativo (disenado, futuribles). |
+| `docs/VARIANTS.md` | Variantes por transformacion del patron base **(en pausa: `variants.json` = solo `base`)**. |
+| `docs/WARMUP.md` | Calentamiento adaptativo (**F.0**: logica + pantalla hechas). |
 | `docs/TESTING.md` | Golden tests, replay de sesiones, presupuesto de latencia. |
 | `docs/MODULE_STATUS.md` | Que modulos estan sellados. |
 | `docs/HW_BRINGUP.md` | Runbook para el dia que se conecte la mesa + platos + vinilo. |

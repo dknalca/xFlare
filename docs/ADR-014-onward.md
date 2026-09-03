@@ -1,4 +1,8 @@
-# ADRs nuevos — pegar al final de `docs/DECISIONS.md`
+# ADRs — de ADR-014 en adelante
+
+> Continuacion de `docs/DECISIONS.md` (ADR-001..013). Contiene **ADR-014 hasta
+> ADR-053** a dia de hoy. Pendiente fusionar todo en `DECISIONS.md`; mientras
+> tanto, las entradas nuevas van aqui.
 
 ## ADR-014 — Notacion propia (XFN) inspirada en TTM, no derivada
 
