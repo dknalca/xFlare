@@ -79,6 +79,25 @@ public struct SettingsView: View {
                          + "Rojo si baja de 55.")
                 }
 
+                section("Vídeo") {
+                    row("FPS") {
+                        Picker("", selection: bind(\.videoFps)) {
+                            ForEach(AppSettings.videoFpsOptions, id: \.self) { Text("\($0)").tag($0) }
+                        }
+                        .labelsHidden().frame(width: 80)
+                    }
+                    row("Resolución") {
+                        Picker("", selection: bind(\.videoLongSide)) {
+                            Text("Rápida").tag(1280)
+                            Text("Estándar").tag(1600)
+                            Text("Alta").tag(2400)
+                        }
+                        .labelsHidden().frame(width: 120)
+                    }
+                    note("Lado mayor del vídeo. La proporción la marca la ventana "
+                         + "de práctica. El audio sale con los volúmenes del mixer.")
+                }
+
                 section("MIDI · comandos") {
                     note("Selecciona un comando y pulsa Aprender: el siguiente "
                          + "control MIDI que muevas queda asignado. También puedes "

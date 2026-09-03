@@ -281,6 +281,24 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(cued?.v, 0)
     }
 
+    func testCuePointSaltaAUnaFraccionDelSample() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        var cued: (v: Double, pos: Double)?
+        s.onAdvance = { v, pos, _ in cued = (v, pos) }
+
+        s.jumpTo(sampleFraction: 0.5)
+        XCTAssertEqual(s.normalizedPosition, 0.5, accuracy: 1e-6, "cue A/B a media longitud")
+        XCTAssertEqual(s.platterVelocity, 0)
+        XCTAssertEqual(cued?.pos ?? -1, 0.5, accuracy: 1e-6, "avisa al motor con la fracción")
+        XCTAssertEqual(cued?.v, 0)
+
+        // se acota a 0…1
+        s.jumpTo(sampleFraction: 2.0)
+        XCTAssertEqual(s.normalizedPosition, 1, accuracy: 1e-6)
+        s.jumpTo(sampleFraction: -1)
+        XCTAssertEqual(s.normalizedPosition, 0, accuracy: 1e-6)
+    }
+
     func testElFaderCerradoEsUnFlag() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         XCTAssertFalse(s.faderClosed)

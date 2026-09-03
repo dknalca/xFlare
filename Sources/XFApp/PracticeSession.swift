@@ -563,6 +563,17 @@ public final class PracticeSession: ObservableObject {
         onAdvance?(0, 0, currentTick)
     }
 
+    /// Salta el plato a una fracción `f` (0…1) del **sample entero** (cue A/B de
+    /// F.3). Inverso de `normalizedPosition`: deja el plato quieto ahí y avisa al
+    /// motor para que el cabezal del sample vaya a ese punto.
+    public func jumpTo(sampleFraction f: Double) {
+        let clamped = min(1, max(0, f))
+        let rel = clamped / AudioAsset.scratchPatternTopFraction
+        platterPosition = min(posHi, max(posLo, posLo + rel * patternSpan))
+        platterVelocity = 0
+        onAdvance?(0, clamped, currentTick)
+    }
+
     public func setBPM(_ value: Int) {
         let clamped = min(220, max(40, value))
         if clamped != bpm { bpm = clamped }

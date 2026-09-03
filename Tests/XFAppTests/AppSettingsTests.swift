@@ -21,6 +21,22 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings(raw: s.raw), s)
     }
 
+    func testBibliotecaDeSamplesYAjustesDeVideo() {
+        var s = AppSettings.defaults
+        s.sampleLibrary = ["/a/uno.wav", "/b/dos.wav", "/a/uno.wav", ""]   // con duplicado y vacío
+        s.videoFps = 60
+        s.videoLongSide = 2400
+        let round = AppSettings(raw: s.raw)
+        XCTAssertEqual(round.sampleLibrary, ["/a/uno.wav", "/b/dos.wav"], "dedup + sin vacíos")
+        XCTAssertEqual(round.videoFps, 60)
+        XCTAssertEqual(round.videoLongSide, 2400)
+
+        // valores fuera de las opciones -> al default
+        let bad = AppSettings(raw: ["video.fps": "45", "video.longSide": "999"])
+        XCTAssertEqual(bad.videoFps, 30)
+        XCTAssertEqual(bad.videoLongSide, 1600)
+    }
+
     func testValoresIlegiblesCaenAlDefault() {
         let s = AppSettings(raw: [
             "audio.bufferFrames": "999",          // no esta en bufferOptions

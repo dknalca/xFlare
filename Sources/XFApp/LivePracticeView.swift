@@ -44,6 +44,15 @@ public struct LivePracticeView: View {
     @State private var instrName: String = "080bpm_beat"
     // Nombre del sample de scratch cargado (por defecto el asset del autor).
     @State private var sampleName: String = "Ahh"
+    // F.3: samples recordados (se siembra de `sampleLibrary` y se persiste con
+    // `onSampleLibraryChanged`); ruta del sample activo ("" = asset por defecto).
+    @State private var library: [String] = []
+    @State private var activeSamplePath: String = ""
+    // F.3: si el sample cargado parece un loop rítmico, su descripción.
+    @State private var sampleLoopInfo: String?
+    // F.3: cue points A/B como fracción 0…1 del sample (por sesión, no se guardan).
+    @State private var cueA: Double?
+    @State private var cueB: Double?
     // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
     @State private var videoProgress: Double = 0
@@ -81,6 +90,12 @@ public struct LivePracticeView: View {
     private let commandEvents: AnyPublisher<PracticeCommandEvent, Never>
     /// Overlay de fps en la autopista (ajuste de diagnóstico, B7.2b).
     private let showFPS: Bool
+    /// FPS y lado mayor del vídeo exportado (F.4, vienen de Ajustes).
+    private let videoFps: Int
+    private let videoLongSide: Int
+    /// Samples de scratch recordados (F.3). `onSampleLibraryChanged` los persiste.
+    private let sampleLibrary: [String]
+    private let onSampleLibraryChanged: ([String]) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -92,11 +107,15 @@ public struct LivePracticeView: View {
                 metronomeOn: Bool = true,
                 scratchSamplePath: String = "",
                 showFPS: Bool = false,
+                videoFps: Int = 30,
+                videoLongSide: Int = 1600,
+                sampleLibrary: [String] = [],
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
+                onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -107,10 +126,14 @@ public struct LivePracticeView: View {
         self.metronomeOn = metronomeOn
         self.scratchSamplePath = scratchSamplePath
         self.showFPS = showFPS
+        self.videoFps = videoFps
+        self.videoLongSide = videoLongSide
+        self.sampleLibrary = sampleLibrary
         self.commandEvents = commandEvents
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
         self.onScratchSampleChanged = onScratchSampleChanged
+        self.onSampleLibraryChanged = onSampleLibraryChanged
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -202,7 +225,12 @@ public struct LivePracticeView: View {
             engine?.metronomeEnabled = arming ? true : metroOn
         }
         .onReceive(commandEvents) { handleCommand($0) }
-        .onAppear { quote = Quotes.random(from: content); start() }
+        .onAppear {
+            quote = Quotes.random(from: content)
+            library = sampleLibrary
+            activeSamplePath = scratchSamplePath
+            start()
+        }
         .onDisappear { stop() }
 
         if loading {
@@ -223,18 +251,12 @@ public struct LivePracticeView: View {
                         if !faderClosed { engine?.setScratchGain(Float(v)) }
                     }
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
-                    // F.3: cargar tu propio sample; se recorta al punto cero.
-                    Button(action: pickScratchSample) {
-                        HStack(spacing: 5) {
-                            Image(systemName: "waveform.badge.plus")
-                            Text(sampleName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
-                            Spacer()
-                            Image(systemName: "folder").font(.system(size: 9))
-                                .foregroundColor(XFColor.textMuted)
-                        }
-                        .foregroundColor(XFColor.text)
+                    samplePicker
+                    if let info = sampleLoopInfo {
+                        Text(info).font(XFFont.body(9)).foregroundColor(Color(hex: 0xF5C542))
+                            .lineLimit(1)
                     }
-                    .buttonStyle(.plain)
+                    cueButtons
                 }
                 panelSection("Base") { instrumentalPicker }
                 if !freestyle {
@@ -288,6 +310,85 @@ public struct LivePracticeView: View {
         }
         .buttonStyle(.plain)
         .fixedSize()
+    }
+
+    // MARK: - F.3: sample de scratch (biblioteca + cue points)
+
+    /// Menú del sample activo: el asset por defecto + los samples recordados +
+    /// "Cargar otro…". Al elegir uno se carga; al cargar uno nuevo entra en la
+    /// biblioteca.
+    private var samplePicker: some View {
+        Menu {
+            Button("Ahh (por defecto)") { chooseSample(path: "") }
+            if !library.isEmpty {
+                Divider()
+                ForEach(library, id: \.self) { path in
+                    Button(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent) {
+                        chooseSample(path: path)
+                    }
+                }
+            }
+            Divider()
+            Button("Cargar otro…") { pickScratchSample() }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: "waveform")
+                Text(sampleName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 8))
+                    .foregroundColor(XFColor.textMuted)
+            }
+            .foregroundColor(XFColor.text)
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    /// Cue A / B: fija la posición actual del cabezal del sample y salta a ella.
+    private var cueButtons: some View {
+        HStack(spacing: 5) {
+            Text("Cue").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+            Spacer(minLength: 0)
+            cueChip("A", slot: $cueA)
+            cueChip("B", slot: $cueB)
+        }
+    }
+
+    private func cueChip(_ label: String, slot: Binding<Double?>) -> some View {
+        let set = slot.wrappedValue != nil
+        return Button {
+            if let f = slot.wrappedValue {
+                session.jumpTo(sampleFraction: f)
+                if let e = engine, e.scratchFrameCount > 1 {
+                    e.seekScratch(f * Double(e.scratchFrameCount - 1))
+                }
+            } else {
+                slot.wrappedValue = engine.map { _ in session.normalizedPosition } ?? session.normalizedPosition
+            }
+        } label: {
+            Text(set ? label : "+\(label)").font(XFFont.mono(10))
+                .frame(width: 26, height: 20)
+                .background(RoundedRectangle(cornerRadius: 4)
+                    .fill(set ? XFColor.accent.opacity(0.18) : XFColor.surface))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
+                .foregroundColor(set ? XFColor.accent : XFColor.textMuted)
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(LongPressGesture().onEnded { _ in slot.wrappedValue = nil })
+    }
+
+    /// Carga un sample de la biblioteca (o el asset por defecto si `path` vacío).
+    private func chooseSample(path: String) {
+        guard path != activeSamplePath else { return }
+        let url = path.isEmpty ? nil : URL(fileURLWithPath: path)
+        if let url, !FileManager.default.fileExists(atPath: url.path) {
+            library.removeAll { $0 == path }
+            onSampleLibraryChanged(library)
+            return
+        }
+        cueA = nil; cueB = nil
+        loadScratchSample(url: url, initial: false)
+        activeSamplePath = path
+        onScratchSampleChanged(path)
     }
 
     /// "Repite conmigo": la máquina toca `n` compases con el fantasma moviendo el
@@ -525,8 +626,14 @@ public struct LivePracticeView: View {
         if highwaySize.width > 1, highwaySize.height > 1 { g.size = highwaySize }
         let pcm = engine?.scratchPCMCopy()
         let instr = engine?.instrumentalPCMCopy()
-        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g,
-            scratchPCM: pcm, instrumental: instr, to: url,
+        var opts = TakeVideoExporter.Options()
+        opts.fps = videoFps
+        opts.longSide = videoLongSide
+        // el vídeo suena como lo que estabas oyendo: mismos volúmenes del mixer
+        let mix: (master: Float, scratch: Float, instrumental: Float) =
+            (0.85, Float(sampleVol), Float(instruVol))
+        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g, options: opts,
+            scratchPCM: pcm, instrumental: instr, mix: mix, to: url,
             progress: { p in DispatchQueue.main.async { videoProgress = p } },
             completion: { _ in DispatchQueue.main.async { exportingVideo = false } })
     }
@@ -712,6 +819,7 @@ public struct LivePracticeView: View {
         guard let engine = engine else { return }
         let sr = engine.sampleRateHz
         sampleName = url?.deletingPathExtension().lastPathComponent ?? "Ahh"
+        let hint = url.flatMap { TempoAnalyzer.bpmHint(fromFilename: $0.lastPathComponent) }
         DispatchQueue.global(qos: .userInitiated).async {
             let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
                 ?? AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
@@ -719,6 +827,14 @@ public struct LivePracticeView: View {
             let wave = pcm.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
+            // F.3: ¿es un loop rítmico? (solo para avisar; el sample se scratchea
+            // igual, pero conviene saber que quizá va mejor como base).
+            var loopInfo: String? = nil
+            if url != nil, let pcm, pcm.count > Int(sr / 2),
+               let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint), a.isShortLoop {
+                let bars = max(1, Int((Double(a.beats) / 4.0).rounded()))
+                loopInfo = "loop ≈ \(Int(a.bpm.rounded())) BPM · \(bars) compás\(bars == 1 ? "" : "es")"
+            }
             DispatchQueue.main.async {
                 if let pcm, pcm.count > 1 {
                     engine.loadSample(pcm)
@@ -726,12 +842,14 @@ public struct LivePracticeView: View {
                     session.jumpToCue()
                 }
                 sampleWave = wave
+                sampleLoopInfo = loopInfo
                 if initial { loadInstrumental(url: nil, initial: true) }
             }
         }
     }
 
     /// Abre un selector y carga ese sample de scratch (recortado al punto cero).
+    /// El fichero elegido entra en la biblioteca (F.3).
     private func pickScratchSample() {
         let panel = NSOpenPanel()
         panel.allowedFileTypes = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
@@ -739,8 +857,14 @@ public struct LivePracticeView: View {
         panel.canChooseDirectories = false
         panel.prompt = "Cargar"
         if panel.runModal() == .OK, let url = panel.url {
+            cueA = nil; cueB = nil
             loadScratchSample(url: url, initial: false)
+            activeSamplePath = url.path
             onScratchSampleChanged(url.path)
+            library.removeAll { $0 == url.path }
+            library.insert(url.path, at: 0)
+            if library.count > 12 { library = Array(library.prefix(12)) }
+            onSampleLibraryChanged(library)
         }
     }
 

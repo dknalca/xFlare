@@ -182,6 +182,7 @@ enum TakeVideoExporter {
                        geometry g: HighwayGeometry, options o: Options = Options(),
                        scratchPCM: [Float]? = nil,
                        instrumental: (pcm: [Float], nativeBPM: Double)? = nil,
+                       mix: (master: Float, scratch: Float, instrumental: Float) = (0.85, 0.7, 0.6),
                        to url: URL,
                        progress: ((Double) -> Void)? = nil,
                        completion: @escaping (Result<URL, Error>) -> Void) {
@@ -211,7 +212,10 @@ enum TakeVideoExporter {
                 if let s = scratchPCM, s.count > 1 {
                     let a = TakeAudioRenderer.render(session: session, scratch: scratch,
                                                     scratchPCM: s, instrumental: instrumental,
-                                                    durationSeconds: seconds)
+                                                    durationSeconds: seconds,
+                                                    masterGain: mix.master,
+                                                    scratchGain: mix.scratch,
+                                                    instrumentalGain: mix.instrumental)
                     try writeCAF(a, to: tmpAudio)
                     progress?(0.95)
                     try mux(video: tmpVideo, audio: tmpAudio, to: url)

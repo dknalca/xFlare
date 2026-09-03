@@ -542,7 +542,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril
 - [ ] **F.2** Pads y sampler; scratch sobre pads
-- [~] **F.3** Importar tus propios samples con deteccion del punto cero
+- [x] **F.3** Importar tus propios samples con deteccion del punto cero
       - Iniciado (2026-09-03, a peticion del autor pese a la regla de "no tocar
         futuribles hasta la v1"): nucleo hecho. `SampleTrim` (XFApp, puro):
         `detectStart`/`detectEnd` buscan el ataque por RMS (umbral −45 dBFS,
@@ -554,9 +554,17 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         → `engine.loadSample` + cue 1 + rehace la onda del rail). 6 tests.
         El sample elegido **se recuerda** entre sesiones
         (`AppSettings.lastScratchSamplePath`, se recarga si el fichero sigue ahí).
-      - Falta (cuando toque): puntos de cue por sample, biblioteca de samples
-        del usuario, deteccion de tempo/loop si el sample es ritmico.
-- [~] **F.4** Exportar la toma como video para compartir
+      - **Completado (2026-09-03):**
+        · **Biblioteca de samples**: `AppSettings.sampleLibrary` (rutas, tope 12,
+          dedup) + menú en el panel "Mezcla" (asset por defecto · recordados ·
+          "Cargar otro…"). Al cargar uno nuevo entra en la lista.
+        · **Cue points A/B** por sesión: `PracticeSession.jumpTo(sampleFraction:)`
+          (inverso de `normalizedPosition`); botones `+A`/`+B` fijan la posición
+          del cabezal y saltan a ella; pulsación larga los borra.
+        · **Detección de loop rítmico**: al cargar, `TempoAnalyzer.analyze`; si
+          `isShortLoop`, avisa "loop ≈ 92 BPM · 2 compases" (solo informativo —
+          el sample se scratchea igual, pero así sabes que quizá va como base).
+- [x] **F.4** Exportar la toma como video para compartir
       - Criterio: el bucle de crecimiento mas barato que existe
       - Iniciado (2026-09-03): **vídeo hecho**.
         `TakeVideoExporter` (XFApp): `framePlan(...)` (los `currentTick` de cada
@@ -593,8 +601,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Revelado en vivo (2026-09-03):** cada fotograma solo pinta la traza
         **ya tocada** (`tick - 12 negras … tick`); antes se veía la línea entera
         desde el fotograma 1 y parecía "una foto que se desplaza".
-      - Falta (opcional): mezcla de niveles configurable, resolución/fps en
-        ajustes.
+      - **Opcional completado (2026-09-03):**
+        · **Mezcla del vídeo = la del mixer**: `export(... mix:)` reenvía los
+          volúmenes de sesión (`sampleVol`/`instruVol`) a `TakeAudioRenderer` en
+          vez de las ganancias fijas. El vídeo suena como lo que oías.
+        · **FPS y resolución en Ajustes**: `AppSettings.videoFps` (24/30/60) y
+          `videoLongSide` (Rápida 1280 / Estándar 1600 / Alta 2400); sección
+          "Vídeo" en Ajustes; `LivePracticeView` los pasa a `Options`.
 - [ ] **F.5** Transcribir un scratch desde audio o video a XFN
       - Criterio: la funcion asesina: apuntas a un video y te saca la notacion
 - [ ] **F.6** Rutinas y lecciones creadas por usuarios

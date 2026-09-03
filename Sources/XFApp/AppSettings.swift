@@ -12,6 +12,11 @@ public struct AppSettings: Equatable, Sendable {
     /// a propósito: sirve para aislar si el buffer es la causa de un crepiteo.
     public static let bufferOptions = [64, 128, 256, 512, 1024, 2048]
 
+    /// Opciones para la exportación de vídeo (F.4).
+    public static let videoFpsOptions = [24, 30, 60]
+    /// Lado mayor del vídeo en píxeles: estándar / alta.
+    public static let videoLongSideOptions = [1280, 1600, 2400]
+
     /// Nombre de usuario, solo para etiquetar las estadísticas locales.
     public var username: String
     public var hamster: Bool
@@ -34,16 +39,25 @@ public struct AppSettings: Equatable, Sendable {
     public var midiCommandOverrides: [String: String]
     /// Muestra el contador de fotogramas en la práctica (diagnóstico, B7.2b).
     public var showFPS: Bool
+    /// Samples de scratch recordados (F.3): rutas, la más reciente primero. El
+    /// asset por defecto no está aquí. Se serializa separando por `\n`.
+    public var sampleLibrary: [String]
+    /// FPS del vídeo exportado (F.4).
+    public var videoFps: Int
+    /// Lado mayor del vídeo exportado, en píxeles (F.4).
+    public var videoLongSide: Int
 
     public static let defaults = AppSettings(
         username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true,
-        lastScratchSamplePath: "", midiCommandOverrides: [:], showFPS: false)
+        lastScratchSamplePath: "", midiCommandOverrides: [:], showFPS: false,
+        sampleLibrary: [], videoFps: 30, videoLongSide: 1600)
 
     public init(username: String, hamster: Bool, metronomeEnabled: Bool, bufferFrames: Int,
                 toleranceScale: Double, highContrast: Bool, reduceMotion: Bool,
                 allUnlocked: Bool = true, lastScratchSamplePath: String = "",
-                midiCommandOverrides: [String: String] = [:], showFPS: Bool = false) {
+                midiCommandOverrides: [String: String] = [:], showFPS: Bool = false,
+                sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -55,6 +69,11 @@ public struct AppSettings: Equatable, Sendable {
         self.lastScratchSamplePath = lastScratchSamplePath
         self.midiCommandOverrides = midiCommandOverrides
         self.showFPS = showFPS
+        // dedup preservando orden, tope 12
+        var seen = Set<String>()
+        self.sampleLibrary = sampleLibrary.filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(12).map { $0 }
+        self.videoFps = AppSettings.videoFpsOptions.contains(videoFps) ? videoFps : 30
+        self.videoLongSide = AppSettings.videoLongSideOptions.contains(videoLongSide) ? videoLongSide : 1600
     }
 
     // MARK: - clave/valor
@@ -71,6 +90,9 @@ public struct AppSettings: Equatable, Sendable {
         static let lastSample = "practice.lastScratchSample"
         static let midiCommands = "midi.commandOverrides"
         static let showFPS = "diag.showFPS"
+        static let sampleLibrary = "practice.sampleLibrary"
+        static let videoFps = "video.fps"
+        static let videoLongSide = "video.longSide"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -103,7 +125,10 @@ public struct AppSettings: Equatable, Sendable {
             allUnlocked: bool(Key.allUnlocked, d.allUnlocked),
             lastScratchSamplePath: raw[Key.lastSample] ?? d.lastScratchSamplePath,
             midiCommandOverrides: AppSettings.parseMidi(raw[Key.midiCommands] ?? ""),
-            showFPS: bool(Key.showFPS, d.showFPS))
+            showFPS: bool(Key.showFPS, d.showFPS),
+            sampleLibrary: (raw[Key.sampleLibrary] ?? "").split(separator: "\n").map(String.init),
+            videoFps: int(Key.videoFps, d.videoFps),
+            videoLongSide: int(Key.videoLongSide, d.videoLongSide))
     }
 
     public var raw: [String: String] {
@@ -119,6 +144,9 @@ public struct AppSettings: Equatable, Sendable {
             Key.lastSample: lastScratchSamplePath,
             Key.midiCommands: AppSettings.serializeMidi(midiCommandOverrides),
             Key.showFPS: showFPS ? "1" : "0",
+            Key.sampleLibrary: sampleLibrary.joined(separator: "\n"),
+            Key.videoFps: String(videoFps),
+            Key.videoLongSide: String(videoLongSide),
         ]
     }
 }

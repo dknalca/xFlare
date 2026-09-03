@@ -149,8 +149,12 @@ public struct AppRootView: View {
                     content: model.content,
                     metronomeOn: model.settings.metronomeEnabled,
                     showFPS: model.settings.showFPS,
+                    videoFps: model.settings.videoFps,
+                    videoLongSide: model.settings.videoLongSide,
+                    sampleLibrary: model.settings.sampleLibrary,
                     commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
+                    onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                     onExit: { model.goHome() })
             } else {
                 emptyPanel("No hay ningún patrón base para la rejilla.")
@@ -191,12 +195,16 @@ public struct AppRootView: View {
                 metronomeOn: model.settings.metronomeEnabled,
                 scratchSamplePath: model.settings.lastScratchSamplePath,
                 showFPS: model.settings.showFPS,
+                videoFps: model.settings.videoFps,
+                videoLongSide: model.settings.videoLongSide,
+                sampleLibrary: model.settings.sampleLibrary,
                 commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)
                 },
                 onScratchSampleChanged: { model.settings.lastScratchSamplePath = $0 },
+                onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")
