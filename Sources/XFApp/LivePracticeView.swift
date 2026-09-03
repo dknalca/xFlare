@@ -43,6 +43,8 @@ public struct LivePracticeView: View {
     @State private var instrName: String = "080bpm_beat"
     // Nombre del sample de scratch cargado (por defecto el asset del autor).
     @State private var sampleName: String = "Ahh"
+    // F.4: exportación de vídeo en curso.
+    @State private var exportingVideo = false
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -387,6 +389,18 @@ public struct LivePracticeView: View {
                     .disabled(active)
             }
 
+            // F.4: exportar la toma como vídeo vertical para compartir.
+            Button { exportVideo() } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: exportingVideo ? "hourglass" : "film").font(.system(size: 9))
+                    Text(exportingVideo ? "Exportando vídeo…" : "Vídeo…").font(XFFont.body(9))
+                    Spacer(minLength: 0)
+                }
+                .foregroundColor(lastRecording == nil ? XFColor.textMuted : XFColor.text)
+            }
+            .buttonStyle(.plain)
+            .disabled(lastRecording == nil || active || exportingVideo)
+
             // puntuar la toma contra el patron (XFAnalysis -> resultados).
             // En Freestyle no hay patron: no aparece.
             if !freestyle, let rec = lastRecording, !active {
@@ -444,6 +458,22 @@ public struct LivePracticeView: View {
         panel.prompt = "Exportar"
         if panel.runModal() == .OK, let url = panel.url {
             try? rec.encodedJSONLines().write(to: url, atomically: true, encoding: .utf8)
+        }
+    }
+
+    /// F.4: renderiza la última toma como vídeo vertical 9:16 (sin audio, de
+    /// momento). El render corre en segundo plano; el botón muestra el progreso.
+    private func exportVideo() {
+        guard let rec = lastRecording, !exportingVideo else { return }
+        let panel = NSSavePanel()
+        panel.allowedFileTypes = ["mp4"]
+        panel.nameFieldStringValue = "toma.mp4"
+        panel.prompt = "Exportar"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        exportingVideo = true
+        let sc = scratch, g = geometry
+        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g, to: url) { _ in
+            DispatchQueue.main.async { exportingVideo = false }
         }
     }
 

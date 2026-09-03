@@ -517,8 +517,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (`AppSettings.lastScratchSamplePath`, se recarga si el fichero sigue ahí).
       - Falta (cuando toque): puntos de cue por sample, biblioteca de samples
         del usuario, deteccion de tempo/loop si el sample es ritmico.
-- [ ] **F.4** Exportar la toma como video vertical para compartir
+- [~] **F.4** Exportar la toma como video vertical para compartir
       - Criterio: el bucle de crecimiento mas barato que existe
+      - Iniciado (2026-09-03): **vídeo hecho** (sin audio todavía).
+        `TakeVideoExporter` (XFApp): `framePlan(...)` (los `currentTick` de cada
+        fotograma) y `trace(from: XFSession)` (la línea grabada al dominio de
+        ticks del patrón) son puros; `render(HighwayFrame → CGImage)` rasteriza
+        con Core Graphics (rejilla, fantasma partido por fader, **tu línea
+        teñida por acierto**, marcas ○/●, phantom clicks); `export(...)` monta
+        el mp4 H.264 9:16 con `AVAssetWriter` en segundo plano. Botón
+        **"Vídeo…"** en el panel "Grabar línea". 5 tests, incluido un export
+        real a fichero temporal verificado con `AVURLAsset` (pista de vídeo,
+        tamaño y duración).
+      - Falta: **audio** (necesita un render offline del motor siguiendo la
+        traza grabada), y quizá una barra de progreso.
 - [ ] **F.5** Transcribir un scratch desde audio o video a XFN
       - Criterio: la funcion asesina: apuntas a un video y te saca la notacion
 - [ ] **F.6** Rutinas y lecciones creadas por usuarios

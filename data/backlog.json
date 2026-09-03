@@ -1020,7 +1020,8 @@
           "title": "Exportar la toma como video vertical para compartir",
           "module": "-",
           "acceptance": "el bucle de crecimiento mas barato que existe",
-          "status": "todo"
+          "status": "wip",
+          "note": "Iniciado 2026-09-03. VIDEO hecho (sin audio). TakeVideoExporter (XFApp): framePlan(...) y trace(from: XFSession) puros; render(HighwayFrame -> CGImage) rasteriza con Core Graphics (rejilla, fantasma partido por fader, tu linea tenida por acierto, marcas, phantom clicks); export(...) monta mp4 H.264 9:16 con AVAssetWriter en 2o plano. Boton 'Video...' en el panel Grabar linea. 5 tests, incluido un export real a fichero temporal verificado con AVURLAsset. Falta: audio (render offline del motor siguiendo la traza) y quiza barra de progreso."
         },
         {
           "id": "F.5",
