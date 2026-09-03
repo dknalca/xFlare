@@ -73,6 +73,8 @@ public struct LivePracticeView: View {
     @State private var lastRecording: XFSession?
     @State private var recSeconds: Double = 0   // contador visible mientras grabas
     @State private var meterPeak: Double = 0
+    // Corrección suavizada de la deriva reloj-motor ↔ reloj-sesión (metrónomo).
+    @State private var metroDrift: Double = 0
     @State private var faderClosed = false
     @State private var metroOn: Bool
     // Nombre (sin extension) de la instrumental cargada, para el panel.
@@ -303,6 +305,20 @@ public struct LivePracticeView: View {
         .onReceive(meterTick) { _ in
             meterPeak = engine?.outputPeak ?? 0
             recSeconds = session.recording ? session.recordedSeconds : 0
+            // El metrónomo corre con el reloj del MOTOR (cristal de audio) y la
+            // rejilla con el de la SESIÓN (timer de pared): a la larga se separan
+            // y el clic se va de la línea de compás. Aquí, 20 veces/s, se empuja
+            // una corrección suavizada para que el clic siga clavado a la rejilla
+            // dibujada (`session.tick() + gridShift`).
+            if let e = engine {
+                // acotado a ±1 negra: la deriva real es de milisegundos; un valor
+                // grande solo pasa tras una suspensión de la app y no hay que
+                // perseguirlo (lo re-cuadra el siguiente `seek`).
+                let lim = Double(scratch.ppq)
+                let target = min(lim, max(-lim, session.tick() + gridShift - e.tick))
+                metroDrift += (target - metroDrift) * 0.25
+                e.setMetronomeDrift(metroDrift)
+            }
         }
         .onChange(of: session.faderClosed) { closed in
             faderClosed = closed

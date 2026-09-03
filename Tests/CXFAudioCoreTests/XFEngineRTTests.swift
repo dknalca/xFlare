@@ -358,6 +358,34 @@ final class XFEngineRTTests: XCTestCase {
         // un seek lo devuelve a 0
         xf_engine_seek_tick(e, 0)
         XCTAssertEqual(Double(firstClick()), Double(base), accuracy: 500, "seek borra el desfase")
+
+        // la corrección de deriva (`set_metronome_drift`) se SUMA al tick del
+        // metrónomo sin re-fasear: en régimen (no en el primer clic, que lo fija
+        // el `arm` del seek) desplaza los clics siguientes. Un seek la borra.
+        func nthClickGap() -> Int {   // frames entre el 2º y el 3er clic
+            var out: [Float] = []
+            for _ in 0..<1600 { out += render(e, inL: nil, inR: nil, n: 64).l }
+            var onsets: [Int] = []
+            var i = 1
+            while i < out.count, onsets.count < 3 {
+                if abs(out[i]) > 0.05, abs(out[i-1]) <= 0.05 {
+                    if onsets.last.map({ i - $0 > 4000 }) ?? true { onsets.append(i) }
+                }
+                i += 1
+            }
+            return onsets.count >= 3 ? onsets[2] - onsets[1] : -1
+        }
+        xf_engine_seek_tick(e, 0)
+        let gap0 = nthClickGap()
+        xf_engine_seek_tick(e, 0)
+        xf_engine_set_metronome_drift(e, 60)   // un desfase constante
+        let gapDrift = nthClickGap()
+        // un desfase CONSTANTE no cambia el ESPACIADO entre clics, solo su fase
+        XCTAssertEqual(gapDrift, gap0, accuracy: 200, "la deriva constante no cambia el tempo")
+        XCTAssertGreaterThan(gap0, 20_000)   // ~24000 = negra a 120 bpm
+
+        xf_engine_seek_tick(e, 0)
+        XCTAssertEqual(Double(firstClick()), Double(base), accuracy: 500, "seek borra la deriva")
     }
 
     // MARK: - reloj musical

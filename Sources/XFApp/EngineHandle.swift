@@ -152,6 +152,9 @@ public final class EngineHandle {
     /// Desfase (ticks) del metrónomo para que siga a la rejilla cuando se mueve
     /// con los botones ◀/▶. Un `seek` lo devuelve a 0.
     public func setMetronomeOffset(_ ticks: Double) { xf_engine_set_metronome_offset(engine, ticks) }
+    /// Corrección continua de la deriva entre el reloj del motor y el de la
+    /// sesión (rejilla). Se empuja suavizada unas veces por segundo. `seek` -> 0.
+    public func setMetronomeDrift(_ ticks: Double) { xf_engine_set_metronome_drift(engine, ticks) }
     public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
     /// Ancla de posicion del scratch: trim anti-deriva acotado (ADR-042), no
     /// mueve el cabezal. `nil` = suelto.

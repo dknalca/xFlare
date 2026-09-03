@@ -81,6 +81,13 @@ void xf_engine_seek_tick(xf_engine *e, double tick);
  * vuelve a poner a 0. NO RT-SAFE. */
 void xf_engine_set_metronome_offset(xf_engine *e, double ticks);
 
+/* Corrección CONTINUA de la deriva entre el reloj del motor (cristal de audio) y
+ * el reloj de pared de la sesión que dibuja la rejilla. La capa Swift la calcula
+ * (`session.tick() + gridShift - engine.tick`) suavizada y la empuja unas veces
+ * por segundo; el metronomo la suma a su tick sin re-fasear (cambia poquito).
+ * Un `xf_engine_seek_tick` la pone a 0. NO RT-SAFE. */
+void xf_engine_set_metronome_drift(xf_engine *e, double ticks);
+
 /* Coloca el cabezal del reproductor de scratch en `frame` (se satura a
  * [0, frames-1]). Para arrancar el sample desde el principio al entrar. */
 void xf_engine_seek_scratch(xf_engine *e, double frame);
