@@ -315,6 +315,7 @@ public struct LivePracticeView: View {
 
             HStack(spacing: 5) {
                 Text("Compases").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                    .lineLimit(1).fixedSize()
                 Spacer(minLength: 0)
                 chip("−") { session.setCallResponseBars(session.crBars / 2) }
                     .disabled(session.crBars <= 2)

@@ -179,8 +179,12 @@ public struct HomeView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: XFSpacing.sm)],
                               alignment: .leading, spacing: XFSpacing.sm) {
                         ForEach(group.cells) { cell in
-                            MatrixCellView(cell: cell, thumbnail: summary.thumbnails[cell.scratchId])
-                                .onTapGesture { onSelect(cell.scratchId) }
+                            // Botón de verdad (no `.onTapGesture`): navegable con
+                            // teclado y VoiceOver, y no se pierde ningún clic.
+                            Button { onSelect(cell.scratchId) } label: {
+                                MatrixCellView(cell: cell, thumbnail: summary.thumbnails[cell.scratchId])
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }
