@@ -54,8 +54,8 @@ final class AssemblerTests: XCTestCase {
         XCTAssertNil(byScratch["flare-2c"], "el 2-click no sale suelto: esta dentro de Flare")
         // la familia Flare (L3) sin L1..L2 completo -> bloqueada
         XCTAssertEqual(byScratch["flare"]?.state, .locked)
-        // 21 ejercicios, 8 de ellos miembros de familia -> 21 - 8 + 2 = 15 celdas
-        XCTAssertEqual(s.cells.count, 15)
+        // 18 ejercicios, 8 de ellos miembros de familia -> 18 - 8 + 2 = 12 celdas
+        XCTAssertEqual(s.cells.count, 12)
     }
 
     func testHomeContinueTarget() throws {
@@ -72,8 +72,8 @@ final class AssemblerTests: XCTestCase {
         let c = try catalog()
         let db = try XFDatabase.inMemory()
         let b = try LibraryAssembler.browser(catalog: c, db: db)
-        // 25 - 4 ocultas - 8 miembros de familia + 2 entradas de familia = 15
-        XCTAssertEqual(b.entries.count, 15)
+        // 25 - 7 ocultas - 8 miembros de familia + 2 entradas de familia = 12
+        XCTAssertEqual(b.entries.count, 12)
         for hidden in LibraryAssembler.hiddenInLibrary {
             XCTAssertNil(b.entries.first { $0.scratchId == hidden }, "\(hidden) no se lista")
         }

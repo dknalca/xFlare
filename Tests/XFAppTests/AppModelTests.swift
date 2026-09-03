@@ -16,7 +16,7 @@ final class AppModelTests: XCTestCase {
         let m = try model()
         m.refreshHome()
         XCTAssertEqual(m.screen, .home)
-        XCTAssertEqual(m.home?.cells.count, 15)
+        XCTAssertEqual(m.home?.cells.count, 12)
     }
 
     func testNavegacion() throws {
@@ -147,8 +147,8 @@ final class AppModelTests: XCTestCase {
 
         let m = AppModel.boot(content: RepoContentLoader(), databaseURL: dbURL)
         XCTAssertEqual(m.screen, .home)
-        XCTAssertEqual(m.catalog.exercises.count, 21)
-        XCTAssertEqual(m.home?.cells.count, 15)
+        XCTAssertEqual(m.catalog.exercises.count, 18)
+        XCTAssertEqual(m.home?.cells.count, 12)
         XCTAssertFalse(m.myTable().rows.isEmpty, "carga los perfiles de profiles/")
         XCTAssertNotNil(m.engine, "crea el motor de audio")
     }

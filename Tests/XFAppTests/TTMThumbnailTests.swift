@@ -4,61 +4,69 @@ import XCTest
 import XFNotation
 import XFPersistence
 
-/// Miniatura del esquema simple TTM: UNA curva continua + un círculo ● en cada
-/// corte (el fader cierra). Sin círculo al abrir, sin huecos.
+/// Miniatura del esquema simple TTM: la curva del disco **solo donde suena**
+/// (tramos con el fader abierto) + un ● por corte, alineados en una fila arriba.
 final class TTMThumbnailTests: XCTestCase {
 
     private func library() throws -> ScratchLibrary {
         try CatalogLoader.load(from: RepoContentLoader()).library
     }
 
-    func testBabyEsUnaCurvaContinuaSinCortes() throws {
-        // el baby no toca el fader: una curva continua, sin círculos
+    private func allPoints(_ t: TTMThumbnail) -> [CGPoint] { t.segments.flatMap { $0 } }
+
+    func testBabyEsUnTramoUnicoSinCortes() throws {
+        // el baby no toca el fader: un solo tramo, sin círculos
         let baby = try XCTUnwrap(try library().scratch(id: "baby"))
         let thumb = TTMThumbnail.build(scratch: baby)
 
         XCTAssertTrue(thumb.cuts.isEmpty, "el baby no corta")
-        let pts = thumb.curve
+        XCTAssertEqual(thumb.segments.count, 1, "fader siempre abierto -> un tramo")
+        let pts = allPoints(thumb)
         XCTAssertGreaterThan(pts.count, 8)
-        XCTAssertEqual(Double(try XCTUnwrap(pts.first?.x)), 0, accuracy: 1e-9)
+        XCTAssertEqual(Double(try XCTUnwrap(pts.first?.x)), 0, accuracy: 0.02)
         XCTAssertEqual(Double(try XCTUnwrap(pts.last?.x)), 1, accuracy: 0.05)
         for p in pts {
             XCTAssert((0...1).contains(p.x))
             XCTAssert((-1e-9...(1 + 1e-9)).contains(p.y))
         }
-        // usa casi todo el eje y (el muestreo no cae justo en los extremos)
         XCTAssertLessThan(pts.map(\.y).min() ?? 1, 0.03)
         XCTAssertGreaterThan(pts.map(\.y).max() ?? 0, 0.97)
     }
 
-    func testElFlareEsUnaCurvaContinuaConCortes() throws {
-        // el flare cierra el fader: la curva NO se parte, y hay un ● por corte
-        let flare = try XCTUnwrap(try library().scratch(id: "flare-1c"))
-        let thumb = TTMThumbnail.build(scratch: flare)
-
-        XCTAssertFalse(thumb.cuts.isEmpty, "el flare corta al menos una vez")
-        // la curva es una sola polilínea continua (x monótona creciente)
-        for (a, b) in zip(thumb.curve, thumb.curve.dropFirst()) {
-            XCTAssertLessThanOrEqual(a.x, b.x + 1e-9)
-        }
-        for c in thumb.cuts {
-            XCTAssert((0...1).contains(c.x) && (0...1).contains(c.y))
-        }
+    func testElForwardCutNoDibujaLaVueltaMuda() throws {
+        // "solo suena la ida": debe haber tramo que suena y NO cubrir todo el
+        // eje x (la parte muda no se pinta) + un corte.
+        let fc = try XCTUnwrap(try library().scratch(id: "forward-cut"))
+        let t = TTMThumbnail.build(scratch: fc)
+        XCTAssertFalse(t.cuts.isEmpty, "forward cut corta")
+        let xs = allPoints(t).map(\.x)
+        XCTAssertLessThan((xs.max() ?? 0) - (xs.min() ?? 1), 0.9,
+                          "la vuelta silenciosa no se dibuja")
     }
 
-    func testElChirpTieneUnCorte() throws {
-        // chirp: arranca con el fader cerrado (eso ya es un corte) y abre al
-        // volver. La miniatura marca el corte, no la apertura.
+    func testLosCortesVanEnUnaFilaHorizontal() throws {
+        // flare: varios cortes, todos a la misma y (la "pista de fader")
+        let flare = try XCTUnwrap(try library().scratch(id: "flare-2c"))
+        let t = TTMThumbnail.build(scratch: flare)
+        XCTAssertGreaterThanOrEqual(t.cuts.count, 2)
+        let ys = Set(t.cuts.map { Double(($0.y * 1000).rounded()) })
+        XCTAssertEqual(ys.count, 1, "todos los ● en la misma horizontal")
+        XCTAssertEqual(t.cuts.first?.y ?? 0, TTMThumbnail.cutLineY, accuracy: 1e-6)
+        // y en orden por x (simétricos por diseño del patrón)
+        for (a, b) in zip(t.cuts, t.cuts.dropFirst()) { XCTAssertLessThan(a.x, b.x) }
+    }
+
+    func testElChirpTieneUnCorteYAlgoQueSuena() throws {
         let chirp = try XCTUnwrap(try library().scratch(id: "chirp"))
         let t = TTMThumbnail.build(scratch: chirp)
         XCTAssertFalse(t.cuts.isEmpty, "el chirp corta")
-        XCTAssertFalse(t.curve.isEmpty)
+        XCTAssertFalse(t.segments.isEmpty, "y algo suena")
     }
 
     func testSeConstruyeParaTodaLaLibreria() throws {
         for s in try library().scratches {
             let thumb = TTMThumbnail.build(scratch: s)
-            XCTAssertGreaterThan(thumb.curve.count, 2, "\(s.id) sin curva")
+            XCTAssertFalse(thumb.segments.isEmpty, "\(s.id) sin tramos que suenen")
         }
     }
 

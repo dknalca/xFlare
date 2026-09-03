@@ -215,41 +215,6 @@
       ]
     },
     {
-      "id": "ex-l2-scribble",
-      "scratchId": "scribble",
-      "level": "L2",
-      "name": "Control de mano - Scribble",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.82,
-        "consecutiveBars": 8
-      },
-      "focus": [
-        "timing",
-        "pitchContour"
-      ],
-      "coachHints": [
-        "Tension de antebrazo, recorrido minimo."
-      ]
-    },
-    {
       "id": "ex-l2-transformer-2",
       "scratchId": "transformer-2",
       "level": "L2",
@@ -573,41 +538,6 @@
       ]
     },
     {
-      "id": "ex-l4-hydroplane",
-      "scratchId": "hydroplane",
-      "level": "L4",
-      "name": "Flares - Hydroplane",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.85,
-        "consecutiveBars": 12
-      },
-      "focus": [
-        "timing",
-        "pitchContour"
-      ],
-      "coachHints": [
-        "Friccion del dedo sobre el disco. Textura, no ritmo."
-      ]
-    },
-    {
       "id": "ex-l5-flare-3c",
       "scratchId": "flare-3c",
       "level": "L5",
@@ -677,42 +607,6 @@
       ],
       "coachHints": [
         "Cuatro clicks por ciclo sin romper el circulo."
-      ]
-    },
-    {
-      "id": "ex-l5-twiddle",
-      "scratchId": "twiddle",
-      "level": "L5",
-      "name": "Intermedio - Twiddle",
-      "mode": "ghost",
-      "bpmLadder": [
-        60,
-        70,
-        80,
-        90,
-        100
-      ],
-      "startBpm": 70,
-      "bars": 4,
-      "warmupBars": 2,
-      "sets": 3,
-      "tolerances": {
-        "perfect_ms": 20,
-        "great_ms": 40,
-        "good_ms": 70,
-        "late_ms": 110
-      },
-      "pass": {
-        "accuracy": 0.87,
-        "consecutiveBars": 12
-      },
-      "focus": [
-        "timing",
-        "pitchContour",
-        "clickPlacement"
-      ],
-      "coachHints": [
-        "Dibujo de 2-click pero con dos dedos alternos."
       ]
     },
     {

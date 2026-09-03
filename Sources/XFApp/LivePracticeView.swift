@@ -46,6 +46,9 @@ public struct LivePracticeView: View {
     // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
     @State private var videoProgress: Double = 0
+    // Pantalla de carga (logo + cita) mientras decodifica sample + instrumental.
+    @State private var loading = true
+    @State private var quote = ""
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -104,7 +107,8 @@ public struct LivePracticeView: View {
 
     public var body: some View {
         let s = session
-        return VStack(spacing: 0) {
+        return ZStack {
+        VStack(spacing: 0) {
             topBar
             HStack(spacing: 0) {
                 // UNA sola visualizacion: la autopista, la onda de la
@@ -180,8 +184,14 @@ public struct LivePracticeView: View {
             // apagado; al terminar (empieza a grabar o se cancela) se restablece.
             engine?.metronomeEnabled = arming ? true : metroOn
         }
-        .onAppear { start() }
+        .onAppear { quote = Quotes.random(from: content); start() }
         .onDisappear { stop() }
+
+        if loading {
+            LoadingView(quote: quote).zIndex(1)
+        }
+        }
+        .animation(.easeOut(duration: 0.25), value: loading)
     }
 
     // MARK: - panel derecho: medidor + volumenes (provisional)
@@ -593,7 +603,7 @@ public struct LivePracticeView: View {
 
     private func start() {
         session.scrollSensitivity = sensitivity
-        guard let engine = engine else { session.start(); return }
+        guard let engine = engine else { session.start(); loading = false; return }
 
         applyEngineParams()
 
@@ -718,6 +728,7 @@ public struct LivePracticeView: View {
                 if initial {
                     _ = engine.startOutput()
                     session.start()
+                    loading = false   // ya suena: fuera la pantalla de carga
                 }
             }
         }

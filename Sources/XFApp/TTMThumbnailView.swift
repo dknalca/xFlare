@@ -4,8 +4,8 @@ import SwiftUI
 import XFDesign
 
 /// Dibuja una `TTMThumbnail` escalada al tamaño disponible: la curva del disco
-/// como **una línea continua** y un **círculo relleno ●** en cada corte (el
-/// fader se cierra). Sin círculo al abrir, sin huecos: es el esquema simple TTM.
+/// **solo donde suena** (tramos con el fader abierto) y un **círculo relleno ●**
+/// por cada corte, alineados en una fila arriba (la "pista de fader" del TTM).
 struct TTMThumbnailView: View {
 
     let thumbnail: TTMThumbnail
@@ -16,19 +16,20 @@ struct TTMThumbnailView: View {
             let h = geo.size.height
 
             ZStack {
-                // curva del disco (y invertida: 1 = arriba), continua
+                // curva del disco (y invertida: 1 = arriba), un trazo por tramo
+                // que suena; el hueco mudo no se dibuja
                 Path { path in
-                    let pts = thumbnail.curve
-                    guard pts.count >= 2 else { return }
-                    path.move(to: CGPoint(x: pts[0].x * w, y: (1 - pts[0].y) * h))
-                    for c in pts.dropFirst() {
-                        path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
+                    for seg in thumbnail.segments where seg.count >= 2 {
+                        path.move(to: CGPoint(x: seg[0].x * w, y: (1 - seg[0].y) * h))
+                        for c in seg.dropFirst() {
+                            path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
+                        }
                     }
                 }
                 .stroke(XFColor.textMuted,
                         style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
 
-                // corte: círculo relleno ● (el fader cierra; se supone corto)
+                // cortes: círculos rellenos ● en una fila cerca del borde superior
                 Path { path in
                     let r: CGFloat = 2.6
                     for c in thumbnail.cuts {

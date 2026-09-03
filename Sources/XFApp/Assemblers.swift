@@ -129,13 +129,19 @@ public enum HomeAssembler {
 
 public enum LibraryAssembler {
 
-    /// Trucos que NO se listan en la librería porque no son un truco distinto,
-    /// solo una variante del mismo: colocación del click (lo-/hi-flare) o cambio
-    /// de subdivisión (los `-16`). El truco de verdad (`flare-1c`, `baby`,
-    /// `flare-2c`) sí está. Siguen en el currículo. Ver `docs/MATRIX_MAPPING.md`.
+    /// Trucos que NO se listan en la librería:
+    ///  - **no son un truco distinto**, solo una variante: colocación del click
+    ///    (lo-/hi-flare) o cambio de subdivisión (los `-16`). El truco de verdad
+    ///    (`flare-1c`, `baby`, `flare-2c`) sí está.
+    ///  - **retirados por ahora** (feedback 2026-09-03): su esquema TTM no se
+    ///    lee bien y no aportan al gym básico. Se quitan también del currículo
+    ///    (`exercises.json`/`levels.json`); siguen en la librería compilada
+    ///    (`library-v0.1.json`) para no tocar el golden.
+    /// Ver `docs/MATRIX_MAPPING.md`.
     static let hiddenInLibrary: Set<String> = [
         "flare-1c-lo", "flare-1c-hi",
         "baby-16", "flare-2c-16",
+        "scribble", "hydroplane", "twiddle",
     ]
 
     public static func browser(catalog: Catalog, db: XFDatabase,

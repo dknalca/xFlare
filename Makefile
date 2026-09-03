@@ -68,6 +68,7 @@ app:
 	mkdir -p xFlare.app/Contents/MacOS xFlare.app/Contents/Resources; \
 	cp "$$BIN" xFlare.app/Contents/MacOS/xFlare; \
 	cp -R data profiles xFlare.app/Contents/Resources/; \
+	cp citas.md xFlare.app/Contents/Resources/ 2>/dev/null || true; \
 	[ -d Audio ] && cp -R Audio xFlare.app/Contents/Resources/ || echo "  (sin Audio/ local: la practica ira sin sonido)"; \
 	ICON=""; \
 	if [ -f icon/xflare.icns ]; then ICON="icon/xflare.icns"; \
