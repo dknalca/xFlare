@@ -1968,6 +1968,68 @@ la instrumental de nuevo con lo grabado").
 
 ---
 
+## ADR-054 — Comandos de práctica por MIDI (sección `[transport]`)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** En la práctica hay comandos que hoy solo están en el teclado (cue,
+reiniciar la base, congelar, grabar, BPM ±1, metrónomo, "repite conmigo", fader).
+Con la mesa delante el usuario quiere dispararlos desde sus pads / botones MIDI
+sin soltar los platos. La Rane 72 no expone el crossfader por MIDI (ADR-021),
+pero sus pads sí mandan notas.
+
+**Decisión.** Un decodificador puro en `XFCapture` (`MidiCommandMap`) traduce
+mensajes MIDI a `PracticeCommandEvent`. El mapa base sale de una sección
+`[transport]` del `.conf` de mesa (`command.cue = note:1:36`, …) y el usuario lo
+pisa desde Ajustes (`AppSettings.midiCommandOverrides`, serializado
+`cue=note:1:36;…`). `AppModel` es dueño de un `MidiCommandSource`, publica los
+eventos por un `PassthroughSubject` y `LivePracticeView` los enruta a las mismas
+acciones que el teclado. Todos los comandos son disparos discretos (Note On, o
+CC ≥ 64) salvo `command.fader`, que es **momentáneo** (nota mantenida / CC
+continuo → `faderClosed(Bool)`).
+
+**Alternativas descartadas.**
+- *Nudge A/D del plato por MIDI*: se dejó fuera a propósito (el plato es del
+  timecode, no de un botón).
+- *Solo overrides de usuario, sin sección de perfil*: obligaría a cada dueño de
+  una Rane 72 a remapear a mano; mejor que el perfil traiga un punto de partida.
+- *MIDI Learn en la UI*: pendiente del conector CoreMIDI real (`MidiFaderConnector`
+  aún no existe); de momento la asignación es por texto en Ajustes.
+
+**Consecuencias.** El núcleo es testeable sin hardware (`ingest(bytes:)`). Cuando
+llegue el conector CoreMIDI solo hay que llamar a `midiCommands.ingest`. La
+sección `[transport]` de la Rane 72 va **comentada** (números sin verificar). El
+"MIDI Learn" visual queda para más adelante.
+
+---
+
+## ADR-055 — Miniatura TTM: cortes del flare en una horizontal (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada · complementa ADR-050
+
+**Contexto.** En Home los ● de corte se colocaban en una fila flotante cerca del
+borde superior y con el radio del punto se salían del cuadro. Además para el
+flare el autor quiere leerlos "en la misma horizontal y simétricos", como en la
+*Periodic Matrix of Skratches*, y para el chirp "en el vértice".
+
+**Decisión.** `TTMThumbnail.build` coloca los ● según la familia: **flare / orbit
+/ crab** → todos a una misma `y` (media de las alturas reales, recortada a
+0.18–0.82) y `x` forzada simétrica respecto al centro; **chirp** → un único ● en
+el punto más alto de la curva (con un pelín de margen para no comerse el borde);
+**resto** (cut, transformer, tear) → el ● se queda sobre la curva, donde deja de
+sonar. Los tramos mudos siguen sin dibujarse (ADR-050).
+
+**Alternativas descartadas.** Dejar los ● sobre la curva también en el flare: el
+gesto no es exactamente simétrico en el tiempo (los cierres se anotan por evento,
+no por fracción de trazo), así que quedaban a alturas distintas y no se leía el
+patrón de un vistazo.
+
+**Consecuencias.** La miniatura del flare comunica "toca-corta-toca-corta" al
+instante. El ● del flare ya no está literalmente sobre la curva (es una
+convención de dibujo, no una medida). Ningún punto se sale del cuadro.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
