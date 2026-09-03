@@ -57,6 +57,12 @@ struct xf_engine {
     /* reloj musical: avanzado en RT, leido por Swift */
     _Atomic double  reported_tick;   /* tick al inicio del ultimo bloque */
     double          tick;            /* posicion en curso (solo lo toca RT o seek) */
+    /* Desfase (ticks) que se le suma AL METRONOMO para que siga a la rejilla
+     * cuando el usuario la mueve con los botones ◀/▶ (`gridShift` de la UI). No
+     * toca el reloj ni la base, solo dónde caen los clics. `dirty` -> el RT
+     * re-fasea el metronomo (sin meter un clic) al próximo bloque. */
+    _Atomic double  metro_offset;
+    _Atomic int     metro_offset_dirty;
 
     /* diagnostico */
     _Atomic uint64_t overloads;
@@ -128,6 +134,8 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     e->scratch_speed_gate = 0.12;
     xf_eq_init(&e->sample_eq, sample_rate);   /* plano por defecto */
     atomic_store(&e->reported_tick, 0.0);
+    atomic_store(&e->metro_offset, 0.0);
+    atomic_store(&e->metro_offset_dirty, 0);
     e->capture_input = 1;
     return e;
 }
@@ -243,8 +251,18 @@ void xf_engine_seek_tick(xf_engine *e, double tick) {
     if (!e) return;
     e->tick = tick;
     atomic_store(&e->reported_tick, tick);
+    /* un `seek` re-cuadra el metronomo desde `tick`: el desfase de rejilla
+     * acumulado deja de tener sentido, se pone a 0. */
+    atomic_store(&e->metro_offset, 0.0);
+    atomic_store(&e->metro_offset_dirty, 0);
     /* el tiempo del punto al que saltamos suena (es el "1" de la cuenta atras) */
     xf_metronome_arm(e->metronome, tick);
+}
+
+void xf_engine_set_metronome_offset(xf_engine *e, double ticks) {
+    if (!e) return;
+    atomic_store(&e->metro_offset, ticks);
+    atomic_store(&e->metro_offset_dirty, 1);   /* el RT re-fasea sin meter un clic */
 }
 
 void xf_engine_set_velocity(xf_engine *e, double velocity) {
@@ -390,7 +408,17 @@ void xf_engine_render(xf_engine *e,
         for (int n = 0; n < nframes; n++) e->mono[n] += e->mono2[n] * igain;
     }
 
-    xf_metronome_render(e->metronome, e->mono, nframes, block_start_tick, bpm);
+    /* El metronomo va con el reloj del motor MAS el desfase de rejilla que haya
+     * puesto la UI (botones ◀/▶): asi el clic cae en la linea de compas dibujada,
+     * no `gridShift` ticks al lado. Al cambiar el desfase, `dirty` -> re-fasear
+     * (marca el compas actual como ya sonado) para no meter un clic de mas. */
+    {
+        const double moff = atomic_load(&e->metro_offset);
+        if (atomic_exchange(&e->metro_offset_dirty, 0)) {
+            xf_metronome_resync(e->metronome, block_start_tick + moff);
+        }
+        xf_metronome_render(e->metronome, e->mono, nframes, block_start_tick + moff, bpm);
+    }
 
     /* Salida: soft-clip en vez de recorte duro (el recorte duro suena a
      * crujido). Transparente hasta |s| = 0,7; por encima, rodilla suave con

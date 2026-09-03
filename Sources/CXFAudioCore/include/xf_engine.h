@@ -74,6 +74,13 @@ void xf_engine_set_instrumental_native_bpm(xf_engine *e, double native_bpm);
  * negativo). Resincroniza el metronomo. */
 void xf_engine_seek_tick(xf_engine *e, double tick);
 
+/* Desfase (en ticks) que se le suma al METRONOMO para que siga a la rejilla
+ * cuando el usuario la mueve con los botones ◀/▶ de la práctica (`gridShift`).
+ * No toca el reloj musical ni la base — solo dónde caen los clics. El cambio se
+ * re-fasea en el hilo RT sin meter un clic de más. Un `xf_engine_seek_tick` lo
+ * vuelve a poner a 0. NO RT-SAFE. */
+void xf_engine_set_metronome_offset(xf_engine *e, double ticks);
+
 /* Coloca el cabezal del reproductor de scratch en `frame` (se satura a
  * [0, frames-1]). Para arrancar el sample desde el principio al entrar. */
 void xf_engine_seek_scratch(xf_engine *e, double frame);

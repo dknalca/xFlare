@@ -141,6 +141,9 @@ public final class EngineHandle {
         xf_engine_set_transport(engine, bpm, Int32(ppq), playing)
     }
     public func seek(tick: Double)          { xf_engine_seek_tick(engine, tick) }
+    /// Desfase (ticks) del metrónomo para que siga a la rejilla cuando se mueve
+    /// con los botones ◀/▶. Un `seek` lo devuelve a 0.
+    public func setMetronomeOffset(_ ticks: Double) { xf_engine_set_metronome_offset(engine, ticks) }
     public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
     /// Ancla de posicion del scratch: trim anti-deriva acotado (ADR-042), no
     /// mueve el cabezal. `nil` = suelto.

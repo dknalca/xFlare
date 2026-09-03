@@ -319,6 +319,47 @@ final class XFEngineRTTests: XCTestCase {
                              "con el metronomo activo hay click")
     }
 
+    func testDesfaseDeMetronomoMueveElClicSinTocarElReloj() {
+        // el metrónomo sigue a la rejilla: al desfasarla media negra, el clic se
+        // mueve media negra; `e->tick` NO se toca.
+        let e = xf_engine_create(sr, 64)!
+        defer { xf_engine_destroy(e) }
+        xf_engine_set_transport(e, 120, 480, true)   // negra = 0,5 s = 24000 frames
+        xf_metronome_set_enabled(xf_engine_metronome(e)!, true)
+
+        func firstClick() -> Int {
+            var out: [Float] = []
+            for _ in 0..<800 { out += render(e, inL: nil, inR: nil, n: 64).l }
+            return out.firstIndex(where: { abs($0) > 0.05 }) ?? -1
+        }
+
+        xf_engine_seek_tick(e, 0)
+        let base = firstClick()
+        XCTAssertGreaterThanOrEqual(base, 0)
+        XCTAssertLessThan(base, 2_000, "sin desfase, el clic suena casi al arranque")
+
+        // desfase de +240 ticks (media negra a ppq 480) -> el primer clic pasa a
+        // caer en la siguiente línea de compás: media negra más tarde (12000 fr).
+        xf_engine_seek_tick(e, 0)
+        xf_engine_set_metronome_offset(e, 240)
+        let shifted = firstClick()
+        XCTAssertEqual(Double(shifted - base), 12_000, accuracy: 500,
+                       "el clic se mueve media negra (base \(base), desfasado \(shifted))")
+
+        // y el reloj del motor no se ha movido por el desfase (avanza normal, no
+        // pega un salto de 999)
+        xf_engine_seek_tick(e, 0)
+        xf_engine_set_metronome_offset(e, 999)
+        for _ in 0..<3 { _ = render(e, inL: nil, inR: nil, n: 64) }
+        let perBlock = 120.0 / 60.0 * 480.0 / 48_000.0 * 64.0
+        XCTAssertEqual(xf_engine_tick(e), 2 * perBlock, accuracy: 1e-6,
+                       "el desfase no toca `e->tick` (avanza normal)")
+
+        // un seek lo devuelve a 0
+        xf_engine_seek_tick(e, 0)
+        XCTAssertEqual(Double(firstClick()), Double(base), accuracy: 500, "seek borra el desfase")
+    }
+
     // MARK: - reloj musical
 
     func testElRelojMusicalAvanzaSoloSonando() {

@@ -623,8 +623,8 @@ public struct LivePracticeView: View {
             HStack(spacing: 5) {
                 Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                 Spacer(minLength: 0)
-                chip("chevron.left", icon: true) { gridShift += gridStep }
-                chip("chevron.right", icon: true) { gridShift -= gridStep }
+                chip("chevron.left", icon: true) { shiftGrid(by: gridStep) }
+                chip("chevron.right", icon: true) { shiftGrid(by: -gridStep) }
             }
         }
     }
@@ -843,23 +843,18 @@ public struct LivePracticeView: View {
         gridShift = 0
     }
 
+    /// ÷2 / ×2: reinterpreta la rejilla a la mitad / el doble de BPM, **en
+    /// caliente** — como `setInstrumentalBPM`. La base sigue sonando donde estaba
+    /// (no vuelve a empezar); solo cambia cómo se cuadricula y el metrónomo.
     private func retempo(_ factor: Double) {
-        // En modo loop, ×2 / ÷2 = doblar / partir el nº de compases del bucle
-        // (misma reinterpretación, pero manteniendo el BPM clavado a la duración).
-        if let bars = instrLoopBars {
-            relockLoop(bars: factor > 1 ? bars * 2 : bars / 2)
-            return
-        }
-        session.setBPM(Int((Double(session.bpm) * factor).rounded()))
-        // ÷2/×2 reinterpreta la rejilla: el mismo audio pasa a tener la mitad /
-        // el doble de compases, asi que su bucle en TICKS escala con el factor.
-        instrLoopTicks *= factor
-        session.setInstrumentalLoopTicks(instrLoopTicks)
-        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
-        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
-        session.resyncClock()
-        engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
-        gridShift = 0
+        setInstrumentalBPM(Int((Double(session.bpm) * factor).rounded()))
+    }
+
+    /// Mueve la rejilla ◀/▶ y **arrastra el metrónomo con ella** (si no, el clic
+    /// se queda en su fase vieja y deja de caer en la línea de compás dibujada).
+    private func shiftGrid(by delta: Double) {
+        gridShift += delta
+        engine?.setMetronomeOffset(gridShift)
     }
 
     /// Modo loop: fija en `bars` los compases que dura la instrumental subida y
