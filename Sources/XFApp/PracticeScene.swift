@@ -138,10 +138,32 @@ final class PracticeScene: SKScene {
     private let hitLayer = SKNode()
     private var bandPool: [SKShapeNode] = []
     private var curvePool: [SKShapeNode] = []
-    private var markPool: [SKShapeNode] = []
+    private var openMarkPool: [SKShapeNode] = []
+    private var closeMarkPool: [SKShapeNode] = []
     private var phantomPool: [SKShapeNode] = []
     private var userPool: [SKShapeNode] = []
     private var hitPool: [SKShapeNode] = []
+
+    // Formas CONSTANTES: se calculan una vez y los nodos solo se mueven por
+    // `position`. Reasignar `SKShapeNode.path` re-tesela en CPU cada frame; era
+    // el grueso del coste de la práctica.
+    private static let dotPath      = CGPath(ellipseIn: CGRect(x: -5, y: -5, width: 10, height: 10), transform: nil)
+    private static let hitDotPath   = CGPath(ellipseIn: CGRect(x: -6, y: -6, width: 12, height: 12), transform: nil)
+    private static let phantomTick  : CGPath = {
+        let p = CGMutablePath(); p.move(to: CGPoint(x: 0, y: -5)); p.addLine(to: CGPoint(x: 0, y: 5)); return p
+    }()
+    /// Alto con el que se construyeron las líneas verticales (rejilla/cabezal);
+    /// se rehace su `path` solo cuando cambia.
+    private var vlineHeight: CGFloat = -1
+    /// Ancho de imagen de la instrumental con el que están dimensionados los
+    /// sprites de la tira; evita setear `.size` cada frame.
+    private var lastStripImgW: CGFloat = -1
+
+    // Estado del último frame dibujado, para saltarse el redibujo si nada cambió.
+    private var lastRenderNow: Double = .nan
+    private var lastRenderTraceN = -1
+    private var lastRenderGridShift: Double = .nan
+    private var lastRenderAmplitude: CGFloat = -1
 
     // --- tira de la instrumental ---
     private var instrSprites: [SKSpriteNode] = []
@@ -241,6 +263,7 @@ final class PracticeScene: SKScene {
     private func rebuildInstrSprites() {
         instrSprites.forEach { $0.removeFromParent() }
         instrSprites = []
+        lastStripImgW = -1   // fuerza el redimensionado en el próximo `renderStrip`
         guard let img = instrumentalImage else { return }
         let tex = SKTexture(cgImage: img)
         tex.filteringMode = .linear
@@ -300,6 +323,18 @@ final class PracticeScene: SKScene {
         // el rail = el sample ENTERO, toda la franja de la autopista (0…hh). El
         // movimiento, dentro, llega solo hasta `amplitude` (por defecto 2/3).
         railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
+
+        // eje del rail: forma fija salvo al redimensionar (aquí, no cada frame)
+        let ax = CGMutablePath()
+        ax.move(to: CGPoint(x: railWidth / 2, y: 0))
+        ax.addLine(to: CGPoint(x: railWidth / 2, y: hh))
+        railAxis.path = ax
+        // marca de la aguja: línea horizontal local; el frame solo mueve su Y
+        if sampleMarker.path == nil {
+            let mk = CGMutablePath()
+            mk.move(to: .zero); mk.addLine(to: CGPoint(x: railWidth, y: 0))
+            sampleMarker.path = mk
+        }
         lastLaidOut = size
 
         // avisa del tamaño real de la autopista (para que el vídeo salga con la
@@ -317,7 +352,8 @@ final class PracticeScene: SKScene {
 
     override func update(_ currentTime: TimeInterval) {
         guard size.width > railWidth + 8, size.height > stripHeight + 8 else { return }
-        if size != lastLaidOut { layoutContainers() }
+        let didLayout = size != lastLaidOut
+        if didLayout { layoutContainers() }
 
         // medidor de fps: se alimenta SIEMPRE (para tener dato al encenderlo);
         // el texto solo se rehace ~5 veces/s y solo si el overlay esta visible.
@@ -341,6 +377,18 @@ final class PracticeScene: SKScene {
         // arriba) NO se mueve: es la referencia con la que hay que cuadrar.
         let rawNow = currentTick()
         let now = rawNow + gridShift
+
+        // Si NADA se ha movido (congelado, o el refresco va más rápido que el
+        // reloj) no rehacemos la geometría: SpriteKit sigue componiendo lo ya
+        // dibujado a coste casi cero.
+        let traceN = userTrace().count
+        if !didLayout, now == lastRenderNow, traceN == lastRenderTraceN,
+           gridShift == lastRenderGridShift, patternAmplitude == lastRenderAmplitude {
+            return
+        }
+        lastRenderNow = now; lastRenderTraceN = traceN
+        lastRenderGridShift = gridShift; lastRenderAmplitude = patternAmplitude
+
         let frame = layout?.frame(atTick: now, geometry: geometry)
 
         if let frame { renderHighway(frame, height: geometry.size.height) }
@@ -405,20 +453,21 @@ final class PracticeScene: SKScene {
         }
         if let c = cur { runs.append(c) }
 
-        ensurePool(&userPool, count: runs.count, into: userLayer)
+        ensureShapePool(&userPool, count: runs.count, into: userLayer) { n in
+            n.lineWidth = 3; n.lineJoin = .round; n.fillColor = .clear; n.position = .zero
+        }
         for (i, node) in userPool.enumerated() {
             guard i < runs.count, runs[i].pts.count >= 2 else { node.isHidden = true; continue }
             node.isHidden = false
-            node.position = .zero
             let path = CGMutablePath()
             path.addLines(between: runs[i].pts)
             node.path = path
-            node.strokeColor = runs[i].muted ? SKColor(XFColor.textMuted) : accentColor
-            node.lineWidth = 3
-            node.lineJoin = .round
-            node.fillColor = .clear
+            let c = runs[i].muted ? mutedTraceColor : accentColor
+            if node.strokeColor != c { node.strokeColor = c }
         }
     }
+
+    private let mutedTraceColor = SKColor(red: 0x9A/255, green: 0xA5/255, blue: 0xB1/255, alpha: 1)
 
     // MARK: - rejilla + cabezal de altura completa (tira + autopista)
 
@@ -430,35 +479,38 @@ final class PracticeScene: SKScene {
             pxPerTick: pxPerTick, ppq: max(1, patternPPQ),
             beatsPerBar: max(1, geometry.beatsPerBar))
 
-        // X locales a la autopista -> se desplazan por `railWidth` y van de
-        // y=0 a y=alto de escena (una linea unica atraviesa tira + autopista).
-        drawFullLines(pool: &fullBeatPool, xs: beats, color: gridBeatColor, width: 1)
-        drawFullLines(pool: &fullBarPool, xs: bars, color: gridBarColor, width: 2)
-
-        let p = CGMutablePath()
-        let px = (railWidth + playheadX).rounded()
-        p.move(to: CGPoint(x: px, y: 0))
-        p.addLine(to: CGPoint(x: px, y: size.height))
-        fullPlayhead.path = p
+        // Las líneas verticales tienen forma CONSTANTE (0→alto de escena): su
+        // `path` solo se rehace si cambia el alto; cada frame solo se mueven en X.
+        let h = size.height
+        if vlineHeight != h {
+            vlineHeight = h
+            let vp = Self.vline(h)
+            for n in fullBeatPool { n.path = vp }
+            for n in fullBarPool { n.path = vp }
+            fullPlayhead.path = vp
+        }
+        moveVLines(pool: &fullBeatPool, xs: beats, color: gridBeatColor, width: 1)
+        moveVLines(pool: &fullBarPool, xs: bars, color: gridBarColor, width: 2)
+        fullPlayhead.position = CGPoint(x: (railWidth + playheadX).rounded(), y: 0)
     }
 
-    private func drawFullLines(pool: inout [SKShapeNode], xs: [CGFloat],
-                               color: SKColor, width: CGFloat) {
+    private func moveVLines(pool: inout [SKShapeNode], xs: [CGFloat],
+                            color: SKColor, width: CGFloat) {
         while pool.count < xs.count {
             let n = SKShapeNode()
+            n.path = Self.vline(vlineHeight > 0 ? vlineHeight : size.height)
+            n.strokeColor = color
+            n.lineWidth = width
             fullGridLayer.addChild(n)
             pool.append(n)
         }
         for (i, n) in pool.enumerated() {
-            guard i < xs.count else { n.isHidden = true; continue }
-            n.isHidden = false
-            let path = CGMutablePath()
-            let x = (railWidth + xs[i]).rounded()
-            path.move(to: CGPoint(x: x, y: 0))
-            path.addLine(to: CGPoint(x: x, y: size.height))
-            n.path = path
-            n.strokeColor = color
-            n.lineWidth = width
+            if i < xs.count {
+                n.isHidden = false
+                n.position = CGPoint(x: (railWidth + xs[i]).rounded(), y: 0)
+            } else {
+                n.isHidden = true
+            }
         }
     }
 
@@ -479,58 +531,63 @@ final class PracticeScene: SKScene {
             }
         }
 
-        ensurePool(&bandPool, count: frame.faderBands.count, into: laneLayer)
+        // Bandas del carril (rectángulos): cambian de ancho cada frame, así que
+        // el `path` se rehace, pero los colores son constantes (solo al crear).
+        let laneH = geometry.laneHeight
+        ensureShapePool(&bandPool, count: frame.faderBands.count, into: laneLayer) { n in
+            n.fillColor = self.laneOpenColor; n.strokeColor = .clear
+        }
         for (i, node) in bandPool.enumerated() {
             guard i < frame.faderBands.count else { node.isHidden = true; continue }
             let band = frame.faderBands[i]
             node.isHidden = !band.isOpen
-            node.path = CGPath(rect: CGRect(x: band.xRange.lowerBound, y: 0,
-                                            width: band.xRange.upperBound - band.xRange.lowerBound,
-                                            height: geometry.laneHeight), transform: nil)
-            node.fillColor = laneOpenColor
-            node.strokeColor = .clear
+            if band.isOpen {
+                node.path = CGPath(rect: CGRect(x: band.xRange.lowerBound, y: 0,
+                                                width: band.xRange.upperBound - band.xRange.lowerBound,
+                                                height: laneH), transform: nil)
+            }
         }
 
-        let marks = frame.openMarks.map { ($0, false) } + frame.closeMarks.map { ($0, true) }
-        ensurePool(&markPool, count: marks.count, into: marksLayer)
-        for (i, node) in markPool.enumerated() {
-            guard i < marks.count else { node.isHidden = true; continue }
-            let (point, closes) = marks[i]
-            node.isHidden = false
-            node.position = point
-            node.path = CGPath(ellipseIn: CGRect(x: -5, y: -5, width: 10, height: 10), transform: nil)
-            node.fillColor = closes ? closeColor : .clear
-            node.strokeColor = closes ? closeColor : openColor
-            node.lineWidth = 2
+        // Marcas ○ (abre) y ● (cierra): forma y color CONSTANTES → solo `position`.
+        ensureShapePool(&openMarkPool, count: frame.openMarks.count, into: marksLayer) { n in
+            n.path = Self.dotPath; n.fillColor = .clear; n.strokeColor = self.openColor; n.lineWidth = 2
+        }
+        for (i, node) in openMarkPool.enumerated() {
+            if i < frame.openMarks.count { node.isHidden = false; node.position = frame.openMarks[i] }
+            else { node.isHidden = true }
+        }
+        ensureShapePool(&closeMarkPool, count: frame.closeMarks.count, into: marksLayer) { n in
+            n.path = Self.dotPath; n.fillColor = self.closeColor; n.strokeColor = self.closeColor; n.lineWidth = 2
+        }
+        for (i, node) in closeMarkPool.enumerated() {
+            if i < frame.closeMarks.count { node.isHidden = false; node.position = frame.closeMarks[i] }
+            else { node.isHidden = true }
         }
 
-        ensurePool(&phantomPool, count: frame.phantomMarks.count, into: phantomLayer)
+        // Phantom clicks: tick vertical CONSTANTE.
+        ensureShapePool(&phantomPool, count: frame.phantomMarks.count, into: phantomLayer) { n in
+            n.path = Self.phantomTick; n.strokeColor = self.phantomColor; n.fillColor = .clear; n.lineWidth = 2
+        }
         for (i, node) in phantomPool.enumerated() {
-            guard i < frame.phantomMarks.count else { node.isHidden = true; continue }
-            node.isHidden = false
-            node.position = frame.phantomMarks[i]
-            let p = CGMutablePath()
-            p.move(to: CGPoint(x: 0, y: -5))
-            p.addLine(to: CGPoint(x: 0, y: 5))
-            node.path = p
-            node.strokeColor = phantomColor
-            node.fillColor = .clear
-            node.lineWidth = 2
+            if i < frame.phantomMarks.count { node.isHidden = false; node.position = frame.phantomMarks[i] }
+            else { node.isHidden = true }
         }
 
         // la traza del usuario la pinta `renderUserTrace` (mapeo lineal propio,
         // sin techo), no esta capa.
 
-        ensurePool(&hitPool, count: frame.hitMarks.count, into: hitLayer)
+        // Hit marks: forma CONSTANTE; el color sí varía con el nivel de acierto.
+        ensureShapePool(&hitPool, count: frame.hitMarks.count, into: hitLayer) { n in
+            n.path = Self.hitDotPath; n.lineWidth = 2
+        }
         for (i, node) in hitPool.enumerated() {
             guard i < frame.hitMarks.count else { node.isHidden = true; continue }
             let mark = frame.hitMarks[i]
             node.isHidden = false
             node.position = mark.point
-            node.path = CGPath(ellipseIn: CGRect(x: -6, y: -6, width: 12, height: 12), transform: nil)
-            node.strokeColor = color(for: mark.level)
-            node.fillColor = mark.closes ? color(for: mark.level) : .clear
-            node.lineWidth = 2
+            let c = color(for: mark.level)
+            node.strokeColor = c
+            node.fillColor = mark.closes ? c : .clear
         }
         _ = h
     }
@@ -541,17 +598,15 @@ final class PracticeScene: SKScene {
     }
 
     private func drawDiscSegments(_ segments: [[CGPoint]]) {
-        ensurePool(&curvePool, count: segments.count, into: curveLayer)
+        ensureShapePool(&curvePool, count: segments.count, into: curveLayer) { n in
+            n.strokeColor = self.ghostColor; n.lineWidth = 3; n.lineJoin = .round; n.fillColor = .clear
+        }
         for (i, node) in curvePool.enumerated() {
             guard i < segments.count, segments[i].count >= 2 else { node.isHidden = true; continue }
             node.isHidden = false
             let path = CGMutablePath()
             path.addLines(between: segments[i])
             node.path = path
-            node.strokeColor = ghostColor
-            node.lineWidth = 3
-            node.lineJoin = .round
-            node.fillColor = .clear
         }
     }
 
@@ -567,9 +622,11 @@ final class PracticeScene: SKScene {
         var phase = now.truncatingRemainder(dividingBy: loop)
         if phase < 0 { phase += loop }
         let baseX = playheadX - CGFloat(phase) * pxPerTick
+        let resize = imgW != lastStripImgW
+        if resize { lastStripImgW = imgW }
         for (i, s) in instrSprites.enumerated() {
             s.position = CGPoint(x: baseX + CGFloat(i - 1) * imgW, y: stripHeight / 2)
-            s.size = CGSize(width: imgW, height: stripHeight)
+            if resize { s.size = CGSize(width: imgW, height: stripHeight) }
         }
     }
 
@@ -604,31 +661,22 @@ final class PracticeScene: SKScene {
 
     private func renderRail(_ frame: HighwayFrame?) {
         // el rail = el SAMPLE ENTERO, toda la franja de la autopista (0…hh). El
-        // slider de amplitud solo cambia hasta donde llega el MOVIMIENTO dentro,
-        // no estira ni encoge el sample de aqui.
+        // eje y la marca tienen forma FIJA (se crean en `layoutContainers`); aquí
+        // solo se mueve la aguja en Y y se recoloca el sprite si cambió de tamaño.
         let hh = highwayHeight
 
-        let ax = CGMutablePath()
-        ax.move(to: CGPoint(x: railWidth / 2, y: 0))
-        ax.addLine(to: CGPoint(x: railWidth / 2, y: hh))
-        railAxis.path = ax
-
         if let s = sampleSprite {
-            // pre-giro: el eje largo (tiempo) mide el alto de la zona; el corto,
-            // el ancho del rail. Con `zRotation = .pi/2` queda vertical.
-            s.position = CGPoint(x: railWidth / 2, y: hh / 2)
-            s.size = CGSize(width: hh, height: railWidth)
+            let target = CGSize(width: hh, height: railWidth)
+            if s.size != target { s.size = target }
+            let pos = CGPoint(x: railWidth / 2, y: hh / 2)
+            if s.position != pos { s.position = pos }
         }
 
         // la aguja sigue al TEAL: misma Y que la traza del usuario bajo el
         // cabezal (mismo `traceY`), y sube por encima del rail si el plato se
-        // pasa del final del sample ("infinito"). Si aun no hay traza, la del
-        // fantasma. Se recorta a la banda del rail solo por abajo.
+        // pasa del final del sample. Si aun no hay traza, la del fantasma.
         let y = min(size.height, max(-4, railMarkerY(frame, fallback: hh / 2)))
-        let mk = CGMutablePath()
-        mk.move(to: CGPoint(x: 0, y: y))
-        mk.addLine(to: CGPoint(x: railWidth, y: y))
-        sampleMarker.path = mk
+        sampleMarker.position = CGPoint(x: 0, y: y)
     }
 
     private func railMarkerY(_ frame: HighwayFrame?, fallback: CGFloat) -> CGFloat {
@@ -651,5 +699,22 @@ final class PracticeScene: SKScene {
             pool.append(node)
             parent.addChild(node)
         }
+    }
+
+    /// Como `ensurePool` pero `onCreate` corre UNA vez por nodo nuevo: ahí se fija
+    /// la forma y los colores constantes, para que el frame solo mueva `position`.
+    private func ensureShapePool(_ pool: inout [SKShapeNode], count: Int,
+                                 into parent: SKNode, onCreate: (SKShapeNode) -> Void) {
+        while pool.count < count {
+            let node = SKShapeNode()
+            onCreate(node)
+            pool.append(node)
+            parent.addChild(node)
+        }
+    }
+
+    /// Línea vertical local `(0,0)→(0,h)` para rejilla / cabezal (se mueven por X).
+    private static func vline(_ h: CGFloat) -> CGPath {
+        let p = CGMutablePath(); p.move(to: .zero); p.addLine(to: CGPoint(x: 0, y: h)); return p
     }
 }
