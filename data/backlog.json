@@ -897,7 +897,8 @@
           "title": "Verificar binario universal x86_64 + arm64 en las dos maquinas",
           "module": "-",
           "status": "todo",
-          "acceptance": "PLATFORM_SUPPORT.md seccion 9 completa; ADR-028 no se relaja"
+          "acceptance": "PLATFORM_SUPPORT.md seccion 9 completa; ADR-028 no se relaja",
+          "note": "Esta maquina OK (2026-09-03): make universal -> Build succeeded, lipo -archs .build/apple/Products/Release/xFlare = x86_64 arm64. El .app de make dmg REL=1 da Mach-O universal (x86_64 arm64). Falta la corrida de lipo en la segunda maquina (si es Intel, el slice arm64 no lo prueba nadie en hardware -> nota de release)."
         },
         {
           "id": "B12a.3",
@@ -913,14 +914,15 @@
           "module": "-",
           "acceptance": "-",
           "status": "wip",
-          "note": "Hecho (2026-09-02): make dmg -> hdiutil create -format UDZO sobre staging con xFlare.app + enlace a /Applications. Sin fondo/layout (eso es B12b.2). Sale xFlare-<version>.dmg (~43 MB), monta y trae el bundle completo. El binario de Releases se compila antes con make universal (el de make app es debug x86_64). Falta: publicar en GitHub Releases (manual/CI). Al cerrarlo, marcar B12a.0 hecho."
+          "note": "make dmg: hdiutil create -format UDZO sobre staging con xFlare.app + enlace a /Applications. make dmg REL=1 empaqueta el binario RELEASE UNIVERSAL (verificado: el .app del DMG da Mach-O universal (x86_64 arm64), Signature=adhoc). xFlare-<version>.dmg ~45 MB. Falta: publicar en GitHub Releases (manual/CI, docs/RELEASE.md). Al cerrarlo, marcar B12a.0."
         },
         {
           "id": "B12a.5",
           "title": "Nota de release: rodeo de Gatekeeper + enlace al tag del fuente (GPL-3.0)",
           "module": "-",
           "acceptance": "-",
-          "status": "todo"
+          "status": "done",
+          "note": "docs/RELEASE.md: lista pre-flight, como construir (make universal + make dmg REL=1), como publicar (gh release create), y la plantilla del texto de la nota con el rodeo de Gatekeeper (clic derecho > Abrir / xattr -dr com.apple.quarantine) y el enlace al tag exacto del fuente (GPL-3.0)."
         },
         {
           "id": "B12a.6",

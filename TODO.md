@@ -436,23 +436,31 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (`icon/xflare.icns`, se genera de `xflare.svg` si falta).
 - [ ] **B12a.2** Verificar binario universal `x86_64 + arm64` en las dos maquinas
       - Criterio: PLATFORM_SUPPORT.md seccion 9 completa. ADR-028 no se relaja.
-      - `make universal` + `make archs` (`lipo -archs`) ya lo comprueba en esta
-        maquina; falta la corrida en la segunda (si la hay).
+      - **Esta maquina OK (2026-09-03):** `make universal` -> `Build succeeded`,
+        `lipo -archs .build/apple/Products/Release/xFlare` = `x86_64 arm64`. El
+        `.app` dentro de `make dmg REL=1` da `Mach-O universal (x86_64 arm64)`.
+      - **Falta**: la corrida de `lipo` en la segunda maquina (si la hay). Si es
+        Intel tambien, el slice `arm64` no lo prueba nadie en hardware -> decirlo
+        en la nota de release (ya esta en el README).
 - [x] **B12a.3** Firma ad-hoc (`codesign -s -`)
       - Hecho: `make app` hace `codesign --force --deep --sign - xFlare.app`;
         `make dmg` re-firma el `.dmg`. Verificado: `codesign -dv` da
         `flags=0x2(adhoc)`.
 - [~] **B12a.4** Script de empaquetado + DMG plano con el `.app` dentro
-      - Hecho (2026-09-02): `make dmg` — `hdiutil create ... -format UDZO` sobre
-        un staging con `xFlare.app` + enlace a `/Applications`. Sin fondo ni
-        layout (eso es B12b.2). Sale `xFlare-<version>.dmg` (~43 MB), monta y
-        contiene el bundle completo. El binario que se sube a Releases se compila
-        antes con `make universal` (el de `make app` es debug x86_64).
-      - **Falta**: publicarlo en GitHub Releases (acción manual / CI).
+      - Hecho (2026-09-02/03): `make dmg` — `hdiutil create ... -format UDZO`
+        sobre un staging con `xFlare.app` + enlace a `/Applications`. Sin fondo
+        ni layout (eso es B12b.2). **`make dmg REL=1`** empaqueta el binario
+        RELEASE UNIVERSAL (verificado: el `.app` del DMG da `Mach-O universal
+        (x86_64 arm64)`, `Signature=adhoc`). `xFlare-<version>.dmg` ~45 MB.
+      - **Falta**: publicarlo en GitHub Releases (acción manual / CI, ver
+        `docs/RELEASE.md` §3).
       - Al cerrarlo del todo, marcar B12a.0 como hecho.
-- [ ] **B12a.5** Nota de release
-      - Rodeo de Gatekeeper (clic derecho -> Abrir, o `xattr -dr com.apple.quarantine xFlare.app`).
-      - GPL-3.0: enlazar el tag exacto del fuente correspondiente.
+- [x] **B12a.5** Nota de release
+      - Hecho (2026-09-03): `docs/RELEASE.md` — lista de comprobación pre-flight,
+        cómo construir (`make universal` + `make dmg REL=1`), cómo publicar
+        (`gh release create`), y la **plantilla del texto de la nota** con el
+        rodeo de Gatekeeper (clic derecho → Abrir / `xattr -dr
+        com.apple.quarantine`) y el enlace al tag exacto del fuente (GPL-3.0).
 - [ ] **B12a.6** README publico, capturas, video de 30 s
 - [ ] **B12a.7** 5 DJs probandolo y sus notas
       - Criterio: el examen de verdad

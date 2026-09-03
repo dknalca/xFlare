@@ -49,9 +49,21 @@ run:
 # Abrir > Abrir. Copia `data/` y `profiles/` a Contents/Resources para que el
 # `.app` funcione sin el repo delante (BundleContentLoader). Firma ad-hoc para
 # que arranque en Apple Silicon.
-app: build
-	@BIN=$$($(DEVTC) swift build --show-bin-path)/xFlare; \
-	test -x "$$BIN" || (echo "  no se encuentra el binario xFlare"; exit 1); \
+#
+# `make app`         -> binario DEBUG (rapido, para probar el flujo).
+# `make app REL=1`   -> binario RELEASE UNIVERSAL (x86_64 + arm64, Xcode 14.2).
+#                       Es el que se publica; lo consume `make dmg REL=1`.
+app:
+	@if [ -n "$(REL)" ]; then \
+	  echo "  build RELEASE universal (x86_64 + arm64)..."; \
+	  swift build -c release --arch x86_64 --arch arm64; \
+	  BIN="$$(swift build -c release --arch x86_64 --arch arm64 --show-bin-path)/xFlare"; \
+	else \
+	  $(DEVTC) swift build; \
+	  BIN="$$($(DEVTC) swift build --show-bin-path)/xFlare"; \
+	fi; \
+	test -x "$$BIN" || (echo "  no se encuentra el binario xFlare en $$BIN"; exit 1); \
+	echo "  binario: $$BIN  ($$(lipo -archs "$$BIN" 2>/dev/null || echo '?'))"; \
 	rm -rf xFlare.app; \
 	mkdir -p xFlare.app/Contents/MacOS xFlare.app/Contents/Resources; \
 	cp "$$BIN" xFlare.app/Contents/MacOS/xFlare; \
@@ -87,8 +99,9 @@ app: build
 
 # DMG PLANO con el .app dentro (B12a.4). Sin fondo ni layout estilado (eso es
 # B12b.2, pospuesto). Solo xFlare.app + un enlace a /Applications para arrastrar.
-# El artefacto que se sube a Releases se compila antes con `make universal`
-# (ADR-023); esto empaqueta el .app que haya (por defecto el de `make app`).
+#
+# `make dmg`         -> empaqueta el .app DEBUG (para probar el flujo).
+# `make dmg REL=1`   -> el .app RELEASE UNIVERSAL. Es el que se sube a Releases.
 dmg: app
 	@command -v hdiutil >/dev/null 2>&1 || (echo "  hdiutil no disponible (no es macOS?)"; exit 1); \
 	VER=$$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' xFlare.app/Contents/Info.plist 2>/dev/null || echo 0.1); \
