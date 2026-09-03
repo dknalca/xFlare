@@ -48,6 +48,11 @@ public struct LivePracticeView: View {
     // guarda la duración real para recalcular el BPM al cambiar N (botones −/+).
     @State private var instrLoopBars: Int?
     @State private var instrFileSeconds: Double = 0
+    // BPM de la base a mano: TAP tempo (`TapTempo` puro) y edición directa del
+    // número. La detección afina bien pero no siempre clava; esto lo remata.
+    @State private var tap = TapTempo()
+    @State private var editingBPM = false
+    @State private var bpmText = ""
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
@@ -548,8 +553,28 @@ public struct LivePracticeView: View {
             .buttonStyle(.plain)
 
             HStack(spacing: 5) {
-                Text("\(session.bpm) BPM").font(XFFont.mono(12)).foregroundColor(XFColor.accent)
+                // pinchar el número -> editarlo a mano
+                if editingBPM {
+                    TextField("BPM", text: $bpmText, onCommit: {
+                        if let v = Int(bpmText.trimmingCharacters(in: .whitespaces)) {
+                            setInstrumentalBPM(v)
+                        }
+                        editingBPM = false
+                    })
+                    .textFieldStyle(.roundedBorder)
+                    .font(XFFont.mono(12))
+                    .frame(width: 54)
+                } else {
+                    Button {
+                        bpmText = "\(session.bpm)"
+                        editingBPM = true
+                    } label: {
+                        Text("\(session.bpm) BPM").font(XFFont.mono(12)).foregroundColor(XFColor.accent)
+                    }
+                    .buttonStyle(.plain)
+                }
                 Spacer(minLength: 0)
+                chip("TAP") { if let bpm = tap.tap() { setInstrumentalBPM(bpm) } }
                 chip("÷2") { retempo(0.5) }
                 chip("×2") { retempo(2.0) }
             }
@@ -834,6 +859,30 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: loop.bpm)
         session.resyncClock()
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
+        gridShift = 0
+    }
+
+    /// Fija el BPM de la rejilla a mano (TAP o edición del número). La base se
+    /// sigue oyendo a su velocidad natural: lo que cambia es cómo se cuadricula,
+    /// igual que ÷2/×2 pero a un valor cualquiera. El metrónomo y el "1" se
+    /// realinean. En modo loop se traduce al nº de compases más cercano.
+    private func setInstrumentalBPM(_ target: Int) {
+        let clamped = min(220, max(40, target))
+        if instrLoopBars != nil, instrFileSeconds > 0.01 {
+            let bpb = Double(geometry.beatsPerBar)
+            let bars = Int((Double(clamped) * instrFileSeconds / (bpb * 60.0)).rounded())
+            relockLoop(bars: max(1, bars))
+            return
+        }
+        let old = Double(max(1, session.bpm))
+        session.setBPM(clamped)
+        let factor = Double(session.bpm) / old
+        instrLoopTicks *= factor
+        session.setInstrumentalLoopTicks(instrLoopTicks)
+        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
+        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        session.resyncClock()
         engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
         gridShift = 0
     }

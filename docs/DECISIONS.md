@@ -2187,6 +2187,13 @@ sigue con la detección normal. Rotar el PCM a la fase del "1" se omite para loo
 (se asume que empiezan en su "1", como todo loop bien hecho) — así no se mete una
 costura en el punto de wrap.
 
+> **Añadido (2026-09-03).** Como la detección "afina pero no clava", el BPM de la
+> base se remata a mano: botón **TAP** (`TapTempo`, puro y testeado) que promedia
+> los últimos intervalos, y pinchar el número lo abre para escribirlo. Ambos van
+> por `setInstrumentalBPM`, que reinterpreta la rejilla como ÷2/×2 pero a un
+> valor cualquiera y realinea metrónomo y "1"; en modo loop lo traduce al nº de
+> compases entero más cercano.
+
 ---
 
 ## ADR-061 — EQ de 3 bandas sobre el sample de scratch + limpieza del hilo RT (2026-09-03)
