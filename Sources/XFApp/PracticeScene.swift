@@ -54,6 +54,11 @@ final class PracticeScene: SKScene {
     /// rejilla a la izquierda, `-` a la derecha.
     var gridShift: Double = 0
 
+    /// Se llama (en el hilo principal) con el tamaño de la **zona de autopista**
+    /// cada vez que se recalcula el encuadre. Lo usa `LivePracticeView` para
+    /// exportar el vídeo con la misma proporción que la ventana.
+    var onHighwaySize: ((CGSize) -> Void)?
+
     /// Parametros de encuadre de la autopista. `size` lo fija la escena segun el
     /// tamano real de la vista menos el rail y la tira; el resto (pixelsPerBeat,
     /// playheadFraction, beatsPerBar, laneHeight...) lo pone `PracticeSceneView`.
@@ -279,6 +284,11 @@ final class PracticeScene: SKScene {
         // movimiento, dentro, llega solo hasta `amplitude` (por defecto 2/3).
         railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
         lastLaidOut = size
+
+        // avisa del tamaño real de la autopista (para que el vídeo salga con la
+        // misma proporción que la ventana, no estirado)
+        let highwaySize = geometry.size
+        DispatchQueue.main.async { [weak self] in self?.onHighwaySize?(highwaySize) }
     }
 
     override func didChangeSize(_ oldSize: CGSize) {

@@ -2003,30 +2003,60 @@ sección `[transport]` de la Rane 72 va **comentada** (números sin verificar). 
 
 ---
 
-## ADR-055 — Miniatura TTM: cortes del flare en una horizontal (feedback 2026-09-03)
+## ADR-055 — Miniatura TTM: curva entera coloreada, sin puntos (feedback 2026-09-03)
 
 **Fecha:** 2026-09-03 · **Estado:** aceptada · complementa ADR-050
 
-**Contexto.** En Home los ● de corte se colocaban en una fila flotante cerca del
-borde superior y con el radio del punto se salían del cuadro. Además para el
-flare el autor quiere leerlos "en la misma horizontal y simétricos", como en la
-*Periodic Matrix of Skratches*, y para el chirp "en el vértice".
+**Contexto.** Los ● de corte se colocaban con reglas por familia (flare en
+horizontal, chirp en el vértice, resto sobre la curva). Seguían saliéndose del
+cuadro en `tear-flare-1c` y `crab`, y las reglas eran frágiles. El autor propuso
+otra representación: dibujar la curva entera y **colorear** los tramos en vez de
+marcar puntos.
 
-**Decisión.** `TTMThumbnail.build` coloca los ● según la familia: **flare / orbit
-/ crab** → todos a una misma `y` (media de las alturas reales, recortada a
-0.18–0.82) y `x` forzada simétrica respecto al centro; **chirp** → un único ● en
-el punto más alto de la curva (con un pelín de margen para no comerse el borde);
-**resto** (cut, transformer, tear) → el ● se queda sobre la curva, donde deja de
-sonar. Los tramos mudos siguen sin dibujarse (ADR-050).
+**Decisión.** `TTMThumbnail` pasa a ser una lista de `Segment` (`points` +
+`sounding`). `build` muestrea el ciclo entero y parte la curva en tramos por los
+cambios de fader, compartiendo el punto de unión (curva contigua, sin huecos).
+`TTMThumbnailView` pinta los tramos que suenan (fader abierto) en color vivo
+(`XFColor.text`, trazo 1.6) y los cortados en gris apagado
+(`XFColor.textMuted @ 0.4`, trazo 1.2). Sin ●. La `y` se normaliza con un 8 % de
+margen para que el trazo no toque el borde. En Home, un recuadro a la derecha
+explica cómo leerlo.
 
-**Alternativas descartadas.** Dejar los ● sobre la curva también en el flare: el
-gesto no es exactamente simétrico en el tiempo (los cierres se anotan por evento,
-no por fracción de trazo), así que quedaban a alturas distintas y no se leía el
-patrón de un vistazo.
+**Alternativas descartadas.**
+- *Puntos ● con reglas por familia* (ADR-055 v1): frágil y se salían del cuadro.
+- *Ocultar los tramos mudos* (ADR-050): el autor prefiere ver el silencio como
+  curva en otro color, no como ausencia.
+- *Rojo para el corte*: descartado por sobrio; el gris apagado no grita "error".
 
-**Consecuencias.** La miniatura del flare comunica "toca-corta-toca-corta" al
-instante. El ● del flare ya no está literalmente sobre la curva (es una
-convención de dibujo, no una medida). Ningún punto se sale del cuadro.
+**Consecuencias.** Una sola convención para todas las familias. El vértice del
+movimiento siempre se ve arriba (es la curva de verdad). Nada se sale del cuadro.
+`tear-flare-1c` y `crab` quedan bien sin código especial. El `Forward Cut` /
+`Stab` vuelven a dibujar la vuelta, ahora en gris (corte), no como hueco.
+
+---
+
+## ADR-056 — El vídeo de la toma sale con la proporción de la ventana (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada · complementa ADR-026 (F.4)
+
+**Contexto.** `TakeVideoExporter` forzaba 1080×1920 (9:16) sobre un layout de
+autopista apaisado (~1000×380). El `render` escala el layout al tamaño del vídeo,
+así que todo salía estirado ~5× en vertical y "se veía mal".
+
+**Decisión.** `Options.width/height` pasan a ser opcionales. Si no se dan,
+`Options.pixelSize(for:)` deriva la resolución de la geometría de la autopista
+(misma proporción, lado mayor = `longSide`, 1600 por defecto), con los dos lados
+redondeados a par (lo pide H.264). `PracticeScene` reporta el tamaño real de la
+zona de autopista (`onHighwaySize`) y `LivePracticeView` lo usa al exportar, así
+el vídeo sale con **la proporción exacta de la ventana** en ese momento.
+
+**Alternativas descartadas.** Mantener 9:16 y encajar la autopista con barras:
+desperdicia la mayor parte del cuadro y el gesto se ve diminuto. Un tamaño fijo
+apaisado (p. ej. 1600×600): mejor que 9:16 pero no sigue a la ventana.
+
+**Consecuencias.** El vídeo se parece a lo que el usuario ve. La resolución ya no
+es constante entre tomas (depende de la ventana); a cambio, nada se estira. Los
+tests que fijan `width`/`height` explícitos siguen valiendo.
 
 ---
 

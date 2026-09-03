@@ -26,6 +26,9 @@ struct PracticeSceneView: NSViewRepresentable {
     let patternAmplitude: CGFloat
     /// Desplazamiento manual de la rejilla en ticks (botones ◀/▶).
     let gridShift: Double
+    /// Se llama con el tamaño real de la zona de autopista (para exportar el
+    /// vídeo con la proporción de la ventana).
+    var onHighwaySize: (CGSize) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
@@ -62,6 +65,7 @@ struct PracticeSceneView: NSViewRepresentable {
         s.patternAmplitude = patternAmplitude
         s.gridShift = gridShift
         s.geometry = geometry            // `size` lo sobrescribe la escena
+        s.onHighwaySize = onHighwaySize
         s.patternPPQ = scratch.ppq
         s.patternLengthTicks = max(1, scratch.lengthTicks)
         s.instrumentalLoopTicks = max(1, instrumentalLoopTicks)

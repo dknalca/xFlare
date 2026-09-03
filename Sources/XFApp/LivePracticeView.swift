@@ -50,6 +50,9 @@ public struct LivePracticeView: View {
     // Pantalla de carga (logo + cita) mientras decodifica sample + instrumental.
     @State private var loading = true
     @State private var quote = ""
+    // Tamaño real de la autopista en pantalla, para exportar el vídeo con la
+    // misma proporción que la ventana (lo reporta `PracticeScene`).
+    @State private var highwaySize: CGSize = .zero
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -139,7 +142,8 @@ public struct LivePracticeView: View {
                         // amplitud 2/3 la escala es 1 (pico a 2/3), con 1.0 -> 1.5
                         // (pico arriba del todo). La traza del usuario no se toca.
                         patternAmplitude: CGFloat(amplitude),
-                        gridShift: gridShift)
+                        gridShift: gridShift,
+                        onHighwaySize: { highwaySize = $0 })
                     PlatterInputView(
                         onScroll: { s.scrollBy($0) },
                         onNudge: { s.nudge(forward: $0) },
@@ -508,7 +512,11 @@ public struct LivePracticeView: View {
         guard panel.runModal() == .OK, let url = panel.url else { return }
         exportingVideo = true
         videoProgress = 0
-        let sc = scratch, g = geometry
+        let sc = scratch
+        // el vídeo sale con la MISMA proporción que la autopista en pantalla
+        // (si aún no se ha reportado, cae a la geometría nominal).
+        var g = geometry
+        if highwaySize.width > 1, highwaySize.height > 1 { g.size = highwaySize }
         let pcm = engine?.scratchPCMCopy()
         let instr = engine?.instrumentalPCMCopy()
         TakeVideoExporter.export(session: rec, scratch: sc, geometry: g,

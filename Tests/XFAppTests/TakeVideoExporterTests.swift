@@ -54,6 +54,27 @@ final class TakeVideoExporterTests: XCTestCase {
         XCTAssertEqual(zip(plan, plan.dropFirst()).allSatisfy { $1 > $0 }, true)
     }
 
+    func testResolucionPorDefectoEsProporcionalALaGeometria() {
+        // sin width/height -> misma proporción que la ventana (no estirado a 9:16)
+        let o = TakeVideoExporter.Options()          // longSide = 1600
+        let g = HighwayGeometry(size: CGSize(width: 1000, height: 380))
+        let px = o.pixelSize(for: g)
+
+        XCTAssertEqual(Int(px.width), 1600, "el lado mayor manda")
+        XCTAssertEqual(Double(px.height / px.width), 380.0 / 1000.0, accuracy: 0.005,
+                       "misma proporción que g.size")
+        XCTAssertEqual(Int(px.width) % 2, 0)
+        XCTAssertEqual(Int(px.height) % 2, 0, "lados pares para H.264")
+    }
+
+    func testResolucionExplicitaSeRespeta() {
+        var o = TakeVideoExporter.Options()
+        o.width = 271; o.height = 480                 // impar a propósito
+        let px = o.pixelSize(for: HighwayGeometry(size: CGSize(width: 1000, height: 380)))
+        XCTAssertEqual(Int(px.width), 270, "redondea a par hacia abajo")
+        XCTAssertEqual(Int(px.height), 480)
+    }
+
     func testTraceVaEnTicksCrecientesYRespetaLaPosicion() {
         let s = fakeSession(n: 20, seconds: 1, bpm: 120)
         let tr = TakeVideoExporter.trace(from: s, ppq: 480)

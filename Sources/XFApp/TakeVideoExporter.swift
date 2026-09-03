@@ -9,21 +9,41 @@ import XFClock
 import XFCapture
 import XFDesign   // HitLevel
 
-/// F.4 — exporta una toma grabada (`.xfsession`) como **vídeo vertical 9:16**
-/// para compartir: la autopista con el patrón fantasma y **tu línea** encima,
-/// animada al tempo de la toma. Sin audio en esta versión (necesita un render
-/// offline del motor; ver `TODO.md` F.4).
+/// F.4 — exporta una toma grabada (`.xfsession`) como vídeo para compartir: la
+/// autopista con el patrón fantasma y **tu línea** encima, animada al tempo de la
+/// toma, **con el audio** (el `xf_engine` reproducido offline siguiendo el
+/// movimiento grabado). El vídeo sale con la **misma proporción que la ventana
+/// de práctica** (`Options.pixelSize(for:)`), no estirado a 9:16.
 ///
 /// Todo lo puro (plan de fotogramas, conversión de la traza, rasterizado de un
 /// `HighwayFrame`) es testeable; el `AVAssetWriter` es glue de plataforma.
 enum TakeVideoExporter {
 
     struct Options {
-        var width = 1080
-        var height = 1920
+        /// Resolución del vídeo en píxeles. `nil` = **proporcional a la geometría
+        /// de la autopista** (`longSide` marca el lado mayor). Antes se forzaba
+        /// 1080×1920 vertical sobre un layout apaisado y todo salía estirado.
+        var width: Int? = nil
+        var height: Int? = nil
+        /// Lado mayor del vídeo cuando la resolución se deriva de la geometría.
+        var longSide: Int = 1600
         var fps = 30
         /// Ticks de cola tras el final del patrón (1 negra por defecto).
         var leadOutTicks: Double = 480
+
+        /// Tamaño final: el explícito si se dio `width` **y** `height`; si no,
+        /// uno con la misma proporción que `g.size` y el lado mayor = `longSide`.
+        /// Los dos lados se redondean a par (lo pide el codec H.264).
+        func pixelSize(for g: HighwayGeometry) -> CGSize {
+            if let w = width, let h = height {
+                return CGSize(width: even(w), height: even(h))
+            }
+            let gw = max(1, g.size.width), gh = max(1, g.size.height)
+            let scale = CGFloat(longSide) / max(gw, gh)
+            return CGSize(width: even(Int((gw * scale).rounded())),
+                          height: even(Int((gh * scale).rounded())))
+        }
+        private func even(_ v: Int) -> Int { let n = max(2, v); return n - (n % 2) }
     }
 
     enum ExportError: Error { case sessionEmpty, writer, render }
@@ -189,18 +209,20 @@ enum TakeVideoExporter {
                                    geometry g: HighwayGeometry, options o: Options,
                                    ticks: [Double], to dst: URL,
                                    progress: (Double) -> Void) throws {
+        let size = o.pixelSize(for: g)
+        let pw = Int(size.width), ph = Int(size.height)
         let writer = try AVAssetWriter(outputURL: dst, fileType: .mp4)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
             AVVideoCodecKey: AVVideoCodecType.h264,
-            AVVideoWidthKey: o.width, AVVideoHeightKey: o.height,
+            AVVideoWidthKey: pw, AVVideoHeightKey: ph,
         ])
         input.expectsMediaDataInRealTime = false
         let adaptor = AVAssetWriterInputPixelBufferAdaptor(
             assetWriterInput: input,
             sourcePixelBufferAttributes: [
                 kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                kCVPixelBufferWidthKey as String: o.width,
-                kCVPixelBufferHeightKey as String: o.height,
+                kCVPixelBufferWidthKey as String: pw,
+                kCVPixelBufferHeightKey as String: ph,
             ])
         guard writer.canAdd(input) else { throw ExportError.writer }
         writer.add(input)
@@ -209,7 +231,7 @@ enum TakeVideoExporter {
 
         let layout = HighwayLayout(scratch: scratch)
         let fullTrace = trace(from: session, ppq: scratch.ppq)
-        let px = CGSize(width: o.width, height: o.height)
+        let px = size
         // ventana de traza visible: pasado reciente hasta "ahora". Sin esto se
         // pintaba la linea entera desde el fotograma 1 y el video parecia una
         // foto larga desplazandose, no una captura en vivo.

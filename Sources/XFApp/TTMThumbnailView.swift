@@ -4,11 +4,16 @@ import SwiftUI
 import XFDesign
 
 /// Dibuja una `TTMThumbnail` escalada al tamaño disponible: la curva del disco
-/// **solo donde suena** (tramos con el fader abierto) y un **círculo relleno ●**
-/// por cada corte, alineados en una fila arriba (la "pista de fader" del TTM).
+/// **entera**, con los tramos que suenan (fader abierto) en color vivo y los
+/// tramos cortados (fader cerrado) en gris apagado. Sin puntos.
 struct TTMThumbnailView: View {
 
     let thumbnail: TTMThumbnail
+
+    /// Color de los tramos que suenan.
+    var soundingColor: Color = XFColor.text
+    /// Color de los tramos cortados / en silencio.
+    var mutedColor: Color = XFColor.textMuted.opacity(0.4)
 
     var body: some View {
         GeometryReader { geo in
@@ -16,30 +21,28 @@ struct TTMThumbnailView: View {
             let h = geo.size.height
 
             ZStack {
-                // curva del disco (y invertida: 1 = arriba), un trazo por tramo
-                // que suena; el hueco mudo no se dibuja
-                Path { path in
-                    for seg in thumbnail.segments where seg.count >= 2 {
-                        path.move(to: CGPoint(x: seg[0].x * w, y: (1 - seg[0].y) * h))
-                        for c in seg.dropFirst() {
-                            path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
-                        }
-                    }
-                }
-                .stroke(XFColor.textMuted,
-                        style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
-
-                // cortes: círculos rellenos ● en una fila cerca del borde superior
-                Path { path in
-                    let r: CGFloat = 2.6
-                    for c in thumbnail.cuts {
-                        let p = CGPoint(x: c.x * w, y: (1 - c.y) * h)
-                        path.addEllipse(in: CGRect(x: p.x - r, y: p.y - r, width: r * 2, height: r * 2))
-                    }
-                }
-                .fill(XFColor.accent)
+                // un trazo por grupo de estado (y invertida: 1 = arriba)
+                path(for: false, w: w, h: h)
+                    .stroke(mutedColor,
+                            style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+                path(for: true, w: w, h: h)
+                    .stroke(soundingColor,
+                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
             }
         }
         .accessibilityHidden(true)   // decorativo; el nombre ya nombra el truco
+    }
+
+    /// Une en un solo `Path` todos los tramos con el estado `sounding` pedido.
+    private func path(for sounding: Bool, w: CGFloat, h: CGFloat) -> Path {
+        Path { path in
+            for seg in thumbnail.segments where seg.sounding == sounding && seg.points.count >= 2 {
+                let pts = seg.points
+                path.move(to: CGPoint(x: pts[0].x * w, y: (1 - pts[0].y) * h))
+                for c in pts.dropFirst() {
+                    path.addLine(to: CGPoint(x: c.x * w, y: (1 - c.y) * h))
+                }
+            }
+        }
     }
 }
