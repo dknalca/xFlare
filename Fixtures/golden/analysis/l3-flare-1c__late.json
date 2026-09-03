@@ -1,0 +1,17 @@
+{
+  "amplitudeError" : 0,
+  "biasMs" : 35,
+  "diagnosticKinds" : [
+    "timingBias"
+  ],
+  "finished" : true,
+  "maxScore" : 2800,
+  "missedClicks" : 0,
+  "pitchDistance" : 0,
+  "score" : 2600,
+  "sigmaMs" : 0,
+  "starReasons" : [
+    "★★★ Solido: necesitas 95% (tienes 93%)."
+  ],
+  "stars" : 2
+}

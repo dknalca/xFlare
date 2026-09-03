@@ -42,8 +42,14 @@ deseado con datos reales, no con numeros inventados.
 **Version sintetica ya hecha (B8.5):** `XFAnalysisTests/ReplayScoringTests` +
 `SyntheticTake` generan la toma a partir del patron y corren la bateria
 good/late/sloppy contra **un patron representativo de cada nivel 1-4**
-(forward-cut, transformer-2, flare-1c, flare-2c). Los `.xfsession` **reales**
-llegan con el hardware; hasta entonces la sintetica fija el comportamiento.
+(forward-cut, transformer-2, flare-1c, flare-2c). `ReplayScoringTests` fija las
+**invariantes** (good ≫ sloppy, late = sesgo, sloppy = dispersion, clicks
+perdidos contados); `GoldenReplayScoringTests` congela ademas el **`Report`
+numerico exacto** de las 12 tomas en `Fixtures/golden/analysis/` (redondeo a 4
+decimales + tolerancia `1e-9`, ADR-028), asi un cambio silencioso del scorer
+salta en el diff. Regenerar: `make golden-update`. Los `.xfsession` **reales**
+llegan con el hardware; entonces esta misma tabla se regenera contra ellos y se
+podra sellar `XFAnalysis` (B8.8).
 
 ## Integracion continua
 

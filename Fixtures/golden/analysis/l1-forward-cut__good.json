@@ -1,0 +1,17 @@
+{
+  "amplitudeError" : 0,
+  "biasMs" : 0,
+  "diagnosticKinds" : [
+    "good"
+  ],
+  "finished" : true,
+  "maxScore" : 2500,
+  "missedClicks" : 0,
+  "pitchDistance" : 0,
+  "score" : 2500,
+  "sigmaMs" : 0,
+  "starReasons" : [
+
+  ],
+  "stars" : 3
+}

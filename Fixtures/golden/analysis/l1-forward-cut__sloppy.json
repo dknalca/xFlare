@@ -1,0 +1,17 @@
+{
+  "amplitudeError" : 0,
+  "biasMs" : -1.875,
+  "diagnosticKinds" : [
+    "timingSpread"
+  ],
+  "finished" : true,
+  "maxScore" : 2500,
+  "missedClicks" : 0,
+  "pitchDistance" : 0.20569999999999999,
+  "score" : 1175,
+  "sigmaMs" : 25.279,
+  "starReasons" : [
+    "★ Completado: necesitas al menos 70% (tienes 47%)."
+  ],
+  "stars" : 0
+}
