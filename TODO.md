@@ -365,6 +365,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Anadido (2026-09-01): **fix de legibilidad**. `AppRootView` fuerza `.preferredColorScheme(.dark)` + `.foregroundColor(XFColor.text)`: en un Mac en modo claro el texto sin color explicito salia casi negro sobre el fondo casi negro. XFDesign (SEALED) no se toca; la paleta ya era correcta.
       - Iterado (2026-09-01, **ADR-041 + ADR-042**): **mapeo 2/3** — el pico del patron cae en `2/3` del sample (`AudioAsset.scratchPatternTopFraction`), el plato recorre hasta el final; `HighwayGeometry.patternFill` deja el tercio de arriba libre y la traza que se pasa del pico se extrapola ahi (XFRender re-sellado). **Sonido: la velocidad manda**; el objetivo de posicion pasa a ser un **trim anti-deriva acotado** a ±1,5% de pitch dentro del player (`xf_player_set_target_playhead`) — arregla el crujido (era `set_playhead` a saltos) y el "laser" (era un one-pole rapido persiguiendo escalones de 60 Hz). **Buffer en caliente**: selector en el panel de pruebas que llama a `EngineHandle.restartOutput` (para/recrea/recarga el motor sin reiniciar la app); `bufferOptions` hasta 2048. **Volumenes NO se persisten** (a 0 en el plist = practica muda); `@State` de sesion a 0,5. **Boton de metronomo** en la barra superior. **Slider de sensibilidad del trackpad** (provisional). CXFAudioCore 54, XFApp 135, XFRender 46.
       - Iterado (2026-09-02, **ADR-048**): **una sola visualizacion**. `PracticeScene` (XFApp) pinta la autopista (via `HighwayLayout` publico, replicando el `render` de `HighwayScene`), la tira de la instrumental (banda superior, misma formula de X que la autopista) y el sample (rail **vertical** a la izquierda, giro 90º, aguja = `scratchProgress`) en el MISMO `update(_:)` → la rejilla de compas ya no puede desfasarse al perder un frame. `LivePracticeView` deja de usar `HighwayView`+`InstrumentalStripView`+`WaveformStripView`; se borran `InstrumentalStripView`/`WaveformStripView`/`WaveformScene`. **Curriculo:** fuera los trucos no basicos como ejercicio practicable (baby-16, lo/hi-flare, flare-2c-16): `data/curriculum/exercises.json` 25→21; la libreria de scratches no se toca. Las variaciones de los basicos van por variantes (escalera de subdivision).
+      - Iterado (2026-09-03, feedback, **ADR-054..058**): **MIDI de comandos** — `PracticeCommandMidi` (XFCapture) decodifica nota/CC → comandos de practica; `AppModel` es dueño de `MidiCommandSource` y publica `PracticeCommandEvent`; `LivePracticeView` los enruta a lo mismo que el teclado; fila "MIDI · comandos" en Ajustes; seccion `[transport]` en `DEVICE_PROFILES.md` y bloque comentado en el `.conf` de la Rane 72. **Miniaturas TTM** — `TTMThumbnail` pasa a `[Segment]` (curva entera partida por fader); `TTMThumbnailView` pinta lleno = suena / **a rayas** = cortado, sin puntos; arregla `tear-flare-1c`/`crab` que se salian del cuadro; recuadro **"Como leer el grafico"** en Home. **Vídeo** — proporcion de la ventana (`onHighwaySize`) en vez de 9:16 estirado; la línea refleja los cortes de fader; ver F.4. **Ajustes** — reescrito sin `Form` (macOS 11 lo dejaba en blanco con `ForEach`): `ScrollView` + `XFCard` a mano. **Pantalla de carga** con una cita de `citas.md` mientras decodifica el audio.
 - [x] **B11.4** Pantalla de resultados con diagnostico `XFApp`
       - Hecho (2026-09-01): junto con B11.13. `ResultsSummary` (puro) traduce lo que calculo `XFAnalysis` a texto: 3 filas de estrella (las apagadas con su condicion, sacada de `starReasons` por prefijo `★`/`★★`/`★★★` y sin el `Titulo:`, o la condicion por defecto si aun no toca), puntuacion `3.840 / 4.800` (millares con punto), `%`, badge Record, frases del coach en orden. `ResultsView` SwiftUI con las estrellas escalonadas. 6 tests.
 - [x] **B11.5** Modo libre con grabacion de los ultimos 30 s `XFApp`
@@ -373,7 +374,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B11.6** Navegador de la libreria `XFApp`
       - Hecho (2026-09-01): `LibraryEntry` (scratch + estado de bloqueo, `init(scratch:isUnlocked:)`) + `LibraryBrowser` (puro): `levels`/`families`, `filtered(query:level:family:onlyUnlocked:)` (busqueda por subcadena sin mayusculas ni acentos), `groupedByLevel(...)`. `LibraryView` SwiftUI con buscador y filtro de familia. 6 tests.
 - [x] **B11.7** Ajustes `XFApp`
-      - Hecho (2026-09-01): `AppSettings` (envoltorio tipado de la tabla clave/valor `setting`): hamster, metronomo, buffer 64/128, escala de tolerancia (0.5..2.0), alto contraste, reducir movimiento. `init(raw:)` tolera claves ausentes o ilegibles (caen al default) y recorta rangos; `.raw` para guardar. `SettingsView` SwiftUI (Form). Todo local (CLAUDE.md 3). 5 tests.
+      - Hecho (2026-09-01): `AppSettings` (envoltorio tipado de la tabla clave/valor `setting`): hamster, metronomo, buffer 64/128, escala de tolerancia (0.5..2.0), alto contraste, reducir movimiento. `init(raw:)` tolera claves ausentes o ilegibles (caen al default) y recorta rangos; `.raw` para guardar. Todo local (CLAUDE.md 3). 5 tests.
+      - Iterado (2026-09-03): `AppSettings` gana `lastScratchSamplePath` (F.3) y `midiCommandOverrides` (ADR-054). `SettingsView` **reescrito sin `Form`** (macOS 11 lo dejaba en blanco con `ForEach`, ADR-058): `ScrollView` + `VStack` + `XFCard` a mano, controles nativos. Nueva seccion "MIDI · comandos".
 - [x] **B11.8** Accesibilidad: VoiceOver, alto contraste, teclado `XFApp`
       - Criterio: segun UI_DESIGN.md seccion 4
       - Hecho (2026-09-01): `A11y.Palette` (alto contraste: ghost al 60%, trazos mas gruesos — XFDesign esta sellado, esto va encima). `A11y.resultsDescription` (resumen de resultados para VoiceOver: N/3 estrellas, puntuacion sin leer la barra, mejor marca, que falta, diagnosticos) y `highwayLiveAnnouncement` (region en vivo con el resumen de compas). Atajos de teclado en `PracticeView` (flechas=BPM, Esc=salir) y `ResultsView` (R=otra vez). 4 tests.
@@ -525,18 +527,30 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (`AppSettings.lastScratchSamplePath`, se recarga si el fichero sigue ahí).
       - Falta (cuando toque): puntos de cue por sample, biblioteca de samples
         del usuario, deteccion de tempo/loop si el sample es ritmico.
-- [~] **F.4** Exportar la toma como video vertical para compartir
+- [~] **F.4** Exportar la toma como video para compartir
       - Criterio: el bucle de crecimiento mas barato que existe
-      - Iniciado (2026-09-03): **vídeo hecho** (sin audio todavía).
+      - Iniciado (2026-09-03): **vídeo hecho**.
         `TakeVideoExporter` (XFApp): `framePlan(...)` (los `currentTick` de cada
         fotograma) y `trace(from: XFSession)` (la línea grabada al dominio de
-        ticks del patrón) son puros; `render(HighwayFrame → CGImage)` rasteriza
-        con Core Graphics (rejilla, fantasma partido por fader, **tu línea
-        teñida por acierto**, marcas ○/●, phantom clicks); `export(...)` monta
-        el mp4 H.264 9:16 con `AVAssetWriter` en segundo plano. Botón
-        **"Vídeo…"** en el panel "Grabar línea". 5 tests, incluido un export
-        real a fichero temporal verificado con `AVURLAsset` (pista de vídeo,
-        tamaño y duración).
+        ticks del patrón, **marcando los tramos con el fader cerrado**) son
+        puros; `render(HighwayFrame → CGImage)` rasteriza con Core Graphics
+        (rejilla, fantasma partido por fader, **tu línea** —teal y llena donde
+        suena, gris y a rayas donde se corta—, marcas ○/●, phantom clicks);
+        `export(...)` monta el mp4 H.264 con `AVAssetWriter` en segundo plano.
+        Botón **"Vídeo…"** en el panel "Grabar línea". 12 tests, incluido un
+        export real a fichero temporal verificado con `AVURLAsset` (pista de
+        vídeo, tamaño y duración).
+      - **Proporción de la ventana (2026-09-03, ADR-056):** antes forzaba
+        1080×1920 (9:16) sobre un layout apaisado y todo salía estirado ~5×.
+        `Options.width/height` pasan a opcionales; si faltan, la resolución se
+        deriva de la geometría de la autopista (`Options.pixelSize(for:)`, lado
+        mayor 1600, pares). `PracticeScene` reporta su tamaño real
+        (`onHighwaySize`) y `LivePracticeView` lo usa: el vídeo sale con la
+        proporción exacta de la ventana.
+      - **Refleja los cortes (2026-09-03, ADR-057):** `trace(from:)` cruza el
+        movimiento con el carril de fader grabado; los puntos con el fader
+        cerrado van marcados y el rasterizado los pinta a rayas. Antes salía
+        todo teal.
         **Barra de progreso hecha (2026-09-03):** `export(...)` gana un callback
         `progress: (Double) -> Void`; el botón "Vídeo…" muestra el % y una barra
         fina.

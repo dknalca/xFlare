@@ -90,6 +90,12 @@ sale mal, todo lo demas miente.
 - **Rejilla de la matriz** como elemento central: cada celda es un scratch, agrupadas
   por nivel. Apagadas las bloqueadas, con brillo las dominadas. Ensena de un vistazo
   la logica composicional y da sensacion de coleccion.
+- Cada celda lleva una **miniatura TTM**: la curva del disco (sube = adelante, baja
+  = atras) de un ciclo del gesto. Trazo **lleno** donde suena (fader abierto), **a
+  rayas** donde se corta (fader cerrado). Sin puntos ni marcas: la propia curva y
+  su estilo cuentan el gesto.
+- Recuadro **"Como leer el grafico"** a la derecha: curva de ejemplo + la clave
+  lleno/rayas. Para el que llega nuevo a la notacion.
 - Tarjeta grande **"Continuar"** con el ejercicio en curso y su BPM actual.
 - Racha, minutos de hoy, y la grafica de BPM del ultimo patron trabajado.
 - Nada de anuncios de novedades ni ruido.
@@ -182,6 +188,14 @@ tecnica de dedos y un boton de escucha. Filtros por familia, nivel y numero de c
 Audio, hardware y calibracion, hamster/reverse, tolerancias (para los cabezotas),
 tema, y exportar/importar tu progreso. Todo local: **sin cuenta, sin nube, sin
 telemetria**.
+
+- **MIDI · comandos**: asigna una nota o un CC a cada comando de la practica (cue,
+  reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
+  repite conmigo) — los mismos que el teclado. Formato de texto `note:canal:nº` /
+  `cc:canal:nº`; vacio = usar lo que traiga el perfil de mesa (seccion
+  `[transport]` del `.conf`, ver `DEVICE_PROFILES.md` §3).
+- Layout manual (`ScrollView` + tarjetas), **sin `Form`** de SwiftUI: en macOS 11
+  se quedaba en blanco con listas dinamicas (ADR-058).
 
 ### 3.8 Mi mesa (dentro de Ajustes)
 

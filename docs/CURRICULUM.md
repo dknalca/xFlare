@@ -19,11 +19,17 @@ No es un juego de puntuacion, es un **gimnasio**. Tres principios:
 | Nivel | Nombre | Objetivo | Contenido |
 |---|---|---|---|
 | **L1** | Fundamentos | Mano a tiempo, sin pensar en el fader | Baby, Forward Cut, Stab, Drag |
-| **L2** | Control de mano | Partir el movimiento, sostener velocidades | Baby 1/16, Reverse Cut, Tear, Scribble, Transformer x2 |
+| **L2** | Control de mano | Partir el movimiento, sostener velocidades | Reverse Cut, Tear, Transformer x2 |
 | **L3** | Fader basico | Mano y fader independientes | Transformer x3, Chirp, Tear de 3, 1-Click Flare |
-| **L4** | Flares | Colocar el click dentro del trazo | Lo/Hi-1C, 2-Click Flare, 1-Click Orbit, Tear Flare, Transformer x4, Hydroplane |
-| **L5** | Intermedio | Multiplicar clicks sin perder pulso | 3-Click Flare, 2-Click Orbit, Twiddle |
-| **L6** | Velocidad | Los mismos patrones, al doble | Crab, 2-Click Flare a 1/16 |
+| **L4** | Flares | Colocar el click dentro del trazo | 2-Click Flare, 1-Click Orbit, Tear Flare 1C, Transformer x4, Crab |
+| **L5** | Intermedio | Multiplicar clicks sin perder pulso | 3-Click Flare, 2-Click Orbit |
+| **L6** | Velocidad | Los mismos patrones, al doble | (vacio por ahora) |
+
+> El contenido lo manda `data/curriculum/levels.json` (18 ejercicios, 2026-09-03).
+> Scribble / Hydroplane / Twiddle y las variantes 1/16 salieron del gym (ADR-048
+> + feedback): siguen en la libreria de scratches, pero como ejercicio no
+> aportaban. Las variaciones de tempo/subdivision de los basicos van por
+> **variantes**, no por celdas nuevas.
 
 Desbloqueo: hay que superar el umbral de precision del nivel **en N compases seguidos**,
 no de media. La media perdona los fallos; el streak no.

@@ -16,7 +16,7 @@ docs/DECISIONS.md             ADR-014+ (ya fusionados; en su dia iban aparte)
 
 data/primitives/*.json        10 patrones de mano + 16 de fader
 data/scratches/library-v0.1.json   25 scratches compilados
-data/curriculum/*.json        6 niveles + 25 ejercicios
+data/curriculum/*.json        6 niveles + 18 ejercicios
 data/schema/*.json            JSON Schema de scratch y ejercicio
 
 tools/xfn_core.py             Motor: primitivas, compositor, renderizador
