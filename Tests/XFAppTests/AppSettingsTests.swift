@@ -17,6 +17,7 @@ final class AppSettingsTests: XCTestCase {
         s.metronomeEnabled = false
         s.toleranceScale = 1.5
         s.highContrast = true
+        s.lastScratchSamplePath = "/Users/dj/Samples/mi ahhh.wav"
         XCTAssertEqual(AppSettings(raw: s.raw), s)
     }
 

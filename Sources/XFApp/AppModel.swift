@@ -270,6 +270,79 @@ public final class AppModel: ObservableObject {
         screen = .results
     }
 
+    // MARK: - calentamiento adaptativo (F.0 / ADR-027)
+
+    /// El plan de calentamiento de hoy: 4-6 ejercicios **dominados**, cada uno
+    /// con una variante desbloqueada al azar distinta a la de la última vez.
+    /// Puro por debajo (`WarmupPlanner`); aquí solo se leen los datos de la BD.
+    func warmupPlan(now: Date = Date(),
+                    rng: inout some RandomNumberGenerator) -> [WarmupPlanner.PlannedItem] {
+        let mastered = (try? db.masteredExercises()) ?? []
+        let candidates: [WarmupPlanner.Candidate] = mastered.compactMap { id in
+            guard let ex = catalog.exercise(id: id),
+                  let base = catalog.library.scratch(id: ex.scratchId) else { return nil }
+            let maxScore = Double(max(1, ScoreEvents(of: base).maxScore))
+
+            let ceiling = ((try? db.progress(exerciseId: id, variantId: "base")) ?? nil)?
+                .bestScore.map { Double($0) / maxScore }
+
+            let recent = ((try? db.attempts(exerciseId: id, variantId: "base", limit: 6)) ?? [])
+                .filter { $0.countsForStars }
+            let recentAvg: Double? = recent.isEmpty ? nil
+                : recent.map(\.accuracy).reduce(0, +) / Double(recent.count)
+
+            let lastWarmup = ((try? db.attempts(exerciseId: id, limit: 16)) ?? [])
+                .first { $0.mode == .warmup }?.variantId
+
+            let review = (try? db.reviewItem(exerciseId: id, variantId: "base")) ?? nil
+            let lastAt = review?.lastReviewedAt
+                ?? ((try? db.progress(exerciseId: id, variantId: "base")) ?? nil)?.lastAttemptAt
+            let daysSince = lastAt.map { now.timeIntervalSince($0) / 86_400 } ?? 30
+
+            let masteredAt = ((try? db.mastery(exerciseId: id)) ?? nil)?.masteredAt
+            let masteryAge = masteredAt.map { now.timeIntervalSince($0) / 86_400 } ?? 30
+
+            let unlocked = Array((try? db.unlockedVariants(exerciseId: id)) ?? ["base"])
+            return WarmupPlanner.Candidate(
+                exerciseId: id, name: base.name,
+                familyId: catalog.family(containingScratch: ex.scratchId)?.id,
+                daysSinceReview: daysSince, recentAverage: recentAvg,
+                ceiling: ceiling, masteryAgeDays: masteryAge,
+                unlockedVariants: unlocked.isEmpty ? ["base"] : unlocked,
+                lastWarmupVariant: lastWarmup)
+        }
+        return WarmupPlanner.plan(candidates, rng: &rng)
+    }
+
+    /// Asienta una toma de **calentamiento**: la registra (no cuenta para
+    /// estrellas, ADR-027), alimenta la repetición espaciada y, si ha bajado de
+    /// 2★, marca el ejercicio **oxidado** y devuelve el aviso para la UI.
+    @discardableResult
+    func settleWarmupTake(exerciseId: String, variantId: String,
+                          score: Int, maxScore: Int, stars: Int,
+                          sigmaMs: Double? = nil, biasMs: Double? = nil,
+                          at date: Date = Date()) -> String? {
+        let name = catalog.exercise(id: exerciseId)
+            .flatMap { catalog.library.scratch(id: $0.scratchId)?.name } ?? exerciseId
+        let acc = maxScore > 0 ? Double(score) / Double(maxScore) : 0
+        let prior = (((try? db.progressSummary(exerciseId: exerciseId, variantId: "base")) ?? nil)?
+            .averageOfLast5).map { $0 / Double(max(1, maxScore)) }
+
+        let attempt = Attempt(id: UUID().uuidString, exerciseId: exerciseId,
+                              variantId: variantId, mode: .warmup, bpm: 0, startedAt: date,
+                              score: score, maxScore: maxScore, accuracy: acc, stars: stars,
+                              sigmaMs: sigmaMs, biasMs: biasMs, countsForStars: false)
+        try? db.saveAttempt(attempt)
+        try? db.recordReviewOutcome(exerciseId: exerciseId, variantId: "base",
+                                    passed: stars >= 2, at: date)
+
+        let ox = WarmupOxidation.check(exerciseName: name, starsInWarmup: stars,
+                                       accuracy: acc, priorAverage: prior)
+        if ox.oxidized { try? db.setOxidized(exerciseId: exerciseId, at: date) }
+        refreshHome()
+        return ox.message
+    }
+
     // MARK: - racha / minutos (desde los intentos guardados)
 
     private func allAttemptDates() -> [Date] {

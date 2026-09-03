@@ -481,8 +481,24 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *No tocar hasta que la v1 este en manos de gente.*
 
-- [ ] **F.0** Calentamiento adaptativo con deteccion de oxidacion (ADR-027)
+- [~] **F.0** Calentamiento adaptativo con deteccion de oxidacion (ADR-027)
       - Criterio: docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1
+      - Iniciado (2026-09-03): **lógica hecha**. `WarmupPlanner` (XFApp, puro):
+        `plan([Candidate], rng:)` escoge 4-6 ejercicios dominados ordenados por
+        urgencia (peso alto: días desde repaso + caída absoluta respecto al
+        techo; peso bajo: antigüedad del dominio), aplica **variedad de familia**
+        (penaliza x0,45 por familia repetida al seleccionar) y asigna una
+        variante desbloqueada al azar **≠ la del último calentamiento**.
+        `WarmupOxidation.check(...)` → mensaje "El crab se te está cayendo: hoy
+        78 %, tu media era 94 %…" cuando una toma de calentamiento baja de 2★.
+        `AppModel.warmupPlan(now:rng:)` monta los `Candidate` de la BD
+        (masteredExercises + progress + attempts + reviewItem + mastery +
+        unlockedVariants) y `settleWarmupTake(...)` registra la toma
+        (`mode:.warmup`, `countsForStars:false`), alimenta la repetición
+        espaciada (`recordReviewOutcome`) y marca `setOxidized` si toca.
+        10 tests (`WarmupPlannerTests`).
+      - Falta: la **pantalla** de calentamiento (flujo de N pases, botón de
+        saltar) y engancharla al arranque de sesión.
 - [ ] **F.0b** Variantes avanzadas: encadenado, densidad creciente, rampa de tempo, un solo lado `XFNotation`
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril
@@ -497,6 +513,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         recorte fiable. Boton **"Cargar sample…"** en el panel de práctica
         (`loadScratchSample` → decodifica con `AudioAsset.loadMono` → `SampleTrim`
         → `engine.loadSample` + cue 1 + rehace la onda del rail). 6 tests.
+        El sample elegido **se recuerda** entre sesiones
+        (`AppSettings.lastScratchSamplePath`, se recarga si el fichero sigue ahí).
       - Falta (cuando toque): puntos de cue por sample, biblioteca de samples
         del usuario, deteccion de tempo/loop si el sample es ritmico.
 - [ ] **F.4** Exportar la toma como video vertical para compartir

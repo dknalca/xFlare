@@ -177,10 +177,12 @@ public struct AppRootView: View {
                 engine: model.engine,
                 content: model.content,
                 metronomeOn: model.settings.metronomeEnabled,
+                scratchSamplePath: model.settings.lastScratchSamplePath,
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)
                 },
+                onScratchSampleChanged: { model.settings.lastScratchSamplePath = $0 },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

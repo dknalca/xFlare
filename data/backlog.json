@@ -982,8 +982,9 @@
           "id": "F.0",
           "title": "Calentamiento adaptativo con deteccion de oxidacion (ADR-027)",
           "module": "-",
-          "status": "todo",
-          "acceptance": "docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1"
+          "status": "wip",
+          "acceptance": "docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1",
+          "note": "Iniciado 2026-09-03. LOGICA hecha: WarmupPlanner (XFApp, puro) -- plan([Candidate], rng:) escoge 4-6 dominados por urgencia (dias desde repaso + caida absoluta vs techo; antiguedad peso bajo), variedad de familia (x0,45 por familia repetida), variante al azar != la de la vez anterior. WarmupOxidation.check -> 'El crab se te esta cayendo: hoy 78%, tu media era 94%...' al bajar de 2 estrellas. AppModel.warmupPlan(now:rng:) monta los Candidate de la BD; settleWarmupTake registra la toma (mode:.warmup, countsForStars:false), alimenta recordReviewOutcome y llama setOxidized. 10 tests. Falta: la pantalla de calentamiento y engancharla al arranque de sesion."
         },
         {
           "id": "F.0b",
@@ -1012,7 +1013,7 @@
           "module": "-",
           "acceptance": "-",
           "status": "wip",
-          "note": "Iniciado 2026-09-03 (a peticion del autor, pese a la regla de no tocar futuribles). Nucleo hecho: SampleTrim (XFApp, puro) -- detectStart/detectEnd por RMS (umbral -45 dBFS, ventana 5 ms) + retroceso de 8 ms + cuadre a cruce por cero; trimmed() recorta cabeza/cola y devuelve el offset. Boton 'Cargar sample...' en la practica (loadScratchSample: decodifica, recorta, engine.loadSample + cue 1, rehace la onda del rail). 6 tests. Falta: cues por sample, biblioteca de samples del usuario, deteccion de tempo si el sample es ritmico."
+          "note": "Iniciado 2026-09-03 (a peticion del autor, pese a la regla de no tocar futuribles). Nucleo hecho: SampleTrim (XFApp, puro) -- detectStart/detectEnd por RMS (umbral -45 dBFS, ventana 5 ms) + retroceso de 8 ms + cuadre a cruce por cero; trimmed() recorta cabeza/cola y devuelve el offset. Boton 'Cargar sample...' en la practica (loadScratchSample: decodifica, recorta, engine.loadSample + cue 1, rehace la onda del rail). 6 tests. Falta: cues por sample, biblioteca de samples del usuario, deteccion de tempo si el sample es ritmico. El sample elegido se recuerda entre sesiones (AppSettings.lastScratchSamplePath)."
         },
         {
           "id": "F.4",

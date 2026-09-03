@@ -60,6 +60,11 @@ public struct LivePracticeView: View {
     /// Puntúa la última toma grabada (`XFAnalysis` → pantalla de resultados).
     /// Sin efecto en Freestyle (no hay patrón que puntuar).
     private let onScore: (XFSession) -> Void
+    /// Ruta del sample de scratch a cargar al abrir (F.3). Vacío = el asset por
+    /// defecto. Si el fichero no existe, cae al asset.
+    private let scratchSamplePath: String
+    /// Se llama al cargar un sample nuevo, con su ruta (para persistirla).
+    private let onScratchSampleChanged: (String) -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -69,8 +74,10 @@ public struct LivePracticeView: View {
                 engine: EngineHandle? = nil,
                 content: ContentLoader = RepoContentLoader(),
                 metronomeOn: Bool = true,
+                scratchSamplePath: String = "",
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
+                onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.scratch = scratch
         self.exerciseName = exerciseName
@@ -79,8 +86,10 @@ public struct LivePracticeView: View {
         self.engine = engine
         self.content = content
         self.metronomeOn = metronomeOn
+        self.scratchSamplePath = scratchSamplePath
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
+        self.onScratchSampleChanged = onScratchSampleChanged
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -551,10 +560,14 @@ public struct LivePracticeView: View {
             engine.setScratchTarget(normPos * full)
         }
 
-        // 1) el SAMPLE de scratch (recortado al punto cero, F.3). 2) la
+        // 1) el SAMPLE de scratch (recortado al punto cero, F.3). Si hay uno
+        // guardado y el fichero sigue existiendo, ese; si no, el asset. 2) la
         // instrumental; `loadInstrumental` arranca la salida, el reloj y la
         // sesion al terminar.
-        loadScratchSample(url: nil, initial: true)
+        let saved = scratchSamplePath.isEmpty ? nil
+            : (FileManager.default.fileExists(atPath: scratchSamplePath)
+               ? URL(fileURLWithPath: scratchSamplePath) : nil)
+        loadScratchSample(url: saved, initial: true)
     }
 
     /// Decodifica un sample de scratch (el del asset si `url == nil`, o el que
@@ -593,6 +606,7 @@ public struct LivePracticeView: View {
         panel.prompt = "Cargar"
         if panel.runModal() == .OK, let url = panel.url {
             loadScratchSample(url: url, initial: false)
+            onScratchSampleChanged(url.path)
         }
     }
 
