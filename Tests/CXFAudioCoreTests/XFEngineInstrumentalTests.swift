@@ -140,6 +140,28 @@ final class XFEngineInstrumentalTests: XCTestCase {
         XCTAssertLessThan(seam, 0.2, "sin salto de cabezal al cambiar el nativeBPM")
     }
 
+    func testCabezalDeLaBaseAvanzaYSirveParaDibujarLaTira() {
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        XCTAssertLessThan(xf_engine_instrumental_playhead(e), 0, "sin base -> < 0")
+
+        let loop = stable(sine(1000, frames: 48_000))
+        defer { loop.deallocate() }
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 120)
+        xf_engine_set_transport(e, 120, 480, true)
+
+        let h0 = xf_engine_instrumental_playhead(e)
+        XCTAssertGreaterThanOrEqual(h0, 0)
+        _ = render(e, blocks: 40)
+        let h1 = xf_engine_instrumental_playhead(e)
+        XCTAssertGreaterThan(h1, h0, "el cabezal de la base avanza con el transporte")
+
+        // pausado, el cabezal se queda quieto (la tira también debe congelarse)
+        xf_engine_set_transport(e, 120, 480, false)
+        _ = render(e, blocks: 20)
+        XCTAssertEqual(xf_engine_instrumental_playhead(e), h1, accuracy: 1.0)
+    }
+
     func testGananciaCeroSilenciaLaBase() {
         let e = engine()
         defer { xf_engine_destroy(e) }

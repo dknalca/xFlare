@@ -18,6 +18,10 @@ struct PracticeSceneView: NSViewRepresentable {
     let trace: () -> [TracePoint]
     let instrumentalWave: WaveformColored.Data
     let instrumentalLoopTicks: Double
+    /// Cabezal de la base como fracción 0…1 del bucle (o < 0 si no hay base). La
+    /// tira de la instrumental se dibuja pegada a ESTO, no a un reloj de ticks:
+    /// así no se descuadra del audio al cambiar el tempo (TAP, ÷2/×2).
+    var instrumentalHeadFraction: () -> Double = { -1 }
     let sampleWave: WaveformColored.Data
     let ghostDimmed: Bool
     /// `false` en Freestyle: sin onda fantasma que seguir.
@@ -69,6 +73,7 @@ struct PracticeSceneView: NSViewRepresentable {
     private func configure(_ s: PracticeScene, coord: Coordinator) {
         s.currentTick = tick
         s.userTrace = trace
+        s.instrumentalHeadFraction = instrumentalHeadFraction
         s.ghostDimmed = ghostDimmed
         s.showGhost = showGhost
         s.patternAmplitude = patternAmplitude

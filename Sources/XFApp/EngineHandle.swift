@@ -93,6 +93,14 @@ public final class EngineHandle {
         scratchFrameCount > 1 ? scratchPlayhead / Double(scratchFrameCount - 1) : 0
     }
 
+    /// Cabezal de la BASE instrumental como fracción 0…1 del bucle, o **-1 si no
+    /// hay base**. Para dibujar la tira pegada al audio (no a un reloj de ticks).
+    public var instrumentalProgress: Double {
+        guard instrumentalFrameCount > 1 else { return -1 }
+        let h = xf_engine_instrumental_playhead(engine)
+        return h < 0 ? -1 : h / Double(instrumentalFrameCount - 1)
+    }
+
     /// Carga la base instrumental (mono). `nativeBPM` = tempo al que se grabo;
     /// el motor la reproduce en bucle a `bpm/nativeBPM`.
     public func loadInstrumental(_ mono: [Float], nativeBPM: Double) {

@@ -54,6 +54,12 @@ final class PracticeScene: SKScene {
     /// rejilla a la izquierda, `-` a la derecha.
     var gridShift: Double = 0
 
+    /// Cabezal de la base como fracción 0…1 del bucle (o < 0 si no hay base). La
+    /// tira de la instrumental se dibuja pegada a esto, no a `now mod loop`: así
+    /// no se descuadra del audio al cambiar el tempo (TAP, ÷2/×2), que altera
+    /// `instrumentalLoopTicks` sin mover el reloj.
+    var instrumentalHeadFraction: () -> Double = { -1 }
+
     /// Se llama (en el hilo principal) con el tamaño de la **zona de autopista**
     /// cada vez que se recalcula el encuadre. Lo usa `LivePracticeView` para
     /// exportar el vídeo con la misma proporción que la ventana.
@@ -629,8 +635,17 @@ final class PracticeScene: SKScene {
         let loop = max(1, instrumentalLoopTicks)
         let imgW = CGFloat(loop) * pxPerTick
 
-        var phase = now.truncatingRemainder(dividingBy: loop)
-        if phase < 0 { phase += loop }
+        // Fase de la tira: si hay base, la del CABEZAL DEL AUDIO (0…1 del bucle),
+        // así la onda que se ve es literalmente donde está sonando y no se
+        // descuadra al cambiar el tempo. Sin base, el reloj de ticks.
+        let headFrac = instrumentalHeadFraction()
+        var phase: Double
+        if headFrac >= 0 {
+            phase = headFrac * loop
+        } else {
+            phase = now.truncatingRemainder(dividingBy: loop)
+            if phase < 0 { phase += loop }
+        }
         let baseX = playheadX - CGFloat(phase) * pxPerTick
         let resize = imgW != lastStripImgW
         if resize { lastStripImgW = imgW }

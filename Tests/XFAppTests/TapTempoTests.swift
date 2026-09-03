@@ -2,53 +2,60 @@
 import XCTest
 @testable import XFApp
 
-/// TAP tempo puro: golpes -> BPM de la media de los últimos intervalos.
+/// TAP tempo puro: 4-8 golpes -> BPM de la media (recortada) de los intervalos.
 final class TapTempoTests: XCTestCase {
 
     private let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
 
-    func testUnSoloGolpeNoDaNada() {
-        var tap = TapTempo()
-        XCTAssertNil(tap.tap(at: t0))
+    /// Da `n` golpes espaciados `gap` s a partir de `t0` y devuelve el último BPM.
+    private func run(_ tap: inout TapTempo, gaps: [Double]) -> Int? {
+        var t = 0.0
+        var out: Int? = tap.tap(at: t0)
+        for g in gaps { t += g; out = tap.tap(at: t0.addingTimeInterval(t)) }
+        return out
     }
 
-    func testDosGolpesA120BPM() {
+    func testNoDaNadaHastaCuatroGolpes() {
         var tap = TapTempo()
-        _ = tap.tap(at: t0)
-        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(0.5)), 120)   // 0.5 s -> 120
+        XCTAssertNil(tap.tap(at: t0))
+        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(0.5)))
+        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(1.0)))
+        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(1.5)), 120)   // 4º golpe: 0.5 s -> 120
     }
 
     func testPromediaVariosGolpes() {
         var tap = TapTempo()
-        // 4 golpes espaciados 0.6 s -> 100 BPM
-        var last: Int?
-        for i in 0..<4 { last = tap.tap(at: t0.addingTimeInterval(0.6 * Double(i))) }
-        XCTAssertEqual(last, 100)
+        // 6 golpes espaciados 0.6 s -> 100 BPM
+        XCTAssertEqual(run(&tap, gaps: [0.6, 0.6, 0.6, 0.6, 0.6]), 100)
     }
 
-    func testUnGolpeSueltoNoTiraLaMedia() {
+    func testUnGolpeFumadoNoTiraLaMedia() {
         var tap = TapTempo()
-        // ritmo estable de 0.5 s con UN intervalo raro de 0.55: sigue ~120
-        let ts = [0.0, 0.5, 1.0, 1.55, 2.05, 2.55].map { t0.addingTimeInterval($0) }
-        var bpm: Int?
-        for d in ts { bpm = tap.tap(at: d) }
+        // ritmo de 0.5 s con UN intervalo de 0.9 (golpe tardío): la media
+        // recortada lo descarta y se queda en ~120, no en ~105.
+        let bpm = run(&tap, gaps: [0.5, 0.5, 0.9, 0.5, 0.5, 0.5])
         XCTAssertNotNil(bpm)
-        XCTAssertEqual(Double(bpm!), 118, accuracy: 4)
+        XCTAssertEqual(Double(bpm!), 120, accuracy: 6)
     }
 
     func testUnaPausaLargaReiniciaLaCuenta() {
         var tap = TapTempo()
-        _ = tap.tap(at: t0)
-        _ = tap.tap(at: t0.addingTimeInterval(0.5))          // 120 BPM
-        // pausa de 3 s -> se reinicia: el siguiente golpe es el primero de nuevo
-        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(3.5)))
-        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(4.3)), 75)   // 0.8 s -> 75
+        _ = run(&tap, gaps: [0.5, 0.5, 0.5])            // 120 BPM con 4 golpes
+        // pausa de 3 s -> reinicia: hacen falta 4 golpes nuevos
+        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(4.5)))
+        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(5.3)))   // +0.8
+        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(6.1)))
+        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(6.9)), 75)   // 0.8 s -> 75
     }
 
-    func testRitmosImposiblesSeDescartan() {
+    func testRitmoFueraDeRangoDaNil() {
         var tap = TapTempo()
-        _ = tap.tap(at: t0)
-        // 5 ms entre golpes: fuera de rango (250 BPM tope) -> nil
-        XCTAssertNil(tap.tap(at: t0.addingTimeInterval(0.005)))
+        // 4 golpes a 5 ms: ~12000 BPM, fuera de [30, 250] -> nil
+        XCTAssertNil(run(&tap, gaps: [0.005, 0.005, 0.005]))
+    }
+
+    func testMediaRecortadaAisladamente() {
+        XCTAssertEqual(TapTempo.trimmedMean([0.5, 0.5, 0.5, 0.9, 0.5])!, 0.5, accuracy: 1e-9)
+        XCTAssertNil(TapTempo.trimmedMean([]))
     }
 }

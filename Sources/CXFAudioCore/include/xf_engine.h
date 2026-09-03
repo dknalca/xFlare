@@ -140,6 +140,11 @@ double xf_engine_tick(const xf_engine *e);
  * puede haber un desfase de un bloque, da igual para la UI. */
 double xf_engine_scratch_playhead(const xf_engine *e);
 
+/* Posicion del cabezal de la BASE instrumental, en frames fraccionarios. `< 0`
+ * si no hay base cargada. Para dibujar la tira de la instrumental pegada al
+ * audio (no a un reloj de ticks, que se descuadra al cambiar el tempo). */
+double xf_engine_instrumental_playhead(const xf_engine *e);
+
 /* Diagnostico (atomicas): overloads del dispositivo y fallos de `AudioUnitRender`. */
 uint64_t xf_engine_overload_count(const xf_engine *e);
 uint64_t xf_engine_render_error_count(const xf_engine *e);

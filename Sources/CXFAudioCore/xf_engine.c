@@ -309,6 +309,11 @@ double xf_engine_scratch_playhead(const xf_engine *e) {
     xf_player *p = atomic_load(&((xf_engine *)e)->player);
     return p ? xf_player_playhead(p) : 0.0;
 }
+double xf_engine_instrumental_playhead(const xf_engine *e) {
+    if (!e) return -1.0;
+    xf_player *ip = atomic_load(&((xf_engine *)e)->instrumental);
+    return ip ? xf_player_playhead(ip) : -1.0;   /* <0 = no hay base cargada */
+}
 uint64_t xf_engine_overload_count(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->overloads) : 0;
 }

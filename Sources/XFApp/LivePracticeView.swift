@@ -252,6 +252,7 @@ public struct LivePracticeView: View {
                         trace: { s.trace() },
                         instrumentalWave: instrWave,
                         instrumentalLoopTicks: instrLoopTicks,
+                        instrumentalHeadFraction: { engine?.instrumentalProgress ?? -1 },
                         sampleWave: sampleWave,
                         // en "tu turno" del call & response el fantasma se atenua
                         ghostDimmed: s.crPhase == .respond,
