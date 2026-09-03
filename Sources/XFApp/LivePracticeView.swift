@@ -53,6 +53,9 @@ public struct LivePracticeView: View {
     @State private var tap = TapTempo()
     @State private var editingBPM = false
     @State private var bpmText = ""
+    /// Zona inferior de la base: desplegada muestra la lista de la Librería; al
+    /// cargar una instrumental se minimiza a la fila compacta (nombre + botones).
+    @State private var instrExpanded = true
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
@@ -160,8 +163,10 @@ public struct LivePracticeView: View {
     /// Instrumentales de la Librería (para el menú «Base»); ya pre-analizadas.
     private let instrumentalLibrary: [String]
     /// 4 slots de sample (`""` = vacío) que los comandos MIDI «Sample 1»…«Sample
-    /// 4» cargan en caliente.
+    /// 4» cargan en caliente. Se asignan desde la columna izquierda de la
+    /// práctica; `onSampleSlotsChanged` los persiste.
     private let sampleSlots: [String]
+    private let onSampleSlotsChanged: ([String]) -> Void
     /// Ajustes de "tacto" del plato (ventana Ajustes › Debug). Se aplican al
     /// abrir la práctica.
     private let platterGlideMs: Double
@@ -199,6 +204,7 @@ public struct LivePracticeView: View {
                 cachedAnalysis: @escaping (String) -> TempoAnalyzer.Result? = { _ in nil },
                 instrumentalLibrary: [String] = [],
                 sampleSlots: [String] = [],
+                onSampleSlotsChanged: @escaping ([String]) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
         self.warmupSteps = warmupSteps
         self.scratch = warmupSteps.first?.scratch ?? scratch
@@ -227,6 +233,7 @@ public struct LivePracticeView: View {
         self.cachedAnalysis = cachedAnalysis
         self.instrumentalLibrary = instrumentalLibrary
         self.sampleSlots = sampleSlots
+        self.onSampleSlotsChanged = onSampleSlotsChanged
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -234,7 +241,7 @@ public struct LivePracticeView: View {
         _ = bpm
         _session = StateObject(wrappedValue: PracticeSession(
             scratch: warmupSteps.first?.scratch ?? scratch,
-            bpm: Int(AudioAsset.instrumentalNativeBPM)))
+            bpm: AudioAsset.instrumentalNativeBPM))
     }
 
     /// Patrón / nombre del ejercicio actual (el mismo salvo en el calentamiento
@@ -256,6 +263,10 @@ public struct LivePracticeView: View {
         VStack(spacing: 0) {
             topBar
             HStack(spacing: 0) {
+                // Columna izquierda: todo lo del SAMPLE (selector, slots MIDI,
+                // meter, EQ, volúmenes). Va pegada al rail del sample, que es el
+                // borde izquierdo de la escena.
+                leftColumn
                 // UNA sola visualizacion: la autopista, la onda de la
                 // instrumental (banda superior) y la del sample (rail izquierdo
                 // vertical) se pintan en la misma escena y el mismo reloj de
@@ -294,7 +305,7 @@ public struct LivePracticeView: View {
                             // metronomo se paran con el transporte; el scratch
                             // del sample sigue vivo (la sesion no toca el motor).
                             s.toggleFreeze()
-                            engine?.setTransport(bpm: Double(s.bpm), ppq: 480,
+                            engine?.setTransport(bpm: s.bpm, ppq: 480,
                                                  playing: !s.frozen)
                         },
                         onCue: {
@@ -305,13 +316,17 @@ public struct LivePracticeView: View {
                         onRestartInstrumental: { restartInstrumental() },   // 2
                         onBPM: { bpm in
                             s.setBPM(bpm)
-                            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+                            engine?.setTransport(bpm: s.bpm, ppq: 480, playing: true)
                         },
                         currentBPM: { s.bpm },
                         onExit: onExit)
                 }
                 rightPanel
             }
+            // Zona inferior: selector de instrumental de la Librería (izquierda,
+            // se despliega) + controles de tempo y rejilla (derecha). Al cargar
+            // una base se minimiza a una sola fila.
+            bottomBar
             hintBar
         }
         .background(XFColor.bg)
@@ -398,21 +413,6 @@ public struct LivePracticeView: View {
     private var rightPanel: some View {
         ScrollView(.vertical, showsIndicators: false) {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
-                panelSection("Mezcla") {
-                    clipMeter
-                    volSlider("Sample", $sampleVol) { v in
-                        if !faderClosed { engine?.setScratchGain(Float(v)) }
-                    }
-                    volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
-                    sampleEQ
-                    samplePicker
-                    if let info = sampleLoopInfo {
-                        Text(info).font(XFFont.body(9)).foregroundColor(Color(hex: 0xF5C542))
-                            .lineLimit(1)
-                    }
-                    cueButtons
-                }
-                panelSection("Base") { instrumentalPicker }
                 if !freestyle {
                     panelSection("Repite conmigo") { callResponsePanel }
                 }
@@ -432,6 +432,103 @@ public struct LivePracticeView: View {
         }
         .frame(width: 176)
         .background(XFColor.surface)
+    }
+
+    // MARK: - columna izquierda: todo lo del SAMPLE
+
+    private var leftColumn: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: XFSpacing.md) {
+                panelSection("Sample") {
+                    samplePicker
+                    sampleSlotsRow
+                    if let info = sampleLoopInfo {
+                        Text(info).font(XFFont.body(9)).foregroundColor(Color(hex: 0xF5C542))
+                            .lineLimit(1)
+                    }
+                    cueButtons
+                }
+                panelSection("Mezcla") {
+                    clipMeter
+                    volSlider("Sample", $sampleVol) { v in
+                        if !faderClosed { engine?.setScratchGain(Float(v)) }
+                    }
+                    volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
+                    sampleEQ
+                }
+            }
+            .padding(XFSpacing.sm)
+        }
+        .frame(width: 176)
+        .background(XFColor.surface)
+    }
+
+    /// Asignación de los 4 slots de sample a los comandos MIDI «Sample 1»…«Sample
+    /// 4». Cada slot: un botón con el número (dispara la carga en caliente) y un
+    /// menú para asignarle un fichero de la biblioteca. Persiste vía
+    /// `onSampleSlotsChanged`.
+    private var sampleSlotsRow: some View {
+        VStack(spacing: 3) {
+            HStack {
+                Text("Slots MIDI").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                Spacer()
+            }
+            ForEach(0..<4, id: \.self) { i in
+                let path = sampleSlots.indices.contains(i) ? sampleSlots[i] : ""
+                HStack(spacing: 4) {
+                    Button("\(i + 1)") { loadSlot(i) }
+                        .buttonStyle(.plain)
+                        .font(XFFont.mono(10))
+                        .frame(width: 18, height: 18)
+                        .background(RoundedRectangle(cornerRadius: 4)
+                            .fill(path.isEmpty ? XFColor.surface : XFColor.accent.opacity(0.18)))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
+                        .foregroundColor(path.isEmpty ? XFColor.textMuted : XFColor.accent)
+                    Menu {
+                        Button("— vacío —") { setSlot(i, "") }
+                        if !library.isEmpty {
+                            Divider()
+                            ForEach(library, id: \.self) { p in
+                                Button(URL(fileURLWithPath: p).deletingPathExtension().lastPathComponent) {
+                                    setSlot(i, p)
+                                }
+                            }
+                        }
+                        Divider()
+                        Button("Cargar fichero…") { pickForSlot(i) }
+                    } label: {
+                        Text(path.isEmpty ? "sin asignar"
+                             : URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent)
+                            .font(XFFont.body(9)).lineLimit(1).truncationMode(.middle)
+                            .foregroundColor(path.isEmpty ? XFColor.textMuted : XFColor.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .menuStyle(.borderlessButton)
+                }
+            }
+        }
+    }
+
+    private func setSlot(_ i: Int, _ path: String) {
+        var slots = (0..<4).map { sampleSlots.indices.contains($0) ? sampleSlots[$0] : "" }
+        slots[i] = path
+        onSampleSlotsChanged(slots)
+    }
+
+    private func pickForSlot(_ i: Int) {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Asignar"
+        if panel.runModal() == .OK, let url = panel.url {
+            // el fichero entra también en la biblioteca de samples
+            library.removeAll { $0 == url.path }
+            library.insert(url.path, at: 0)
+            if library.count > 12 { library = Array(library.prefix(12)) }
+            onSampleLibraryChanged(library)
+            setSlot(i, url.path)
+        }
     }
 
     /// Un bloque con título del panel derecho.
@@ -589,64 +686,108 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// Elegir la base: el asset, cualquiera de las **ya analizadas** de la
-    /// Librería (carga al instante), o cargar otra del disco. + BPM + ×2/÷2 + fase.
-    private var instrumentalPicker: some View {
+    // MARK: - zona inferior: base (izquierda, desplegable) + tempo/rejilla (derecha)
+
+    private var bottomBar: some View {
         VStack(spacing: XFSpacing.xs) {
-            Menu {
-                Button("080bpm (por defecto)") { loadInstrumental(url: nil, initial: false) }
-                if !instrumentalLibrary.isEmpty {
-                    Divider()
+            if instrExpanded { instrLibraryPanel }
+            instrBarCompact
+        }
+        .padding(.horizontal, XFSpacing.md)
+        .padding(.vertical, XFSpacing.xs)
+        .background(XFColor.surface)
+    }
+
+    /// Fila SIEMPRE visible: [desplegar] nombre de la base · a la derecha los
+    /// controles de tempo y rejilla (reiniciar, ÷2/×2, ◀/▶, TAP, BPM a mano).
+    private var instrBarCompact: some View {
+        HStack(spacing: 8) {
+            Button { withAnimation(.easeInOut(duration: 0.12)) { instrExpanded.toggle() } } label: {
+                Image(systemName: instrExpanded ? "chevron.down" : "chevron.up")
+                    .font(.system(size: 11, weight: .bold))
+                    .frame(width: 24, height: 22)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(XFColor.surface))
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(XFColor.text)
+
+            Label {
+                Text(instrName).font(XFFont.body(11)).lineLimit(1).truncationMode(.middle)
+            } icon: {
+                Image(systemName: "waveform").foregroundColor(XFColor.textMuted)
+            }
+            .frame(maxWidth: 260, alignment: .leading)
+
+            Spacer(minLength: XFSpacing.md)
+
+            // tempo + rejilla, a la derecha (agrupados: el HStack de fuera no
+            // puede llevar más de 10 hijos).
+            HStack(spacing: 5) {
+                chip("arrow.counterclockwise", icon: true) { restartInstrumental() }  // reiniciar (2)
+                chip("÷2") { retempo(0.5) }
+                chip("×2") { retempo(2.0) }
+                chip("chevron.left", icon: true) { shiftGrid(by: gridStep) }
+                chip("chevron.right", icon: true) { shiftGrid(by: -gridStep) }
+                chip("TAP") { if let bpm = tap.tap() { setInstrumentalBPM(bpm) } }
+                bpmField
+            }
+        }
+    }
+
+    /// BPM (con un decimal). Pinchar el número lo abre para escribirlo a mano.
+    private var bpmField: some View {
+        Group {
+            if editingBPM {
+                TextField("BPM", text: $bpmText, onCommit: {
+                    if let v = Self.parseBPM(bpmText) { setInstrumentalBPM(v) }
+                    editingBPM = false
+                })
+                .textFieldStyle(.roundedBorder)
+                .font(XFFont.mono(12))
+                .frame(width: 62)
+            } else {
+                Button {
+                    bpmText = Self.fmtBPM(session.bpm)
+                    editingBPM = true
+                } label: {
+                    Text(Self.fmtBPM(session.bpm) + " BPM")
+                        .font(XFFont.mono(12)).foregroundColor(XFColor.accent)
+                        .frame(minWidth: 62, alignment: .trailing)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    /// Panel desplegado: la lista de instrumentales **ya analizadas** de la
+    /// Librería (carga al instante), el asset por defecto y "Cargar otra…". Si la
+    /// base está en modo loop, el ajuste de compases del bucle.
+    private var instrLibraryPanel: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("BASE · LIBRERÍA").font(XFFont.body(9)).kerning(0.6)
+                    .foregroundColor(XFColor.textMuted)
+                Spacer()
+                Button("Cargar otra…") { pickInstrumental() }
+                    .buttonStyle(.plain).font(XFFont.body(10)).foregroundColor(XFColor.accent)
+            }
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 2) {
+                    baseRow(name: "080bpm (por defecto)", sub: nil) {
+                        loadInstrumental(url: nil, initial: false)
+                    }
                     ForEach(instrumentalLibrary, id: \.self) { path in
-                        Button(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent) {
+                        baseRow(name: URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent,
+                                sub: analysisTag(path)) {
                             loadInstrumental(url: URL(fileURLWithPath: path), initial: false)
                         }
                     }
                 }
-                Divider()
-                Button("Cargar otra…") { pickInstrumental() }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: "waveform")
-                    Text(instrName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
-                    Spacer()
-                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 8))
-                        .foregroundColor(XFColor.textMuted)
-                }
-                .foregroundColor(XFColor.text)
             }
-            .menuStyle(.borderlessButton)
-
-            HStack(spacing: 5) {
-                // pinchar el número -> editarlo a mano
-                if editingBPM {
-                    TextField("BPM", text: $bpmText, onCommit: {
-                        if let v = Int(bpmText.trimmingCharacters(in: .whitespaces)) {
-                            setInstrumentalBPM(v)
-                        }
-                        editingBPM = false
-                    })
-                    .textFieldStyle(.roundedBorder)
-                    .font(XFFont.mono(12))
-                    .frame(width: 54)
-                } else {
-                    Button {
-                        bpmText = "\(session.bpm)"
-                        editingBPM = true
-                    } label: {
-                        Text("\(session.bpm) BPM").font(XFFont.mono(12)).foregroundColor(XFColor.accent)
-                    }
-                    .buttonStyle(.plain)
-                }
-                Spacer(minLength: 0)
-                chip("TAP") { if let bpm = tap.tap() { setInstrumentalBPM(bpm) } }
-                chip("÷2") { retempo(0.5) }
-                chip("×2") { retempo(2.0) }
-            }
+            .frame(maxHeight: 150)
 
             if let bars = instrLoopBars {
-                // instrumental subida en modo loop: se ajusta cuántos compases
-                // dura el bucle; el BPM se recalcula solo para que cuadre.
                 HStack(spacing: 5) {
                     Text("Loop").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                     Spacer(minLength: 0)
@@ -657,21 +798,31 @@ public struct LivePracticeView: View {
                     chip("plus", icon: true) { relockLoop(bars: bars + 1) }
                 }
             }
-
-            HStack(spacing: 5) {
-                // reinicia la base desde el "1" (tambien con la tecla 2)
-                Text("Reiniciar (2)").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                Spacer(minLength: 0)
-                chip("arrow.counterclockwise", icon: true) { restartInstrumental() }
-            }
-
-            HStack(spacing: 5) {
-                Text("Rejilla").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                Spacer(minLength: 0)
-                chip("chevron.left", icon: true) { shiftGrid(by: gridStep) }
-                chip("chevron.right", icon: true) { shiftGrid(by: -gridStep) }
-            }
         }
+    }
+
+    private func baseRow(name: String, sub: String?, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: "waveform").font(.system(size: 10)).foregroundColor(XFColor.textMuted)
+                Text(name).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
+                Spacer(minLength: 0)
+                if let sub { Text(sub).font(XFFont.mono(9)).foregroundColor(XFColor.textMuted) }
+            }
+            .padding(.horizontal, 6).padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surfaceRaised))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundColor(XFColor.text)
+    }
+
+    /// "≈ 120.0 BPM · 4 compases" para una instrumental de la librería, del caché.
+    private func analysisTag(_ path: String) -> String? {
+        guard let r = cachedAnalysis(path) else { return nil }
+        let bars = max(1, Int((Double(r.beats) / Double(max(1, geometry.beatsPerBar))).rounded()))
+        return "≈ \(Self.fmtBPM(r.bpm)) · \(bars) comp."
     }
 
     /// Paso de cada pulsación de ◀ / ▶ de rejilla: 1/8 de negra (~40 ms a 90 BPM,
@@ -866,8 +1017,8 @@ public struct LivePracticeView: View {
             // tambien vuelve al principio y el reloj musical a 0, para que los
             // scratches caigan sobre los mismos golpes de la base.
             session.resyncClock()
-            engine?.replayInstrumental(nativeBPM: Double(session.bpm))
-            engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+            engine?.replayInstrumental(nativeBPM: session.bpm)
+            engine?.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
             setGridShift(0)
             engine?.seek(tick: 0)      // metrónomo al "1", como la base y la rejilla
         }
@@ -877,9 +1028,9 @@ public struct LivePracticeView: View {
     /// el reloj de la sesión (rejilla + fantasma) con ella. El scratch y el cue 1
     /// no se tocan: esto es solo la base.
     private func restartInstrumental() {
-        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
+        engine?.replayInstrumental(nativeBPM: session.bpm)
         session.resyncClock()
-        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        engine?.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
         // El metrónomo va con el reloj del MOTOR (`e->tick`), no con el de la
         // sesión. Si no lo mandamos también a 0 aquí, la base vuelve al "1" pero
         // el clic sigue en su fase vieja y se descuadra respecto a la rejilla.
@@ -892,7 +1043,7 @@ public struct LivePracticeView: View {
     /// caliente** — como `setInstrumentalBPM`. La base sigue sonando donde estaba
     /// (no vuelve a empezar); solo cambia cómo se cuadricula y el metrónomo.
     private func retempo(_ factor: Double) {
-        setInstrumentalBPM(Int((Double(session.bpm) * factor).rounded()))
+        setInstrumentalBPM(session.bpm * factor)
     }
 
     /// Mueve la rejilla ◀/▶. Arrastra con ella **el metrónomo** (`e->tick +
@@ -920,10 +1071,10 @@ public struct LivePracticeView: View {
         instrLoopBars = loop.bars
         instrLoopTicks = loop.loopTicks
         session.setInstrumentalLoopTicks(loop.loopTicks)
-        session.setBPM(Int(loop.bpm.rounded()))
+        session.setBPM(loop.bpm)
         engine?.replayInstrumental(nativeBPM: loop.bpm)
         session.resyncClock()
-        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        engine?.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
         setGridShift(0)
         engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
     }
@@ -934,25 +1085,35 @@ public struct LivePracticeView: View {
     /// reajusta su `nativeBPM` para que el ratio no cambie). NO reinicia nada ni
     /// resincroniza el reloj — eso es lo que hace `TAP` diferente de ÷2/×2.
     /// En modo loop el BPM se traduce al nº de compases entero más cercano.
-    private func setInstrumentalBPM(_ target: Int) {
-        let clamped = min(220, max(40, target))
-        let old = Double(max(1, session.bpm))
+    /// BPM con **un decimal** para la UI ("120.5", "90.0").
+    static func fmtBPM(_ v: Double) -> String { String(format: "%.1f", v) }
+
+    /// Lee el BPM que el usuario teclea; acepta coma o punto decimal.
+    static func parseBPM(_ s: String) -> Double? {
+        let t = s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
+        return Double(t)
+    }
+
+    private func setInstrumentalBPM(_ target: Double) {
+        // un decimal, igual que `PracticeSession.setBPM` y el TAP.
+        let clamped = (min(220, max(40, target)) * 10).rounded() / 10
+        let old = max(1, session.bpm)
 
         if instrLoopBars != nil, instrFileSeconds > 0.01 {
             let bpb = Double(geometry.beatsPerBar)
-            let bars = max(1, Int((Double(clamped) * instrFileSeconds / (bpb * 60.0)).rounded()))
+            let bars = max(1, Int((clamped * instrFileSeconds / (bpb * 60.0)).rounded()))
             instrLoopBars = bars
             instrLoopTicks = Double(bars * geometry.beatsPerBar) * Double(scratch.ppq)
         } else {
-            instrLoopTicks *= Double(clamped) / old
+            instrLoopTicks *= clamped / old
         }
         session.setInstrumentalLoopTicks(instrLoopTicks)
         session.setBPM(clamped)
         // primero el transporte (fija `e->bpm`, que marca el tempo del metrónomo
         // y del reloj), luego el nativeBPM de la base para que su ratio quede en
         // ~1 (suena a su velocidad real). NADA reinicia el cabezal ni el reloj.
-        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
-        engine?.setInstrumentalNativeBPM(Double(session.bpm))
+        engine?.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
+        engine?.setInstrumentalNativeBPM(session.bpm)
     }
 
     /// F.0 — panel del resultado de una toma de calentamiento: estrellas +
@@ -1011,7 +1172,7 @@ public struct LivePracticeView: View {
 
         case .trigger(.freeze):
             s.toggleFreeze()
-            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: !s.frozen)
+            engine?.setTransport(bpm: s.bpm, ppq: 480, playing: !s.frozen)
 
         case .trigger(.record):
             if s.recording { lastRecording = s.stopRecording() }
@@ -1020,11 +1181,11 @@ public struct LivePracticeView: View {
 
         case .trigger(.bpmUp):
             s.setBPM(s.bpm + 1)
-            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+            engine?.setTransport(bpm: s.bpm, ppq: 480, playing: true)
 
         case .trigger(.bpmDown):
             s.setBPM(s.bpm - 1)
-            engine?.setTransport(bpm: Double(s.bpm), ppq: 480, playing: true)
+            engine?.setTransport(bpm: s.bpm, ppq: 480, playing: true)
 
         case .trigger(.metronome):
             metroOn.toggle()
@@ -1137,7 +1298,7 @@ public struct LivePracticeView: View {
         engine.setInstrumentalGain(Float(instruVol))
         engine.setMasterGain(0.85)
         engine.setScratchGain(faderClosed ? 0 : Float(sampleVol))
-        engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
+        engine.setTransport(bpm: session.bpm, ppq: 480, playing: true)
     }
 
     private func start() {
@@ -1182,7 +1343,12 @@ public struct LivePracticeView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
                 ?? AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
-            let pcm = raw.map { SampleTrim.trimmed($0, sampleRate: sr).pcm }
+            // Recorta al punto cero (F.3) y, además, a la ventana máxima de
+            // scratch: un fichero largo mapearía minutos de audio al recorrido
+            // del plato ("se va todo"). Así cualquier sample suena como el `Ahh`.
+            let pcm = raw.map {
+                AudioAsset.capScratch(SampleTrim.trimmed($0, sampleRate: sr).pcm, sampleRate: sr)
+            }
             let wave = pcm.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
@@ -1298,7 +1464,6 @@ public struct LivePracticeView: View {
             let wave = pcmOut.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 64, 300_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
-            let bpmRounded = Int(bpm.rounded())
 
             DispatchQueue.main.async {
                 if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
@@ -1306,16 +1471,18 @@ public struct LivePracticeView: View {
                 instrLoopTicks = loopTicks
                 instrLoopBars = userLoopBars
                 instrFileSeconds = fileSeconds
+                // cargada: la zona inferior se minimiza a la fila compacta.
+                withAnimation(.easeInOut(duration: 0.12)) { instrExpanded = false }
                 // la sesion necesita la longitud del bucle para cuadrar las
                 // tomas grabadas a un multiplo entero de el, y el nombre para la
                 // cabecera de la toma.
                 session.setInstrumentalLoopTicks(loopTicks)
                 session.setInstrumentalName(instrName)
                 // el tempo de la rejilla pasa a ser el de esta base (o el
-                // derivado de los compases del loop en modo loop).
-                session.setBPM(bpmRounded)
+                // derivado de los compases del loop en modo loop). Con decimal.
+                session.setBPM(bpm)
                 session.resyncClock()
-                engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
+                engine.setTransport(bpm: session.bpm, ppq: 480, playing: true)
                 // reloj del motor (y con él el metrónomo) al "1", igual que la
                 // rejilla de la sesión y el cabezal de la base recién cargada.
                 engine.seek(tick: 0)
@@ -1404,7 +1571,7 @@ public struct LivePracticeView: View {
             }
             .buttonStyle(.plain)
 
-            Text("\(session.bpm) BPM").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
+            Text(Self.fmtBPM(session.bpm) + " BPM").font(XFFont.mono(13)).foregroundColor(XFColor.accent)
         }
         .padding(.horizontal, XFSpacing.md)
         .padding(.vertical, XFSpacing.xs)

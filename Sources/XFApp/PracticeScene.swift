@@ -129,6 +129,10 @@ final class PracticeScene: SKScene {
     private var fullBeatPool: [SKShapeNode] = []
     private var fullBarPool: [SKShapeNode] = []
     private let fullPlayhead = SKShapeNode()
+    /// Números de compás.subdivisión ("1.1", "1.2"…) encima de cada línea de la
+    /// rejilla, arriba del todo. Pequeños y discretos; se mueven con la rejilla
+    /// (usan el mismo `now` desplazado por `gridShift`).
+    private var gridLabelPool: [SKLabelNode] = []
 
     // --- autopista (replica fiel de HighwayScene, modulo sellado; sin rejilla:
     // esa va en `fullGridLayer`) ---
@@ -508,6 +512,38 @@ final class PracticeScene: SKScene {
         moveVLines(pool: &fullBeatPool, xs: beats, color: gridBeatColor, width: 1)
         moveVLines(pool: &fullBarPool, xs: bars, color: gridBarColor, width: 2)
         fullPlayhead.position = CGPoint(x: (railWidth + playheadX).rounded(), y: 0)
+
+        // números "compás.subdivisión" arriba de cada línea (solo del "1" en
+        // adelante; antes del arranque no se etiqueta).
+        let labels = Self.gridLabels(
+            now: now, width: geometry.size.width, playheadX: playheadX,
+            pxPerTick: pxPerTick, ppq: max(1, patternPPQ),
+            beatsPerBar: max(1, geometry.beatsPerBar))
+        moveGridLabels(labels)
+    }
+
+    private func moveGridLabels(_ items: [(x: CGFloat, text: String)]) {
+        while gridLabelPool.count < items.count {
+            let l = SKLabelNode(fontNamed: "Menlo")
+            l.fontSize = 8
+            l.fontColor = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.5)
+            l.horizontalAlignmentMode = .left
+            l.verticalAlignmentMode = .top
+            l.zPosition = 8            // sobre la autopista, discreto
+            fullGridLayer.addChild(l)
+            gridLabelPool.append(l)
+        }
+        // arriba del todo de la autopista (justo bajo la tira de instrumental).
+        let yTop = geometry.size.height - 2
+        for (i, l) in gridLabelPool.enumerated() {
+            if i < items.count {
+                l.isHidden = false
+                l.text = items[i].text
+                l.position = CGPoint(x: (railWidth + items[i].x + 2).rounded(), y: yTop)
+            } else {
+                l.isHidden = true
+            }
+        }
     }
 
     private func moveVLines(pool: inout [SKShapeNode], xs: [CGFloat],
@@ -680,6 +716,28 @@ final class PracticeScene: SKScene {
             if ((b % bpb) + bpb) % bpb == 0 { bars.append(x) } else { beats.append(x) }
         }
         return (beats, bars)
+    }
+
+    /// Etiquetas "compás.subdivisión" (`1.1`, `1.2`, …, `2.1`, …) para cada línea
+    /// de negra visible. El "1" absoluto (tick 0) es el compás 1, negra 1. No se
+    /// etiqueta antes del arranque (negras < 0). Misma X que `gridLines`.
+    static func gridLabels(now: Double, width w: CGFloat, playheadX: CGFloat,
+                           pxPerTick: CGFloat, ppq: Int,
+                           beatsPerBar: Int) -> [(x: CGFloat, text: String)] {
+        let tMin = now + Double((0 - playheadX) / pxPerTick)
+        let tMax = now + Double((w - playheadX) / pxPerTick)
+        let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
+        let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
+        guard firstBeat <= lastBeat else { return [] }
+        let bpb = max(1, beatsPerBar)
+        var out: [(x: CGFloat, text: String)] = []
+        for b in firstBeat...lastBeat where b >= 0 {
+            let x = playheadX + CGFloat(Double(b * ppq) - now) * pxPerTick
+            let bar = b / bpb + 1
+            let sub = b % bpb + 1
+            out.append((x, "\(bar).\(sub)"))
+        }
+        return out
     }
 
     // MARK: - rail del sample

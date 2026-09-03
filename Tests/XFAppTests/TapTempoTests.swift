@@ -8,9 +8,9 @@ final class TapTempoTests: XCTestCase {
     private let t0 = Date(timeIntervalSinceReferenceDate: 1_000)
 
     /// Da `n` golpes espaciados `gap` s a partir de `t0` y devuelve el último BPM.
-    private func run(_ tap: inout TapTempo, gaps: [Double]) -> Int? {
+    private func run(_ tap: inout TapTempo, gaps: [Double]) -> Double? {
         var t = 0.0
-        var out: Int? = tap.tap(at: t0)
+        var out: Double? = tap.tap(at: t0)
         for g in gaps { t += g; out = tap.tap(at: t0.addingTimeInterval(t)) }
         return out
     }
@@ -20,13 +20,20 @@ final class TapTempoTests: XCTestCase {
         XCTAssertNil(tap.tap(at: t0))
         XCTAssertNil(tap.tap(at: t0.addingTimeInterval(0.5)))
         XCTAssertNil(tap.tap(at: t0.addingTimeInterval(1.0)))
-        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(1.5)), 120)   // 4º golpe: 0.5 s -> 120
+        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(1.5))!, 120, accuracy: 1e-9)   // 0.5 s -> 120
+    }
+
+    func testDevuelveUnDecimal() {
+        var tap = TapTempo()
+        // 0.7 s por golpe -> 85.714… -> se redondea a 85.7
+        let bpm = run(&tap, gaps: [0.7, 0.7, 0.7, 0.7, 0.7])
+        XCTAssertEqual(bpm!, 85.7, accuracy: 1e-9)
     }
 
     func testPromediaVariosGolpes() {
         var tap = TapTempo()
         // 6 golpes espaciados 0.6 s -> 100 BPM
-        XCTAssertEqual(run(&tap, gaps: [0.6, 0.6, 0.6, 0.6, 0.6]), 100)
+        XCTAssertEqual(run(&tap, gaps: [0.6, 0.6, 0.6, 0.6, 0.6])!, 100, accuracy: 1e-9)
     }
 
     func testUnGolpeFumadoNoTiraLaMedia() {
@@ -35,7 +42,7 @@ final class TapTempoTests: XCTestCase {
         // recortada lo descarta y se queda en ~120, no en ~105.
         let bpm = run(&tap, gaps: [0.5, 0.5, 0.9, 0.5, 0.5, 0.5])
         XCTAssertNotNil(bpm)
-        XCTAssertEqual(Double(bpm!), 120, accuracy: 6)
+        XCTAssertEqual(bpm!, 120, accuracy: 6)
     }
 
     func testUnaPausaLargaReiniciaLaCuenta() {
@@ -45,7 +52,7 @@ final class TapTempoTests: XCTestCase {
         XCTAssertNil(tap.tap(at: t0.addingTimeInterval(4.5)))
         XCTAssertNil(tap.tap(at: t0.addingTimeInterval(5.3)))   // +0.8
         XCTAssertNil(tap.tap(at: t0.addingTimeInterval(6.1)))
-        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(6.9)), 75)   // 0.8 s -> 75
+        XCTAssertEqual(tap.tap(at: t0.addingTimeInterval(6.9))!, 75, accuracy: 1e-9)   // 0.8 s -> 75
     }
 
     func testRitmoFueraDeRangoDaNil() {

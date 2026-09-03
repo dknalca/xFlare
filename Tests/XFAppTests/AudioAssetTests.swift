@@ -46,4 +46,17 @@ final class AudioAssetTests: XCTestCase {
     func testRutaInexistenteDaNil() {
         XCTAssertNil(AudioAsset.loadMono("Audio/no-existe.wav", from: content))
     }
+
+    /// `capScratch` recorta a `scratchMaxSeconds` y deja igual lo más corto: un
+    /// sample largo se scratchea como el `Ahh`, no "se va todo".
+    func testRecortaElSampleLargoALaVentanaDeScratch() {
+        let sr = 48_000.0
+        let cap = Int(AudioAsset.scratchMaxSeconds * sr)
+
+        let corto = [Float](repeating: 0.2, count: 10_000)
+        XCTAssertEqual(AudioAsset.capScratch(corto, sampleRate: sr).count, 10_000, "lo corto no se toca")
+
+        let largo = [Float](repeating: 0.2, count: Int(sr) * 60)   // 60 s
+        XCTAssertEqual(AudioAsset.capScratch(largo, sampleRate: sr).count, cap, "lo largo se recorta a la ventana")
+    }
 }

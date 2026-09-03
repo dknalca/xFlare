@@ -126,6 +126,14 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.bpm, 40)
     }
 
+    func testElBPMConservaUnDecimal() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.setBPM(120.53)
+        XCTAssertEqual(s.bpm, 120.5, accuracy: 1e-9, "un decimal, redondeado")
+        s.setBPM(95.06)
+        XCTAssertEqual(s.bpm, 95.1, accuracy: 1e-9)
+    }
+
     func testCongelarParaElRelojYLaTrazaPeroNoElPlato() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 120)
         for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }

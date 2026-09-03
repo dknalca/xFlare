@@ -50,7 +50,10 @@ public final class PracticeSession: ObservableObject {
     private var historyTicks: Double
 
     // --- estado observable (barra superior) ---
-    @Published public private(set) var bpm: Int
+    /// BPM de la rejilla / metrónomo. `Double` (no `Int`) porque en la práctica
+    /// va **enganchado al BPM de la instrumental**, que se detecta con decimales
+    /// (120,5). Si la rejilla fuera entera y la base 120,5 se separarían.
+    @Published public private(set) var bpm: Double
     @Published public private(set) var faderClosed = false
     /// Congelado (tecla P): el reloj y la autopista se paran en el instante
     /// actual y la traza deja de crecer, pero el plato sigue vivo -> puedes
@@ -167,7 +170,7 @@ public final class PracticeSession: ObservableObject {
     /// La traza y el reloj NO se tocan: siguen siendo tiempo real.
     public var gridPhaseTicks: Double = 0
 
-    public init(scratch: Scratch, bpm: Int) {
+    public init(scratch: Scratch, bpm: Double) {
         self.scratch = scratch
         self.lengthTicks = Double(max(1, scratch.lengthTicks))
         self.ppq = Double(max(1, scratch.ppq))
@@ -258,7 +261,7 @@ public final class PracticeSession: ObservableObject {
         }
 
         // reloj musical
-        currentTick += step * (Double(bpm) / 60.0) * ppq
+        currentTick += step * (bpm / 60.0) * ppq
 
         // fin de la claqueta -> empieza a grabar en el downbeat
         if recArming {
@@ -290,7 +293,7 @@ public final class PracticeSession: ObservableObject {
             // reproduccion de una linea grabada, ANCLADA a la instrumental: el
             // reloj de la linea avanza en TICKS al tempo actual, igual que la
             // base, asi los scratches caen siempre en el mismo punto del bucle.
-            pbClock += step * (Double(bpm) / 60.0) * ppq
+            pbClock += step * (bpm / 60.0) * ppq
             if pbLen > 0, pbClock >= pbLen { pbClock = pbClock.truncatingRemainder(dividingBy: pbLen) }
             let g = pbPositionAt(pbClock)
             platterVelocity = (g - platterPosition) / step
@@ -349,7 +352,7 @@ public final class PracticeSession: ObservableObject {
         if frozen { return currentTick }     // imagen congelada: no se extrapola
         let now = CACurrentMediaTime()
         if now - cachedTickAt >= 0, now - cachedTickAt < 0.004 { return cachedTick }
-        let rate = (Double(bpm) / 60.0) * ppq
+        let rate = (bpm / 60.0) * ppq
         let extra = (now - lastFrameTime) * rate
         let v = currentTick + min(max(0, extra), 0.05 * rate)
         cachedTick = v
@@ -492,14 +495,14 @@ public final class PracticeSession: ObservableObject {
         }
         // duración real de la toma -> ticks al tempo de grabación
         let spanSec = hc.nanoseconds(fromHostTicks: b - a) / 1_000_000_000
-        let spanTicks = spanSec * (Double(bpm) / 60.0) * ppq
+        let spanTicks = spanSec * (bpm / 60.0) * ppq
         // se redondea HACIA ARRIBA a un múltiplo del bucle de la instrumental
         // (si se conoce) o de un compás: así cada vuelta cae sobre los mismos
         // golpes de la base.
         let unit = instrLoopTicksHint >= barTicks ? instrLoopTicksHint : barTicks
         let loopTicks = max(unit, (spanTicks / unit).rounded(.up) * unit)
         return XFSession(
-            header: .init(formatVersion: 1, tempoBPM: Double(bpm),
+            header: .init(formatVersion: 1, tempoBPM: bpm,
                           anchorHostTime: recStartHost,
                           anchorTick: Int(recAnchorTick.rounded()),
                           hostNumer: hc.numer, hostDenom: hc.denom,
@@ -538,7 +541,7 @@ public final class PracticeSession: ObservableObject {
     public func loadPlayback(_ s: XFSession) {
         let hc = HostClock(numer: max(1, s.header.hostNumer), denom: max(1, s.header.hostDenom))
         guard let t0 = s.motion.first?.hostTime else { return }
-        let recBPM = s.header.tempoBPM > 0 ? s.header.tempoBPM : Double(bpm)
+        let recBPM = s.header.tempoBPM > 0 ? s.header.tempoBPM : bpm
         // host-ticks -> TICKS musicales al tempo de la grabación, relativos al
         // primer sample (que es la fase 0 del bucle).
         func ticks(_ ht: UInt64) -> Double {
@@ -611,8 +614,9 @@ public final class PracticeSession: ObservableObject {
         onAdvance?(0, clamped, currentTick)
     }
 
-    public func setBPM(_ value: Int) {
-        let clamped = min(220, max(40, value))
+    public func setBPM(_ value: Double) {
+        // un decimal: la detección de tempo y el TAP dan 120,53… -> 120,5.
+        let clamped = (min(220, max(40, value)) * 10).rounded() / 10
         if clamped != bpm { bpm = clamped }
     }
 

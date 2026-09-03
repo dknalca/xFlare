@@ -50,6 +50,26 @@ final class PracticeSceneTests: XCTestCase {
         }
     }
 
+    /// Las etiquetas "compás.subdivisión" van 1.1, 1.2, …, y saltan a 2.1 tras
+    /// `beatsPerBar` negras. No se etiqueta antes del "1" (negras < 0).
+    func testEtiquetasDeCompasYSubdivision() throws {
+        let g = geometry(width: 900 - 44, height: 600 - 46)
+        let ppq = 480
+
+        // en now = 0 el cabezal está en el tick 0: la primera etiqueta es "1.1".
+        let l0 = PracticeScene.gridLabels(
+            now: 0, width: g.size.width, playheadX: g.playheadX,
+            pxPerTick: g.pixelsPerTick(ppq: ppq), ppq: ppq, beatsPerBar: 4)
+        XCTAssertEqual(l0.first?.text, "1.1")
+        XCTAssertEqual(Set(l0.map(\.text)).isSuperset(of: ["1.1", "1.2", "1.3", "1.4", "2.1"]), true)
+
+        // muy atrás en el tiempo (todo negras negativas) -> sin etiquetas
+        let lNeg = PracticeScene.gridLabels(
+            now: -10_000, width: g.size.width, playheadX: g.playheadX,
+            pxPerTick: g.pixelsPerTick(ppq: ppq), ppq: ppq, beatsPerBar: 4)
+        XCTAssertTrue(lNeg.isEmpty)
+    }
+
     /// La escena traga `update(_:)` a distintos ticks y tamanos sin reventar
     /// (giro del sprite del sample, pools de la autopista, tiling de la tira).
     func testUpdateNoRevientaConImagenesYCambiosDeTamano() throws {

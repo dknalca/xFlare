@@ -28,7 +28,8 @@ la ventana), calentamiento adaptativo, "Mi mesa" (perfiles), **Libreria** de
 medios (instrumentales pre-analizadas que cargan al instante + 4 slots de sample
 asignables a botones MIDI), Ajustes con reasignacion de comandos por MIDI. El
 render de la autopista va a **60 fps estables** en el MacBook Pro Intel de 2015
-(medido).
+(medido). Ajustes y librerías se guardan en un fichero de texto copiable
+(`~/Library/Application Support/xFlare/settings.json`).
 
 **Falta para la v1:** la puerta de latencia de audio y el timecode reales — todo
 lo que necesita la Rane 72 delante (bloques B1/B4/B5/B6/B8 de `TODO.md`). Sin

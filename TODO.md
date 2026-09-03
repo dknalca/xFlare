@@ -680,6 +680,32 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         la librería (carga al instante) + la base por defecto + "Cargar otra…".
         +2 tests (`AppSettings.sampleSlots` ida y vuelta, `PracticeCommand`
         sample1..4). 632 tests en verde.
+- [x] **F.13** Fichero de configuración + pulido de la pantalla de práctica (ADR-063, ADR-064)
+      - Feedback del autor (2026-09-03):
+      - **Fichero de configuración (ADR-063):** `SettingsStore` guarda `AppSettings`
+        como JSON legible/copiable en
+        `~/Library/Application Support/xFlare/settings.json`, **atómico en cada
+        cambio**. Antes solo `UserDefaults`, que `cfprefsd` vaciaba tarde y perdía
+        cambios si la app se cerraba de golpe ("las canciones y la configuración
+        no se guardan de una vez a otra"). `loadSettings` prefiere el fichero y
+        migra el plist viejo. 2 tests.
+      - **Reorg de la práctica (ADR-064):** columna izquierda `leftColumn` con todo
+        lo del SAMPLE (selector, **4 slots MIDI** que asignan y disparan, cue A/B,
+        meter, EQ, volúmenes). Zona inferior `bottomBar`: fila compacta (nombre +
+        reiniciar/÷2/×2/◀/▶/TAP/BPM) que se despliega (`instrLibraryPanel`) a la
+        lista de instrumentales analizadas de la Librería y se minimiza sola al
+        cargar. `LivePracticeView` gana `onSampleSlotsChanged`.
+      - **BPM con un decimal:** `PracticeSession.bpm` `Int`→`Double` (`setBPM`
+        redondea a 0,1), `TapTempo.tap()` devuelve `Double?` (media de 4-8
+        golpes), `PlatterInputView.onBPM`/`currentBPM`→`Double`; UI con `%.1f`,
+        entrada con coma o punto. +2 tests.
+      - **Tope del sample:** `AudioAsset.scratchMaxSeconds` (2 s) + `capScratch` —
+        un fichero largo ya no barre minutos de audio con un gesto ("se va todo").
+        +1 test.
+      - **Números de rejilla:** `PracticeScene.gridLabels` (puro) — "compás.
+        subdivisión" (1.1, 1.2…) sobre cada línea, arriba, discretos, siguen
+        `gridShift`. +1 test.
+      - 638 tests en verde.
 
 ---
 

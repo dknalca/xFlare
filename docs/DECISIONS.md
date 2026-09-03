@@ -2306,6 +2306,98 @@ sandbox del repo (App Support), copiable por el usuario (soberanía, `CLAUDE.md`
 
 ---
 
+## ADR-063 — Los ajustes se guardan en un fichero JSON, no solo en UserDefaults (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** El autor reportó que "las canciones y la configuración no se
+guardan de una vez a otra". Los ajustes vivían solo en
+`UserDefaults(suiteName: "app.xflare.settings")`. `UserDefaults` en macOS lo
+vacía a disco `cfprefsd` de forma diferida (~30 s + al terminar limpio); si la
+app se cierra de golpe (crash, `killall`, parar desde Xcode) los cambios
+recientes se pierden. Además el autor quería **un fichero de configuración**
+visible y copiable (`CLAUDE.md` §3).
+
+**Decisión.** `SettingsStore` (XFApp): `AppSettings.raw` (`[String:String]`) se
+serializa a **JSON con sangría y claves ordenadas** en
+`~/Library/Application Support/xFlare/settings.json`, escrito **atómicamente en
+cada cambio** (`Data.write(to:options:.atomic)` desde el `didSet` de
+`AppModel.settings`). `loadSettings()` prefiere el fichero; si no existe pero hay
+un plist viejo, lo lee y **migra** (escribe el fichero una vez); si tampoco,
+`AppSettings.defaults`. El `UserDefaults` se mantiene como **espejo** por
+compatibilidad, pero ya no es la fuente de verdad.
+
+**Alternativas descartadas.** Llamar a `UserDefaults.synchronize()` (obsoleto y
+no garantiza el vaciado inmediato). `NSUserDefaultsController`. Un `.plist`
+propio en vez de JSON (menos legible para editar a mano). Guardar en la BBDD
+SQLite (ya hay un accesor `setting` ahí, pero es un fichero binario, no
+copiable-editable a ojo, y añade dependencia de GRDB al arranque de ajustes).
+
+**Consecuencias.** El fichero es texto plano, versionable y copiable entre
+máquinas. Escritura atómica: nunca queda a medias. `SettingsStore` se prueba
+sin hardware (ida y vuelta + que sea JSON legible). No toca el hilo de audio.
+
+---
+
+## ADR-064 — Reorganización de la pantalla de práctica + BPM con decimal + tope del sample + números de rejilla (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** El panel derecho de la práctica había acumulado demasiado. El
+autor pidió: (a) a la izquierda de la onda del sample, el selector de sample +
+la asignación MIDI de los 4 slots + el meter + la EQ + los volúmenes; (b) abajo,
+un selector desplegable de instrumentales de la Librería, con los controles de
+tempo/rejilla a su derecha, que **se minimiza al cargar** a una fila con lo
+básico (desplegar, reiniciar, ÷2/×2, ◀/▶, TAP, BPM); (c) **BPM con un decimal**,
+también en el TAP; (d) un sample más largo que el `Ahh` "se va todo"; (e)
+números de compás.subdivisión ("1.1", "1.2"…) sobre la rejilla, discretos, que
+sigan al desplazamiento.
+
+**Decisión.**
+1. **Columna izquierda** (`leftColumn`, 176 px, pegada al rail del sample):
+   secciones "Sample" (selector, **slots MIDI**, cue A/B, aviso de loop) y
+   "Mezcla" (meter, volumen de sample e instrumental, EQ Lo/Mid/Hi). El panel
+   derecho se queda con "Repite conmigo", "Grabar línea" y "Ajuste rápido".
+2. **Zona inferior** (`bottomBar`): fila compacta siempre visible —
+   `[desplegar] nombre · [↻][÷2][×2][◀][▶][TAP][BPM]` (tempo y rejilla a la
+   derecha) — y, al desplegar, el panel `instrLibraryPanel` con la lista de
+   instrumentales **ya analizadas** de la Librería (nombre + "≈ BPM · compases"
+   del caché), "Cargar otra…" y, en modo loop, el ajuste de compases. Al cargar
+   una base se minimiza sola.
+3. **Slots MIDI en la práctica**: `sampleSlotsRow` en la columna izquierda —
+   4 filas, cada una con un botón-número que dispara `loadSlot(i)` en caliente y
+   un menú para asignarle un fichero (de la biblioteca o del disco). Persiste vía
+   `onSampleSlotsChanged` → `AppSettings.sampleSlots`.
+4. **BPM con un decimal**: `PracticeSession.bpm` pasa de `Int` a `Double`
+   (`setBPM` redondea a 0,1); `TapTempo.tap()` devuelve `Double?` (media de 4-8
+   golpes, a 0,1); toda la UI de BPM formatea con `%.1f` y la edición a mano
+   acepta coma o punto. La rejilla va enganchada a la base: si la base es 120,5 y
+   la rejilla fuera entera se separarían.
+5. **Tope del sample de scratch**: `AudioAsset.scratchMaxSeconds` = 2,0 s;
+   `capScratch(_:sampleRate:)` recorta la carga. El movimiento del plato mapea a
+   una fracción del sample entero, así que un fichero de 1 min barría minutos de
+   audio con un gesto; con el tope, cualquier sample se scratchea como el `Ahh`.
+6. **Números de rejilla**: `PracticeScene.gridLabels(...)` (puro, testeable) da
+   "compás.subdivisión" para cada línea de negra visible (el "1" absoluto = tick
+   0 → compás 1, negra 1; sin etiquetas antes del "1"). `moveGridLabels` los
+   pinta arriba del todo de la autopista, pequeños (`fontSize` 8, α 0,5). Usan el
+   mismo `now` desplazado por `gridShift`, así siguen a los botones ◀/▶.
+
+**Alternativas descartadas.** Mantener todo en el panel derecho con más scroll
+(el autor lo ve saturado). BPM entero y un "fino" aparte (la rejilla se
+desengancharía de la base). Recortar el sample largo con un *fade* o buscar el
+"mejor" fragmento (no aporta: el autor quiere que se comporte como el `Ahh`;
+puede recortarlo él en F.3). Dibujar los números en XFRender (sellado) — se
+hacen en `PracticeScene` (XFApp), sin tocar el módulo sellado.
+
+**Consecuencias.** `PracticeSession.bpm: Double` es un cambio de API dentro de
+XFApp (no sellado); `PlatterInputView.onBPM`/`currentBPM` pasan a `Double`; los
+tests de `PracticeSession`/`TapTempo` se actualizan. `LivePracticeView` gana el
+callback `onSampleSlotsChanged` (cableado en `AppRootView`). Sin cambios en el
+hilo de audio ni en la puerta de latencia.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

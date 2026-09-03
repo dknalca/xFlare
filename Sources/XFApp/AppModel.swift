@@ -177,20 +177,29 @@ public final class AppModel: ObservableObject {
         return model
     }
 
-    // MARK: - persistencia de ajustes (plist local)
+    // MARK: - persistencia de ajustes (fichero de texto + espejo en plist)
 
     private static let settingsDefaults = UserDefaults(suiteName: "app.xflare.settings")
 
+    /// Orden de preferencia: el **fichero** `settings.json` (fuente de verdad,
+    /// ver `SettingsStore`); si no lo hay, el plist viejo (y se migra al fichero);
+    /// si tampoco, los valores por defecto.
     static func loadSettings() -> AppSettings {
-        guard let d = settingsDefaults,
-              let raw = d.dictionary(forKey: "settings") as? [String: String] else {
-            return .defaults
+        if let fromFile = SettingsStore.load() {
+            return fromFile
         }
-        return AppSettings(raw: raw)
+        if let d = settingsDefaults,
+           let raw = d.dictionary(forKey: "settings") as? [String: String] {
+            let migrated = AppSettings(raw: raw)
+            SettingsStore.save(migrated)          // deja el fichero para la próxima
+            return migrated
+        }
+        return .defaults
     }
 
     static func persist(_ s: AppSettings) {
-        settingsDefaults?.set(s.raw, forKey: "settings")
+        SettingsStore.save(s)                      // atómico, en cada cambio
+        settingsDefaults?.set(s.raw, forKey: "settings")   // espejo, compatibilidad
     }
 
     static func defaultDatabaseURL() -> URL {

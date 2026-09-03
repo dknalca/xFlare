@@ -1081,6 +1081,14 @@
           "acceptance": "cargar una instrumental de la libreria es instantaneo; se cambia de sample con un boton de la mesa a mitad de sesion",
           "status": "done",
           "note": "Cerrado 2026-09-03 (ADR-062). Fase 1: navegador de scratches -> 'Trucos' (LibraryView en LazyVGrid de tarjetas con TTM a la derecha); nuevo menu 'Libreria' (MediaLibraryView, Screen.mediaLibrary) con pestanas Instrumentales/Samples, AppSettings.instrumentalLibrary (tope 200). Fase 2: InstrumentalAnalysisCache (ObservableObject) analiza el tempo UNA vez en 2o plano y cachea en ~/Library/Application Support/xFlare/instrumental-analysis.json (CachedAnalysis: Codable, invalidado por tamano/mtime/sampleRate); loadInstrumental lee del cache -> carga instantanea; TempoAnalyzer.Result: Codable. Arrastrar y soltar + anadir carpeta con casilla subcarpetas + aviso NSAlert si entran >=20 pistas. Fase 3: AppSettings.sampleSlots (siempre 4, ''=vacio), PracticeCommand.sample1..4 (command.sample_1.._4), LivePracticeView.loadSlot(i) hace cue + carga el slot; seccion SLOTS MIDI en la pestana Samples; el selector de instrumental de la practica pasa a Menu que lista las analizadas. Tests: InstrumentalLoopTests (6), InstrumentalAnalysisCacheTests (4), TapTempoTests (6), AppSettings.sampleSlots + PracticeCommand sample1..4 (2). 632 en verde."
+        },
+        {
+          "id": "F.13",
+          "title": "Fichero de configuracion + pulido de la pantalla de practica",
+          "module": "XFApp",
+          "acceptance": "los ajustes y las librerias sobreviven a cerrar la app de golpe; la pantalla de practica no satura el panel derecho",
+          "status": "done",
+          "note": "Cerrado 2026-09-03 (ADR-063, ADR-064). SettingsStore: AppSettings -> JSON legible/copiable en ~/Library/Application Support/xFlare/settings.json, atomico en cada cambio (antes solo UserDefaults, que cfprefsd vaciaba tarde -> se perdian cambios al cerrar de golpe); loadSettings prefiere el fichero y migra el plist. Reorg de LivePracticeView: leftColumn (selector de sample + 4 slots MIDI que asignan y disparan + cue A/B + meter + EQ + volumenes), bottomBar (fila compacta nombre + reiniciar/div2/x2/</> /TAP/BPM que se despliega a la lista de instrumentales analizadas de la Libreria y se minimiza al cargar); LivePracticeView gana onSampleSlotsChanged. BPM con un decimal: PracticeSession.bpm Int->Double (setBPM redondea a 0.1), TapTempo.tap() -> Double?, PlatterInputView.onBPM/currentBPM -> Double, UI con %.1f y coma/punto. Tope del sample: AudioAsset.scratchMaxSeconds (2 s) + capScratch. Numeros de rejilla: PracticeScene.gridLabels (puro) da compas.subdivision (1.1, 1.2...) sobre cada linea, discretos, siguen gridShift. Tests: SettingsStoreTests (2), AudioAssetTests +1, PracticeSessionTests +1, TapTempoTests +1, PracticeSceneTests +1. 638 en verde."
         }
       ]
     }

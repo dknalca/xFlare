@@ -24,8 +24,8 @@ struct PlatterInputView: NSViewRepresentable {
     var onFreeze: () -> Void
     var onCue: () -> Void
     var onRestartInstrumental: () -> Void = {}
-    var onBPM: (Int) -> Void
-    var currentBPM: () -> Int
+    var onBPM: (Double) -> Void
+    var currentBPM: () -> Double
     var onExit: () -> Void
 
     func makeNSView(context: Context) -> NSView { CatcherView(owner: self) }

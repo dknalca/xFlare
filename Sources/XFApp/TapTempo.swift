@@ -23,9 +23,10 @@ struct TapTempo {
 
     private(set) var times: [Date] = []
 
-    /// Registra un golpe en `now`. Devuelve el BPM redondeado cuando ya hay
-    /// `fireAfter` golpes y el ritmo es plausible; si no, `nil`.
-    mutating func tap(at now: Date = Date()) -> Int? {
+    /// Registra un golpe en `now`. Devuelve el BPM (con **un decimal**, la media
+    /// de 4-8 golpes) cuando ya hay `fireAfter` golpes y el ritmo es plausible;
+    /// si no, `nil`.
+    mutating func tap(at now: Date = Date()) -> Double? {
         if let last = times.last, now.timeIntervalSince(last) > resetAfter {
             times.removeAll(keepingCapacity: true)
         }
@@ -36,7 +37,7 @@ struct TapTempo {
         let gaps = zip(times.dropFirst(), times).map { $0.timeIntervalSince($1) }
         guard let avg = Self.trimmedMean(gaps),
               avg >= minInterval, avg <= maxInterval else { return nil }
-        return Int((60.0 / avg).rounded())
+        return ((60.0 / avg) * 10).rounded() / 10
     }
 
     mutating func reset() { times.removeAll(keepingCapacity: true) }

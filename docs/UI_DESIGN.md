@@ -128,6 +128,53 @@ sale mal, todo lo demas miente.
   en vivo. Nunca mas de una.
 - `Esc` sale siempre, sin dialogos de confirmacion.
 
+#### 3.3b Práctica en vivo — disposición actual (`LivePracticeView`, ADR-064)
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  ← Ejercicio            fader ○   Metrónomo ●        120.5 BPM     │ topBar
+├──────────┬──────────────────────────────────────────┬─────────────┤
+│ SAMPLE   │  1.1  1.2  1.3  1.4  2.1  ← nº de rejilla │ Repite      │
+│ selector │  ┌─ tira de onda de la instrumental ────┐ │ conmigo     │
+│ slots ▸  │  │        autopista + rejilla           │ │ Grabar      │
+│ 1 [····] │ r│   curva fantasma / tu traza teal     │ │ línea       │
+│ 2 [····] │ a│                        ▎ cabezal      │ │ Ajuste      │
+│ 3 [····] │ i│                                       │ │ rápido      │
+│ 4 [····] │ l│  ███  ███   carril de fader           │ │             │
+│ cue A B  │  └──────────────────────────────────────┘ │             │
+│ MEZCLA   │                                           │             │
+│ meter    │                                           │             │
+│ vol S/I  │                                           │             │
+│ EQ L/M/H │                                           │             │
+├──────────┴──────────────────────────────────────────┴─────────────┤
+│ ▴  080bpm_beat            [↻] [÷2] [×2] [◀] [▶] [TAP] [120.5 BPM] │ bottomBar
+└───────────────────────────────────────────────────────────────────┘
+```
+
+- **Columna izquierda** — todo lo del **sample**: el selector de sample, los
+  **4 slots MIDI** (`Sample 1`…`Sample 4`; el número dispara la carga en
+  caliente, el menú de al lado asigna un fichero), cue A/B, y la sección
+  **Mezcla** (meter de clip, volumen de sample e instrumental, EQ Lo/Mid/Hi del
+  sample). Va pegada al rail vertical del sample.
+- **Zona inferior** — la **base**: una fila compacta con el nombre y, a la
+  derecha, los controles de **tempo y rejilla** (reiniciar `2`, ÷2/×2, ◀/▶ de
+  rejilla, TAP, y el BPM **con un decimal**, pinchable para escribirlo a mano —
+  acepta coma o punto). El botón ▴ despliega la **lista de instrumentales ya
+  analizadas de la Librería** (nombre + "≈ 120.0 · 4 comp." del caché) para
+  cargar otra al instante; al cargar, se minimiza sola.
+- **Panel derecho** — solo lo que no es sample ni base: "Repite conmigo",
+  "Grabar línea", "Ajuste rápido" (sensibilidad del trackpad, amplitud de la
+  onda fantasma).
+- **Números de la rejilla** — sobre cada línea vertical, arriba del todo,
+  pequeños y discretos: `compás.subdivisión` (1.1, 1.2, 1.3, 1.4, 2.1…). El "1"
+  es el tick 0. Se mueven con los botones ◀/▶ (siguen al desplazamiento).
+- El **BPM** de la rejilla va siempre enganchado al de la instrumental (que se
+  detecta con decimales); TAP y ÷2/×2 lo cambian en caliente sin reiniciar la
+  base ni el reloj.
+- Un **sample más largo que ~2 s** se recorta a esa ventana
+  (`AudioAsset.scratchMaxSeconds`): el recorrido del plato mapea a una fracción
+  del sample entero, así que sin el tope un fichero largo "se iría todo".
+
 ### 3.4 Resultados — el diagnostico
 
 **Cabecera:** las tres estrellas con animacion de entrada escalonada (180 ms cada
@@ -219,6 +266,13 @@ instrumentales ya analizadas de la librería (además de la base por defecto y
 Tres **pestañas**: **General** (perfil, audio/buffer, sesión/tolerancia,
 accesibilidad, diagnóstico de FPS, vídeo), **MIDI** y **Debug**. Todo local:
 **sin cuenta, sin nube, sin telemetria**.
+
+Los ajustes (y las librerías de medios) se guardan en un **fichero de texto**
+que el usuario puede ver y copiar:
+`~/Library/Application Support/xFlare/settings.json` (JSON con sangría, claves
+ordenadas). Se escribe atómicamente en cada cambio, así no se pierde nada aunque
+la app se cierre de golpe (ADR-063). Un plist viejo de `UserDefaults` se migra
+al fichero la primera vez.
 
 - **Vídeo**: FPS (24/30/60) y resolución (Rápida/Estándar/Alta) de la exportación
   de tomas (F.4).

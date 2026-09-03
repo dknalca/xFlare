@@ -176,6 +176,7 @@ public struct AppRootView: View {
                     cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
                     instrumentalLibrary: model.settings.instrumentalLibrary,
                     sampleSlots: model.settings.sampleSlots,
+                    onSampleSlotsChanged: { model.settings.sampleSlots = $0 },
                     onExit: { model.goHome() })
             } else {
                 emptyPanel("No hay ningún patrón base para la rejilla.")
@@ -240,6 +241,7 @@ public struct AppRootView: View {
                 cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
                 instrumentalLibrary: model.settings.instrumentalLibrary,
                 sampleSlots: model.settings.sampleSlots,
+                onSampleSlotsChanged: { model.settings.sampleSlots = $0 },
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

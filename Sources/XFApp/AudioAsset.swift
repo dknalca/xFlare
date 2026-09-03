@@ -29,6 +29,22 @@ public enum AudioAsset {
     /// borde superior, que se recorta, como en un vinilo de verdad.
     public static let scratchPatternTopFraction: Double = 2.0 / 3.0
 
+    /// Duración **máxima** del sample de scratch, en segundos. El movimiento del
+    /// plato mapea a una fracción del sample entero (`normalizedPosition`), así
+    /// que un fichero largo (una canción de 3 min) haría que el mismo gesto
+    /// barriera minutos de audio — "se va todo". Se recorta la carga a esta
+    /// ventana para que cualquier sample se scratchee como el `Ahh` de ejemplo
+    /// (~1 s) y el rail muestre siempre los mismos segundos.
+    public static let scratchMaxSeconds: Double = 2.0
+
+    /// Recorta `pcm` a `scratchMaxSeconds` (deja igual lo que ya sea más corto).
+    /// Se aplica al cargar un sample de scratch para que un fichero largo no
+    /// mapee minutos de audio al recorrido del plato.
+    public static func capScratch(_ pcm: [Float], sampleRate: Double) -> [Float] {
+        let cap = max(1, Int(scratchMaxSeconds * sampleRate))
+        return pcm.count > cap ? Array(pcm.prefix(cap)) : pcm
+    }
+
     /// Decodifica `url` a mono float a `sampleRate`. `nil` si no se puede abrir.
     public static func loadMono(_ url: URL, sampleRate: Double = 48_000) -> [Float]? {
         guard let file = try? AVAudioFile(forReading: url) else { return nil }
