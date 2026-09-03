@@ -477,8 +477,9 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// F.4: renderiza la última toma como vídeo vertical 9:16 (sin audio, de
-    /// momento). El render corre en segundo plano; el botón muestra el progreso.
+    /// F.4: renderiza la última toma como vídeo vertical 9:16 **con audio** (el
+    /// `xf_engine` reproducido offline siguiendo el movimiento grabado). El
+    /// render corre en segundo plano; el botón muestra el progreso.
     private func exportVideo() {
         guard let rec = lastRecording, !exportingVideo else { return }
         let panel = NSSavePanel()
@@ -489,7 +490,10 @@ public struct LivePracticeView: View {
         exportingVideo = true
         videoProgress = 0
         let sc = scratch, g = geometry
-        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g, to: url,
+        let pcm = engine?.scratchPCMCopy()
+        let instr = engine?.instrumentalPCMCopy()
+        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g,
+            scratchPCM: pcm, instrumental: instr, to: url,
             progress: { p in DispatchQueue.main.async { videoProgress = p } },
             completion: { _ in DispatchQueue.main.async { exportingVideo = false } })
     }

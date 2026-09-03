@@ -132,72 +132,162 @@ enum TakeVideoExporter {
 
     // MARK: - export (glue AVFoundation)
 
-    /// Renderiza el vídeo en `url` (mp4, H.264). `progress` (0…1) y `completion`
-    /// se llaman en cola de fondo; la vista los reenvía a `main`.
+    /// Renderiza el vídeo en `url` (mp4, H.264). Si se pasa `scratchPCM` (y
+    /// opcionalmente `instrumental`), **añade el audio** de la toma: el
+    /// `xf_engine` reproducido offline siguiendo el movimiento grabado (F.4).
+    /// `progress` (0…1) y `completion` se llaman en cola de fondo.
     static func export(session: XFSession, scratch: Scratch,
                        geometry g: HighwayGeometry, options o: Options = Options(),
+                       scratchPCM: [Float]? = nil,
+                       instrumental: (pcm: [Float], nativeBPM: Double)? = nil,
                        to url: URL,
                        progress: ((Double) -> Void)? = nil,
                        completion: @escaping (Result<URL, Error>) -> Void) {
         guard session.motion.count > 1 else { completion(.failure(ExportError.sessionEmpty)); return }
 
         DispatchQueue.global(qos: .userInitiated).async {
+            let tmp = FileManager.default.temporaryDirectory
+            let tmpVideo = tmp.appendingPathComponent("xflare-vid-\(UUID().uuidString).mp4")
+            let tmpAudio = tmp.appendingPathComponent("xflare-aud-\(UUID().uuidString).caf")
+            defer {
+                try? FileManager.default.removeItem(at: tmpVideo)
+                try? FileManager.default.removeItem(at: tmpAudio)
+            }
             do {
-                try? FileManager.default.removeItem(at: url)
-                let writer = try AVAssetWriter(outputURL: url, fileType: .mp4)
-                let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
-                    AVVideoCodecKey: AVVideoCodecType.h264,
-                    AVVideoWidthKey: o.width, AVVideoHeightKey: o.height,
-                ])
-                input.expectsMediaDataInRealTime = false
-                let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-                    assetWriterInput: input,
-                    sourcePixelBufferAttributes: [
-                        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                        kCVPixelBufferWidthKey as String: o.width,
-                        kCVPixelBufferHeightKey as String: o.height,
-                    ])
-                guard writer.canAdd(input) else { throw ExportError.writer }
-                writer.add(input)
-                guard writer.startWriting() else { throw writer.error ?? ExportError.writer }
-                writer.startSession(atSourceTime: .zero)
-
-                let layout = HighwayLayout(scratch: scratch)
-                let trace = trace(from: session, ppq: scratch.ppq)
                 let bpm = session.header.tempoBPM > 0 ? session.header.tempoBPM : 90
                 let ticks = framePlan(lengthTicks: Double(scratch.lengthTicks), bpm: bpm,
                                       ppq: scratch.ppq, fps: o.fps, leadOutTicks: o.leadOutTicks)
-                let px = CGSize(width: o.width, height: o.height)
+                let seconds = ticks.last! / (bpm / 60 * Double(scratch.ppq))
 
-                let total = max(1, ticks.count)
-                var lastReported = -1
-                for (i, tick) in ticks.enumerated() {
-                    while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005) }
-                    let frame = layout.frame(atTick: tick, geometry: g, userTrace: trace)
-                    guard let img = render(frame, geometry: g, pixelSize: px),
-                          let pool = adaptor.pixelBufferPool,
-                          let buf = pixelBuffer(from: img, pool: pool) else { throw ExportError.render }
-                    let time = CMTime(value: CMTimeValue(i), timescale: CMTimeScale(o.fps))
-                    adaptor.append(buf, withPresentationTime: time)
+                // 1) vídeo mudo a un temporal (el 90 % del progreso)
+                try writeVideo(session: session, scratch: scratch, geometry: g, options: o,
+                               ticks: ticks, to: tmpVideo,
+                               progress: { progress?($0 * 0.9) })
 
-                    // avisa cada ~2 % para no inundar de callbacks
-                    let pct = Int(Double(i + 1) / Double(total) * 50)
-                    if pct != lastReported { lastReported = pct; progress?(Double(i + 1) / Double(total)) }
-                }
-
-                input.markAsFinished()
-                let done = DispatchSemaphore(value: 0)
-                writer.finishWriting { done.signal() }
-                done.wait()
-                if writer.status == .completed {
-                    completion(.success(url))
+                // 2) si hay sample, render de audio + mux -> url final
+                try? FileManager.default.removeItem(at: url)
+                if let s = scratchPCM, s.count > 1 {
+                    let a = TakeAudioRenderer.render(session: session, scratch: scratch,
+                                                    scratchPCM: s, instrumental: instrumental,
+                                                    durationSeconds: seconds)
+                    try writeCAF(a, to: tmpAudio)
+                    progress?(0.95)
+                    try mux(video: tmpVideo, audio: tmpAudio, to: url)
                 } else {
-                    completion(.failure(writer.error ?? ExportError.writer))
+                    try FileManager.default.moveItem(at: tmpVideo, to: url)
                 }
+                progress?(1)
+                completion(.success(url))
             } catch {
                 completion(.failure(error))
             }
         }
+    }
+
+    /// El bucle de fotogramas: escribe el vídeo mudo en `dst`.
+    private static func writeVideo(session: XFSession, scratch: Scratch,
+                                   geometry g: HighwayGeometry, options o: Options,
+                                   ticks: [Double], to dst: URL,
+                                   progress: (Double) -> Void) throws {
+        let writer = try AVAssetWriter(outputURL: dst, fileType: .mp4)
+        let input = AVAssetWriterInput(mediaType: .video, outputSettings: [
+            AVVideoCodecKey: AVVideoCodecType.h264,
+            AVVideoWidthKey: o.width, AVVideoHeightKey: o.height,
+        ])
+        input.expectsMediaDataInRealTime = false
+        let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+            assetWriterInput: input,
+            sourcePixelBufferAttributes: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                kCVPixelBufferWidthKey as String: o.width,
+                kCVPixelBufferHeightKey as String: o.height,
+            ])
+        guard writer.canAdd(input) else { throw ExportError.writer }
+        writer.add(input)
+        guard writer.startWriting() else { throw writer.error ?? ExportError.writer }
+        writer.startSession(atSourceTime: .zero)
+
+        let layout = HighwayLayout(scratch: scratch)
+        let fullTrace = trace(from: session, ppq: scratch.ppq)
+        let px = CGSize(width: o.width, height: o.height)
+        // ventana de traza visible: pasado reciente hasta "ahora". Sin esto se
+        // pintaba la linea entera desde el fotograma 1 y el video parecia una
+        // foto larga desplazandose, no una captura en vivo.
+        let historyTicks = Double(scratch.ppq) * 12
+
+        let total = max(1, ticks.count)
+        for (i, tick) in ticks.enumerated() {
+            while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005) }
+            let visible = fullTrace.filter { $0.tick <= tick && $0.tick >= tick - historyTicks }
+            let frame = layout.frame(atTick: tick, geometry: g, userTrace: visible)
+            guard let img = render(frame, geometry: g, pixelSize: px),
+                  let pool = adaptor.pixelBufferPool,
+                  let buf = pixelBuffer(from: img, pool: pool) else { throw ExportError.render }
+            adaptor.append(buf, withPresentationTime:
+                CMTime(value: CMTimeValue(i), timescale: CMTimeScale(o.fps)))
+            progress(Double(i + 1) / Double(total))
+        }
+
+        input.markAsFinished()
+        let done = DispatchSemaphore(value: 0)
+        writer.finishWriting { done.signal() }
+        done.wait()
+        guard writer.status == .completed else { throw writer.error ?? ExportError.writer }
+    }
+
+    /// Escribe el PCM del render a un CAF float32 estereo.
+    private static func writeCAF(_ a: TakeAudioRenderer.Rendered, to url: URL) throws {
+        let settings: [String: Any] = [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: a.sampleRate,
+            AVNumberOfChannelsKey: 2,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsNonInterleaved: true,
+        ]
+        let file = try AVAudioFile(forWriting: url, settings: settings,
+                                   commonFormat: .pcmFormatFloat32, interleaved: false)
+        guard let buf = AVAudioPCMBuffer(pcmFormat: file.processingFormat,
+                                         frameCapacity: AVAudioFrameCount(a.frames)) else {
+            throw ExportError.writer
+        }
+        buf.frameLength = AVAudioFrameCount(a.frames)
+        if let ch = buf.floatChannelData {
+            let bytes = a.frames * MemoryLayout<Float>.size
+            a.left.withUnsafeBufferPointer { src in _ = memcpy(ch[0], src.baseAddress, bytes) }
+            a.right.withUnsafeBufferPointer { src in _ = memcpy(ch[1], src.baseAddress, bytes) }
+        }
+        try file.write(from: buf)
+    }
+
+    /// Combina la pista de vídeo de `video` y la de audio de `audio` en un mp4.
+    private static func mux(video: URL, audio: URL, to out: URL) throws {
+        let comp = AVMutableComposition()
+        let vAsset = AVURLAsset(url: video)
+        let aAsset = AVURLAsset(url: audio)
+        guard let vSrc = vAsset.tracks(withMediaType: .video).first,
+              let vDst = comp.addMutableTrack(withMediaType: .video,
+                                              preferredTrackID: kCMPersistentTrackID_Invalid) else {
+            throw ExportError.writer
+        }
+        try vDst.insertTimeRange(CMTimeRange(start: .zero, duration: vAsset.duration),
+                                 of: vSrc, at: .zero)
+        if let aSrc = aAsset.tracks(withMediaType: .audio).first,
+           let aDst = comp.addMutableTrack(withMediaType: .audio,
+                                           preferredTrackID: kCMPersistentTrackID_Invalid) {
+            let d = min(vAsset.duration, aAsset.duration)
+            try aDst.insertTimeRange(CMTimeRange(start: .zero, duration: d), of: aSrc, at: .zero)
+        }
+        guard let ex = AVAssetExportSession(asset: comp,
+                                            presetName: AVAssetExportPresetHighestQuality) else {
+            throw ExportError.writer
+        }
+        ex.outputURL = out
+        ex.outputFileType = .mp4
+        let sem = DispatchSemaphore(value: 0)
+        ex.exportAsynchronously { sem.signal() }
+        sem.wait()
+        guard ex.status == .completed else { throw ex.error ?? ExportError.writer }
     }
 
     // MARK: - helpers

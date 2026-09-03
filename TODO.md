@@ -538,10 +538,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         real a fichero temporal verificado con `AVURLAsset` (pista de vídeo,
         tamaño y duración).
         **Barra de progreso hecha (2026-09-03):** `export(...)` gana un callback
-        `progress: (Double) -> Void` (avisa cada ~2 %); el botón "Vídeo…" muestra
-        el % y una barra fina mientras corre.
-      - Falta: **audio** (necesita un render offline del motor siguiendo la
-        traza grabada).
+        `progress: (Double) -> Void`; el botón "Vídeo…" muestra el % y una barra
+        fina.
+      - **Audio hecho (2026-09-03):** `TakeAudioRenderer` reproduce el `xf_engine`
+        **offline** (el motor RT de verdad, sin CoreAudio) siguiendo la
+        velocidad / posición / fader grabados — mismo DSP que la práctica.
+        `export` escribe el vídeo mudo a un temporal, renderiza el audio a CAF y
+        los combina en el mp4 con `AVMutableComposition` + `AVAssetExportSession`.
+        `EngineHandle` expone `scratchPCMCopy()` / `instrumentalPCMCopy()` para
+        alimentarlo.
+      - **Revelado en vivo (2026-09-03):** cada fotograma solo pinta la traza
+        **ya tocada** (`tick - 12 negras … tick`); antes se veía la línea entera
+        desde el fotograma 1 y parecía "una foto que se desplaza".
+      - Falta (opcional): mezcla de niveles configurable, resolución/fps en
+        ajustes.
 - [ ] **F.5** Transcribir un scratch desde audio o video a XFN
       - Criterio: la funcion asesina: apuntas a un video y te saca la notacion
 - [ ] **F.6** Rutinas y lecciones creadas por usuarios

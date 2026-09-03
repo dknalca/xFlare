@@ -24,15 +24,18 @@ final class TakeVideoExporterTests: XCTestCase {
         HighwayGeometry(size: CGSize(width: 1000, height: 380))
     }
 
-    /// Toma sintética: `n` muestras de movimiento repartidas en `seconds`.
+    /// Toma sintética: `n` muestras de movimiento repartidas en `seconds`, con
+    /// una velocidad realista (derivada de la posición) para que el motor suene.
     private func fakeSession(n: Int = 60, seconds: Double = 2, bpm: Double = 120) -> XFSession {
         // hostNumer/hostDenom = 1/1 -> nanosegundos == host-ticks
         let nsSpan = seconds * 1_000_000_000
+        let dt = seconds / Double(max(1, n - 1))
         var motion: [MotionSample] = []
         for i in 0..<n {
             let t = UInt64(Double(i) / Double(max(1, n - 1)) * nsSpan)
             let pos = 0.5 + 0.4 * sin(Double(i) * 0.3)
-            motion.append(MotionSample(hostTime: t, position: pos, velocity: 0, confidence: 1))
+            let vel = 0.4 * 0.3 * cos(Double(i) * 0.3) / dt     // d(pos)/dt en unidades/s
+            motion.append(MotionSample(hostTime: t, position: pos, velocity: vel, confidence: 1))
         }
         let fader = [FaderSample(hostTime: 0, value: 1, isOpen: true)]
         let header = XFSession.Header(formatVersion: 1, tempoBPM: bpm,
@@ -115,6 +118,50 @@ final class TakeVideoExporterTests: XCTestCase {
         case .none:
             XCTFail("sin resultado")
         }
+    }
+
+    func testExportConSampleTraeAudioYVideo() throws {
+        let sc = try babyScratch()
+        let s = fakeSession(n: 40, seconds: 1.2, bpm: 120)
+        // "sample" sintético: 0,3 s de seno
+        let sr = 48_000.0
+        let pcm: [Float] = (0..<Int(sr * 0.3)).map { Float(sin(2 * .pi * 200 * Double($0) / sr)) * 0.5 }
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("xflare-av-\(UUID().uuidString).mp4")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        var opts = TakeVideoExporter.Options()
+        opts.width = 270; opts.height = 480; opts.fps = 15
+
+        let done = expectation(description: "export")
+        var result: Result<URL, Error>?
+        TakeVideoExporter.export(session: s, scratch: sc, geometry: geometry(),
+                                 options: opts, scratchPCM: pcm, instrumental: nil, to: url,
+                                 progress: nil, completion: { r in result = r; done.fulfill() })
+        wait(for: [done], timeout: 60)
+
+        let out = try XCTUnwrap(try? result?.get())
+        let asset = AVURLAsset(url: out)
+        XCTAssertFalse(asset.tracks(withMediaType: .video).isEmpty, "tiene vídeo")
+        let audio = try XCTUnwrap(asset.tracks(withMediaType: .audio).first, "y audio")
+        XCTAssertGreaterThan(audio.timeRange.duration.seconds, 0.5)
+        XCTAssertGreaterThan(asset.duration.seconds, 0.5)
+    }
+
+    func testAudioRendererProduceSonido() throws {
+        let sc = try babyScratch()
+        let s = fakeSession(n: 60, seconds: 1.5, bpm: 120)
+        let sr = 48_000.0
+        let pcm: [Float] = (0..<Int(sr * 0.5)).map { Float(sin(2 * .pi * 220 * Double($0) / sr)) * 0.6 }
+
+        let a = TakeAudioRenderer.render(session: s, scratch: sc, scratchPCM: pcm,
+                                         instrumental: nil, sampleRate: sr, durationSeconds: 1.5)
+        XCTAssertEqual(a.frames, Int(sr * 1.5))
+        XCTAssertEqual(a.left.count, a.frames)
+        // no es silencio: algún pico por encima del ruido
+        let peak = a.left.map { abs($0) }.max() ?? 0
+        XCTAssertGreaterThan(peak, 0.01, "el render offline debe sonar")
     }
 
     func testSesionVaciaDaError() throws {

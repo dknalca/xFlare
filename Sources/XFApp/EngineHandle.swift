@@ -47,6 +47,18 @@ public final class EngineHandle {
         retiredInstrumental?.deallocate()
     }
 
+    // MARK: - copias del PCM cargado (para el render offline de F.4)
+
+    /// Copia del sample de scratch cargado, o `nil`.
+    public func scratchPCMCopy() -> [Float]? {
+        currentSample.map { Array($0) }
+    }
+    /// Copia de la base instrumental cargada, o `nil`, con su tempo nativo.
+    public func instrumentalPCMCopy() -> (pcm: [Float], nativeBPM: Double)? {
+        guard let buf = currentInstrumental, instrumentalNativeBPM > 0 else { return nil }
+        return (Array(buf), instrumentalNativeBPM)
+    }
+
     // MARK: - control
 
     /// Carga el sample de scratch (mono). Se copia a un buffer propio que vive
