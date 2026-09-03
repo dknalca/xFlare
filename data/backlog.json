@@ -1073,6 +1073,14 @@
           "module": "-",
           "status": "todo",
           "acceptance": "solo cuando haya suficientes perfiles verificados como para que merezca la pena"
+        },
+        {
+          "id": "F.12",
+          "title": "Libreria de medios: instrumentales pre-analizadas + samples a botones MIDI",
+          "module": "XFApp / XFCapture",
+          "acceptance": "cargar una instrumental de la libreria es instantaneo; se cambia de sample con un boton de la mesa a mitad de sesion",
+          "status": "done",
+          "note": "Cerrado 2026-09-03 (ADR-062). Fase 1: navegador de scratches -> 'Trucos' (LibraryView en LazyVGrid de tarjetas con TTM a la derecha); nuevo menu 'Libreria' (MediaLibraryView, Screen.mediaLibrary) con pestanas Instrumentales/Samples, AppSettings.instrumentalLibrary (tope 200). Fase 2: InstrumentalAnalysisCache (ObservableObject) analiza el tempo UNA vez en 2o plano y cachea en ~/Library/Application Support/xFlare/instrumental-analysis.json (CachedAnalysis: Codable, invalidado por tamano/mtime/sampleRate); loadInstrumental lee del cache -> carga instantanea; TempoAnalyzer.Result: Codable. Arrastrar y soltar + anadir carpeta con casilla subcarpetas + aviso NSAlert si entran >=20 pistas. Fase 3: AppSettings.sampleSlots (siempre 4, ''=vacio), PracticeCommand.sample1..4 (command.sample_1.._4), LivePracticeView.loadSlot(i) hace cue + carga el slot; seccion SLOTS MIDI en la pestana Samples; el selector de instrumental de la practica pasa a Menu que lista las analizadas. Tests: InstrumentalLoopTests (6), InstrumentalAnalysisCacheTests (4), TapTempoTests (6), AppSettings.sampleSlots + PracticeCommand sample1..4 (2). 632 en verde."
         }
       ]
     }

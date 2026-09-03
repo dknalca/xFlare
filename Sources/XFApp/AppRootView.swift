@@ -91,10 +91,12 @@ public struct AppRootView: View {
             MediaLibraryView(
                 instrumentals: model.settings.instrumentalLibrary,
                 samples: model.settings.sampleLibrary,
+                sampleSlots: model.settings.sampleSlots,
                 analysisCache: model.analysisCache,
                 sampleRate: model.engine?.sampleRateHz ?? 48_000,
                 onInstrumentalsChanged: { model.settings.instrumentalLibrary = $0 },
-                onSamplesChanged: { model.settings.sampleLibrary = $0 })
+                onSamplesChanged: { model.settings.sampleLibrary = $0 },
+                onSampleSlotsChanged: { model.settings.sampleSlots = $0 })
 
         case .exerciseDetail(let scratchId):
             if let d = model.exerciseDetail(scratchId: scratchId) {
@@ -172,6 +174,8 @@ public struct AppRootView: View {
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                     cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
+                    instrumentalLibrary: model.settings.instrumentalLibrary,
+                    sampleSlots: model.settings.sampleSlots,
                     onExit: { model.goHome() })
             } else {
                 emptyPanel("No hay ningún patrón base para la rejilla.")
@@ -234,6 +238,8 @@ public struct AppRootView: View {
                 onScratchSampleChanged: { model.settings.lastScratchSamplePath = $0 },
                 onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                 cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
+                instrumentalLibrary: model.settings.instrumentalLibrary,
+                sampleSlots: model.settings.sampleSlots,
                 onExit: { model.goHome() })
         } else {
             emptyPanel("No se encuentra el patrón de \(exerciseId).")

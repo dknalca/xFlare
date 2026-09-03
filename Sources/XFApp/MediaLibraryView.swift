@@ -15,10 +15,12 @@ struct MediaLibraryView: View {
 
     let instrumentals: [String]
     let samples: [String]
+    let sampleSlots: [String]
     @ObservedObject var analysisCache: InstrumentalAnalysisCache
     var sampleRate: Double = 48_000
     var onInstrumentalsChanged: ([String]) -> Void = { _ in }
     var onSamplesChanged: ([String]) -> Void = { _ in }
+    var onSampleSlotsChanged: ([String]) -> Void = { _ in }
 
     private static let audioExts: Set<String> = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
 
@@ -28,22 +30,82 @@ struct MediaLibraryView: View {
             TabView {
                 mediaList(
                     hint: "Loops y bases para practicar encima. Se cargan desde el panel "
-                        + "«Base» de la práctica. Se pre-analiza el tempo al añadirlas.",
+                        + "«Base» de la práctica (ya pre-analizadas: al instante). Se "
+                        + "analiza el tempo al añadirlas.",
                     items: instrumentals, cap: 200, showAnalysis: true,
                     onChange: onInstrumentalsChanged
                 ).tabItem { Text("Instrumentales") }
 
-                mediaList(
-                    hint: "Samples de scratch. Se eligen en el menú «Sample» del panel "
-                        + "«Mezcla». (Asignarlos a botones MIDI: próximamente.)",
-                    items: samples, cap: 12, showAnalysis: false,
-                    onChange: onSamplesChanged
-                ).tabItem { Text("Samples") }
+                samplesTab.tabItem { Text("Samples") }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(XFColor.bg)
         .onAppear { analysisCache.analyzeAll(instrumentals, sampleRate: sampleRate) }
+    }
+
+    /// Pestaña de samples: los 4 **slots MIDI** arriba + la lista de samples.
+    private var samplesTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: XFSpacing.lg) {
+                VStack(alignment: .leading, spacing: XFSpacing.sm) {
+                    Text("SLOTS MIDI").font(XFFont.body(9)).kerning(0.6)
+                        .foregroundColor(XFColor.textMuted)
+                    Text("Asigna un sample a cada slot y luego, en Ajustes › MIDI, un "
+                         + "botón a «Sample 1»…«Sample 4» para cambiar de sample en "
+                         + "mitad de una sesión.")
+                        .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(0..<4, id: \.self) { i in slotRow(i) }
+                }
+
+                DropList(hint: "Samples de scratch. Se eligen en el menú «Sample» del "
+                            + "panel «Mezcla» de la práctica.",
+                         items: samples, cap: 12, showAnalysis: false,
+                         analysisCache: analysisCache, sampleRate: sampleRate,
+                         audioExts: Self.audioExts, onChange: onSamplesChanged)
+                    .frame(minHeight: 240)
+            }
+            .frame(maxWidth: 560, alignment: .leading)
+            .padding(XFSpacing.xl)
+        }
+        .background(XFColor.bg)
+    }
+
+    private func slotRow(_ i: Int) -> some View {
+        let current = sampleSlots.indices.contains(i) ? sampleSlots[i] : ""
+        let name = current.isEmpty ? "— vacío —"
+            : URL(fileURLWithPath: current).deletingPathExtension().lastPathComponent
+        return HStack(spacing: XFSpacing.sm) {
+            Text("Sample \(i + 1)").font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
+                .frame(width: 62, alignment: .leading)
+            Menu {
+                Button("— vacío —") { setSlot(i, "") }
+                if !samples.isEmpty { Divider() }
+                ForEach(samples, id: \.self) { path in
+                    Button(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent) {
+                        setSlot(i, path)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text(name).font(XFFont.body(11)).lineLimit(1).truncationMode(.middle)
+                    Spacer()
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 8))
+                        .foregroundColor(XFColor.textMuted)
+                }
+                .foregroundColor(current.isEmpty ? XFColor.textMuted : XFColor.text)
+                .padding(.vertical, 5).padding(.horizontal, XFSpacing.sm)
+                .background(RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface))
+            }
+            .menuStyle(.borderlessButton)
+        }
+    }
+
+    private func setSlot(_ i: Int, _ path: String) {
+        var slots = (0..<4).map { sampleSlots.indices.contains($0) ? sampleSlots[$0] : "" }
+        slots[i] = path
+        onSampleSlotsChanged(slots)
     }
 
     private func mediaList(hint: String, items: [String], cap: Int, showAnalysis: Bool,

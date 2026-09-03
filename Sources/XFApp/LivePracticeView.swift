@@ -157,6 +157,11 @@ public struct LivePracticeView: View {
     /// Análisis de tempo ya hecho para una ruta de instrumental (caché de la
     /// Librería, fase 2). `nil` = no hay, se analiza al vuelo.
     private let cachedAnalysis: (String) -> TempoAnalyzer.Result?
+    /// Instrumentales de la Librería (para el menú «Base»); ya pre-analizadas.
+    private let instrumentalLibrary: [String]
+    /// 4 slots de sample (`""` = vacío) que los comandos MIDI «Sample 1»…«Sample
+    /// 4» cargan en caliente.
+    private let sampleSlots: [String]
     /// Ajustes de "tacto" del plato (ventana Ajustes › Debug). Se aplican al
     /// abrir la práctica.
     private let platterGlideMs: Double
@@ -192,6 +197,8 @@ public struct LivePracticeView: View {
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 cachedAnalysis: @escaping (String) -> TempoAnalyzer.Result? = { _ in nil },
+                instrumentalLibrary: [String] = [],
+                sampleSlots: [String] = [],
                 onExit: @escaping () -> Void = {}) {
         self.warmupSteps = warmupSteps
         self.scratch = warmupSteps.first?.scratch ?? scratch
@@ -218,6 +225,8 @@ public struct LivePracticeView: View {
         self.onScratchSampleChanged = onScratchSampleChanged
         self.onSampleLibraryChanged = onSampleLibraryChanged
         self.cachedAnalysis = cachedAnalysis
+        self.instrumentalLibrary = instrumentalLibrary
+        self.sampleSlots = sampleSlots
         self.onExit = onExit
         _metroOn = State(initialValue: metronomeOn)
         // Arranca al tempo de la instrumental para que suene coherente desde el
@@ -580,19 +589,33 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// Cargar otra instrumental + su BPM + ajuste ×2 / ÷2 + fase de la rejilla.
+    /// Elegir la base: el asset, cualquiera de las **ya analizadas** de la
+    /// Librería (carga al instante), o cargar otra del disco. + BPM + ×2/÷2 + fase.
     private var instrumentalPicker: some View {
         VStack(spacing: XFSpacing.xs) {
-            Button(action: pickInstrumental) {
+            Menu {
+                Button("080bpm (por defecto)") { loadInstrumental(url: nil, initial: false) }
+                if !instrumentalLibrary.isEmpty {
+                    Divider()
+                    ForEach(instrumentalLibrary, id: \.self) { path in
+                        Button(URL(fileURLWithPath: path).deletingPathExtension().lastPathComponent) {
+                            loadInstrumental(url: URL(fileURLWithPath: path), initial: false)
+                        }
+                    }
+                }
+                Divider()
+                Button("Cargar otra…") { pickInstrumental() }
+            } label: {
                 HStack(spacing: 5) {
                     Image(systemName: "waveform")
                     Text(instrName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
                     Spacer()
-                    Image(systemName: "folder").font(.system(size: 9)).foregroundColor(XFColor.textMuted)
+                    Image(systemName: "chevron.up.chevron.down").font(.system(size: 8))
+                        .foregroundColor(XFColor.textMuted)
                 }
                 .foregroundColor(XFColor.text)
             }
-            .buttonStyle(.plain)
+            .menuStyle(.borderlessButton)
 
             HStack(spacing: 5) {
                 // pinchar el número -> editarlo a mano
@@ -1011,7 +1034,22 @@ public struct LivePracticeView: View {
         case .trigger(.callResponse):
             guard !freestyle else { break }
             s.setCallResponse(s.crPhase == .off)
+
+        case .trigger(.sample1): loadSlot(0)
+        case .trigger(.sample2): loadSlot(1)
+        case .trigger(.sample3): loadSlot(2)
+        case .trigger(.sample4): loadSlot(3)
         }
+    }
+
+    /// Carga el sample del slot `i` de la Librería en caliente (MIDI «Sample N»).
+    /// Slot vacío o fuera de rango: no hace nada.
+    private func loadSlot(_ i: Int) {
+        guard sampleSlots.indices.contains(i) else { return }
+        let path = sampleSlots[i]
+        guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
+        cueA = nil; cueB = nil
+        chooseSample(path: path)
     }
 
     private var clipMeter: some View {

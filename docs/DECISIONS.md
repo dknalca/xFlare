@@ -2251,6 +2251,61 @@ pendiente de las mediciones en hardware.
 
 ---
 
+## ADR-062 — Menú "Librería" de medios (Trucos + Instrumentales + Samples) y slots de sample por MIDI (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** El navegador de la matriz de scratches se llamaba "Librería", pero
+el autor quería reservar ese nombre para una biblioteca de **medios** (sus
+instrumentales y sus samples), y que:
+- las instrumentales/loops queden **pre-analizadas** dentro de la carpeta de la
+  app, para que cargarlas en la práctica sea instantáneo;
+- los samples se puedan **asignar a botones MIDI** y cambiar entre 4 en mitad de
+  una sesión, sin ratón;
+- en Trucos cada scratch se vea con su **notación TTM** al lado, en tarjetas.
+
+**Decisión.**
+1. **Renombrado.** El navegador de scratches pasa a llamarse **Trucos**
+   (`LibraryView`, reescrito a `LazyVGrid` de tarjetas con `TTMThumbnailView` a la
+   derecha). El nombre **Librería** queda para el nuevo `MediaLibraryView`
+   (`Screen.mediaLibrary`), con pestañas **Instrumentales** y **Samples**.
+2. **Persistencia** (`AppSettings`, plist local, sin nube): `instrumentalLibrary:
+   [String]` (rutas, tope 200) y `sampleSlots: [String]` (**siempre 4**, `""` =
+   vacío). Se añaden ficheros por `NSOpenPanel` (ficheros o **una carpeta** con
+   casilla "subcarpetas") o **arrastrando y soltando**; aviso `NSAlert` si entran
+   ≥ 20 pistas de golpe (analizar tarda ~1 s por pista).
+3. **Pre-análisis** (`InstrumentalAnalysisCache`, fase 2): al añadir una
+   instrumental se analiza el tempo/fase/compases **una vez** en segundo plano
+   (`qos: .utility`) y se cachea en
+   `~/Library/Application Support/xFlare/instrumental-analysis.json`
+   (`CachedAnalysis: Codable`, invalidado por tamaño/mtime del fichero y por la
+   sample rate del motor). En la práctica `loadInstrumental` lee del caché →
+   carga instantánea; `TempoAnalyzer.Result` es ahora `Codable`.
+4. **Slots de sample por MIDI** (fase 3): `PracticeCommand.sample1…sample4`
+   (XFCapture, `command.sample_1`…`_4` en `[transport]`), disparos discretos. En
+   la práctica `LivePracticeView.loadSlot(i)` hace `cue` + carga el fichero del
+   slot `i` (si está vacío o no existe, no hace nada). Se mapean desde Ajustes ›
+   MIDI o el `.conf` como cualquier otro comando.
+5. **Selector de instrumental de la práctica → `Menu`**: lista las instrumentales
+   analizadas de la librería (carga al instante) + la base por defecto +
+   "Cargar otra…".
+
+**Alternativas descartadas.** Analizar la instrumental cada vez que se carga (lo
+que había: 1-2 s de espera con la práctica congelada). Un único "sample activo"
+recordado (`lastScratchSamplePath`) sin slots (no permite cambiar en vivo).
+Guardar el análisis dentro del propio fichero de audio (metadatos frágiles, y
+xFlare no debe escribir en los ficheros del usuario). Meter los medios en la
+misma pantalla que Trucos (mezcla dos conceptos: catálogo de ejercicios vs.
+ficheros del usuario).
+
+**Consecuencias.** `MediaLibraryView`, `InstrumentalAnalysisCache`,
+`InstrumentalLoop`, `TapTempo` son piezas nuevas de XFApp, todas con tests puros.
+`AppSettings` gana dos campos con su ida y vuelta. El caché vive fuera del
+sandbox del repo (App Support), copiable por el usuario (soberanía, `CLAUDE.md`
+§3). No toca el hilo de audio.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

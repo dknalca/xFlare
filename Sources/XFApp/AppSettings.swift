@@ -45,6 +45,10 @@ public struct AppSettings: Equatable, Sendable {
     /// Instrumentales / loops que el usuario ha guardado en su librería: rutas,
     /// la más reciente primero. Se serializa separando por `\n`.
     public var instrumentalLibrary: [String]
+    /// 4 slots de sample asignables a botones MIDI (`Sample 1`…`Sample 4`) para
+    /// cambiar de sample en caliente durante una sesión. `""` = slot vacío.
+    /// Siempre 4 entradas. Se serializa separando por `\n`.
+    public var sampleSlots: [String]
     /// FPS del vídeo exportado (F.4).
     public var videoFps: Int
     /// Lado mayor del vídeo exportado, en píxeles (F.4).
@@ -76,7 +80,7 @@ public struct AppSettings: Equatable, Sendable {
                 sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600,
                 platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.12,
                 platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0,
-                instrumentalLibrary: [String] = []) {
+                instrumentalLibrary: [String] = [], sampleSlots: [String] = []) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -93,6 +97,8 @@ public struct AppSettings: Equatable, Sendable {
         self.sampleLibrary = sampleLibrary.filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(12).map { $0 }
         var seenI = Set<String>()
         self.instrumentalLibrary = instrumentalLibrary.filter { !$0.isEmpty && seenI.insert($0).inserted }.prefix(200).map { $0 }
+        // siempre 4 slots: se rellena con "" o se recorta.
+        self.sampleSlots = (0..<4).map { sampleSlots.indices.contains($0) ? sampleSlots[$0] : "" }
         self.videoFps = AppSettings.videoFpsOptions.contains(videoFps) ? videoFps : 30
         self.videoLongSide = AppSettings.videoLongSideOptions.contains(videoLongSide) ? videoLongSide : 1600
         // Debug: rangos amplios pero acotados para no romper el motor.
@@ -118,6 +124,7 @@ public struct AppSettings: Equatable, Sendable {
         static let showFPS = "diag.showFPS"
         static let sampleLibrary = "practice.sampleLibrary"
         static let instrumentalLibrary = "media.instrumentalLibrary"
+        static let sampleSlots = "media.sampleSlots"
         static let videoFps = "video.fps"
         static let videoLongSide = "video.longSide"
         static let platterGlideMs = "debug.platterGlideMs"
@@ -164,7 +171,8 @@ public struct AppSettings: Equatable, Sendable {
             platterSpeedGate: dbl(Key.platterSpeedGate, d.platterSpeedGate),
             platterFriction: dbl(Key.platterFriction, d.platterFriction),
             trackpadSensitivity: dbl(Key.trackpadSensitivity, d.trackpadSensitivity),
-            instrumentalLibrary: (raw[Key.instrumentalLibrary] ?? "").split(separator: "\n").map(String.init))
+            instrumentalLibrary: (raw[Key.instrumentalLibrary] ?? "").split(separator: "\n").map(String.init),
+            sampleSlots: (raw[Key.sampleSlots] ?? "").components(separatedBy: "\n"))
     }
 
     public var raw: [String: String] {
@@ -182,6 +190,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.showFPS: showFPS ? "1" : "0",
             Key.sampleLibrary: sampleLibrary.joined(separator: "\n"),
             Key.instrumentalLibrary: instrumentalLibrary.joined(separator: "\n"),
+            Key.sampleSlots: sampleSlots.joined(separator: "\n"),
             Key.videoFps: String(videoFps),
             Key.videoLongSide: String(videoLongSide),
             Key.platterGlideMs: String(platterGlideMs),

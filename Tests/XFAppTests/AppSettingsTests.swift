@@ -45,6 +45,23 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings(raw: [:]).instrumentalLibrary, [], "por defecto vacía")
     }
 
+    func testSlotsDeSampleSiempreSonCuatroYSobrevivenAlIdaYVuelta() {
+        // por defecto: 4 slots vacíos
+        XCTAssertEqual(AppSettings(raw: [:]).sampleSlots, ["", "", "", ""])
+
+        // el init normaliza a 4: rellena con "" y conserva los huecos intermedios
+        var s = AppSettings.defaults
+        s.sampleSlots = ["/a/kick.wav", "", "/c/vocal.wav"]
+        let round = AppSettings(raw: s.raw)
+        XCTAssertEqual(round.sampleSlots, ["/a/kick.wav", "", "/c/vocal.wav", ""],
+                       "ida y vuelta rellena hasta 4 y preserva el hueco intermedio")
+
+        // si vienen más de 4, se recorta
+        var big = AppSettings.defaults
+        big.sampleSlots = ["1", "2", "3", "4", "5", "6"]
+        XCTAssertEqual(AppSettings(raw: big.raw).sampleSlots, ["1", "2", "3", "4"])
+    }
+
     func testAjustesDebugDelPlatoIdaYVueltaYAcotados() {
         var s = AppSettings.defaults
         s.platterGlideMs = 2.0

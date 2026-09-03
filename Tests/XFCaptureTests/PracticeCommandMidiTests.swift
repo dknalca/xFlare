@@ -105,6 +105,26 @@ final class PracticeCommandMidiTests: XCTestCase {
         XCTAssertEqual(merged.bindings[.freeze]?.text, "note:1:40") // intacto
     }
 
+    func testLosCuatroSlotsDeSampleSonComandosMapeables() {
+        // los 4 slots existen, tienen confKey y label propios y no son momentáneos
+        let slots: [PracticeCommand] = [.sample1, .sample2, .sample3, .sample4]
+        XCTAssertEqual(slots.map { $0.confKey },
+                       ["command.sample_1", "command.sample_2", "command.sample_3", "command.sample_4"])
+        XCTAssertEqual(slots.map { $0.label }, ["Sample 1", "Sample 2", "Sample 3", "Sample 4"])
+        XCTAssertFalse(slots.contains { $0.isMomentary })
+
+        // se leen de la sección [transport] y disparan como discretos
+        let ini = try! INIDocument(text: """
+        [transport]
+        command.sample_1 = note:1:60
+        command.sample_3 = cc:1:20
+        """)
+        let m = MidiCommandMap.fromProfile(ini)
+        XCTAssertEqual(m.event(status: 0x90, data1: 60, data2: 100), .trigger(.sample1))
+        XCTAssertEqual(m.event(status: 0xB0, data1: 20, data2: 127), .trigger(.sample3))
+        XCTAssertNil(m.bindings[.sample2])
+    }
+
     // MARK: - source
 
     func testSourceEmiteAlRecibirBytes() {

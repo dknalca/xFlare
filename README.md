@@ -20,13 +20,15 @@ exactamente donde falla tu mano y tu fader.
 
 ## Estado
 
-**Preview jugable sin mesa.** Ya funciona: navegacion completa, matriz de trucos
-con su grafico TTM, practica en vivo con audio (scratch por trackpad/teclado +
-base instrumental + metronomo), Freestyle, grabar una linea y exportarla a
-`.xfsession` o a **video** (con audio, con la proporcion de la ventana),
-calentamiento adaptativo, "Mi mesa" (perfiles), Ajustes con reasignacion de
-comandos por MIDI. El render de la autopista va a **60 fps estables** en el
-MacBook Pro Intel de 2015 (medido).
+**Preview jugable sin mesa.** Ya funciona: navegacion completa, **Trucos** (matriz
+de scratches en tarjetas con su grafico TTM), practica en vivo con audio (scratch
+por trackpad/teclado + base instrumental + metronomo), Freestyle, grabar una
+linea y exportarla a `.xfsession` o a **video** (con audio, con la proporcion de
+la ventana), calentamiento adaptativo, "Mi mesa" (perfiles), **Libreria** de
+medios (instrumentales pre-analizadas que cargan al instante + 4 slots de sample
+asignables a botones MIDI), Ajustes con reasignacion de comandos por MIDI. El
+render de la autopista va a **60 fps estables** en el MacBook Pro Intel de 2015
+(medido).
 
 **Falta para la v1:** la puerta de latencia de audio y el timecode reales — todo
 lo que necesita la Rane 72 delante (bloques B1/B4/B5/B6/B8 de `TODO.md`). Sin

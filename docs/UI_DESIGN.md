@@ -202,8 +202,17 @@ cargarla es instantáneo (lee del caché). La tarjeta muestra "analizando…" o
 (analizar tarda ~1 s por pista). El caché se invalida solo si el fichero cambia
 (tamaño/fecha) o el motor corre a otra sample rate.
 
-*Pendiente:* asignar samples a botones MIDI para cambiar entre varios en mitad de
-una sesión.
+En la pestaña **Samples**, la sección **SLOTS MIDI** asigna hasta **4 samples**
+(`AppSettings.sampleSlots`, siempre 4 entradas; `""` = vacío) a los comandos
+`Sample 1`…`Sample 4`. Mapeando esos comandos a botones de la mesa (Ajustes ›
+MIDI, o la sección `[transport]` del `.conf`) se cambia de sample **en caliente**
+durante una sesión sin tocar el ratón. En la práctica, `Sample N` hace `cue` y
+carga el fichero del slot; si el slot está vacío o el fichero ya no existe, no
+hace nada.
+
+En la práctica, el selector de instrumental es un **menú** que lista las
+instrumentales ya analizadas de la librería (además de la base por defecto y
+"Cargar otra…"); elegir una de la lista la carga al instante desde el caché.
 
 ### 3.7 Ajustes
 
@@ -220,7 +229,8 @@ accesibilidad, diagnóstico de FPS, vídeo), **MIDI** y **Debug**. Todo local:
   aplican al abrir la práctica. Botón "Restablecer valores".
 - Pestaña **MIDI** — asigna una nota o un CC a cada comando de la practica (cue,
   reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
-  repite conmigo) — los mismos que el teclado. **MIDI Learn**: seleccionas el
+  repite conmigo, y `Sample 1`…`Sample 4` para los slots de la Librería) — los
+  mismos que el teclado. **MIDI Learn**: seleccionas el
   comando, pulsas "Aprender MIDI" y el siguiente control que muevas queda
   asignado (mientras Ajustes esta abierto se escucha CoreMIDI). Tambien se puede
   escribir a mano (`note:canal:nº` / `cc:canal:nº`); vacio = lo que traiga el

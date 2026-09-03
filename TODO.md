@@ -648,6 +648,38 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [ ] **F.10** Modo profesor: dos usuarios, comparativa lado a lado
 - [ ] **F.11** Repositorio comunitario de perfiles con actualizacion desde la app
       - Criterio: solo cuando haya suficientes perfiles verificados como para que merezca la pena
+- [x] **F.12** Librería de medios: instrumentales pre-analizadas + samples a botones MIDI (ADR-062)
+      - Pedido por el autor (2026-09-03): reservar el nombre "Librería" para los
+        **medios del usuario**, dejar las instrumentales pre-analizadas dentro de
+        la app para que carguen al instante, y poder cambiar de sample con
+        botones de la mesa en mitad de una sesión.
+      - **Fase 1 — reestructura del menú (2026-09-03):** el navegador de scratches
+        pasa a **Trucos** (`LibraryView` reescrito a `LazyVGrid` de tarjetas, cada
+        una con su notación TTM a la derecha vía `TTMThumbnailView`). Nuevo menú
+        **Librería** (`MediaLibraryView`, `Screen.mediaLibrary`) con pestañas
+        **Instrumentales** / **Samples**; `AppSettings.instrumentalLibrary` (tope
+        200). Añadir por `NSOpenPanel` o quitar con la ✕.
+      - **Fase 2 — caché de pre-análisis (2026-09-03):** `InstrumentalAnalysisCache`
+        (`ObservableObject`): al añadir una instrumental se analiza el tempo UNA
+        vez en segundo plano (`qos: .utility`) y se cachea en
+        `~/Library/Application Support/xFlare/instrumental-analysis.json`
+        (`CachedAnalysis: Codable`, invalidado por tamaño/mtime del fichero y por
+        la sample rate). En la práctica `loadInstrumental` lee del caché → carga
+        instantánea. `TempoAnalyzer.Result: Codable`. La tarjeta muestra
+        "analizando…" / "≈ N BPM · M compases". **Arrastrar y soltar** audios
+        sobre las dos listas; añadir **una carpeta entera** con casilla
+        "subcarpetas" (`FileManager.enumerator`); aviso `NSAlert` si entran ≥ 20
+        pistas de golpe. 6 + 4 tests (`InstrumentalLoopTests`,
+        `InstrumentalAnalysisCacheTests`).
+      - **Fase 3 — samples a botones MIDI (2026-09-03):** `AppSettings.sampleSlots`
+        (**siempre 4**, `""` = vacío). `PracticeCommand.sample1…sample4` (XFCapture,
+        `command.sample_1`…`_4`); en la práctica `LivePracticeView.loadSlot(i)`
+        hace `cue` + carga el fichero del slot. Sección **SLOTS MIDI** en la
+        pestaña Samples (4× `Menu`). Y el **selector de instrumental de la
+        práctica** pasa a ser un `Menu` que lista las instrumentales analizadas de
+        la librería (carga al instante) + la base por defecto + "Cargar otra…".
+        +2 tests (`AppSettings.sampleSlots` ida y vuelta, `PracticeCommand`
+        sample1..4). 632 tests en verde.
 
 ---
 
