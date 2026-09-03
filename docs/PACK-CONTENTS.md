@@ -1,5 +1,9 @@
 # xFlare · Scratch Pack v0.1
 
+> **Documento histórico.** Este era el inventario del pack inicial que se copió
+> a la raíz del repo al arrancar el proyecto. Ya está todo integrado; se
+> conserva como referencia de procedencia.
+
 Contenido generado para alimentar a Claude Code. **Copiar el contenido de este
 paquete a la raiz del repo `xFlare/`**, fusionando con lo que ya existe
 (`CLAUDE.md`, `PLAN.md`, `docs/DECISIONS.md`).
@@ -8,7 +12,7 @@ paquete a la raiz del repo `xFlare/`**, fusionando con lo que ya existe
 docs/NOTATION.md              Especificacion de la notacion XFN
 docs/MATRIX_MAPPING.md        Mapeo con la Periodic Matrix + AVISO LEGAL
 docs/CURRICULUM.md            El gym: niveles, sesiones, scoring
-docs/ADR-014-onward.md           ADRs nuevos, para pegar en docs/DECISIONS.md
+docs/DECISIONS.md             ADR-014+ (ya fusionados; en su dia iban aparte)
 
 data/primitives/*.json        10 patrones de mano + 16 de fader
 data/scratches/library-v0.1.json   25 scratches compilados

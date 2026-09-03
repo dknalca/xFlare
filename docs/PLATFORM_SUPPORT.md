@@ -70,7 +70,7 @@ Xcode.app una vez y dejo que instalara el soporte de XCTest de la plataforma
 macOS (`libXCTestBundleInject.dylib` + `libXCTestSwiftSupport.dylib` en
 `MacOSX.platform/Developer/usr/lib/`). Equivale a `sudo xcodebuild
 -runFirstLaunch`. Tras eso `swift test` ejecuta verde con Xcode 14.2 / Swift
-5.7.2. No hizo falta Xcode 14.1. Detalle en `ADR-014-onward.md` ADR-029.
+5.7.2. No hizo falta Xcode 14.1. Detalle en `DECISIONS.md` ADR-029.
 
 **Si reaparece** (Xcode reinstalado, maquina nueva): abrir Xcode.app una vez y
 dejar que instale componentes, o `sudo xcodebuild -runFirstLaunch`.

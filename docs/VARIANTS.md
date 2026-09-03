@@ -5,7 +5,7 @@
 > introduciremos en el futuro"). El **codigo esta dormido, no borrado**:
 > `Composer` (transforms), `VariantInfo.Transform`, `VariantAssembler` y
 > `VariantPickerView` siguen ahi y probados. Este documento describe el diseno
-> que se reactivara. Ver `docs/ADR-014-onward.md` ADR-050.
+> que se reactivara. Ver `docs/DECISIONS.md` ADR-050.
 >
 > Un patron base, muchos ejercicios. Las variantes son **transformaciones**
 > generadas, no patrones escritos a mano (ADR-026).
