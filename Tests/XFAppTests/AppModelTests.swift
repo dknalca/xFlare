@@ -27,6 +27,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.screen, .library)
         XCTAssertNotNil(m.library)
 
+        m.openMediaLibrary(); XCTAssertEqual(m.screen, .mediaLibrary)   // "Librería" (medios)
         m.openMyTable();   XCTAssertEqual(m.screen, .myTable)
         m.openSettings();  XCTAssertEqual(m.screen, .settings)
         m.openCalibration(); XCTAssertEqual(m.screen, .calibration)

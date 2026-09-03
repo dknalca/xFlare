@@ -49,12 +49,15 @@ public struct AppRootView: View {
         HStack(spacing: XFSpacing.md) {
             XFWordmark(size: 16)
             Divider().frame(height: 18).background(XFColor.stroke)
-            navButton("Home", "square.grid.3x3.fill") { model.goHome() }
-            navButton("Librería", "books.vertical") { model.openLibrary() }
-            navButton("Mi mesa", "pianokeys") { model.openMyTable() }
-            navButton("Calentar", "flame") { model.openWarmup() }
-            navButton("Freestyle", "waveform.and.mic") { model.openFreeMode() }
-            navButton("Ajustes", "slider.horizontal.3") { model.openSettings() }
+            Group {
+                navButton("Home", "square.grid.3x3.fill") { model.goHome() }
+                navButton("Trucos", "books.vertical") { model.openLibrary() }
+                navButton("Librería", "square.stack") { model.openMediaLibrary() }
+                navButton("Mi mesa", "pianokeys") { model.openMyTable() }
+                navButton("Calentar", "flame") { model.openWarmup() }
+                navButton("Freestyle", "waveform.and.mic") { model.openFreeMode() }
+                navButton("Ajustes", "slider.horizontal.3") { model.openSettings() }
+            }
             Spacer()
             navButton("Calibración", "dot.radiowaves.left.and.right") { model.openCalibration() }
         }
@@ -83,6 +86,13 @@ public struct AppRootView: View {
         case .library:
             LibraryView(browser: model.library ?? .init(entries: []),
                         onSelect: { model.selectScratch($0) })
+
+        case .mediaLibrary:
+            MediaLibraryView(
+                instrumentals: model.settings.instrumentalLibrary,
+                samples: model.settings.sampleLibrary,
+                onInstrumentalsChanged: { model.settings.instrumentalLibrary = $0 },
+                onSamplesChanged: { model.settings.sampleLibrary = $0 })
 
         case .exerciseDetail(let scratchId):
             if let d = model.exerciseDetail(scratchId: scratchId) {

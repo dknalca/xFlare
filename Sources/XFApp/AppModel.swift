@@ -22,7 +22,10 @@ public final class AppModel: ObservableObject {
         case exerciseDetail(scratchId: String)
         case practice(exerciseId: String, variantId: String)
         case results
+        /// El navegador de trucos (antes "Librería", ahora "Trucos").
         case library
+        /// Librería de medios: instrumentales y samples del usuario.
+        case mediaLibrary
         case progress(exerciseId: String, variantId: String)
         case myTable
         case settings
@@ -192,8 +195,9 @@ public final class AppModel: ObservableObject {
 
     public func goHome()          { warmupSteps = []; refreshHome(); screen = .home }
     public func openCalibration() { screen = .calibration }
-    public func openLibrary()     { refreshLibrary(); screen = .library }
-    public func openMyTable()     { screen = .myTable }
+    public func openLibrary()      { refreshLibrary(); screen = .library }   // "Trucos"
+    public func openMediaLibrary() { screen = .mediaLibrary }
+    public func openMyTable()      { screen = .myTable }
     public func openSettings()    { screen = .settings }
     public func openFreeMode()    { screen = .freeMode }
 

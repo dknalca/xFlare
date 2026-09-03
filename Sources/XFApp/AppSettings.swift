@@ -42,6 +42,9 @@ public struct AppSettings: Equatable, Sendable {
     /// Samples de scratch recordados (F.3): rutas, la más reciente primero. El
     /// asset por defecto no está aquí. Se serializa separando por `\n`.
     public var sampleLibrary: [String]
+    /// Instrumentales / loops que el usuario ha guardado en su librería: rutas,
+    /// la más reciente primero. Se serializa separando por `\n`.
+    public var instrumentalLibrary: [String]
     /// FPS del vídeo exportado (F.4).
     public var videoFps: Int
     /// Lado mayor del vídeo exportado, en píxeles (F.4).
@@ -72,7 +75,8 @@ public struct AppSettings: Equatable, Sendable {
                 midiCommandOverrides: [String: String] = [:], showFPS: Bool = false,
                 sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600,
                 platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.12,
-                platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0) {
+                platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0,
+                instrumentalLibrary: [String] = []) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -87,6 +91,8 @@ public struct AppSettings: Equatable, Sendable {
         // dedup preservando orden, tope 12
         var seen = Set<String>()
         self.sampleLibrary = sampleLibrary.filter { !$0.isEmpty && seen.insert($0).inserted }.prefix(12).map { $0 }
+        var seenI = Set<String>()
+        self.instrumentalLibrary = instrumentalLibrary.filter { !$0.isEmpty && seenI.insert($0).inserted }.prefix(24).map { $0 }
         self.videoFps = AppSettings.videoFpsOptions.contains(videoFps) ? videoFps : 30
         self.videoLongSide = AppSettings.videoLongSideOptions.contains(videoLongSide) ? videoLongSide : 1600
         // Debug: rangos amplios pero acotados para no romper el motor.
@@ -111,6 +117,7 @@ public struct AppSettings: Equatable, Sendable {
         static let midiCommands = "midi.commandOverrides"
         static let showFPS = "diag.showFPS"
         static let sampleLibrary = "practice.sampleLibrary"
+        static let instrumentalLibrary = "media.instrumentalLibrary"
         static let videoFps = "video.fps"
         static let videoLongSide = "video.longSide"
         static let platterGlideMs = "debug.platterGlideMs"
@@ -156,7 +163,8 @@ public struct AppSettings: Equatable, Sendable {
             platterGlideMs: dbl(Key.platterGlideMs, d.platterGlideMs),
             platterSpeedGate: dbl(Key.platterSpeedGate, d.platterSpeedGate),
             platterFriction: dbl(Key.platterFriction, d.platterFriction),
-            trackpadSensitivity: dbl(Key.trackpadSensitivity, d.trackpadSensitivity))
+            trackpadSensitivity: dbl(Key.trackpadSensitivity, d.trackpadSensitivity),
+            instrumentalLibrary: (raw[Key.instrumentalLibrary] ?? "").split(separator: "\n").map(String.init))
     }
 
     public var raw: [String: String] {
@@ -173,6 +181,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.midiCommands: AppSettings.serializeMidi(midiCommandOverrides),
             Key.showFPS: showFPS ? "1" : "0",
             Key.sampleLibrary: sampleLibrary.joined(separator: "\n"),
+            Key.instrumentalLibrary: instrumentalLibrary.joined(separator: "\n"),
             Key.videoFps: String(videoFps),
             Key.videoLongSide: String(videoLongSide),
             Key.platterGlideMs: String(platterGlideMs),

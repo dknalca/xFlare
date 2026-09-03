@@ -37,6 +37,14 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(bad.videoLongSide, 1600)
     }
 
+    func testLibreriaDeInstrumentalesIdaYVuelta() {
+        var s = AppSettings.defaults
+        s.instrumentalLibrary = ["/x/beat90.wav", "/y/loop.aif", "/x/beat90.wav", ""]  // dup + vacío
+        let round = AppSettings(raw: s.raw)
+        XCTAssertEqual(round.instrumentalLibrary, ["/x/beat90.wav", "/y/loop.aif"], "dedup + sin vacíos")
+        XCTAssertEqual(AppSettings(raw: [:]).instrumentalLibrary, [], "por defecto vacía")
+    }
+
     func testAjustesDebugDelPlatoIdaYVueltaYAcotados() {
         var s = AppSettings.defaults
         s.platterGlideMs = 2.0

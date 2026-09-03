@@ -178,10 +178,22 @@ Sin fantasma ni puntuacion. Metronomo opcional, grabacion siempre activa en
 segundo plano con un "guardar los ultimos 30 segundos" — para cuando te sale algo
 bueno por accidente, que es siempre cuando pasa.
 
-### 3.6 Libreria
+### 3.6 Trucos
 
-Buscador de la matriz. Cada scratch con su notacion XFN dibujada, su nivel, su
-tecnica de dedos y un boton de escucha. Filtros por familia, nivel y numero de clicks.
+Buscador de la matriz (antes se llamaba "Librería"). Cada scratch es una
+**tarjeta**: nombre / familia / nivel / nº de clicks a la izquierda y su
+**notación TTM** dibujada a la derecha (`TTMThumbnailView`). Rejilla de tarjetas
+(`LazyVGrid`), filtros por familia y búsqueda por nombre. Pinchar una tarjeta
+abre la ficha del truco.
+
+### 3.6b Librería (medios)
+
+Menú aparte, dos pestañas: **Instrumentales** (loops / bases) y **Samples** (de
+scratch). El usuario guarda aquí sus ficheros para tenerlos a mano en la práctica
+(`AppSettings.instrumentalLibrary` / `sampleLibrary`; añadir con NSOpenPanel,
+quitar con la ✕). *Pendiente:* pre-análisis del tempo al añadir (para que cargar
+en la práctica sea instantáneo) y asignar samples a botones MIDI para cambiar
+entre varios en mitad de una sesión.
 
 ### 3.7 Ajustes
 
