@@ -269,7 +269,13 @@ public final class PracticeSession: ObservableObject {
         if crPhase != .off, currentTick - crPhaseStart >= crPhaseLenTicks {
             crPhase = (crPhase == .listen) ? .respond : .listen
             crPhaseStart = currentTick
-            if crPhase == .respond { platterVelocity = 0 }   // empiezas con el plato quieto
+            if crPhase == .respond {
+                platterVelocity = 0        // empiezas con el plato quieto
+                // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
+                // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
+                // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
+                setFaderClosed(false)
+            }
         }
 
         if playingBack {

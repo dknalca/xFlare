@@ -379,6 +379,28 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertTrue(sawListenAgain, "y vuelve a escucha")
     }
 
+    func testAlEmpezarTuTurnoElFaderQuedaAbierto() throws {
+        // chirp: el patrón cierra el fader. Sin el arreglo, "tu turno" arrancaba
+        // mudo porque el último tick de la escucha dejaba `faderClosed == true`.
+        let s = PracticeSession(scratch: try scratch("chirp"), bpm: 120)
+        s.setCallResponse(true)
+        XCTAssertEqual(s.crPhase, .listen)
+
+        var sawClosedInListen = false
+        var faderWhenRespondStarted: Bool?
+        var prev = s.crPhase
+        for _ in 0..<900 {
+            s.advance(by: 1.0 / 60.0)
+            if s.crPhase == .listen, s.faderClosed { sawClosedInListen = true }
+            if prev == .listen, s.crPhase == .respond, faderWhenRespondStarted == nil {
+                faderWhenRespondStarted = s.faderClosed
+            }
+            prev = s.crPhase
+        }
+        XCTAssertTrue(sawClosedInListen, "el fantasma del chirp cierra el fader en la escucha")
+        XCTAssertEqual(faderWhenRespondStarted, false, "tu turno arranca con el sonido abierto")
+    }
+
     func testCrBarsEsParYAcotado() throws {
         let s = PracticeSession(scratch: try scratch("baby"), bpm: 90)
         XCTAssertEqual(s.crBars, 2)

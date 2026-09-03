@@ -2142,6 +2142,43 @@ dispositivo, la sección sigue funcionando a mano.
 
 ---
 
+## ADR-060 — Instrumental subida = bucle de N compases con BPM derivado (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada · sustituye el `keepExerciseBPM` de la iteración anterior
+
+**Contexto.** El autor quería subir un loop y que sonara infinito y cuadrado con
+la rejilla. El primer intento dependía de `TempoAnalyzer`: si detectaba tempo lo
+usaba (y a veces lo erraba, con lo que la base derivaba contra el metrónomo); si
+no, sonaba a velocidad natural pero con el BPM del ejercicio, que no tenía nada
+que ver con el loop. Además, al "reiniciar la base" el metrónomo (que va con
+`e->tick` del motor, no con el reloj de la sesión) no se rearmaba y se descuadraba.
+
+**Decisión.** Un fichero que sube el usuario se trata **siempre** como un bucle de
+`N` compases a **velocidad natural** (nunca se estira el audio). El BPM de la
+rejilla se **deriva**: `bpm = N · compases/compás · 60 / duración`. Así el
+metrónomo y las líneas de compás quedan clavados al bucle pase lo que pase con la
+detección. `InstrumentalLoop` (puro) hace el cálculo: `guess(...)` adivina `N` de
+las negras del análisis (o ~2 s/compás sin él) y parte/dobla hasta que el BPM cae
+en 70…180; `locked(...)` lo fija a mano. En el panel Base, botones **−/+** para
+corregir los compases (recalcula el BPM). Todas las rutas que reinician la base
+(`restartInstrumental`, `retempo`, importar línea, cargar otra base) hacen ahora
+`engine.seek(tick: 0)` además de `session.resyncClock()`, que rearma el metrónomo
+en el "1".
+
+**Alternativas descartadas.** Fiarse de `TempoAnalyzer` (erra medios/dobles
+tiempos). Estirar el audio al BPM del ejercicio (un loop de scratch NO se
+time-stretch; suena fatal). BPM fraccionario en `PracticeSession` (toca media
+app; el resample de ~0,3 % entre BPM derivado y redondeado es inaudible y deja la
+rejilla perfecta).
+
+**Consecuencias.** `InstrumentalLoop` se prueba sin audio (6 tests). El "modo
+loop" solo aplica a ficheros del usuario; el asset por defecto (`080bpm_beat`)
+sigue con la detección normal. Rotar el PCM a la fase del "1" se omite para loops
+(se asume que empiezan en su "1", como todo loop bien hecho) — así no se mete una
+costura en el punto de wrap.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

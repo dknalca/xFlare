@@ -35,6 +35,13 @@ public struct LivePracticeView: View {
     // Onda de la instrumental (tira superior) + longitud musical de su bucle.
     @State private var instrWave = WaveformColored.Data(levels: [], colors: [])
     @State private var instrLoopTicks: Double = 0
+    // Instrumental subida por el usuario en "modo loop": el fichero ES un bucle
+    // de N compases y suena a velocidad natural; el BPM de la rejilla se DERIVA
+    // de N y de la duración, así el metrónomo y el compás quedan clavados al
+    // bucle. `nil` = base por defecto del asset (no es modo loop). `instrFileSeconds`
+    // guarda la duración real para recalcular el BPM al cambiar N (botones −/+).
+    @State private var instrLoopBars: Int?
+    @State private var instrFileSeconds: Double = 0
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
@@ -518,6 +525,20 @@ public struct LivePracticeView: View {
                 chip("×2") { retempo(2.0) }
             }
 
+            if let bars = instrLoopBars {
+                // instrumental subida en modo loop: se ajusta cuántos compases
+                // dura el bucle; el BPM se recalcula solo para que cuadre.
+                HStack(spacing: 5) {
+                    Text("Loop").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                    Spacer(minLength: 0)
+                    chip("minus", icon: true) { relockLoop(bars: bars - 1) }
+                    Text("\(bars) \(bars == 1 ? "compás" : "compases")")
+                        .font(XFFont.mono(11)).foregroundColor(XFColor.text)
+                        .frame(minWidth: 62)
+                    chip("plus", icon: true) { relockLoop(bars: bars + 1) }
+                }
+            }
+
             HStack(spacing: 5) {
                 // reinicia la base desde el "1" (tambien con la tecla 2)
                 Text("Reiniciar (2)").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
@@ -737,6 +758,12 @@ public struct LivePracticeView: View {
     }
 
     private func retempo(_ factor: Double) {
+        // En modo loop, ×2 / ÷2 = doblar / partir el nº de compases del bucle
+        // (misma reinterpretación, pero manteniendo el BPM clavado a la duración).
+        if let bars = instrLoopBars {
+            relockLoop(bars: factor > 1 ? bars * 2 : bars / 2)
+            return
+        }
         session.setBPM(Int((Double(session.bpm) * factor).rounded()))
         // ÷2/×2 reinterpreta la rejilla: el mismo audio pasa a tener la mitad /
         // el doble de compases, asi que su bucle en TICKS escala con el factor.
@@ -745,6 +772,27 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         session.resyncClock()
+        engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
+        gridShift = 0
+    }
+
+    /// Modo loop: fija en `bars` los compases que dura la instrumental subida y
+    /// **deriva el BPM** de la rejilla de esa cuenta y de la duración real del
+    /// fichero (`instrFileSeconds`). El audio sigue sonando a velocidad natural;
+    /// lo que cambia es cómo lo cuadriculamos. Con esto el metrónomo y las líneas
+    /// de compás quedan pegados al bucle aunque la detección de tempo fallara.
+    private func relockLoop(bars: Int) {
+        guard instrFileSeconds > 0.01 else { return }
+        let loop = InstrumentalLoop.locked(
+            bars: bars, fileSeconds: instrFileSeconds,
+            beatsPerBar: geometry.beatsPerBar, ppq: scratch.ppq)
+        instrLoopBars = loop.bars
+        instrLoopTicks = loop.loopTicks
+        session.setInstrumentalLoopTicks(loop.loopTicks)
+        session.setBPM(Int(loop.bpm.rounded()))
+        engine?.replayInstrumental(nativeBPM: loop.bpm)
+        session.resyncClock()
+        engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
         gridShift = 0
     }
@@ -958,27 +1006,36 @@ public struct LivePracticeView: View {
             var pcmOut = raw
             var bpm = AudioAsset.instrumentalNativeBPM
             var loopTicks = Double(beatsPerBar * ppq)
-            // ¿el usuario ha subido su propio fichero y NO se le detecta tempo?
-            // Entonces es "un loop cualquiera": no le cambiamos el BPM al
-            // ejercicio, lo dejamos sonar a su velocidad natural y el bucle es el
-            // fichero ENTERO (sin redondear a compases) — así repite sin costura.
-            var keepExerciseBPM = false
+            // Si el usuario sube su fichero se trata SIEMPRE como un loop de N
+            // compases (`userLoopBars`): suena a velocidad natural y el BPM de la
+            // rejilla se deriva de N y de la duración. Así el metrónomo y el
+            // compás quedan clavados al bucle para siempre, sin depender de que
+            // la detección de tempo acierte (solo la usamos para adivinar N).
+            var userLoopBars: Int? = nil
+            var fileSeconds = 0.0
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
-                if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
+                fileSeconds = Double(pcm.count) / sr
+                if url != nil {
+                    // fichero del usuario -> modo loop (cálculo puro en `InstrumentalLoop`)
+                    let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
+                    let loop = InstrumentalLoop.guess(
+                        fileSeconds: fileSeconds, beatsPerBar: beatsPerBar,
+                        ppq: ppq, analyzedBeats: a.map { $0.beats })
+                    userLoopBars = loop.bars
+                    bpm = loop.bpm
+                    loopTicks = loop.loopTicks
+                    pcmOut = pcm            // un loop empieza en su "1": no se rota
+                } else if let a = TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint) {
+                    // base por defecto del asset: detección normal
                     bpm = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = a.isShortLoop
                         ? Double(a.beats) * Double(ppq)
-                        : (Double(pcm.count) / sr) * (a.bpm / 60.0) * Double(ppq)
-                } else if url != nil {
-                    // loop propio sin tempo: suena tal cual, bucle = fichero entero
-                    keepExerciseBPM = true
-                    bpm = Double(session.bpm)
-                    loopTicks = (Double(pcm.count) / sr) * (bpm / 60.0) * Double(ppq)
+                        : fileSeconds * (a.bpm / 60.0) * Double(ppq)
                 } else {
-                    let beats = Double(pcm.count) / sr * (bpm / 60.0)
+                    let beats = fileSeconds * (bpm / 60.0)
                     let bars = max(1.0, (beats / Double(beatsPerBar)).rounded())
                     loopTicks = bars * Double(beatsPerBar) * Double(ppq)
                 }
@@ -992,14 +1049,16 @@ public struct LivePracticeView: View {
                 if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
                 instrWave = wave
                 instrLoopTicks = loopTicks
+                instrLoopBars = userLoopBars
+                instrFileSeconds = fileSeconds
                 // la sesion necesita la longitud del bucle para cuadrar las
                 // tomas grabadas a un multiplo entero de el, y el nombre para la
                 // cabecera de la toma.
                 session.setInstrumentalLoopTicks(loopTicks)
                 session.setInstrumentalName(instrName)
-                // el tempo del EJERCICIO pasa a ser el de esta instrumental,
-                // salvo que sea un loop propio sin tempo (se respeta el actual).
-                if !keepExerciseBPM { session.setBPM(bpmRounded) }
+                // el tempo de la rejilla pasa a ser el de esta base (o el
+                // derivado de los compases del loop en modo loop).
+                session.setBPM(bpmRounded)
                 session.resyncClock()
                 engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
                 // reloj del motor (y con él el metrónomo) al "1", igual que la
