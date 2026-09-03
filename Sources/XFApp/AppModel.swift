@@ -201,47 +201,49 @@ public final class AppModel: ObservableObject {
     /// `internal`: `WarmupRow` no cruza el límite del módulo.
     @Published private(set) var warmup: [WarmupRow] = []
 
-    /// El plan crudo del calentamiento de hoy. Se fija al abrir la pantalla para
-    /// que la lista que se ve y la sesión que se lanza usen **las mismas**
-    /// variantes al azar (si no, cada llamada a `warmupPlan` sortea otras).
-    private var warmupPlanItems: [WarmupPlanner.PlannedItem] = []
-
     /// Pasos del calentamiento en marcha. Vacío = no estamos calentando. Todo el
     /// calentamiento es UNA sesión: `LivePracticeView` encadena estos pasos
     /// conforme se completan las frases de "repite conmigo".
     /// `internal`: `WarmupStep` no cruza el límite del módulo.
     @Published private(set) var warmupSteps: [WarmupStep] = []
 
-    /// Genera el plan de calentamiento y abre la pantalla.
+    /// Genera el plan de calentamiento **sugerido** (histórico o, sin historial,
+    /// la rutina de arranque) y abre la pantalla. Desde ahí el usuario lo edita
+    /// antes de empezar.
     public func openWarmup() {
         var rng = SystemRandomNumberGenerator()
-        warmupPlanItems = warmupPlan(rng: &rng)
-        warmup = WarmupAssembler.rows(from: warmupPlanItems, catalog: catalog)
+        warmup = WarmupAssembler.rows(from: warmupPlan(rng: &rng), catalog: catalog)
         screen = .warmup
     }
 
-    /// Monta la tanda entera y abre la práctica en el primer ejercicio con
-    /// "repite conmigo" ya en marcha. A partir de ahí `LivePracticeView` avanza
-    /// solo: no se vuelve a pasar por aquí hasta el siguiente calentamiento.
-    public func startWarmupSession() {
-        let items: [WarmupPlanner.PlannedItem]
-        if warmupPlanItems.isEmpty {
-            var rng = SystemRandomNumberGenerator()
-            items = warmupPlan(rng: &rng)
-        } else {
-            items = warmupPlanItems
+    /// Ejercicios de la librería que se pueden **añadir** al calentamiento con el
+    /// botón "+" de `WarmupView`. Todos, sin filtrar por dominio: el usuario
+    /// manda sobre su propio calentamiento.
+    var warmupLibrary: [WarmupPickable] {
+        catalog.exercises.compactMap { ex in
+            guard let sc = catalog.library.scratch(id: ex.scratchId) else { return nil }
+            let fam = catalog.family(containingScratch: ex.scratchId)?.name ?? ""
+            return WarmupPickable(exerciseId: ex.id, name: sc.name, familyName: fam)
         }
-        let steps: [WarmupStep] = items.compactMap { item in
-            guard let sc = scratch(exerciseId: item.exerciseId, variantId: item.variantId)
+    }
+
+    /// Monta la tanda entera **a partir de las filas ya editadas por el usuario**
+    /// (borradas, con la duración cambiada o añadidas a mano en `WarmupView`) y
+    /// abre la práctica en la primera con "repite conmigo" en marcha. A partir de
+    /// ahí `LivePracticeView` avanza solo.
+    /// `internal`: `WarmupRow` no cruza el límite del módulo.
+    func startWarmupSession(rows: [WarmupRow]) {
+        let steps: [WarmupStep] = rows.compactMap { row in
+            guard let sc = scratch(exerciseId: row.exerciseId, variantId: row.variantId)
             else { return nil }
-            let name = catalog.exercise(id: item.exerciseId)
-                .flatMap { catalog.library.scratch(id: $0.scratchId)?.name } ?? item.exerciseId
-            return WarmupStep(scratch: sc, name: name, phraseCount: item.phraseCount)
+            let name = catalog.exercise(id: row.exerciseId)
+                .flatMap { catalog.library.scratch(id: $0.scratchId)?.name } ?? row.exerciseId
+            return WarmupStep(scratch: sc, name: name, phraseCount: max(1, row.phraseCount))
         }
-        guard let first = items.first, !steps.isEmpty else { goHome(); return }
+        guard let first = rows.first, !steps.isEmpty else { goHome(); return }
         warmupSteps = steps
         continueExerciseId = first.exerciseId
-        startCallResponseBars = first.phraseBars
+        startCallResponseBars = max(1, first.phraseBars)
         screen = .practice(exerciseId: first.exerciseId, variantId: first.variantId)
     }
 

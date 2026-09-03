@@ -716,6 +716,7 @@ public struct LivePracticeView: View {
             session.resyncClock()
             engine?.replayInstrumental(nativeBPM: Double(session.bpm))
             engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+            engine?.seek(tick: 0)      // metrónomo al "1", como la base y la rejilla
             gridShift = 0
         }
     }
@@ -727,6 +728,11 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         session.resyncClock()
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        // El metrónomo va con el reloj del MOTOR (`e->tick`), no con el de la
+        // sesión. Si no lo mandamos también a 0 aquí, la base vuelve al "1" pero
+        // el clic sigue en su fase vieja y se descuadra respecto a la rejilla.
+        // `seek(tick:)` rearma el metrónomo para que el "1" suene en el 0.
+        engine?.seek(tick: 0)
         gridShift = 0
     }
 
@@ -739,6 +745,7 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: Double(session.bpm))
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         session.resyncClock()
+        engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
         gridShift = 0
     }
 
@@ -995,6 +1002,9 @@ public struct LivePracticeView: View {
                 if !keepExerciseBPM { session.setBPM(bpmRounded) }
                 session.resyncClock()
                 engine.setTransport(bpm: Double(session.bpm), ppq: 480, playing: true)
+                // reloj del motor (y con él el metrónomo) al "1", igual que la
+                // rejilla de la sesión y el cabezal de la base recién cargada.
+                engine.seek(tick: 0)
                 if initial {
                     _ = engine.startOutput()
                     session.start()

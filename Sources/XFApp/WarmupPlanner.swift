@@ -153,9 +153,13 @@ enum WarmupOxidation {
     }
 }
 
-/// Una fila del calentamiento, lista para pintar en `WarmupView`.
+/// Una fila del calentamiento, lista para pintar en `WarmupView`. El usuario
+/// puede editarla antes de empezar: borrarla, doblar/partir su duración
+/// (`phraseCount`) o añadir filas nuevas desde la librería.
 struct WarmupRow: Identifiable, Equatable {
-    var id: String { exerciseId + "/" + variantId }
+    /// Identidad ESTABLE aunque haya dos filas del mismo ejercicio (se puede
+    /// añadir el mismo truco dos veces): se genera al crear la fila.
+    let id: String
     let exerciseId: String
     let variantId: String
     let name: String
@@ -167,10 +171,37 @@ struct WarmupRow: Identifiable, Equatable {
     var phraseBars: Int = 2
     var phraseCount: Int = 8
 
-    /// "8 frases de 2 compases".
+    init(id: String = UUID().uuidString,
+         exerciseId: String, variantId: String, name: String,
+         variantName: String, reason: String,
+         phraseBars: Int = 2, phraseCount: Int = 8) {
+        self.id = id
+        self.exerciseId = exerciseId
+        self.variantId = variantId
+        self.name = name
+        self.variantName = variantName
+        self.reason = reason
+        self.phraseBars = phraseBars
+        self.phraseCount = phraseCount
+    }
+
+    /// Total de compases del ejercicio (frases × compases por frase).
+    var totalBars: Int { max(1, phraseCount) * max(1, phraseBars) }
+
+    /// "8 frases de 2 compases · 16 en total".
     var phraseSummary: String {
         "\(phraseCount) frases de \(phraseBars) \(phraseBars == 1 ? "compás" : "compases")"
+            + " · \(totalBars) en total"
     }
+}
+
+/// Un ejercicio de la librería que se puede **añadir** al calentamiento con "+".
+struct WarmupPickable: Identifiable, Equatable {
+    var id: String { exerciseId }
+    let exerciseId: String
+    let name: String
+    /// Familia (flare / transformer / …), solo para agrupar el menú.
+    let familyName: String
 }
 
 enum WarmupAssembler {
@@ -182,7 +213,10 @@ enum WarmupAssembler {
             guard let ex = catalog.exercise(id: item.exerciseId),
                   let sc = catalog.library.scratch(id: ex.scratchId) else { return nil }
             let vName = catalog.variant(id: item.variantId).map { $0.isBase ? "" : $0.name } ?? ""
-            return WarmupRow(exerciseId: item.exerciseId, variantId: item.variantId,
+            // id estable para las filas del plan (una por ejercicio); las que el
+            // usuario añada con "+" llevan UUID (puede haber duplicados).
+            return WarmupRow(id: item.exerciseId + "/" + item.variantId,
+                             exerciseId: item.exerciseId, variantId: item.variantId,
                              name: sc.name, variantName: vName, reason: item.reason,
                              phraseBars: item.phraseBars, phraseCount: item.phraseCount)
         }

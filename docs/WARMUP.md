@@ -4,13 +4,16 @@
 > de futuribles a peticion del autor). `WarmupPlanner` escoge el plan,
 > `WarmupOxidation` detecta la oxidacion, `AppModel.warmupPlan`/`settleWarmupTake`
 > hacen el pegamento con la BD (ya lista desde la v1), y `WarmupView` + la nav
-> "Calentar" lo enseñan. El calentamiento entero corre en **una sola sesion**:
-> `AppModel.startWarmupSession()` monta `[WarmupStep]` del plan, abre la practica
-> en el primero y `LivePracticeView` va encadenando el resto con
-> `PracticeSession.reload(scratch:)` conforme se completan las frases de "repite
-> conmigo". **Falta**: que la toma en modo calentamiento llame a
-> `settleWarmupTake` (la practica tiene que saber que esta calentando) para que
-> la oxidacion se detecte de verdad. Ver ADR-027 y `TODO.md` F.0.
+> "Calentar" lo enseñan. La pantalla **sugiere** el plan pero el usuario lo
+> **edita**: borrar una fila, ×2 / ÷2 sobre su nº de frases (la duracion), y "+"
+> para añadir cualquier ejercicio de la libreria (`AppModel.warmupLibrary`). El
+> calentamiento entero corre en **una sola sesion**: `startWarmupSession(rows:)`
+> monta `[WarmupStep]` con la lista YA editada, abre la practica en la primera y
+> `LivePracticeView` encadena el resto con `PracticeSession.reload(scratch:)`
+> conforme se completan las frases de "repite conmigo". **Falta**: que la toma en
+> modo calentamiento llame a `settleWarmupTake` (la practica tiene que saber que
+> esta calentando) para que la oxidacion se detecte de verdad. Ver ADR-027 y
+> `TODO.md` F.0.
 
 ## Que es
 
@@ -39,6 +42,21 @@ en caliente al siguiente (la barra superior marca "Calentamiento i/N").
 A cada uno le asigna una **variante al azar entre las desbloqueadas**, nunca la
 misma que la vez anterior. Esa aleatoriedad es lo que impide que el calentamiento
 se convierta en un automatismo mas.
+
+## El usuario manda: editar el plan
+
+La sugerencia es el punto de partida, no una imposicion. En `WarmupView`, antes
+de darle a "Empezar calentamiento":
+
+- **Borrar** (icono papelera): quita una fila que hoy no apetece.
+- **×2 / ÷2**: dobla o parte el nº de frases de ese ejercicio (8 → 16 → 4…),
+  acotado a 2…32. La duracion total = frases × compases-por-frase (2).
+- **"+ Añadir ejercicio"**: menu con **toda** la libreria (no solo lo dominado);
+  añade una fila nueva de 8 frases de 2 compases. Se puede añadir el mismo truco
+  dos veces (cada fila lleva su `id` propio).
+
+`startWarmupSession(rows:)` recibe la lista final editada y monta la tanda con
+ella. Nada de esto se persiste todavia: cada dia parte de la sugerencia.
 
 ## Reglas
 

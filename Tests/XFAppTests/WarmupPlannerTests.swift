@@ -153,7 +153,8 @@ final class WarmupPlannerTests: XCTestCase {
             XCTAssertEqual(item.phraseCount, 8)
         }
         let rows = WarmupAssembler.rows(from: plan, catalog: cat)
-        XCTAssertEqual(rows.first?.phraseSummary, "8 frases de 2 compases")
+        XCTAssertEqual(rows.first?.phraseSummary, "8 frases de 2 compases · 16 en total")
+        XCTAssertEqual(rows.first?.totalBars, 16)
     }
 
     func testElPlanCaeALaRutinaDeArranqueSiNoHayNadaDominado() throws {

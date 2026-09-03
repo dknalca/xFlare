@@ -532,13 +532,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Pantalla hecha (2026-09-03):** `WarmupView` — el plan de hoy (nº · truco
         · variante · motivo), un botón "Empezar calentamiento" y "Saltar" que
         vuelve a Home. Nav "Calentar" (icono `flame`).
-        `AppModel.openWarmup()` genera el plan (`SystemRandomNumberGenerator`),
-        lo guarda en `warmupPlanItems` y `WarmupAssembler.rows(...)` lo resuelve
+        `AppModel.openWarmup()` genera el plan **sugerido**
+        (`SystemRandomNumberGenerator`) y `WarmupAssembler.rows(...)` lo resuelve
         contra el catálogo.
+      - **Plan editable (2026-09-03, feedback):** la sugerencia es el punto de
+        partida. En `WarmupView` el usuario puede **borrar** una fila, **×2 / ÷2**
+        el nº de frases de un ejercicio (acotado 2…32) y **"+"** añadir cualquier
+        ejercicio de la librería (`AppModel.warmupLibrary: [WarmupPickable]`, sin
+        filtrar por dominio; se puede repetir truco, cada `WarmupRow` lleva `id`
+        propio — antes era `exerciseId/variantId`). `startWarmupSession(rows:)`
+        recibe la lista YA editada. No se persiste: cada día parte de la sugerencia.
       - **Una sola sesión encadenada (2026-09-03, feedback):** el calentamiento
-        ya no es una práctica por fila. `AppModel.startWarmupSession()` monta
-        `[WarmupStep]` (patrón + nombre + nº de frases) de todo el plan y abre la
-        práctica en el primero. `PracticeSession.reload(scratch:)` cambia el
+        ya no es una práctica por fila. `startWarmupSession(rows:)` monta
+        `[WarmupStep]` (patrón + nombre + nº de frases) de la lista editada y abre
+        la práctica en la primera. `PracticeSession.reload(scratch:)` cambia el
         patrón **en caliente** (sin parar el reloj ni recrear la sesión);
         `LivePracticeView` cuenta las frases de "repite conmigo" completadas
         (`.onChange(session.crPhase)`) y llama a `advanceWarmup()` al llegar a

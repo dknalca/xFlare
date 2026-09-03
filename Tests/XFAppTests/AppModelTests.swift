@@ -165,7 +165,7 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.screen, .warmup)
         XCTAssertFalse(m.warmup.isEmpty, "sin historial sale la rutina de arranque")
 
-        m.startWarmupSession()
+        m.startWarmupSession(rows: m.warmup)
         // abre la practica en el primer ejercicio, con la tanda entera cargada
         guard case .practice = m.screen else {
             return XCTFail("startWarmupSession debe abrir la practica")
@@ -177,6 +177,26 @@ final class AppModelTests: XCTestCase {
         // volver a casa limpia la tanda
         m.goHome()
         XCTAssertTrue(m.warmupSteps.isEmpty)
+    }
+
+    func testElUsuarioEditaElPlanDeCalentamientoAntesDeEmpezar() throws {
+        let m = try model()
+        m.openWarmup()
+        var rows = m.warmup
+        XCTAssertGreaterThanOrEqual(rows.count, 4)
+
+        // borra el primero, dobla la duración del que queda primero
+        rows.removeFirst()
+        rows[0].phraseCount = 16
+        let expectedCount = rows.count
+
+        m.startWarmupSession(rows: rows)
+        XCTAssertEqual(m.warmupSteps.count, expectedCount, "respeta las filas borradas")
+        XCTAssertEqual(m.warmupSteps.first?.phraseCount, 16, "respeta la duración editada")
+
+        // la librería para el botón "+" trae los ejercicios del catálogo
+        XCTAssertFalse(m.warmupLibrary.isEmpty)
+        XCTAssertLessThanOrEqual(m.warmupLibrary.count, m.catalog.exercises.count)
     }
 
     func testBootMontaTodoDesdeElRepo() throws {

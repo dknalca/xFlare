@@ -162,7 +162,8 @@ public struct AppRootView: View {
 
         case .warmup:
             WarmupView(rows: model.warmup,
-                       onStart: { model.startWarmupSession() },
+                       library: model.warmupLibrary,
+                       onStart: { model.startWarmupSession(rows: $0) },
                        onSkip: { model.goHome() })
 
         case .error(let message):
