@@ -823,8 +823,8 @@ public struct LivePracticeView: View {
             session.resyncClock()
             engine?.replayInstrumental(nativeBPM: Double(session.bpm))
             engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+            setGridShift(0)
             engine?.seek(tick: 0)      // metrónomo al "1", como la base y la rejilla
-            gridShift = 0
         }
     }
 
@@ -839,8 +839,8 @@ public struct LivePracticeView: View {
         // sesión. Si no lo mandamos también a 0 aquí, la base vuelve al "1" pero
         // el clic sigue en su fase vieja y se descuadra respecto a la rejilla.
         // `seek(tick:)` rearma el metrónomo para que el "1" suene en el 0.
+        setGridShift(0)
         engine?.seek(tick: 0)
-        gridShift = 0
     }
 
     /// ÷2 / ×2: reinterpreta la rejilla a la mitad / el doble de BPM, **en
@@ -850,11 +850,16 @@ public struct LivePracticeView: View {
         setInstrumentalBPM(Int((Double(session.bpm) * factor).rounded()))
     }
 
-    /// Mueve la rejilla ◀/▶ y **arrastra el metrónomo con ella** (si no, el clic
-    /// se queda en su fase vieja y deja de caer en la línea de compás dibujada).
-    private func shiftGrid(by delta: Double) {
-        gridShift += delta
-        engine?.setMetronomeOffset(gridShift)
+    /// Mueve la rejilla ◀/▶. Arrastra con ella **el metrónomo** (`e->tick +
+    /// offset`) y **el fantasma que se oye** (`session.gridPhaseTicks`), para que
+    /// rejilla, fantasma (visto y oído) y clic sigan cuadrados entre sí. La traza
+    /// y el reloj no se tocan: son tiempo real.
+    private func shiftGrid(by delta: Double) { setGridShift(gridShift + delta) }
+
+    private func setGridShift(_ v: Double) {
+        gridShift = v
+        session.gridPhaseTicks = v
+        engine?.setMetronomeOffset(v)
     }
 
     /// Modo loop: fija en `bars` los compases que dura la instrumental subida y
@@ -874,8 +879,8 @@ public struct LivePracticeView: View {
         engine?.replayInstrumental(nativeBPM: loop.bpm)
         session.resyncClock()
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
+        setGridShift(0)
         engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
-        gridShift = 0
     }
 
     /// Fija el BPM de la rejilla a mano (TAP o edición del número), **en caliente**:
@@ -1273,7 +1278,7 @@ public struct LivePracticeView: View {
         panel.canChooseDirectories = false
         panel.prompt = "Cargar"
         if panel.runModal() == .OK, let url = panel.url {
-            gridShift = 0
+            setGridShift(0)
             loadInstrumental(url: url, initial: false)
         }
     }

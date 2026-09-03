@@ -411,7 +411,12 @@ final class PracticeScene: SKScene {
         ghostContainer.position = CGPoint(x: 0, y: yb * (1 - s))
 
         renderFullGrid(now: now)
-        renderUserTrace(now: now)
+        // La traza va con `rawNow` (NO con `gridShift`): representa lo que estás
+        // tocando AHORA, así que su punto bajo el cabezal es lo que suena. Lo que
+        // `gridShift` mueve es la rejilla y la onda fantasma (para cuadrarlas con
+        // la instrumental); la fantasma se mueve también en el audio (la sesión
+        // usa `gridPhaseTicks`), así que traza y fantasma siguen coincidiendo.
+        renderUserTrace(now: rawNow)
         renderStrip(now: rawNow)   // la instrumental no se desplaza con `gridShift`
         renderRail(frame)
     }

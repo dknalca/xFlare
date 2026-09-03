@@ -160,6 +160,13 @@ public final class PracticeSession: ObservableObject {
     /// slider de la vista lo mueve en caliente porque a ojo el gesto va rapido.
     public var scrollSensitivity: Double = 1.0
 
+    /// Desfase (ticks) de la rejilla respecto a la instrumental (botones ◀/▶ de
+    /// la vista). El **fantasma** (en escucha del "repite conmigo") se evalúa en
+    /// `currentTick + gridPhaseTicks`, así el fantasma que se OYE se mueve con el
+    /// que se DIBUJA (la vista dibuja rejilla + fantasma en `now + gridShift`).
+    /// La traza y el reloj NO se tocan: siguen siendo tiempo real.
+    public var gridPhaseTicks: Double = 0
+
     public init(scratch: Scratch, bpm: Int) {
         self.scratch = scratch
         self.lengthTicks = Double(max(1, scratch.lengthTicks))
@@ -292,11 +299,14 @@ public final class PracticeSession: ObservableObject {
         } else if crPhase == .listen {
             // la MAQUINA toca: el fantasma mueve el plato (y con el, el sample).
             // La posicion viene de la curva del patron; la velocidad, de su
-            // derivada; el fader, del estado del patron en ese tick.
-            let g = ghostPosition(atTick: currentTick)
+            // derivada; el fader, del estado del patron en ese tick. Se evalua en
+            // `currentTick + gridPhaseTicks` para que el fantasma que se OYE vaya
+            // con el que se DIBUJA cuando la rejilla se ha movido con ◀/▶.
+            let gt = currentTick + gridPhaseTicks
+            let g = ghostPosition(atTick: gt)
             platterVelocity = (g - platterPosition) / step
             platterPosition = g
-            setFaderClosed(!ghostFaderOpen(atTick: currentTick))
+            setFaderClosed(!ghostFaderOpen(atTick: gt))
         } else {
             // tu turno (o practica libre): el plato lo mueves tu
             platterVelocity *= exp(-frictionPerSecond * step)

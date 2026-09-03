@@ -379,6 +379,37 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertTrue(sawListenAgain, "y vuelve a escucha")
     }
 
+    func testGridPhaseTicksDesfasaElFantasmaQueSeOye() throws {
+        // Mover la rejilla con ◀/▶ desplaza el fantasma que se DIBUJA; para que
+        // el que se OYE lo siga, la sesión lo evalúa en `currentTick + gridPhaseTicks`.
+        let a = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        a.setCallResponse(true)
+        let b = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        b.setCallResponse(true)
+        b.gridPhaseTicks = 120   // 1/4 de compás a ppq 480
+
+        var pa: [Double] = [], pb: [Double] = []
+        a.onAdvance = { _, pos, _ in pa.append(pos) }
+        b.onAdvance = { _, pos, _ in pb.append(pos) }
+        for _ in 0..<120 {
+            a.advance(by: 1.0 / 60.0)
+            b.advance(by: 1.0 / 60.0)
+        }
+        // ambas siguen al fantasma (rango parecido) pero desfasadas en el tiempo
+        XCTAssertGreaterThan((pa.max() ?? 0) - (pa.min() ?? 0), 0.05)
+        XCTAssertGreaterThan((pb.max() ?? 0) - (pb.min() ?? 0), 0.05)
+        let maxDiff = zip(pa, pb).map { abs($0 - $1) }.max() ?? 0
+        XCTAssertGreaterThan(maxDiff, 0.02, "el desfase cambia lo que hace el fantasma en cada instante")
+
+        // con gridPhaseTicks = 0 (por defecto) son idénticas
+        let c = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        c.setCallResponse(true)
+        var pc: [Double] = []
+        c.onAdvance = { _, pos, _ in pc.append(pos) }
+        for _ in 0..<120 { c.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(zip(pa, pc).map { abs($0 - $1) }.max() ?? 1, 0, accuracy: 1e-9)
+    }
+
     func testAlEmpezarTuTurnoElFaderQuedaAbierto() throws {
         // chirp: el patrón cierra el fader. Sin el arreglo, "tu turno" arrancaba
         // mudo porque el último tick de la escucha dejaba `faderClosed == true`.
