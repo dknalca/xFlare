@@ -27,6 +27,8 @@ public final class AppModel: ObservableObject {
         case myTable
         case settings
         case freeMode
+        /// Calentamiento adaptativo (F.0 / ADR-027).
+        case warmup
         case error(String)
     }
 
@@ -144,6 +146,17 @@ public final class AppModel: ObservableObject {
     public func openMyTable()     { screen = .myTable }
     public func openSettings()    { screen = .settings }
     public func openFreeMode()    { screen = .freeMode }
+
+    /// Filas del calentamiento de hoy (vacío si no dominas nada todavía).
+    /// `internal`: `WarmupRow` no cruza el límite del módulo.
+    @Published private(set) var warmup: [WarmupRow] = []
+
+    /// Genera el plan de calentamiento y abre la pantalla.
+    public func openWarmup() {
+        var rng = SystemRandomNumberGenerator()
+        warmup = WarmupAssembler.rows(from: warmupPlan(rng: &rng), catalog: catalog)
+        screen = .warmup
+    }
 
     public func startPractice(exerciseId: String, variantId: String = "base") {
         continueExerciseId = exerciseId

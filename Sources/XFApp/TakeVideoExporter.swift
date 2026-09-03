@@ -132,10 +132,12 @@ enum TakeVideoExporter {
 
     // MARK: - export (glue AVFoundation)
 
-    /// Renderiza el vídeo en `url` (mp4, H.264). `completion` en cola de fondo.
+    /// Renderiza el vídeo en `url` (mp4, H.264). `progress` (0…1) y `completion`
+    /// se llaman en cola de fondo; la vista los reenvía a `main`.
     static func export(session: XFSession, scratch: Scratch,
                        geometry g: HighwayGeometry, options o: Options = Options(),
                        to url: URL,
+                       progress: ((Double) -> Void)? = nil,
                        completion: @escaping (Result<URL, Error>) -> Void) {
         guard session.motion.count > 1 else { completion(.failure(ExportError.sessionEmpty)); return }
 
@@ -167,6 +169,8 @@ enum TakeVideoExporter {
                                       ppq: scratch.ppq, fps: o.fps, leadOutTicks: o.leadOutTicks)
                 let px = CGSize(width: o.width, height: o.height)
 
+                let total = max(1, ticks.count)
+                var lastReported = -1
                 for (i, tick) in ticks.enumerated() {
                     while !input.isReadyForMoreMediaData { Thread.sleep(forTimeInterval: 0.005) }
                     let frame = layout.frame(atTick: tick, geometry: g, userTrace: trace)
@@ -175,6 +179,10 @@ enum TakeVideoExporter {
                           let buf = pixelBuffer(from: img, pool: pool) else { throw ExportError.render }
                     let time = CMTime(value: CMTimeValue(i), timescale: CMTimeScale(o.fps))
                     adaptor.append(buf, withPresentationTime: time)
+
+                    // avisa cada ~2 % para no inundar de callbacks
+                    let pct = Int(Double(i + 1) / Double(total) * 50)
+                    if pct != lastReported { lastReported = pct; progress?(Double(i + 1) / Double(total)) }
                 }
 
                 input.markAsFinished()

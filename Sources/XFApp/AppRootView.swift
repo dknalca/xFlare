@@ -51,6 +51,7 @@ public struct AppRootView: View {
             navButton("Home", "square.grid.3x3.fill") { model.goHome() }
             navButton("Librería", "books.vertical") { model.openLibrary() }
             navButton("Mi mesa", "pianokeys") { model.openMyTable() }
+            navButton("Calentar", "flame") { model.openWarmup() }
             navButton("Freestyle", "waveform.and.mic") { model.openFreeMode() }
             navButton("Ajustes", "slider.horizontal.3") { model.openSettings() }
             Spacer()
@@ -148,6 +149,11 @@ public struct AppRootView: View {
             } else {
                 emptyPanel("No hay ningún patrón base para la rejilla.")
             }
+
+        case .warmup:
+            WarmupView(rows: model.warmup,
+                       onPractice: { ex, v in model.startPractice(exerciseId: ex, variantId: v) },
+                       onSkip: { model.goHome() })
 
         case .error(let message):
             emptyPanel("xFlare no ha podido arrancar:\n\(message)")

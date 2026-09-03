@@ -88,9 +88,17 @@ final class TakeVideoExporterTests: XCTestCase {
 
         let done = expectation(description: "export")
         var result: Result<URL, Error>?
+        var progressValues: [Double] = []
         TakeVideoExporter.export(session: s, scratch: sc, geometry: geometry(),
-                                 options: opts, to: url) { r in result = r; done.fulfill() }
+                                 options: opts, to: url,
+                                 progress: { progressValues.append($0) },
+                                 completion: { r in result = r; done.fulfill() })
         wait(for: [done], timeout: 30)
+
+        XCTAssertFalse(progressValues.isEmpty, "el progreso se reporta")
+        XCTAssertEqual(zip(progressValues, progressValues.dropFirst()).allSatisfy { $1 >= $0 }, true,
+                       "el progreso no retrocede")
+        XCTAssertEqual(progressValues.last ?? 0, 1.0, accuracy: 0.001, "termina en 100 %")
 
         switch result {
         case .success(let out):

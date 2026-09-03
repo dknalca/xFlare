@@ -115,4 +115,26 @@ final class WarmupPlannerTests: XCTestCase {
         XCTAssertTrue(r.oxidized)
         XCTAssertTrue(r.message?.contains("55 %") ?? false)
     }
+
+    // MARK: - assembler (plan -> filas de pantalla)
+
+    func testAssemblerResuelveNombresContraElCatalogo() throws {
+        let cat = try CatalogLoader.load(from: RepoContentLoader())
+        let ex = try XCTUnwrap(cat.exercises.first)
+        let plan = [WarmupPlanner.PlannedItem(exerciseId: ex.id, variantId: "base",
+                                              reason: "hace 5 días")]
+        let rows = WarmupAssembler.rows(from: plan, catalog: cat)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertFalse(rows[0].name.isEmpty)
+        XCTAssertEqual(rows[0].variantName, "")            // base -> sin nombre de variante
+        XCTAssertEqual(rows[0].reason, "hace 5 días")
+        XCTAssertEqual(rows[0].id, ex.id + "/base")
+    }
+
+    func testAssemblerDescartaEjerciciosDesconocidos() throws {
+        let cat = try CatalogLoader.load(from: RepoContentLoader())
+        let plan = [WarmupPlanner.PlannedItem(exerciseId: "no-existe",
+                                              variantId: "base", reason: "x")]
+        XCTAssertTrue(WarmupAssembler.rows(from: plan, catalog: cat).isEmpty)
+    }
 }

@@ -984,7 +984,7 @@
           "module": "-",
           "status": "wip",
           "acceptance": "docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1",
-          "note": "Iniciado 2026-09-03. LOGICA hecha: WarmupPlanner (XFApp, puro) -- plan([Candidate], rng:) escoge 4-6 dominados por urgencia (dias desde repaso + caida absoluta vs techo; antiguedad peso bajo), variedad de familia (x0,45 por familia repetida), variante al azar != la de la vez anterior. WarmupOxidation.check -> 'El crab se te esta cayendo: hoy 78%, tu media era 94%...' al bajar de 2 estrellas. AppModel.warmupPlan(now:rng:) monta los Candidate de la BD; settleWarmupTake registra la toma (mode:.warmup, countsForStars:false), alimenta recordReviewOutcome y llama setOxidized. 10 tests. Falta: la pantalla de calentamiento y engancharla al arranque de sesion."
+          "note": "Iniciado 2026-09-03. LOGICA hecha: WarmupPlanner (XFApp, puro) -- plan([Candidate], rng:) escoge 4-6 dominados por urgencia (dias desde repaso + caida absoluta vs techo; antiguedad peso bajo), variedad de familia (x0,45 por familia repetida), variante al azar != la de la vez anterior. WarmupOxidation.check -> 'El crab se te esta cayendo: hoy 78%, tu media era 94%...' al bajar de 2 estrellas. AppModel.warmupPlan(now:rng:) monta los Candidate de la BD; settleWarmupTake registra la toma (mode:.warmup, countsForStars:false), alimenta recordReviewOutcome y llama setOxidized. 12 tests. Pantalla hecha (WarmupView + nav 'Calentar' + AppModel.openWarmup + WarmupAssembler): el plan de hoy (nº·truco·variante·motivo), 'Practicar' por fila entra en la practica, 'Saltar' vuelve a Home. Falta: que la toma de calentamiento llame a settleWarmupTake (la practica debe saber que esta en modo calentamiento) y engancharlo al arranque de sesion."
         },
         {
           "id": "F.0b",
@@ -1021,7 +1021,7 @@
           "module": "-",
           "acceptance": "el bucle de crecimiento mas barato que existe",
           "status": "wip",
-          "note": "Iniciado 2026-09-03. VIDEO hecho (sin audio). TakeVideoExporter (XFApp): framePlan(...) y trace(from: XFSession) puros; render(HighwayFrame -> CGImage) rasteriza con Core Graphics (rejilla, fantasma partido por fader, tu linea tenida por acierto, marcas, phantom clicks); export(...) monta mp4 H.264 9:16 con AVAssetWriter en 2o plano. Boton 'Video...' en el panel Grabar linea. 5 tests, incluido un export real a fichero temporal verificado con AVURLAsset. Falta: audio (render offline del motor siguiendo la traza) y quiza barra de progreso."
+          "note": "Iniciado 2026-09-03. VIDEO hecho (sin audio). TakeVideoExporter (XFApp): framePlan(...) y trace(from: XFSession) puros; render(HighwayFrame -> CGImage) rasteriza con Core Graphics (rejilla, fantasma partido por fader, tu linea tenida por acierto, marcas, phantom clicks); export(...) monta mp4 H.264 9:16 con AVAssetWriter en 2o plano. Boton 'Video...' en el panel Grabar linea. 5 tests, incluido un export real a fichero temporal verificado con AVURLAsset. Barra de progreso hecha (callback progress cada ~2%, el boton 'Video...' muestra % y una barra fina). Falta: audio (render offline del motor siguiendo la traza)."
         },
         {
           "id": "F.5",

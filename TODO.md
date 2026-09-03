@@ -496,9 +496,16 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         unlockedVariants) y `settleWarmupTake(...)` registra la toma
         (`mode:.warmup`, `countsForStars:false`), alimenta la repetición
         espaciada (`recordReviewOutcome`) y marca `setOxidized` si toca.
-        10 tests (`WarmupPlannerTests`).
-      - Falta: la **pantalla** de calentamiento (flujo de N pases, botón de
-        saltar) y engancharla al arranque de sesión.
+        12 tests (`WarmupPlannerTests`).
+      - **Pantalla hecha (2026-09-03):** `WarmupView` — el plan de hoy (nº · truco
+        · variante · motivo), un botón "Practicar" por fila que entra en la
+        práctica, y "Saltar" que vuelve a Home. Nav "Calentar" (icono `flame`).
+        `AppModel.openWarmup()` genera el plan (`SystemRandomNumberGenerator`) y
+        `WarmupAssembler.rows(...)` lo resuelve contra el catálogo. Si no
+        dominas nada, mensaje en vez de lista.
+      - Falta: que la toma de calentamiento llame a `settleWarmupTake` (la
+        práctica tiene que saber que está en modo calentamiento) para que la
+        oxidación se detecte de verdad; y engancharlo al arranque de sesión.
 - [ ] **F.0b** Variantes avanzadas: encadenado, densidad creciente, rampa de tempo, un solo lado `XFNotation`
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril
@@ -529,8 +536,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         **"Vídeo…"** en el panel "Grabar línea". 5 tests, incluido un export
         real a fichero temporal verificado con `AVURLAsset` (pista de vídeo,
         tamaño y duración).
+        **Barra de progreso hecha (2026-09-03):** `export(...)` gana un callback
+        `progress: (Double) -> Void` (avisa cada ~2 %); el botón "Vídeo…" muestra
+        el % y una barra fina mientras corre.
       - Falta: **audio** (necesita un render offline del motor siguiendo la
-        traza grabada), y quizá una barra de progreso.
+        traza grabada).
 - [ ] **F.5** Transcribir un scratch desde audio o video a XFN
       - Criterio: la funcion asesina: apuntas a un video y te saca la notacion
 - [ ] **F.6** Rutinas y lecciones creadas por usuarios

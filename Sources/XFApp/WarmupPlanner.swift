@@ -143,3 +143,30 @@ enum WarmupOxidation {
             "El \(name) hoy se ha quedado en \(hoy) %. Lo devuelvo a la rotación de práctica.")
     }
 }
+
+/// Una fila del calentamiento, lista para pintar en `WarmupView`.
+struct WarmupRow: Identifiable, Equatable {
+    var id: String { exerciseId + "/" + variantId }
+    let exerciseId: String
+    let variantId: String
+    let name: String
+    /// Nombre de la variante, o `""` si es la base.
+    let variantName: String
+    /// Por qué ha entrado ("hace 9 días", "media 84 % · techo 94 %").
+    let reason: String
+}
+
+enum WarmupAssembler {
+
+    /// Traduce un plan (`WarmupPlanner.PlannedItem`) a filas con el nombre del
+    /// truco y de la variante resueltos contra el catálogo.
+    static func rows(from plan: [WarmupPlanner.PlannedItem], catalog: Catalog) -> [WarmupRow] {
+        plan.compactMap { item in
+            guard let ex = catalog.exercise(id: item.exerciseId),
+                  let sc = catalog.library.scratch(id: ex.scratchId) else { return nil }
+            let vName = catalog.variant(id: item.variantId).map { $0.isBase ? "" : $0.name } ?? ""
+            return WarmupRow(exerciseId: item.exerciseId, variantId: item.variantId,
+                             name: sc.name, variantName: vName, reason: item.reason)
+        }
+    }
+}

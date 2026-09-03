@@ -43,8 +43,9 @@ public struct LivePracticeView: View {
     @State private var instrName: String = "080bpm_beat"
     // Nombre del sample de scratch cargado (por defecto el asset del autor).
     @State private var sampleName: String = "Ahh"
-    // F.4: exportación de vídeo en curso.
+    // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
+    @State private var videoProgress: Double = 0
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -390,16 +391,31 @@ public struct LivePracticeView: View {
             }
 
             // F.4: exportar la toma como vídeo vertical para compartir.
-            Button { exportVideo() } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: exportingVideo ? "hourglass" : "film").font(.system(size: 9))
-                    Text(exportingVideo ? "Exportando vídeo…" : "Vídeo…").font(XFFont.body(9))
-                    Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: 3) {
+                Button { exportVideo() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: exportingVideo ? "hourglass" : "film").font(.system(size: 9))
+                        Text(exportingVideo
+                             ? "Exportando vídeo… \(Int(videoProgress * 100)) %"
+                             : "Vídeo…").font(XFFont.body(9))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundColor(lastRecording == nil ? XFColor.textMuted : XFColor.text)
                 }
-                .foregroundColor(lastRecording == nil ? XFColor.textMuted : XFColor.text)
+                .buttonStyle(.plain)
+                .disabled(lastRecording == nil || active || exportingVideo)
+
+                if exportingVideo {
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(XFColor.surface).frame(height: 3)
+                            Capsule().fill(XFColor.accent)
+                                .frame(width: geo.size.width * CGFloat(videoProgress), height: 3)
+                        }
+                    }
+                    .frame(height: 3)
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(lastRecording == nil || active || exportingVideo)
 
             // puntuar la toma contra el patron (XFAnalysis -> resultados).
             // En Freestyle no hay patron: no aparece.
@@ -471,10 +487,11 @@ public struct LivePracticeView: View {
         panel.prompt = "Exportar"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         exportingVideo = true
+        videoProgress = 0
         let sc = scratch, g = geometry
-        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g, to: url) { _ in
-            DispatchQueue.main.async { exportingVideo = false }
-        }
+        TakeVideoExporter.export(session: rec, scratch: sc, geometry: g, to: url,
+            progress: { p in DispatchQueue.main.async { videoProgress = p } },
+            completion: { _ in DispatchQueue.main.async { exportingVideo = false } })
     }
 
     private func importLine() {
