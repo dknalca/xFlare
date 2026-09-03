@@ -55,6 +55,22 @@ enum Diagnoser {
                 "El contorno de tono no sigue el patron: revisa donde acelera y donde frena el disco."))
         }
 
+        // 5) siempre al menos una linea. Si nada llama la atencion, un resumen
+        //    sobrio de lo que SI esta bien (ADR-018: informativo, sin confeti).
+        //    Sin esto, una toma limpia de un patron SIN clicks (p. ej. un baby)
+        //    devolvia una lista vacia y la pantalla de resultados se quedaba muda.
+        if out.isEmpty {
+            if played >= 2 {
+                out.append(Diagnostic(.good, String(format:
+                    "Sin nada que corregir: timing solido (±%.0f ms), recorrido y contorno siguen el patron.",
+                    sigma)))
+            } else {
+                out.append(Diagnostic(.good, String(format:
+                    "El gesto esta limpio: recorrido (error %.0f%%) y contorno del disco siguen el patron. Sin clicks que juzgar.",
+                    amplitudeError * 100)))
+            }
+        }
+
         return out
     }
 }
