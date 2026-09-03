@@ -96,8 +96,20 @@ public struct SettingsView: View {
             .padding(XFSpacing.xl)
         }
         .background(XFColor.bg)
-        .onAppear { learn.start() }
-        .onDisappear { learn.stop() }
+        .onAppear {
+            // el aprendizaje escribe en ESTA copia de `settings` (la que ve la
+            // UI) y la sube con `onChange`. Si solo escribiera en `AppModel`, el
+            // `@State` local se quedaría viejo y el cuadro no se actualizaría.
+            learn.onLearn = { cmd, binding in
+                settings.midiCommandOverrides[cmd.rawValue] = binding.text
+                onChange(settings)
+            }
+            learn.start()
+        }
+        .onDisappear {
+            learn.onLearn = nil
+            learn.stop()
+        }
     }
 
     // MARK: - MIDI Learn

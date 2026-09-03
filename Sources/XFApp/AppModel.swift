@@ -80,11 +80,8 @@ public final class AppModel: ObservableObject {
         self.midiCommands.onCommand = { [weak self] event in
             self?.practiceCommandEvents.send(event)
         }
-        // Al aprender un control MIDI, se guarda como override del comando (esto
-        // dispara `settings.didSet` → persiste + reconstruye el mapa).
-        self.midiLearn.onLearn = { [weak self] cmd, binding in
-            self?.settings.midiCommandOverrides[cmd.rawValue] = binding.text
-        }
+        // `midiLearn.onLearn` lo cablea `SettingsView` mientras está en pantalla
+        // (tiene que actualizar SU copia de los ajustes, no solo la de aquí).
         rebuildMidiCommandMap()
     }
 
