@@ -982,9 +982,9 @@
           "id": "F.0",
           "title": "Calentamiento adaptativo con deteccion de oxidacion (ADR-027)",
           "module": "-",
-          "status": "wip",
+          "status": "done",
           "acceptance": "docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1",
-          "note": "Iniciado 2026-09-03. LOGICA hecha: WarmupPlanner (XFApp, puro) -- plan([Candidate], rng:) escoge 4-6 dominados por urgencia (dias desde repaso + caida absoluta vs techo; antiguedad peso bajo), variedad de familia (x0,45 por familia repetida), variante al azar != la de la vez anterior. WarmupOxidation.check -> 'El crab se te esta cayendo: hoy 78%, tu media era 94%...' al bajar de 2 estrellas. AppModel.warmupPlan(now:rng:) monta los Candidate de la BD; settleWarmupTake registra la toma (mode:.warmup, countsForStars:false), alimenta recordReviewOutcome y llama setOxidized. 12 tests. Pantalla hecha (WarmupView + nav 'Calentar' + AppModel.openWarmup + WarmupAssembler): el plan de hoy (nº·truco·variante·motivo), 'Practicar' por fila entra en la practica, 'Saltar' vuelve a Home. Falta: que la toma de calentamiento llame a settleWarmupTake (la practica debe saber que esta en modo calentamiento) y engancharlo al arranque de sesion."
+          "note": "Cerrado 2026-09-03. WarmupPlanner (puro): plan([Candidate], rng:) escoge 4-6 dominados por urgencia; sin historial cae a la rutina de arranque Forward/Reverse/Chirp/Transformer (8 frases de 2 compases). WarmupOxidation.check -> aviso 'hoy 78%, tu media era 94%'. Pantalla WarmupView EDITABLE (borrar fila, x2/2 la duracion, '+' anade de la libreria) + nav 'Calentar'. Calentamiento en UNA sesion encadenada: startWarmupSession(rows:) -> [WarmupStep], PracticeSession.reload(scratch:) cambia el patron en caliente, LivePracticeView.advanceWarmup() salta al completar las frases (barra 'Calentamiento i/N'). Puntuar dentro del calentamiento: boton 'Puntuar (calentamiento)' -> scoreWarmupTake -> settleWarmupTake (mode:.warmup, countsForStars:false, recordReviewOutcome, setOxidized si <2 estrellas); el resultado se enseña en un panel dentro de la practica sin navegar a resultados. Tests en WarmupPlannerTests + AppModelTests + PracticeSessionTests."
         },
         {
           "id": "F.0b",

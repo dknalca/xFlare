@@ -238,7 +238,8 @@ public final class AppModel: ObservableObject {
             else { return nil }
             let name = catalog.exercise(id: row.exerciseId)
                 .flatMap { catalog.library.scratch(id: $0.scratchId)?.name } ?? row.exerciseId
-            return WarmupStep(scratch: sc, name: name, phraseCount: max(1, row.phraseCount))
+            return WarmupStep(scratch: sc, name: name, phraseCount: max(1, row.phraseCount),
+                              exerciseId: row.exerciseId, variantId: row.variantId)
         }
         guard let first = rows.first, !steps.isEmpty else { goHome(); return }
         warmupSteps = steps
@@ -380,6 +381,37 @@ public final class AppModel: ObservableObject {
         screen = .results
     }
 
+    /// Igual que `scoreTake` pero para una toma hecha **dentro del calentamiento**
+    /// (F.0): la puntúa con `XFAnalysis`, la asienta como toma de calentamiento
+    /// (`settleWarmupTake` → `mode:.warmup`, no cuenta para estrellas, alimenta la
+    /// repetición espaciada y marca oxidación si baja de 2★) y **devuelve** el
+    /// resultado para enseñarlo EN LA PROPIA práctica, sin navegar a `.results`:
+    /// así la tanda de calentamiento no se corta.
+    struct WarmupTakeResult: Equatable {
+        var stars: Int
+        var accuracyPercent: Int
+        /// Aviso de oxidación ("el crab se te está cayendo…") o `nil`.
+        var oxidationMessage: String?
+    }
+
+    func scoreWarmupTake(_ session: XFSession,
+                         exerciseId: String, variantId: String) -> WarmupTakeResult? {
+        guard let scratch = scratch(exerciseId: exerciseId, variantId: variantId) else { return nil }
+        let take = Take(motion: session.motion, fader: session.fader, clock: session.clockMap)
+        let takeBpm = Int(session.header.tempoBPM.rounded())
+        let atTarget = takeBpm == (catalog.exercise(id: exerciseId)?.startBpm ?? takeBpm)
+        let report = DefaultScorer().score(take, against: scratch, atTargetBpm: atTarget)
+
+        let message = settleWarmupTake(
+            exerciseId: exerciseId, variantId: variantId,
+            score: report.score, maxScore: report.maxScore, stars: report.stars,
+            sigmaMs: report.sigmaMs, biasMs: report.biasMs)
+
+        return WarmupTakeResult(stars: report.stars,
+                                accuracyPercent: Int((report.accuracy * 100).rounded()),
+                                oxidationMessage: message)
+    }
+
     // MARK: - calentamiento adaptativo (F.0 / ADR-027)
 
     /// El plan de calentamiento de hoy: 4-6 ejercicios **dominados**, cada uno
@@ -447,8 +479,8 @@ public final class AppModel: ObservableObject {
                               score: score, maxScore: maxScore, accuracy: acc, stars: stars,
                               sigmaMs: sigmaMs, biasMs: biasMs, countsForStars: false)
         try? db.saveAttempt(attempt)
-        try? db.recordReviewOutcome(exerciseId: exerciseId, variantId: "base",
-                                    passed: stars >= 2, at: date)
+        _ = try? db.recordReviewOutcome(exerciseId: exerciseId, variantId: "base",
+                                        passed: stars >= 2, at: date)
 
         let ox = WarmupOxidation.check(exerciseName: name, starsInWarmup: stars,
                                        accuracy: acc, priorAverage: prior)

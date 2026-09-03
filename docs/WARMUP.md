@@ -10,10 +10,12 @@
 > calentamiento entero corre en **una sola sesion**: `startWarmupSession(rows:)`
 > monta `[WarmupStep]` con la lista YA editada, abre la practica en la primera y
 > `LivePracticeView` encadena el resto con `PracticeSession.reload(scratch:)`
-> conforme se completan las frases de "repite conmigo". **Falta**: que la toma en
-> modo calentamiento llame a `settleWarmupTake` (la practica tiene que saber que
-> esta calentando) para que la oxidacion se detecte de verdad. Ver ADR-027 y
-> `TODO.md` F.0.
+> conforme se completan las frases de "repite conmigo". Puntuar una toma dentro
+> del calentamiento pasa por `AppModel.scoreWarmupTake` → `settleWarmupTake`
+> (`mode:.warmup`, no cuenta para estrellas, alimenta la repeticion espaciada y
+> marca `setOxidized` si baja de 2★); el resultado se enseña en un panel dentro de
+> la practica, sin salir a `.results`, para no cortar la tanda. **F.0 cerrado.**
+> Ver ADR-027.
 
 ## Que es
 

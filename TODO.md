@@ -513,7 +513,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 *No tocar hasta que la v1 este en manos de gente.*
 
-- [~] **F.0** Calentamiento adaptativo con deteccion de oxidacion (ADR-027)
+- [x] **F.0** Calentamiento adaptativo con deteccion de oxidacion (ADR-027)
       - Criterio: docs/WARMUP.md; el esquema de BD ya lo soporta desde la v1
       - Iniciado (2026-09-03): **lógica hecha**. `WarmupPlanner` (XFApp, puro):
         `plan([Candidate], rng:)` escoge 4-6 ejercicios dominados ordenados por
@@ -560,10 +560,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Arranca en "repite conmigo" (2026-09-03):** "Empezar calentamiento"
         abre la práctica ya en call-response con `crBars` = `phraseBars`
         (`AppModel.startCallResponseBars` → `LivePracticeView.startInCallResponseBars`).
-      - Falta: que la toma de calentamiento llame a `settleWarmupTake` (la
-        práctica tiene que saber que está en modo calentamiento) para que la
-        oxidación se detecte de verdad — el botón "Puntuar la toma" sigue yendo
-        por `scoreTake` normal.
+      - **Puntuar dentro del calentamiento (2026-09-03):** el botón "Puntuar
+        (calentamiento)" enruta a `AppModel.scoreWarmupTake(...)` →
+        `settleWarmupTake` (`mode:.warmup`, `countsForStars:false`, alimenta la
+        repetición espaciada y marca `setOxidized` si baja de 2★). El resultado
+        (estrellas · precisión · aviso de oxidación) se enseña en un panel dentro
+        de la práctica, **sin navegar a `.results`**, para no cortar la tanda.
+        `WarmupStep` lleva ahora `exerciseId`/`variantId` para registrar contra el
+        ejercicio que toca. Con esto **F.0 queda cerrado**.
 - [ ] **F.0b** Variantes avanzadas: encadenado, densidad creciente, rampa de tempo, un solo lado `XFNotation`
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril

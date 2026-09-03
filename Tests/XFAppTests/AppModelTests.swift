@@ -199,6 +199,29 @@ final class AppModelTests: XCTestCase {
         XCTAssertLessThanOrEqual(m.warmupLibrary.count, m.catalog.exercises.count)
     }
 
+    func testUnaTomaDeCalentamientoSeRegistraComoWarmupYDetectaOxidacion() throws {
+        let m = try model()
+        let ex = try XCTUnwrap(m.catalog.exercises.first)
+
+        // toma floja (1★): debe volver como "oxidado" con un aviso concreto
+        let msg = m.settleWarmupTake(exerciseId: ex.id, variantId: "base",
+                                     score: 30, maxScore: 100, stars: 1)
+        XCTAssertNotNil(msg, "1★ en calentamiento -> aviso de oxidación")
+        XCTAssertNotNil(try m.db.mastery(exerciseId: ex.id)?.oxidizedAt,
+                        "queda marcado oxidado (vuelve a la rotación)")
+
+        let saved = try m.db.attempts(exerciseId: ex.id)
+        XCTAssertEqual(saved.count, 1)
+        XCTAssertEqual(saved[0].mode, .warmup)
+        XCTAssertFalse(saved[0].countsForStars, "el calentamiento NO mueve estrellas")
+        XCTAssertEqual(saved[0].accuracy, 0.3, accuracy: 1e-9)
+
+        // una toma sólida (3★) no dispara ningún aviso
+        let msg2 = m.settleWarmupTake(exerciseId: ex.id, variantId: "base",
+                                      score: 96, maxScore: 100, stars: 3)
+        XCTAssertNil(msg2)
+    }
+
     func testBootMontaTodoDesdeElRepo() throws {
         let dbURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("xflare-boot-\(UUID().uuidString).sqlite")

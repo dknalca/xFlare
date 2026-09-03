@@ -18,13 +18,19 @@ import XFCapture
 /// `PracticeView` cableada a `XFEngine` + `XFAnalysis`.
 ///
 /// Un paso del **calentamiento en una sola sesión** (F.0): el patrón + su nombre
-/// + cuántas frases de "repite conmigo" hacer antes de pasar al siguiente.
+/// + cuántas frases de "repite conmigo" hacer antes de pasar al siguiente. Lleva
+/// también el `exerciseId`/`variantId` para que, si puntúas una toma a mitad de
+/// calentamiento, se registre contra el ejercicio que toca (`mode:.warmup`).
 public struct WarmupStep: Equatable {
     public let scratch: Scratch
     public let name: String
     public let phraseCount: Int
-    public init(scratch: Scratch, name: String, phraseCount: Int) {
+    public let exerciseId: String
+    public let variantId: String
+    public init(scratch: Scratch, name: String, phraseCount: Int,
+                exerciseId: String, variantId: String) {
         self.scratch = scratch; self.name = name; self.phraseCount = phraseCount
+        self.exerciseId = exerciseId; self.variantId = variantId
     }
 }
 
@@ -86,6 +92,10 @@ public struct LivePracticeView: View {
     @State private var warmupIndex = 0
     @State private var warmupResponds = 0
     @State private var lastCrPhase: PracticeSession.CallResponsePhase = .off
+    // F.0: resultado de la última toma puntuada dentro del calentamiento
+    // (estrellas · precisión · aviso de oxidación). Se enseña en un panel que se
+    // puede cerrar; no navega a resultados para no cortar la tanda.
+    @State private var warmupTake: (stars: Int, pct: Int, note: String?)?
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -107,6 +117,11 @@ public struct LivePracticeView: View {
     /// Puntúa la última toma grabada (`XFAnalysis` → pantalla de resultados).
     /// Sin efecto en Freestyle (no hay patrón que puntuar).
     private let onScore: (XFSession) -> Void
+    /// Puntúa una toma hecha **dentro del calentamiento** (F.0): la registra como
+    /// `mode:.warmup` y devuelve estrellas + precisión + aviso de oxidación para
+    /// enseñarlo aquí mismo, sin salir a resultados (así la tanda no se corta).
+    private let onWarmupScore: (XFSession, String, String)
+        -> (stars: Int, accuracyPercent: Int, oxidationMessage: String?)?
     /// Ruta del sample de scratch a cargar al abrir (F.3). Vacío = el asset por
     /// defecto. Si el fichero no existe, cae al asset.
     private let scratchSamplePath: String
@@ -147,6 +162,8 @@ public struct LivePracticeView: View {
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
+                onWarmupScore: @escaping (XFSession, String, String)
+                    -> (stars: Int, accuracyPercent: Int, oxidationMessage: String?)? = { _, _, _ in nil },
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 onExit: @escaping () -> Void = {}) {
@@ -167,6 +184,7 @@ public struct LivePracticeView: View {
         self.commandEvents = commandEvents
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
+        self.onWarmupScore = onWarmupScore
         self.onScratchSampleChanged = onScratchSampleChanged
         self.onSampleLibraryChanged = onSampleLibraryChanged
         self.onExit = onExit
@@ -186,6 +204,10 @@ public struct LivePracticeView: View {
     }
     private var activeName: String {
         warmupSteps.indices.contains(warmupIndex) ? warmupSteps[warmupIndex].name : exerciseName
+    }
+    /// El paso de calentamiento en curso (`nil` fuera del calentamiento).
+    private var activeWarmupStep: WarmupStep? {
+        warmupSteps.indices.contains(warmupIndex) ? warmupSteps[warmupIndex] : nil
     }
 
     public var body: some View {
@@ -302,6 +324,7 @@ public struct LivePracticeView: View {
     /// o sale si era el último.
     private func advanceWarmup() {
         warmupResponds = 0
+        warmupTake = nil            // el resultado del anterior no vale para el nuevo
         warmupIndex += 1
         guard warmupSteps.indices.contains(warmupIndex) else { onExit(); return }
         session.reload(scratch: warmupSteps[warmupIndex].scratch)
@@ -631,14 +654,22 @@ public struct LivePracticeView: View {
             }
 
             // puntuar la toma contra el patron (XFAnalysis -> resultados).
-            // En Freestyle no hay patron: no aparece.
+            // En Freestyle no hay patron: no aparece. En el calentamiento se
+            // registra como `mode:.warmup` y el resultado se enseña aqui mismo.
             if !freestyle, let rec = lastRecording, !active {
                 Button {
-                    onScore(rec)
+                    if let step = activeWarmupStep {
+                        warmupTake = onWarmupScore(rec, step.exerciseId, step.variantId)
+                            .map { ($0.stars, $0.accuracyPercent, $0.oxidationMessage) }
+                    } else {
+                        onScore(rec)
+                    }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal").font(.system(size: 9))
-                        Text("Puntuar la toma").font(XFFont.bodyMedium(10))
+                        Text(activeWarmupStep == nil ? "Puntuar la toma"
+                                                     : "Puntuar (calentamiento)")
+                            .font(XFFont.bodyMedium(10))
                         Spacer(minLength: 0)
                     }
                     .foregroundColor(XFColor.accent)
@@ -648,6 +679,10 @@ public struct LivePracticeView: View {
                         .fill(XFColor.accent.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+            }
+
+            if let take = warmupTake {
+                warmupTakeCard(take)
             }
 
             if session.playingBack {
@@ -795,6 +830,38 @@ public struct LivePracticeView: View {
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
         engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
         gridShift = 0
+    }
+
+    /// F.0 — panel del resultado de una toma de calentamiento: estrellas +
+    /// precisión, y si el ejercicio se ha oxidado, el aviso concreto. Sobrio: no
+    /// hay confeti ni "¡bien!", solo el dato. Se cierra con la X.
+    private func warmupTakeCard(_ take: (stars: Int, pct: Int, note: String?)) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                ForEach(0..<3, id: \.self) { i in
+                    Image(systemName: i < take.stars ? "star.fill" : "star")
+                        .font(.system(size: 9))
+                        .foregroundColor(i < take.stars ? XFColor.accent : XFColor.stroke)
+                }
+                Text("\(take.pct) %").font(XFFont.mono(10)).foregroundColor(XFColor.textMuted)
+                Spacer(minLength: 0)
+                Text("no cuenta para estrellas").font(XFFont.body(8))
+                    .foregroundColor(XFColor.textMuted)
+                Button { warmupTake = nil } label: {
+                    Image(systemName: "xmark").font(.system(size: 8))
+                        .foregroundColor(XFColor.textMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            if let note = take.note {
+                Text(note).font(XFFont.body(10)).foregroundColor(XFColor.text)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 5).padding(.horizontal, XFSpacing.xs)
+        .frame(maxWidth: .infinity)
+        .background(RoundedRectangle(cornerRadius: 5)
+            .fill((take.note == nil ? XFColor.textMuted : XFColor.accent).opacity(0.12)))
     }
 
     // MARK: - comandos por MIDI

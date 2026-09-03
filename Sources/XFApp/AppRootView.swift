@@ -206,6 +206,10 @@ public struct AppRootView: View {
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)
                 },
+                onWarmupScore: { session, ex, va in
+                    model.scoreWarmupTake(session, exerciseId: ex, variantId: va)
+                        .map { ($0.stars, $0.accuracyPercent, $0.oxidationMessage) }
+                },
                 onScratchSampleChanged: { model.settings.lastScratchSamplePath = $0 },
                 onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                 onExit: { model.goHome() })
