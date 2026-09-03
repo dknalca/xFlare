@@ -80,6 +80,12 @@ No mide milisegundos de ida y vuelta; eso es B1.2.
 > frames a 44,1 kHz con 0 overloads y gap 1,2–1,7 ms; falta la prueba dúplex de
 > verdad. El flag `--adaptive` (subida 64→128 al detectar overloads, ADR-024 /
 > B1.6) también está en ese spike, pendiente de corrida real en el Intel de 2015.
+>
+> Actualización 2026-09-03 (ADR-061): el coste de CPU del hilo RT bajó — la
+> convolución de `xf_player_render` va en `float` con camino rápido sin ramas y
+> se salta entera cuando el plato está parado. La EQ del sample (`xf_eq`) solo
+> cuesta cuando no está en plano. Al correr la medición de overloads en hardware,
+> el margen debería ser mayor que el estimado antes de este cambio.
 
 ### 4.2 B1.2 / B1.5 / B4.5 — round-trip por loopback
 

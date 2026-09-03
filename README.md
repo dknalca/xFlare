@@ -75,7 +75,7 @@ copyright, `CLAUDE.md` §12); carga los tuyos desde Ajustes / "Cargar sample…"
 | `docs/ARCHITECTURES.md` | Intel y Apple Silicon: universal, CI arm64, Rosetta. |
 | `docs/SCORING.md` | Puntos, tres estrellas, progreso e historial. |
 | `docs/VARIANTS.md` | Variantes por transformacion del patron base **(en pausa: `variants.json` = solo `base`)**. |
-| `docs/WARMUP.md` | Calentamiento adaptativo (**F.0**: logica + pantalla hechas). |
+| `docs/WARMUP.md` | Calentamiento adaptativo, editable, en una sola sesion (**F.0** cerrado). |
 | `docs/TESTING.md` | Golden tests, replay de sesiones, presupuesto de latencia. |
 | `docs/MODULE_STATUS.md` | Que modulos estan sellados. |
 | `docs/HW_BRINGUP.md` | Runbook para el dia que se conecte la mesa + platos + vinilo. |
