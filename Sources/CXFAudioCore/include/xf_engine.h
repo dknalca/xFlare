@@ -63,6 +63,13 @@ void xf_engine_load_instrumental(xf_engine *e, const float *mono, int64_t frames
 /* Ganancia de la base instrumental (0..1). Atomica. Por defecto 0.5. */
 void xf_engine_set_instrumental_gain(xf_engine *e, float gain);
 
+/* Reinterpreta a que tempo se grabo la base **sin recrear el player** (no toca
+ * el cabezal, no reinicia el bucle). Recalcula el ratio de reproduccion con el
+ * BPM de sesion actual. Para TAP tempo / edicion del BPM a mano: la rejilla
+ * cambia en caliente y la base sigue sonando donde estaba. No hace nada si no
+ * hay base cargada. */
+void xf_engine_set_instrumental_native_bpm(xf_engine *e, double native_bpm);
+
 /* Coloca el reloj musical en `tick` (p. ej. el inicio de la cuenta atras, que es
  * negativo). Resincroniza el metronomo. */
 void xf_engine_seek_tick(xf_engine *e, double tick);

@@ -863,28 +863,31 @@ public struct LivePracticeView: View {
         gridShift = 0
     }
 
-    /// Fija el BPM de la rejilla a mano (TAP o edición del número). La base se
-    /// sigue oyendo a su velocidad natural: lo que cambia es cómo se cuadricula,
-    /// igual que ÷2/×2 pero a un valor cualquiera. El metrónomo y el "1" se
-    /// realinean. En modo loop se traduce al nº de compases más cercano.
+    /// Fija el BPM de la rejilla a mano (TAP o edición del número), **en caliente**:
+    /// la rejilla y el metrónomo pasan al nuevo tempo desde donde están, sin
+    /// saltos; la base sigue sonando donde estaba y a su velocidad real (se
+    /// reajusta su `nativeBPM` para que el ratio no cambie). NO reinicia nada ni
+    /// resincroniza el reloj — eso es lo que hace `TAP` diferente de ÷2/×2.
+    /// En modo loop el BPM se traduce al nº de compases entero más cercano.
     private func setInstrumentalBPM(_ target: Int) {
         let clamped = min(220, max(40, target))
+        let old = Double(max(1, session.bpm))
+
         if instrLoopBars != nil, instrFileSeconds > 0.01 {
             let bpb = Double(geometry.beatsPerBar)
-            let bars = Int((Double(clamped) * instrFileSeconds / (bpb * 60.0)).rounded())
-            relockLoop(bars: max(1, bars))
-            return
+            let bars = max(1, Int((Double(clamped) * instrFileSeconds / (bpb * 60.0)).rounded()))
+            instrLoopBars = bars
+            instrLoopTicks = Double(bars * geometry.beatsPerBar) * Double(scratch.ppq)
+        } else {
+            instrLoopTicks *= Double(clamped) / old
         }
-        let old = Double(max(1, session.bpm))
-        session.setBPM(clamped)
-        let factor = Double(session.bpm) / old
-        instrLoopTicks *= factor
         session.setInstrumentalLoopTicks(instrLoopTicks)
-        engine?.replayInstrumental(nativeBPM: Double(session.bpm))
+        session.setBPM(clamped)
+        // primero el transporte (fija `e->bpm`, que marca el tempo del metrónomo
+        // y del reloj), luego el nativeBPM de la base para que su ratio quede en
+        // ~1 (suena a su velocidad real). NADA reinicia el cabezal ni el reloj.
         engine?.setTransport(bpm: Double(session.bpm), ppq: 480, playing: !session.frozen)
-        session.resyncClock()
-        engine?.seek(tick: 0)          // metrónomo al "1", como la base y la rejilla
-        gridShift = 0
+        engine?.setInstrumentalNativeBPM(Double(session.bpm))
     }
 
     /// F.0 — panel del resultado de una toma de calentamiento: estrellas +

@@ -189,6 +189,10 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
          *    al dia aunque haya ancla de posicion, para que SOLTAR el ancla no
          *    meta un salto de velocidad. */
         p->velocity += (target_velocity - p->velocity) * coef;
+        /* flush a cero: el one-pole nunca llega a 0 del todo y una velocidad
+         *    denormal dispara el modo denormal de la FPU (~100x mas lento en
+         *    Intel), que al scratchear despacio se nota como tirones. */
+        if (p->velocity < 1e-12 && p->velocity > -1e-12) p->velocity = 0.0;
 
         /* 2) la velocidad manda. Si hay ancla de posicion (ADR-042) se le suma un
          *    TRIM anti-deriva one-pole (~250 ms) ACOTADO a +-seek_max_trim: pega
@@ -205,11 +209,12 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
         }
 
         /* 3) |v| y puerta por velocidad. La puerta se calcula AHORA, antes de la
-         *    convolucion: si el plato esta tan parado que la salida seria ~0
-         *    (el caso normal mientras NO estas scratcheando: idle, "escucha" del
-         *    repite-conmigo…), nos saltamos los 32 taps y escribimos silencio.
-         *    El cabezal y la fase siguen avanzando igual, asi no hay salto al
-         *    volver a mover. Esto quita casi todo el coste del motor en reposo. */
+         *    convolucion: si el plato esta EXACTAMENTE parado (velocidad ya
+         *    flushada a 0, sin ancla) la salida seria 0 igualmente, asi que nos
+         *    saltamos los 32 taps — es el caso normal mientras NO scratcheas.
+         *    Solo con `av == 0` exacto: nada de umbral con banda, para no meter
+         *    cortes al cruzar velocidad ~0 al scratchear (el "tiron"). El cabezal
+         *    y la fase siguen avanzando igual. */
         double av = v < 0.0 ? -v : v;
         float amp = 1.0f;
         if (p->speed_gate > 0.0) {
@@ -217,7 +222,7 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
             amp = g < 1.0 ? (float)g : 1.0f;
         }
 
-        if (amp < 1e-4f) {
+        if (av == 0.0) {
             out[n] = 0.0f;
         } else {
             int ri = xf_player_ratio_index(av);

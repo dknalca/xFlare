@@ -202,6 +202,16 @@ void xf_engine_set_instrumental_gain(xf_engine *e, float gain) {
     atomic_store(&e->instr_gain, (double)gain);
 }
 
+void xf_engine_set_instrumental_native_bpm(xf_engine *e, double native_bpm) {
+    if (!e || native_bpm <= 0.0 || e->instr_native_bpm <= 0.0) return;
+    /* NO recrea el player: solo reinterpreta a que tempo se grabo, para que el
+     * ratio (bpm sesion / native) cambie sin reiniciar el cabezal. Lo usa el TAP
+     * tempo / la edicion del BPM a mano: cambia la rejilla en caliente y la base
+     * se sigue oyendo donde estaba, a su velocidad real. */
+    e->instr_native_bpm = native_bpm;
+    atomic_store(&e->instr_ratio, atomic_load(&e->bpm) / native_bpm);
+}
+
 void xf_engine_seek_tick(xf_engine *e, double tick) {
     if (!e) return;
     e->tick = tick;

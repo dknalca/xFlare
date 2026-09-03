@@ -2210,9 +2210,17 @@ acumular la convolución en `float` en vez de `double` (error ~1e-6, el doble de
 rápido); un camino contiguo sin ramas cuando la ventana de 32 taps cae entera
 dentro del sample (el 99 % de las muestras), dejando los bordes y el envoltorio
 del bucle para el camino lento; `floor()` → truncado a `int64_t` (el cabezal
-siempre es ≥ 0); y **saltarse los 32 taps del todo cuando la puerta de velocidad
-daría ~0** (plato parado: idle, fase de "escucha" del repite-conmigo) escribiendo
-silencio exacto — mata denormales y deja el coste del scratch en reposo casi a 0.
+siempre es ≥ 0); un **flush a cero** de la velocidad cuando es denormal (el
+one-pole nunca llega a 0 del todo y una velocidad denormal dispara el modo
+denormal de la FPU, ~100× más lento en Intel); y **saltarse los 32 taps solo con
+el plato EXACTAMENTE parado** (`av == 0`, plato en reposo: idle, fase de "escucha"
+del repite-conmigo) — deja el coste del scratch en reposo casi a 0.
+
+> **Corrección (2026-09-03).** El primer intento saltaba los taps con un umbral
+> de banda (`amp < 1e-4`); al scratchear despacio la velocidad cruza esa banda
+> muchas veces y el audio se cortaba a trozos ("tirones"). Ahora el salto es solo
+> con `av == 0` exacto (tras el flush) y la ganancia de la puerta hace el fundido
+> de forma continua; el ahorro en reposo es el mismo.
 
 **Decisión — EQ.** `xf_eq` (módulo propio, testeable): low-shelf 200 Hz, peaking
 1 kHz (Q 0,9), high-shelf 4 kHz (fórmulas RBJ), en biquads **forma directa II

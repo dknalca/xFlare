@@ -111,6 +111,15 @@ public final class EngineHandle {
     /// bucle vuelve a empezar (cabezal a 0) y el ratio de reproduccion se
     /// recalcula con el BPM de sesion actual. Corrige la deteccion de tempo sin
     /// cambiar la velocidad real de la base (solo la rejilla).
+    /// Reinterpreta el tempo nativo de la base **sin reiniciarla** (no toca el
+    /// cabezal). Para TAP tempo / editar el BPM: la rejilla cambia en caliente y
+    /// la base sigue sonando donde estaba, a su velocidad real.
+    public func setInstrumentalNativeBPM(_ nativeBPM: Double) {
+        guard nativeBPM > 0 else { return }
+        xf_engine_set_instrumental_native_bpm(engine, nativeBPM)
+        instrumentalNativeBPM = nativeBPM
+    }
+
     public func replayInstrumental(nativeBPM: Double) {
         guard let buf = currentInstrumental, instrumentalFrameCount >= 2, nativeBPM > 0 else { return }
         xf_engine_load_instrumental(engine, buf.baseAddress, Int64(instrumentalFrameCount), nativeBPM)

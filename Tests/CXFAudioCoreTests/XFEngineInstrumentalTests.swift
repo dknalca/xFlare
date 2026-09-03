@@ -113,6 +113,33 @@ final class XFEngineInstrumentalTests: XCTestCase {
                              "sigue en 1 kHz: NO se ha ralentizado")
     }
 
+    func testCambiarNativeBpmEnCalienteNoReiniciaElCabezal() {
+        // TAP tempo / editar el BPM: `set_instrumental_native_bpm` reajusta el
+        // ratio SIN recrear el player -> el cabezal sigue donde estaba.
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        let loop = stable(sine(1000, frames: 48_000))
+        defer { loop.deallocate() }
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 120)
+        xf_engine_set_transport(e, 120, 480, true)          // ratio 1.0
+        _ = render(e, blocks: 40)                            // avanza el cabezal
+        // (no hay getter del cabezal de la base; se comprueba por continuidad)
+
+        let before = render(e, blocks: 2)
+        // sube el tempo de la rejilla a 132 y la base a "nativa 132": ratio ~1,
+        // suena igual y SIN salto (si recreara el player, el cabezal saltaría a 0
+        // y habría una discontinuidad grande en la costura).
+        xf_engine_set_transport(e, 132, 480, true)
+        xf_engine_set_instrumental_native_bpm(e, 132)
+        let after = render(e, blocks: 2)
+
+        // el nivel se mantiene (no ha saltado a otra parte del loop con otra fase)
+        XCTAssertEqual(rms(after), rms(before), accuracy: 0.05)
+        // y no hay un pico de discontinuidad en la unión de los dos bloques
+        let seam = abs(after.first! - before.last!)
+        XCTAssertLessThan(seam, 0.2, "sin salto de cabezal al cambiar el nativeBPM")
+    }
+
     func testGananciaCeroSilenciaLaBase() {
         let e = engine()
         defer { xf_engine_destroy(e) }
