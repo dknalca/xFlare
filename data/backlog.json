@@ -504,8 +504,9 @@
           "id": "B7.2b",
           "title": "Render sincronizado al refresco real, 60 fps garantizados en Intel (ADR-024)",
           "module": "XFRender",
-          "status": "todo",
-          "acceptance": "60 fps estables en el MacBook Pro 2015 con la autopista completa"
+          "status": "done",
+          "acceptance": "60 fps estables en el MacBook Pro 2015 con la autopista completa",
+          "note": "Cerrado 2026-09-03. Overlay FrameRateMeter + ScreenRefresh (en XFApp, sin tocar XFRender): PracticeSceneView.preferredFramesPerSecond se ajusta al refresco real (60 Intel / 120 si el panel lo da). 60 fps estables medidos en el MBP 2015. Ademas PracticeScene deja de re-teselar SKShapeNode cada frame (nodos de forma constante movidos por position)."
         },
         {
           "id": "B7.3",
@@ -929,7 +930,8 @@
           "title": "README publico, capturas, video de 30 s",
           "module": "-",
           "acceptance": "-",
-          "status": "todo"
+          "status": "wip",
+          "note": "README con Estado / Probarlo / Capturas y 4 screenshots (docs/screenshots/). Falta el video de 30 s."
         },
         {
           "id": "B12a.7",
@@ -1012,16 +1014,16 @@
           "title": "Importar tus propios samples con deteccion del punto cero",
           "module": "-",
           "acceptance": "-",
-          "status": "wip",
-          "note": "Iniciado 2026-09-03 (a peticion del autor, pese a la regla de no tocar futuribles). Nucleo hecho: SampleTrim (XFApp, puro) -- detectStart/detectEnd por RMS (umbral -45 dBFS, ventana 5 ms) + retroceso de 8 ms + cuadre a cruce por cero; trimmed() recorta cabeza/cola y devuelve el offset. Boton 'Cargar sample...' en la practica (loadScratchSample: decodifica, recorta, engine.loadSample + cue 1, rehace la onda del rail). 6 tests. Falta: cues por sample, biblioteca de samples del usuario, deteccion de tempo si el sample es ritmico. El sample elegido se recuerda entre sesiones (AppSettings.lastScratchSamplePath)."
+          "status": "done",
+          "note": "Cerrado 2026-09-03. SampleTrim (XFApp, puro): detectStart/detectEnd por RMS + retroceso 8 ms + cuadre a cruce por cero; trimmed() recorta y devuelve el offset. Biblioteca de samples (AppSettings.sampleLibrary, menu en el panel Mezcla), cue points A/B (PracticeSession.jumpTo(sampleFraction:)), aviso de loop ritmico (TempoAnalyzer), EQ Lo/Mid/Hi del sample (xf_eq, ADR-061). El sample elegido se recuerda (AppSettings.lastScratchSamplePath)."
         },
         {
           "id": "F.4",
-          "title": "Exportar la toma como video vertical para compartir",
+          "title": "Exportar la toma como video para compartir",
           "module": "-",
           "acceptance": "el bucle de crecimiento mas barato que existe",
-          "status": "wip",
-          "note": "Iniciado 2026-09-03. VIDEO hecho (sin audio). TakeVideoExporter (XFApp): framePlan(...) y trace(from: XFSession) puros; render(HighwayFrame -> CGImage) rasteriza con Core Graphics (rejilla, fantasma partido por fader, tu linea tenida por acierto, marcas, phantom clicks); export(...) monta mp4 H.264 9:16 con AVAssetWriter en 2o plano. Boton 'Video...' en el panel Grabar linea. 5 tests, incluido un export real a fichero temporal verificado con AVURLAsset. Barra de progreso hecha. AUDIO hecho (2026-09-03): TakeAudioRenderer reproduce el xf_engine OFFLINE siguiendo vel/pos/fader grabados (mismo DSP que la practica); export escribe video mudo a un temporal, audio a CAF y los combina con AVMutableComposition + AVAssetExportSession. EngineHandle expone scratchPCMCopy/instrumentalPCMCopy. REVELADO EN VIVO: cada fotograma pinta solo la traza ya tocada (tick-12 negras..tick); antes se veia la linea entera desde el fotograma 1 (parecia una foto desplazandose). Falta (opcional): mezcla configurable, resolucion/fps en ajustes."
+          "status": "done",
+          "note": "Cerrado 2026-09-03. TakeVideoExporter (XFApp): framePlan/trace puros; render (HighwayFrame -> CGImage) con Core Graphics; export monta mp4 H.264 con AVAssetWriter en 2o plano, con la PROPORCION de la ventana (ADR-056). Audio del xf_engine OFFLINE (mismo DSP, TakeAudioRenderer) muxeado con AVMutableComposition, con la mezcla del mixer. La linea REFLEJA los cortes de fader (ADR-057). Revelado en vivo (traza tick-12..tick). fps/resolucion en Ajustes. Boton 'Video...' en el panel Grabar linea. 10 tests."
         },
         {
           "id": "F.5",
