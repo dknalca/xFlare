@@ -487,11 +487,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         com.apple.quarantine`) y el enlace al tag exacto del fuente (GPL-3.0).
 - [~] **B12a.6** README publico, capturas, video de 30 s
       - Hecho (2026-09-03): README con seccion **"Estado"** (que funciona ya /
-        que falta para la v1) y **"Probarlo"** (`swift run` / `make app` / `make
-        dmg REL=1`, rodeo de Gatekeeper, nota de que el release va sin samples).
-        Rango de ADR corregido (001–058).
-      - **Falta:** capturas commiteadas en el repo + un video de 30 s (Home →
-        practica → grabar → exportar). Accion manual (grabar pantalla).
+        que falta para la v1), **"Probarlo"** (`swift run` / `make app` / `make
+        dmg REL=1`, rodeo de Gatekeeper, nota de que el release va sin samples)
+        y **"Capturas"** (4 PNG en `docs/screenshots/`: Home, practica, Ajustes,
+        Mi mesa; 1500 px). Rango de ADR corregido (001–058).
+      - **Falta:** un video de 30 s (Home → practica → grabar → exportar).
+        Accion manual (grabar pantalla).
 - [ ] **B12a.7** 5 DJs probandolo y sus notas
       - Criterio: el examen de verdad
 

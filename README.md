@@ -45,6 +45,15 @@ El DMG no esta notarizado: al abrirlo la primera vez, **clic derecho sobre la ap
 > Abrir > Abrir**. El release universal no incluye samples de audio (con
 copyright, `CLAUDE.md` §12); carga los tuyos desde Ajustes / "Cargar sample…".
 
+## Capturas
+
+| | |
+|---|---|
+| **Home** — la matriz de trucos con su grafico TTM (lleno = suena, a rayas = cortado) y la leyenda | ![Home](docs/screenshots/home.png) |
+| **Practica** — la autopista con la rejilla de compas, la onda de la instrumental arriba y el rail del sample a la izquierda | ![Practica](docs/screenshots/practica.png) |
+| **Ajustes** — buffer de audio, tolerancia, diagnostico de FPS y reasignacion de comandos por MIDI. Todo local | ![Ajustes](docs/screenshots/ajustes.png) |
+| **Mi mesa** — perfiles `.conf` por modelo, con insignia de verificado y prueba en vivo | ![Mi mesa](docs/screenshots/mi-mesa.png) |
+
 ## Documentacion
 
 | Fichero | Que contiene |
