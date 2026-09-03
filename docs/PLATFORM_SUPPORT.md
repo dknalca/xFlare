@@ -97,6 +97,7 @@ Son las que mas se cuelan, porque salen en todos los tutoriales recientes:
 | `SwiftData` | macOS 14 | GRDB 6.x |
 | `Duration` / `ContinuousClock` | macOS 13 | `mach_absolute_time`, `DispatchTime` |
 | `swift-testing` | Xcode 16 | XCTest |
+| `Form` + `ForEach` en un `Section` | (bug Big Sur) | `ScrollView { VStack { XFCard } }` a mano (ADR-058) |
 
 **Regla:** si una API tiene `@available` posterior a macOS 11.0, no se usa. Si de
 verdad hace falta, se aisla con `if #available` y se escribe la ruta alternativa.

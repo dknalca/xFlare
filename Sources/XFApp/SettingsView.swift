@@ -6,6 +6,10 @@ import XFCapture
 
 /// Pantalla de Ajustes (`docs/UI_DESIGN.md` §3.7). Edita un `AppSettings` y avisa
 /// al guardarlo; la persistencia la hace `XFApp`.
+///
+/// Layout **manual** (`ScrollView` + `VStack` + `XFCard`), como el resto de la
+/// app: el `Form` de SwiftUI en macOS 11 se quedaba en blanco al meterle un
+/// `ForEach` (la lista de comandos MIDI).
 public struct SettingsView: View {
 
     @State private var settings: AppSettings
@@ -24,51 +28,90 @@ public struct SettingsView: View {
     }
 
     public var body: some View {
-        Form {
-            Section(header: Text("Perfil")) {
-                HStack {
-                    Text("Nombre")
-                    TextField("para las estadísticas", text: bind(\.username))
-                }
-            }
-            Section(header: Text("Hardware")) {
-                Toggle("Corto en reverse (hamster)", isOn: bind(\.hamster))
-                Picker("Buffer de audio", selection: bind(\.bufferFrames)) {
-                    ForEach(AppSettings.bufferOptions, id: \.self) { n in
-                        Text("\(n) frames").tag(n)
+        ScrollView {
+            VStack(alignment: .leading, spacing: XFSpacing.lg) {
+
+                section("Perfil") {
+                    row("Nombre") {
+                        TextField("para las estadísticas", text: bind(\.username))
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                            .frame(width: 200)
                     }
                 }
-                Text("Si oyes crujidos, sube el buffer. Cambia al reiniciar la app.")
-                    .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
-            }
-            Section(header: Text("Sesión")) {
-                Toggle("Metrónomo", isOn: bind(\.metronomeEnabled))
-                HStack {
-                    Text("Tolerancia")
-                    Slider(value: bind(\.toleranceScale), in: 0.5...2.0)
-                    Text(String(format: "×%.2f", settings.toleranceScale)).font(XFFont.mono(12))
+
+                section("Hardware") {
+                    Toggle("Corto en reverse (hamster)", isOn: bind(\.hamster))
+                    row("Buffer de audio") {
+                        Picker("", selection: bind(\.bufferFrames)) {
+                            ForEach(AppSettings.bufferOptions, id: \.self) { n in
+                                Text("\(n)").tag(n)
+                            }
+                        }
+                        .labelsHidden()
+                        .frame(width: 90)
+                    }
+                    note("Si oyes crujidos, sube el buffer. Cambia al reiniciar la app.")
                 }
-            }
-            Section(header: Text("Accesibilidad")) {
-                Toggle("Alto contraste", isOn: bind(\.highContrast))
-                Toggle("Reducir movimiento", isOn: bind(\.reduceMotion))
-            }
-            Section(header: Text("MIDI · comandos")) {
-                Text("Nota o CC para disparar cada comando de la práctica. "
-                     + "Formato: note:canal:número o cc:canal:número (canal 0 = "
-                     + "cualquiera). Vacío = usar lo que traiga el perfil de mesa.")
-                    .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
-                ForEach(PracticeCommand.allCases, id: \.self) { cmd in
-                    midiRow(cmd)
+
+                section("Sesión") {
+                    Toggle("Metrónomo", isOn: bind(\.metronomeEnabled))
+                    row("Tolerancia") {
+                        HStack(spacing: XFSpacing.xs) {
+                            Slider(value: bind(\.toleranceScale), in: 0.5...2.0).frame(width: 160)
+                            Text(String(format: "×%.2f", settings.toleranceScale))
+                                .font(XFFont.mono(12)).foregroundColor(XFColor.textMuted)
+                        }
+                    }
                 }
+
+                section("Accesibilidad") {
+                    Toggle("Alto contraste", isOn: bind(\.highContrast))
+                    Toggle("Reducir movimiento", isOn: bind(\.reduceMotion))
+                }
+
+                section("MIDI · comandos") {
+                    note("Nota o CC por comando. Formato note:canal:nº o cc:canal:nº "
+                         + "(canal 0 = cualquiera). Vacío = usar lo del perfil de mesa.")
+                    ForEach(PracticeCommand.allCases, id: \.self) { cmd in
+                        midiRow(cmd)
+                    }
+                }
+
+                note("Todo se guarda en tu Mac. Sin cuenta, sin nube, sin telemetría.")
             }
-            Section {
-                Text("Todo se guarda en tu Mac. Sin cuenta, sin nube, sin telemetría.")
-                    .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+            .frame(maxWidth: 460, alignment: .leading)
+            .padding(XFSpacing.xl)
+        }
+        .background(XFColor.bg)
+    }
+
+    // MARK: - piezas
+
+    private func section<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: XFSpacing.xs) {
+            Text(title.uppercased()).font(XFFont.body(9)).kerning(0.6)
+                .foregroundColor(XFColor.textMuted)
+            XFCard {
+                VStack(alignment: .leading, spacing: XFSpacing.sm) { content() }
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(XFSpacing.lg)
-        .background(XFColor.bg)
+    }
+
+    /// Fila etiqueta + control a la derecha.
+    private func row<C: View>(_ label: String, @ViewBuilder _ control: () -> C) -> some View {
+        HStack {
+            Text(label).font(XFFont.body(13))
+            Spacer(minLength: XFSpacing.sm)
+            control()
+        }
+    }
+
+    private func note(_ text: String) -> some View {
+        Text(text)
+            .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func bind<V>(_ keyPath: WritableKeyPath<AppSettings, V>) -> Binding<V> {
@@ -81,11 +124,12 @@ public struct SettingsView: View {
     private func midiRow(_ cmd: PracticeCommand) -> some View {
         let placeholder = profileBindings[cmd.rawValue] ?? "sin asignar"
         return HStack {
-            Text(cmd.label)
-            Spacer()
+            Text(cmd.label).font(XFFont.body(12)).lineLimit(1)
+            Spacer(minLength: XFSpacing.sm)
             TextField(placeholder, text: midiBind(cmd))
-                .frame(width: 130)
-                .font(XFFont.mono(12))
+                .textFieldStyle(RoundedBorderTextFieldStyle())
+                .frame(width: 132)
+                .font(XFFont.mono(11))
                 .multilineTextAlignment(.trailing)
         }
     }

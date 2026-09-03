@@ -2016,17 +2016,19 @@ marcar puntos.
 **Decisión.** `TTMThumbnail` pasa a ser una lista de `Segment` (`points` +
 `sounding`). `build` muestrea el ciclo entero y parte la curva en tramos por los
 cambios de fader, compartiendo el punto de unión (curva contigua, sin huecos).
-`TTMThumbnailView` pinta los tramos que suenan (fader abierto) en color vivo
-(`XFColor.text`, trazo 1.6) y los cortados en gris apagado
-(`XFColor.textMuted @ 0.4`, trazo 1.2). Sin ●. La `y` se normaliza con un 8 % de
-margen para que el trazo no toque el borde. En Home, un recuadro a la derecha
-explica cómo leerlo.
+`TTMThumbnailView` pinta los tramos que suenan (fader abierto) con trazo **lleno**
+y claro (`XFColor.text`, 1.8) y los cortados con trazo **a rayas** en gris
+(`XFColor.textMuted`, 1.2, dash `[2.5, 2.5]`). Sin ●. La `y` se normaliza con un
+8 % de margen para que el trazo no toque el borde. En Home, un recuadro a la
+derecha explica cómo leerlo (curva de ejemplo + clave lleno/rayas).
 
 **Alternativas descartadas.**
 - *Puntos ● con reglas por familia* (ADR-055 v1): frágil y se salían del cuadro.
 - *Ocultar los tramos mudos* (ADR-050): el autor prefiere ver el silencio como
-  curva en otro color, no como ausencia.
-- *Rojo para el corte*: descartado por sobrio; el gris apagado no grita "error".
+  curva, no como ausencia.
+- *Solo cambio de color (mismo trazo lleno)*: a tamaño de miniatura el contraste
+  entre blanco y gris apagado no se leía; las **rayas** lo dejan inequívoco sin
+  depender del color. Rojo para el corte se descartó por sobrio.
 
 **Consecuencias.** Una sola convención para todas las familias. El vértice del
 movimiento siempre se ve arriba (es la curva de verdad). Nada se sale del cuadro.
@@ -2057,6 +2059,56 @@ apaisado (p. ej. 1600×600): mejor que 9:16 pero no sigue a la ventana.
 **Consecuencias.** El vídeo se parece a lo que el usuario ve. La resolución ya no
 es constante entre tomas (depende de la ventana); a cambio, nada se estira. Los
 tests que fijan `width`/`height` explícitos siguen valiendo.
+
+---
+
+## ADR-057 — El vídeo refleja los cortes de fader (feedback 2026-09-03)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada · complementa ADR-056
+
+**Contexto.** `TakeVideoExporter.trace(from:)` reconstruía la línea del usuario
+solo del `motion` de la toma, con `level = nil` siempre, así que el vídeo salía
+todo teal aunque la grabación tuviera cortes de crossfader. En la práctica en
+vivo el tramo con el fader cerrado se pinta apagado.
+
+**Decisión.** `trace(from:)` cruza cada muestra de movimiento con el carril de
+fader grabado (`session.fader`) y marca los puntos con el fader cerrado como
+`level = .miss`. `HighwayLayout` ya parte la traza por `level`, así que el
+rasterizado recibe esos tramos aparte y los pinta en gris y **a rayas** (igual
+convención que la miniatura, ADR-055), el resto teal y lleno.
+
+**Alternativas descartadas.** Reproyectar la traza a mano en el exporter para
+colorearla: duplicaría la proyección tick→píxel de `HighwayLayout` (módulo
+sellado) y se desincronizaría de la curva fantasma. Reutilizar `.miss` es un
+apaño pero en el render offline no hay scoring, así que `level` está libre.
+
+**Consecuencias.** El vídeo comunica los cortes. Si algún día el export offline
+puntúa de verdad, habrá que separar "fader cerrado" de "fallo" en el modelo de
+la traza (hoy comparten `.miss`).
+
+---
+
+## ADR-058 — La pantalla de Ajustes no usa `Form` (macOS 11)
+
+**Fecha:** 2026-09-03 · **Estado:** aceptada
+
+**Contexto.** `SettingsView` era el único sitio de la app con `Form` de SwiftUI.
+Al añadirle una sección con un `ForEach` (los comandos MIDI, ADR-054) la pantalla
+**entera se quedó en blanco** en macOS 11 — un bug conocido de `Form` +
+`ForEach` en Big Sur.
+
+**Decisión.** `SettingsView` se reescribe con el patrón del resto de la app:
+`ScrollView { VStack { XFCard } }`, secciones a mano con un helper `section`,
+controles nativos (`Toggle`, `Slider`, `Picker`, `TextField` con
+`RoundedBorderTextFieldStyle`) colocados en filas. Nada de `Form`.
+
+**Alternativas descartadas.** Meter el `ForEach` dentro de un `VStack` en una
+sola celda del `Form`: seguía en blanco. Constrañir los `Text` anchos: bajaba el
+tamaño intrínseco pero no arreglaba el fondo del problema.
+
+**Consecuencias.** Una convención de layout para toda la app. Se pierde el
+estilo "ajustes del sistema" nativo del `Form`, que en tema oscuro fijo tampoco
+aportaba. `docs/PLATFORM_SUPPORT.md` §4 debería listar `Form` como a evitar.
 
 ---
 

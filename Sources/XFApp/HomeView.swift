@@ -57,9 +57,9 @@ public struct HomeView: View {
                 .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                 .fixedSize(horizontal: false, vertical: true)
 
-            legendKey(color: XFColor.text, lineWidth: 2.4,
+            legendKey(color: XFColor.text, lineWidth: 2.4, dashed: false,
                       title: "Suena", detail: "fader abierto")
-            legendKey(color: XFColor.textMuted.opacity(0.4), lineWidth: 1.8,
+            legendKey(color: XFColor.textMuted, lineWidth: 1.8, dashed: true,
                       title: "Cortado", detail: "fader cerrado, silencio")
         }
         .padding(XFSpacing.md)
@@ -93,10 +93,17 @@ public struct HomeView: View {
             .padding(.vertical, 2)
     }
 
-    private func legendKey(color: Color, lineWidth: CGFloat,
+    private func legendKey(color: Color, lineWidth: CGFloat, dashed: Bool,
                            title: String, detail: String) -> some View {
         HStack(spacing: XFSpacing.xs) {
-            Capsule().fill(color).frame(width: 22, height: lineWidth)
+            // muestra de trazo (lleno o a rayas, igual que en el gráfico)
+            Path { p in
+                p.move(to: CGPoint(x: 0, y: lineWidth / 2))
+                p.addLine(to: CGPoint(x: 22, y: lineWidth / 2))
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: lineWidth,
+                                              dash: dashed ? [2.5, 2.5] : []))
+            .frame(width: 22, height: lineWidth)
             Text(title).font(XFFont.bodyMedium(11)).foregroundColor(XFColor.text)
             Text(detail).font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
             Spacer(minLength: 0)

@@ -63,16 +63,32 @@ enum TakeVideoExporter {
 
     /// La traza del usuario a partir de una toma grabada, en el dominio de ticks
     /// del patrón (lista para `HighwayLayout.frame(userTrace:)`).
+    ///
+    /// Los puntos con el **fader cerrado** (según el carril grabado) se marcan
+    /// con nivel `.miss`: `HighwayLayout` los devuelve como tramo aparte y el
+    /// rasterizado los pinta apagados — igual que en la práctica en vivo. Sin
+    /// esto el vídeo salía todo teal, sin reflejar los cortes.
     static func trace(from session: XFSession, ppq: Int) -> [TracePoint] {
         guard let t0 = session.motion.first?.hostTime else { return [] }
         let hc = HostClock(numer: max(1, session.header.hostNumer),
                            denom: max(1, session.header.hostDenom))
         let bpm = session.header.tempoBPM > 0 ? session.header.tempoBPM : 90
         let tps = bpm / 60 * Double(max(1, ppq))
+
+        // carril de fader grabado (cambios de estado, escaso): estado en `ht` =
+        // el del último cambio con `hostTime <= ht`; antes del primero, abierto.
+        let fader = session.fader.sorted { $0.hostTime < $1.hostTime }
+        func closed(atHostTime ht: UInt64) -> Bool {
+            var open = true
+            for f in fader where f.hostTime <= ht { open = f.isOpen }
+            return !open
+        }
+
         return session.motion.map { m in
             let sec = m.hostTime > t0
                 ? hc.nanoseconds(fromHostTicks: m.hostTime - t0) / 1_000_000_000 : 0
-            return TracePoint(tick: sec * tps, position: m.position, level: nil)
+            return TracePoint(tick: sec * tps, position: m.position,
+                              level: closed(atHostTime: m.hostTime) ? .miss : nil)
         }
     }
 
@@ -123,12 +139,18 @@ enum TakeVideoExporter {
         let ghost = frame.discSegments.isEmpty ? [frame.discCurve] : frame.discSegments
         for seg in ghost { strokePolyline(seg, in: ctx) }
 
-        // TU línea, teñida por nivel de acierto (F.4: esto es lo que se comparte)
-        ctx.setLineWidth(4)
+        // TU línea (F.4: esto es lo que se comparte). Sin scoring offline, el
+        // único "nivel" que llega es `.miss` = fader cerrado: ese tramo va gris y
+        // a trazos, el resto teal y lleno (como en vivo y en la miniatura).
+        ctx.setLineJoin(.round)
         for poly in frame.userSegments {
-            ctx.setStrokeColor(hitColor(poly.level))
+            let cut = poly.level == .miss
+            ctx.setStrokeColor(cut ? rgb(0x9AA5B1, 0.7) : rgb(0x34E1C4))
+            ctx.setLineWidth(cut ? 2.5 : 4)
+            ctx.setLineDash(phase: 0, lengths: cut ? [5, 5] : [])
             strokePolyline(poly.points, in: ctx)
         }
+        ctx.setLineDash(phase: 0, lengths: [])   // restaura para lo que siga
 
         // marcas de fader: ○ abre, ● cierra
         ctx.setLineWidth(2)
@@ -318,17 +340,6 @@ enum TakeVideoExporter {
         CGColor(red: CGFloat((hex >> 16) & 0xFF) / 255,
                 green: CGFloat((hex >> 8) & 0xFF) / 255,
                 blue: CGFloat(hex & 0xFF) / 255, alpha: alpha)
-    }
-
-    private static func hitColor(_ level: HitLevel?) -> CGColor {
-        switch level {
-        case .none, .perfect: return rgb(0x34E1C4)          // teal (bien / acento)
-        case .great:          return rgb(0x5AD07A)          // verde
-        case .good:           return rgb(0xF5C542)          // ámbar
-        case .offbeat:        return rgb(0xF08A3C)          // naranja
-        case .miss:           return rgb(0xFF4D5E)          // rojo
-        @unknown default:     return rgb(0x34E1C4)
-        }
     }
 
     private static func strokeVerticals(_ xs: [CGFloat], height: CGFloat, width: CGFloat,

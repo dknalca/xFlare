@@ -13,7 +13,7 @@ struct TTMThumbnailView: View {
     /// Color de los tramos que suenan.
     var soundingColor: Color = XFColor.text
     /// Color de los tramos cortados / en silencio.
-    var mutedColor: Color = XFColor.textMuted.opacity(0.4)
+    var mutedColor: Color = XFColor.textMuted
 
     var body: some View {
         GeometryReader { geo in
@@ -21,13 +21,16 @@ struct TTMThumbnailView: View {
             let h = geo.size.height
 
             ZStack {
-                // un trazo por grupo de estado (y invertida: 1 = arriba)
+                // tramos cortados: gris y a trazos (se lee "aquí no suena" sin
+                // depender del contraste de color)
                 path(for: false, w: w, h: h)
                     .stroke(mutedColor,
-                            style: StrokeStyle(lineWidth: 1.2, lineCap: .round, lineJoin: .round))
+                            style: StrokeStyle(lineWidth: 1.2, lineCap: .butt,
+                                               lineJoin: .round, dash: [2.5, 2.5]))
+                // tramos que suenan: trazo lleno y claro
                 path(for: true, w: w, h: h)
                     .stroke(soundingColor,
-                            style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round))
+                            style: StrokeStyle(lineWidth: 1.8, lineCap: .round, lineJoin: .round))
             }
         }
         .accessibilityHidden(true)   // decorativo; el nombre ya nombra el truco

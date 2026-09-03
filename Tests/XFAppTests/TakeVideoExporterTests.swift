@@ -9,6 +9,7 @@ import XFNotation
 import XFCapture
 import XFPrimitives
 import XFClock
+import XFDesign   // HitLevel
 
 /// F.4 — exportar la toma como vídeo vertical. Lo puro (plan de fotogramas,
 /// traza, rasterizado) se prueba a fondo; el `AVAssetWriter` con un export
@@ -52,6 +53,33 @@ final class TakeVideoExporterTests: XCTestCase {
         XCTAssertEqual(plan.first, 0)
         XCTAssertEqual(plan.last!, 2400, accuracy: 1e-6)
         XCTAssertEqual(zip(plan, plan.dropFirst()).allSatisfy { $1 > $0 }, true)
+    }
+
+    func testLaTrazaMarcaLosTramosConFaderCerrado() {
+        // fader: abierto al inicio, cerrado de 0,4 s a 0,8 s, abierto luego
+        let n = 60, seconds = 2.0
+        var motion: [MotionSample] = []
+        for i in 0..<n {
+            let t = UInt64(Double(i) / Double(n - 1) * seconds * 1_000_000_000)
+            motion.append(MotionSample(hostTime: t, position: 0.5, velocity: 0, confidence: 1))
+        }
+        let fader = [
+            FaderSample(hostTime: 0, value: 1, isOpen: true),
+            FaderSample(hostTime: UInt64(0.4 * 1e9), value: 0, isOpen: false),
+            FaderSample(hostTime: UInt64(0.8 * 1e9), value: 1, isOpen: true),
+        ]
+        let header = XFSession.Header(formatVersion: 1, tempoBPM: 120, anchorHostTime: 0,
+                                      anchorTick: 0, hostNumer: 1, hostDenom: 1, notes: "t")
+        let s = XFSession(header: header, motion: motion, fader: fader)
+
+        let tr = TakeVideoExporter.trace(from: s, ppq: 480)
+        XCTAssertEqual(tr.count, n)
+        // 0,4-0,8 s de 2 s -> índices ~12..24
+        XCTAssertNil(tr[5].level, "antes del corte: suena")
+        XCTAssertEqual(tr[18].level, .miss, "durante el corte: apagado")
+        XCTAssertNil(tr[40].level, "tras el corte: vuelve a sonar")
+        XCTAssertTrue(tr.contains { $0.level == .miss }, "hay tramo cortado")
+        XCTAssertTrue(tr.contains { $0.level == nil }, "y tramo que suena")
     }
 
     func testResolucionPorDefectoEsProporcionalALaGeometria() {
