@@ -487,7 +487,18 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: docs/VARIANTS.md seccion 4
 - [ ] **F.1** Dos platos: juggling, chasing, notacion de doble carril
 - [ ] **F.2** Pads y sampler; scratch sobre pads
-- [ ] **F.3** Importar tus propios samples con deteccion del punto cero
+- [~] **F.3** Importar tus propios samples con deteccion del punto cero
+      - Iniciado (2026-09-03, a peticion del autor pese a la regla de "no tocar
+        futuribles hasta la v1"): nucleo hecho. `SampleTrim` (XFApp, puro):
+        `detectStart`/`detectEnd` buscan el ataque por RMS (umbral −45 dBFS,
+        ventana 5 ms), retroceden 8 ms para no morder el transitorio y cuadran
+        a **cruce por cero** (sin click al scratchear). `trimmed(_:sampleRate:)`
+        recorta cabeza y cola y devuelve el offset; deja el original si no hay
+        recorte fiable. Boton **"Cargar sample…"** en el panel de práctica
+        (`loadScratchSample` → decodifica con `AudioAsset.loadMono` → `SampleTrim`
+        → `engine.loadSample` + cue 1 + rehace la onda del rail). 6 tests.
+      - Falta (cuando toque): puntos de cue por sample, biblioteca de samples
+        del usuario, deteccion de tempo/loop si el sample es ritmico.
 - [ ] **F.4** Exportar la toma como video vertical para compartir
       - Criterio: el bucle de crecimiento mas barato que existe
 - [ ] **F.5** Transcribir un scratch desde audio o video a XFN

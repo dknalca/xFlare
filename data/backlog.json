@@ -1011,7 +1011,8 @@
           "title": "Importar tus propios samples con deteccion del punto cero",
           "module": "-",
           "acceptance": "-",
-          "status": "todo"
+          "status": "wip",
+          "note": "Iniciado 2026-09-03 (a peticion del autor, pese a la regla de no tocar futuribles). Nucleo hecho: SampleTrim (XFApp, puro) -- detectStart/detectEnd por RMS (umbral -45 dBFS, ventana 5 ms) + retroceso de 8 ms + cuadre a cruce por cero; trimmed() recorta cabeza/cola y devuelve el offset. Boton 'Cargar sample...' en la practica (loadScratchSample: decodifica, recorta, engine.loadSample + cue 1, rehace la onda del rail). 6 tests. Falta: cues por sample, biblioteca de samples del usuario, deteccion de tempo si el sample es ritmico."
         },
         {
           "id": "F.4",

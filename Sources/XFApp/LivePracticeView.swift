@@ -41,6 +41,8 @@ public struct LivePracticeView: View {
     @State private var metroOn: Bool
     // Nombre (sin extension) de la instrumental cargada, para el panel.
     @State private var instrName: String = "080bpm_beat"
+    // Nombre del sample de scratch cargado (por defecto el asset del autor).
+    @State private var sampleName: String = "Ahh"
 
     private let meterTick = Timer.publish(every: 0.05, on: .main, in: .common).autoconnect()
 
@@ -181,6 +183,18 @@ public struct LivePracticeView: View {
                         if !faderClosed { engine?.setScratchGain(Float(v)) }
                     }
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
+                    // F.3: cargar tu propio sample; se recorta al punto cero.
+                    Button(action: pickScratchSample) {
+                        HStack(spacing: 5) {
+                            Image(systemName: "waveform.badge.plus")
+                            Text(sampleName).font(XFFont.body(10)).lineLimit(1).truncationMode(.middle)
+                            Spacer()
+                            Image(systemName: "folder").font(.system(size: 9))
+                                .foregroundColor(XFColor.textMuted)
+                        }
+                        .foregroundColor(XFColor.text)
+                    }
+                    .buttonStyle(.plain)
                 }
                 panelSection("Base") { instrumentalPicker }
                 if !freestyle {
@@ -537,21 +551,48 @@ public struct LivePracticeView: View {
             engine.setScratchTarget(normPos * full)
         }
 
-        // 1) el SAMPLE de scratch (fijo). 2) la instrumental (por defecto la del
-        // asset; `loadInstrumental` arranca el reloj y la sesion al terminar).
+        // 1) el SAMPLE de scratch (recortado al punto cero, F.3). 2) la
+        // instrumental; `loadInstrumental` arranca la salida, el reloj y la
+        // sesion al terminar.
+        loadScratchSample(url: nil, initial: true)
+    }
+
+    /// Decodifica un sample de scratch (el del asset si `url == nil`, o el que
+    /// elige el usuario), lo **recorta al punto cero** (`SampleTrim`, F.3), lo
+    /// carga en el motor y rehace la onda del rail izquierdo. `initial` encadena
+    /// la carga de la instrumental (que arranca la sesion).
+    private func loadScratchSample(url: URL?, initial: Bool) {
+        guard let engine = engine else { return }
+        let sr = engine.sampleRateHz
+        sampleName = url?.deletingPathExtension().lastPathComponent ?? "Ahh"
         DispatchQueue.global(qos: .userInitiated).async {
-            let scratchPCM = AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
-            let sampleW = scratchPCM.map {
+            let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
+                ?? AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
+            let pcm = raw.map { SampleTrim.trimmed($0, sampleRate: sr).pcm }
+            let wave = pcm.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))
             } ?? WaveformColored.Data(levels: [], colors: [])
             DispatchQueue.main.async {
-                if let scratchPCM {
-                    engine.loadSample(scratchPCM)
+                if let pcm, pcm.count > 1 {
+                    engine.loadSample(pcm)
                     engine.seekScratch(0)
+                    session.jumpToCue()
                 }
-                sampleWave = sampleW
-                loadInstrumental(url: nil, initial: true)
+                sampleWave = wave
+                if initial { loadInstrumental(url: nil, initial: true) }
             }
+        }
+    }
+
+    /// Abre un selector y carga ese sample de scratch (recortado al punto cero).
+    private func pickScratchSample() {
+        let panel = NSOpenPanel()
+        panel.allowedFileTypes = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        panel.prompt = "Cargar"
+        if panel.runModal() == .OK, let url = panel.url {
+            loadScratchSample(url: url, initial: false)
         }
     }
 
