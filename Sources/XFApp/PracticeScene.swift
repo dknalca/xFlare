@@ -175,6 +175,12 @@ final class PracticeScene: SKScene {
     private var lastRenderGridShift: Double = .nan
     private var lastRenderAmplitude: CGFloat = -1
 
+    // Buffers reutilizados entre fotogramas: `removeAll(keepingCapacity:)` + append
+    // no reserva memoria en régimen (evita un malloc por frame en el hilo de UI).
+    private var gridLabelBuf: [(x: CGFloat, text: String)] = []
+    private var beatXBuf: [CGFloat] = []
+    private var barXBuf: [CGFloat] = []
+
     // --- tira de la instrumental ---
     private var instrSprites: [SKSpriteNode] = []
 
@@ -450,7 +456,7 @@ final class PracticeScene: SKScene {
     /// pintan apagados.
     private func renderUserTrace(now: Double) {
         guard layout != nil else {
-            for n in userPool { n.isHidden = true }
+            for n in userPool where !n.isHidden { n.isHidden = true }
             return
         }
         let pts = userTrace()
@@ -458,33 +464,51 @@ final class PracticeScene: SKScene {
         let pxPerTick = geometry.pixelsPerBeat / ppq
         let playheadX = geometry.playheadX
 
-        // parte la polilinea donde cambia el nivel (nil <-> .miss)
-        var runs: [(muted: Bool, pts: [CGPoint])] = []
-        var cur: (muted: Bool, pts: [CGPoint])?
-        for tp in pts {
-            let muted = (tp.level == .miss)
-            let pt = CGPoint(x: playheadX + CGFloat(tp.tick - now) * pxPerTick, y: traceY(tp.position))
-            if cur == nil || cur!.muted != muted {
-                if var c = cur { c.pts.append(pt); runs.append(c) }   // punto de corte compartido
-                cur = (muted, [pt])
-            } else {
-                cur!.pts.append(pt)
-            }
+        // nº de tramos (runs) = 1 + cambios de nivel (nil <-> .miss). Se cuenta sin
+        // materializar arrays: la polilínea se pinta con move/addLine sobre los
+        // índices, no copiando puntos a un `[CGPoint]` por tramo cada fotograma.
+        var runCount = pts.isEmpty ? 0 : 1
+        var prevMuted = (pts.first?.level == .miss)
+        for k in 1..<max(1, pts.count) where (pts[k].level == .miss) != prevMuted {
+            runCount += 1
+            prevMuted = (pts[k].level == .miss)
         }
-        if let c = cur { runs.append(c) }
 
-        ensureShapePool(&userPool, count: runs.count, into: userLayer) { n in
+        ensureShapePool(&userPool, count: runCount, into: userLayer) { n in
             n.lineWidth = 3; n.lineJoin = .round; n.fillColor = .clear; n.position = .zero
         }
-        for (i, node) in userPool.enumerated() {
-            guard i < runs.count, runs[i].pts.count >= 2 else { node.isHidden = true; continue }
-            node.isHidden = false
-            let path = CGMutablePath()
-            path.addLines(between: runs[i].pts)
-            node.path = path
-            let c = runs[i].muted ? mutedTraceColor : accentColor
-            if node.strokeColor != c { node.strokeColor = c }
+
+        func px(_ i: Int) -> CGPoint {
+            CGPoint(x: playheadX + CGFloat(pts[i].tick - now) * pxPerTick, y: traceY(pts[i].position))
         }
+
+        var runIdx = 0
+        var i = 0
+        while i < pts.count {
+            let muted = (pts[i].level == .miss)
+            var j = i + 1
+            let path = CGMutablePath()
+            path.move(to: px(i))
+            while j < pts.count {
+                path.addLine(to: px(j))
+                if (pts[j].level == .miss) != muted { break }   // corte compartido
+                j += 1
+            }
+            // puntos del tramo: i … min(j, count-1) inclusive
+            let lastIdx = min(j, pts.count - 1)
+            let node = userPool[runIdx]
+            if lastIdx - i >= 1 {                 // ≥ 2 puntos: hay línea que pintar
+                if node.isHidden { node.isHidden = false }
+                node.path = path
+                let c = muted ? mutedTraceColor : accentColor
+                if node.strokeColor != c { node.strokeColor = c }
+            } else if !node.isHidden {
+                node.isHidden = true
+            }
+            runIdx += 1
+            i = j                      // el punto de corte inicia el siguiente tramo
+        }
+        for k in runIdx..<userPool.count where !userPool[k].isHidden { userPool[k].isHidden = true }
     }
 
     private let mutedTraceColor = SKColor(red: 0x9A/255, green: 0xA5/255, blue: 0xB1/255, alpha: 1)
@@ -494,10 +518,11 @@ final class PracticeScene: SKScene {
     private func renderFullGrid(now: Double) {
         let pxPerTick = geometry.pixelsPerTick(ppq: max(1, patternPPQ))
         let playheadX = geometry.playheadX
-        let (beats, bars) = Self.gridLines(
+        Self.gridLines(
             now: now, width: geometry.size.width, playheadX: playheadX,
             pxPerTick: pxPerTick, ppq: max(1, patternPPQ),
-            beatsPerBar: max(1, geometry.beatsPerBar))
+            beatsPerBar: max(1, geometry.beatsPerBar),
+            beats: &beatXBuf, bars: &barXBuf)
 
         // Las líneas verticales tienen forma CONSTANTE (0→alto de escena): su
         // `path` solo se rehace si cambia el alto; cada frame solo se mueven en X.
@@ -509,17 +534,17 @@ final class PracticeScene: SKScene {
             for n in fullBarPool { n.path = vp }
             fullPlayhead.path = vp
         }
-        moveVLines(pool: &fullBeatPool, xs: beats, color: gridBeatColor, width: 1)
-        moveVLines(pool: &fullBarPool, xs: bars, color: gridBarColor, width: 2)
+        moveVLines(pool: &fullBeatPool, xs: beatXBuf, color: gridBeatColor, width: 1)
+        moveVLines(pool: &fullBarPool, xs: barXBuf, color: gridBarColor, width: 2)
         fullPlayhead.position = CGPoint(x: (railWidth + playheadX).rounded(), y: 0)
 
         // números "compás.subdivisión" arriba de cada línea (solo del "1" en
         // adelante; antes del arranque no se etiqueta).
-        let labels = Self.gridLabels(
+        Self.gridLabels(
             now: now, width: geometry.size.width, playheadX: playheadX,
             pxPerTick: pxPerTick, ppq: max(1, patternPPQ),
-            beatsPerBar: max(1, geometry.beatsPerBar))
-        moveGridLabels(labels)
+            beatsPerBar: max(1, geometry.beatsPerBar), into: &gridLabelBuf)
+        moveGridLabels(gridLabelBuf)
     }
 
     private func moveGridLabels(_ items: [(x: CGFloat, text: String)]) {
@@ -538,9 +563,11 @@ final class PracticeScene: SKScene {
         for (i, l) in gridLabelPool.enumerated() {
             if i < items.count {
                 l.isHidden = false
-                l.text = items[i].text
+                // Cambiar `SKLabelNode.text` re-tesela el glifo (caro): solo si
+                // de verdad cambió (pasa al cruzar una negra, no cada frame).
+                if l.text != items[i].text { l.text = items[i].text }
                 l.position = CGPoint(x: (railWidth + items[i].x + 2).rounded(), y: yTop)
-            } else {
+            } else if !l.isHidden {
                 l.isHidden = true
             }
         }
@@ -558,9 +585,9 @@ final class PracticeScene: SKScene {
         }
         for (i, n) in pool.enumerated() {
             if i < xs.count {
-                n.isHidden = false
+                if n.isHidden { n.isHidden = false }
                 n.position = CGPoint(x: (railWidth + xs[i]).rounded(), y: 0)
-            } else {
+            } else if !n.isHidden {
                 n.isHidden = true
             }
         }
@@ -702,20 +729,30 @@ final class PracticeScene: SKScene {
     static func gridLines(now: Double, width w: CGFloat, playheadX: CGFloat,
                           pxPerTick: CGFloat, ppq: Int,
                           beatsPerBar: Int) -> (beats: [CGFloat], bars: [CGFloat]) {
+        var beats: [CGFloat] = []
+        var bars: [CGFloat] = []
+        gridLines(now: now, width: w, playheadX: playheadX, pxPerTick: pxPerTick,
+                  ppq: ppq, beatsPerBar: beatsPerBar, beats: &beats, bars: &bars)
+        return (beats, bars)
+    }
+
+    /// Variante que **rellena** buffers ya reservados (sin `malloc` por fotograma).
+    static func gridLines(now: Double, width w: CGFloat, playheadX: CGFloat,
+                          pxPerTick: CGFloat, ppq: Int, beatsPerBar: Int,
+                          beats: inout [CGFloat], bars: inout [CGFloat]) {
+        beats.removeAll(keepingCapacity: true)
+        bars.removeAll(keepingCapacity: true)
         let tMin = now + Double((0 - playheadX) / pxPerTick)
         let tMax = now + Double((w - playheadX) / pxPerTick)
         let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
         let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
-        var beats: [CGFloat] = []
-        var bars: [CGFloat] = []
-        guard firstBeat <= lastBeat else { return ([], []) }
+        guard firstBeat <= lastBeat else { return }
         let bpb = max(1, beatsPerBar)
         for b in firstBeat...lastBeat {
             let x = playheadX + CGFloat(Double(b * ppq) - now) * pxPerTick
             // modulo bien portado con negras negativas (b puede ser < 0)
             if ((b % bpb) + bpb) % bpb == 0 { bars.append(x) } else { beats.append(x) }
         }
-        return (beats, bars)
     }
 
     /// Etiquetas "compás.subdivisión" (`1.1`, `1.2`, …, `2.1`, …) para cada línea
@@ -724,20 +761,27 @@ final class PracticeScene: SKScene {
     static func gridLabels(now: Double, width w: CGFloat, playheadX: CGFloat,
                            pxPerTick: CGFloat, ppq: Int,
                            beatsPerBar: Int) -> [(x: CGFloat, text: String)] {
+        var out: [(x: CGFloat, text: String)] = []
+        gridLabels(now: now, width: w, playheadX: playheadX, pxPerTick: pxPerTick,
+                   ppq: ppq, beatsPerBar: beatsPerBar, into: &out)
+        return out
+    }
+
+    static func gridLabels(now: Double, width w: CGFloat, playheadX: CGFloat,
+                           pxPerTick: CGFloat, ppq: Int, beatsPerBar: Int,
+                           into out: inout [(x: CGFloat, text: String)]) {
+        out.removeAll(keepingCapacity: true)
         let tMin = now + Double((0 - playheadX) / pxPerTick)
         let tMax = now + Double((w - playheadX) / pxPerTick)
         let firstBeat = Int((tMin / Double(ppq)).rounded(.up))
         let lastBeat = Int((tMax / Double(ppq)).rounded(.down))
-        guard firstBeat <= lastBeat else { return [] }
+        guard firstBeat <= lastBeat else { return }
         let bpb = max(1, beatsPerBar)
-        var out: [(x: CGFloat, text: String)] = []
         for b in firstBeat...lastBeat where b >= 0 {
             let x = playheadX + CGFloat(Double(b * ppq) - now) * pxPerTick
-            let bar = b / bpb + 1
-            let sub = b % bpb + 1
-            out.append((x, "\(bar).\(sub)"))
+            // "1.1"…"9.9" caben en la representación inline de String (sin heap).
+            out.append((x, "\(b / bpb + 1).\(b % bpb + 1)"))
         }
-        return out
     }
 
     // MARK: - rail del sample

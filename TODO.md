@@ -706,6 +706,23 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         subdivisión" (1.1, 1.2…) sobre cada línea, arriba, discretos, siguen
         `gridShift`. +1 test.
       - 638 tests en verde.
+- [x] **F.14** Pasada de optimización: menos coste por fotograma (ADR-065)
+      - "Revisa todo el código y optimízalo para que vaya más ligero." Cambios
+        **sin cambio de comportamiento** (638 tests igual, sin tocarlos):
+      - `PracticeScene`: `SKLabelNode.text`/`isHidden` solo se escriben si
+        cambian (cambiar el texto re-tesela el glifo); `gridLines`/`gridLabels`
+        rellenan buffers reservados (0 `malloc`/frame); `renderUserTrace` trocea
+        la traza en runs sin `[(Bool,[CGPoint])]` intermedios (pinta con
+        move/addLine sobre índices).
+      - `PracticeSession`: `traceBuffer.reserveCapacity(512)`; poda del prefijo
+        caducado con `removeFirst(k)` en vez del predicado de `removeAll(where:)`.
+      - `ClipMeterView` (nuevo): el sondeo a 20 Hz (pico de salida + corrección de
+        deriva del metrónomo) sale de `LivePracticeView` a su propia vista con su
+        propio timer; el `body` grande ya no se re-evalúa 20×/s salvo mientras se
+        graba una línea.
+      - `xf_player_render` (RT): la vuelta del bucle de la base cambia `fmod` por
+        sumas/restas (`|v|` <<< `frames`; resultado idéntico), una llamada a libm
+        menos por muestra.
 
 ---
 

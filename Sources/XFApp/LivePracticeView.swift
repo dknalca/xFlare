@@ -75,9 +75,9 @@ public struct LivePracticeView: View {
     // Ultima linea grabada, lista para exportar a .xfsession.
     @State private var lastRecording: XFSession?
     @State private var recSeconds: Double = 0   // contador visible mientras grabas
-    @State private var meterPeak: Double = 0
-    // Corrección suavizada de la deriva reloj-motor ↔ reloj-sesión (metrónomo).
-    @State private var metroDrift: Double = 0
+    // El pico de salida y la corrección de deriva del metrónomo viven en
+    // `ClipMeterView` (su propio timer a 20 Hz) para no re-evaluar este `body`
+    // enorme 20 veces/s.
     @State private var faderClosed = false
     @State private var metroOn: Bool
     // Nombre (sin extension) de la instrumental cargada, para el panel.
@@ -332,22 +332,11 @@ public struct LivePracticeView: View {
         .background(XFColor.bg)
         .foregroundColor(XFColor.text)
         .onReceive(meterTick) { _ in
-            meterPeak = engine?.outputPeak ?? 0
-            recSeconds = session.recording ? session.recordedSeconds : 0
-            // El metrónomo corre con el reloj del MOTOR (cristal de audio) y la
-            // rejilla con el de la SESIÓN (timer de pared): a la larga se separan
-            // y el clic se va de la línea de compás. Aquí, 20 veces/s, se empuja
-            // una corrección suavizada para que el clic siga clavado a la rejilla
-            // dibujada (`session.tick() + gridShift`).
-            if let e = engine {
-                // acotado a ±1 negra: la deriva real es de milisegundos; un valor
-                // grande solo pasa tras una suspensión de la app y no hay que
-                // perseguirlo (lo re-cuadra el siguiente `seek`).
-                let lim = Double(scratch.ppq)
-                let target = min(lim, max(-lim, session.tick() + gridShift - e.tick))
-                metroDrift += (target - metroDrift) * 0.25
-                e.setMetronomeDrift(metroDrift)
-            }
+            // Solo el contador de grabación toca el estado de esta vista, y solo
+            // MIENTRAS se graba (fuera de grabación no hay escritura -> no se
+            // re-evalúa el body). El pico y la deriva los lleva `ClipMeterView`.
+            let s = session.recording ? session.recordedSeconds : 0
+            if s != recSeconds { recSeconds = s }
         }
         .onChange(of: session.faderClosed) { closed in
             faderClosed = closed
@@ -449,7 +438,8 @@ public struct LivePracticeView: View {
                     cueButtons
                 }
                 panelSection("Mezcla") {
-                    clipMeter
+                    ClipMeterView(engine: engine, session: session,
+                                  gridShift: gridShift, ppq: scratch.ppq)
                     volSlider("Sample", $sampleVol) { v in
                         if !faderClosed { engine?.setScratchGain(Float(v)) }
                     }
@@ -1211,27 +1201,6 @@ public struct LivePracticeView: View {
         guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
         cueA = nil; cueB = nil
         chooseSample(path: path)
-    }
-
-    private var clipMeter: some View {
-        let clip = meterPeak >= 1.0
-        return VStack(spacing: 2) {
-            GeometryReader { geo in
-                let h = geo.size.height
-                let level = CGFloat(min(1.2, meterPeak)) / 1.2
-                ZStack(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: 2).fill(XFColor.bg)
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(clip ? Color(hex: 0xFF4D5E)
-                              : meterPeak > 0.8 ? Color(hex: 0xF5C542) : XFColor.accent)
-                        .frame(height: max(1, h * level))
-                }
-            }
-            .frame(height: 70)
-            Text(clip ? "CLIP" : "\(Int(meterPeak * 100))")
-                .font(XFFont.mono(9))
-                .foregroundColor(clip ? Color(hex: 0xFF4D5E) : XFColor.textMuted)
-        }
     }
 
     /// EQ Lo/Mid/Hi del sample de scratch (dB). Cada mando 0 = plano; el motor no

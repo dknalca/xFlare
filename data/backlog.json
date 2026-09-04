@@ -1089,6 +1089,14 @@
           "acceptance": "los ajustes y las librerias sobreviven a cerrar la app de golpe; la pantalla de practica no satura el panel derecho",
           "status": "done",
           "note": "Cerrado 2026-09-03 (ADR-063, ADR-064). SettingsStore: AppSettings -> JSON legible/copiable en ~/Library/Application Support/xFlare/settings.json, atomico en cada cambio (antes solo UserDefaults, que cfprefsd vaciaba tarde -> se perdian cambios al cerrar de golpe); loadSettings prefiere el fichero y migra el plist. Reorg de LivePracticeView: leftColumn (selector de sample + 4 slots MIDI que asignan y disparan + cue A/B + meter + EQ + volumenes), bottomBar (fila compacta nombre + reiniciar/div2/x2/</> /TAP/BPM que se despliega a la lista de instrumentales analizadas de la Libreria y se minimiza al cargar); LivePracticeView gana onSampleSlotsChanged. BPM con un decimal: PracticeSession.bpm Int->Double (setBPM redondea a 0.1), TapTempo.tap() -> Double?, PlatterInputView.onBPM/currentBPM -> Double, UI con %.1f y coma/punto. Tope del sample: AudioAsset.scratchMaxSeconds (2 s) + capScratch. Numeros de rejilla: PracticeScene.gridLabels (puro) da compas.subdivision (1.1, 1.2...) sobre cada linea, discretos, siguen gridShift. Tests: SettingsStoreTests (2), AudioAssetTests +1, PracticeSessionTests +1, TapTempoTests +1, PracticeSceneTests +1. 638 en verde."
+        },
+        {
+          "id": "F.14",
+          "title": "Pasada de optimizacion: menos coste por fotograma",
+          "module": "XFApp, CXFAudioCore",
+          "acceptance": "el bucle a 60 fps y el sondeo a 20 Hz hacen menos trabajo; mismo comportamiento, 638 tests igual",
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-065). Sin cambio de comportamiento. PracticeScene: SKLabelNode.text/isHidden solo se escriben si cambian (cambiar texto re-tesela el glifo); gridLines/gridLabels rellenan buffers reservados (0 malloc/frame); renderUserTrace trocea la traza en runs sin arrays intermedios (move/addLine sobre indices). PracticeSession: traceBuffer.reserveCapacity(512) + poda con removeFirst(k) en vez del predicado de removeAll(where:). ClipMeterView (nuevo): pico de salida + correccion de deriva del metronomo salen de LivePracticeView a su propia vista con su timer, el body grande no se re-evalua 20x/s salvo grabando. xf_player_render RT: fmod de la vuelta del bucle -> sumas/restas (|v| <<< frames), una llamada a libm menos por muestra. Tests: PracticeSceneTests exercita ahora tramos .miss."
         }
       ]
     }

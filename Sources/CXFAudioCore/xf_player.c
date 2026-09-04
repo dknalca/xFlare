@@ -272,9 +272,13 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
          *    del sample) o da la vuelta si esta en bucle. */
         p->playhead += v;
         if (p->loop) {
+            /* wrap sin `fmod`: |v| es <<< frames (el ratio de la base esta
+             * acotado), asi que ajustar con un par de sumas/restas da el mismo
+             * resultado que fmod y ahorra una llamada a libm por MUESTRA en la
+             * base instrumental. El `while` cuesta 0 iteraciones en regimen. */
             double fr = (double)p->frames;
-            p->playhead = fmod(p->playhead, fr);
-            if (p->playhead < 0.0) p->playhead += fr;
+            while (p->playhead >= fr)  p->playhead -= fr;
+            while (p->playhead <  0.0) p->playhead += fr;
         } else {
             if (p->playhead < 0.0) p->playhead = 0.0;
             if (p->playhead > (double)last) p->playhead = (double)last;

@@ -2398,6 +2398,60 @@ hilo de audio ni en la puerta de latencia.
 
 ---
 
+## ADR-065 — Pasada de optimización: menos coste por fotograma (feedback 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** El autor pidió "revisar todo el código y optimizarlo para que vaya
+más ligero". El hilo de audio ya se pulió en ADR-061; esta pasada mira el resto
+del coste recurrente en el Intel de 2015 (el bucle a 60 fps de `PracticeScene`,
+el timer a 60 Hz de `PracticeSession`, el sondeo a 20 Hz de `LivePracticeView`) y
+un resto de libm en la capa RT. **Cambios sin cambio de comportamiento** — los
+638 tests siguen en verde sin tocarlos.
+
+**Decisión.**
+1. **`SKLabelNode.text` de los números de rejilla**: cambiar el texto re-tesela
+   el glifo (caro). Ahora solo se asigna si de verdad cambió — el texto de una
+   línea solo cambia al cruzar una negra, no cada fotograma. Igual con
+   `isHidden` de las líneas verticales (solo se escribe al cambiar).
+2. **Sin `malloc` por fotograma en la rejilla**: `gridLines` / `gridLabels`
+   ganan una variante que **rellena** buffers reservados (`removeAll(keepingCapacity:)`
+   + `append`) en lugar de devolver arrays nuevos. La variante que aloca se
+   mantiene para los tests. Las etiquetas "1.1"…"9.9" caben en la representación
+   *inline* de `String` (sin heap).
+3. **`renderUserTrace` sin arrays intermedios**: antes troceaba la traza en
+   `[(Bool, [CGPoint])]` (un array por tramo, cada fotograma). Ahora cuenta los
+   tramos en una pasada y pinta cada uno con `move`/`addLine` sobre los índices,
+   sin copiar puntos.
+4. **`PracticeSession.traceBuffer`**: `reserveCapacity(512)` al crear; la poda
+   del prefijo caducado cuenta los puntos fuera de ventana y hace un solo
+   `removeFirst(k)` en vez de recorrer todo el array con el predicado de
+   `removeAll(where:)`.
+5. **Telemetría a 20 Hz fuera del `body` grande** (`ClipMeterView`): el medidor
+   de pico y la corrección de deriva del metrónomo tenían su `.onReceive` en
+   `LivePracticeView`, cuyo `body` (enorme) se re-evaluaba 20 veces/s aunque la
+   práctica estuviera parada. Ahora viven en su propia vista con su propio timer;
+   el `body` grande solo se toca mientras se **graba** una línea (contador de
+   segundos, y guardado contra escrituras iguales).
+6. **`xf_player_render` (RT)**: el `fmod` de la vuelta del bucle (base
+   instrumental) se cambia por un par de sumas/restas — `|v|` es <<< `frames`
+   porque el ratio de la base está acotado, así que el resultado es idéntico y
+   se ahorra una llamada a libm **por muestra**.
+
+**Alternativas descartadas.** Podar `traceBuffer` en lotes dejando puntos fuera
+de ventana (rompía el contrato `trace()` sin historia vieja y el test que lo
+fija). Reescribir el bucle RT entero o fusionar sus pasadas (riesgo alto, ganancia
+nula: cabe en L1). Cachear el `HighwayFrame` entre fotogramas (ya hay early-out
+por `now` sin cambios). Meta/`CAMetalLayer` en vez de SpriteKit (es la vía de
+escape de ADR-036 si el profiling lo exige; no lo exige).
+
+**Consecuencias.** `ClipMeterView` es una pieza nueva de XFApp. Sin cambios de
+API pública ni de comportamiento observable; los goldens y los 638 tests quedan
+igual. El sellado de `CXFAudioCore` sigue pendiente de las mediciones en
+hardware (B4.5/B4.6), que son las que dirían cuánto se ha ganado de verdad.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

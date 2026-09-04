@@ -92,7 +92,10 @@ final class PracticeSceneTests: XCTestCase {
 
         for (i, now) in stride(from: 0.0, through: 4000.0, by: 91.0).enumerated() {
             scene.currentTick = { now }
-            trace.append(TracePoint(tick: now, position: Double(i % 20) / 20.0))
+            // alterna tramos con y sin fader cerrado (.miss) para ejercitar el
+            // troceado de la traza en runs (pintado sin arrays intermedios).
+            trace.append(TracePoint(tick: now, position: Double(i % 20) / 20.0,
+                                    level: (i / 3) % 2 == 0 ? nil : .miss))
             if i == 15 { scene.size = CGSize(width: 640, height: 480) }   // dispara didChangeSize
             if i == 30 { scene.size = CGSize(width: 1200, height: 700) }
             scene.ghostDimmed = (i % 7 == 0)

@@ -193,6 +193,9 @@ public final class PracticeSession: ObservableObject {
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
+        // ~8 negras de historia a 60 fps y 200 BPM caben de sobra en 512; se
+        // reserva de una para no re-asignar el array durante la práctica.
+        self.traceBuffer.reserveCapacity(512)
     }
 
     /// Cambia el **patrón** en caliente (calentamiento en una sola sesión): sin
@@ -327,9 +330,15 @@ public final class PracticeSession: ObservableObject {
         // `geometry.patternFill`), hacia el final del sample.
         let level: HitLevel? = faderClosed ? .miss : nil
         traceBuffer.append(TracePoint(tick: currentTick, position: platterPosition, level: level))
+        // Poda del prefijo caducado. Los ticks son monótonos, así que basta
+        // contar cuántos puntos del principio quedan fuera de la ventana y
+        // tirarlos de una (`removeFirst(k)`), sin recorrer todo el array con un
+        // predicado como hacía `removeAll(where:)`.
         let cutoff = currentTick - historyTicks
-        if traceBuffer.first?.tick ?? 0 < cutoff {
-            traceBuffer.removeAll { $0.tick < cutoff }
+        if traceBuffer.first.map({ $0.tick < cutoff }) == true {
+            var drop = 1
+            while drop < traceBuffer.count, traceBuffer[drop].tick < cutoff { drop += 1 }
+            traceBuffer.removeFirst(drop)
         }
 
         recordFrame()
