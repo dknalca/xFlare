@@ -21,12 +21,29 @@
  *        (se filtra de mas, nunca de menos -> nunca aliasing). Por debajo de 1.0
  *        (ir lento / parado / reverso lento) se usa el cubo 1.0: leer mas
  *        despacio que la fuente no puede generar aliasing.
+ *
+ *        24 cubos espaciados LOGARITMICAMENTE de 1x a 16x (F.45, cuaderno del
+ *        tacto): antes eran 7 {1,1.5,2,3,4,6,8} elegidos a ojo, con saltos
+ *        grandes entre cubos altos (6->8 = +33%) que se oian como un escalon
+ *        de brillo al barrer la velocidad, y sin ningun cubo por encima de 8x
+ *        -> un scribble o un crab rapido que se pasaba de 8x se quedaba con el
+ *        kernel de 8x, filtrando de menos (aliasing en el gesto mas rapido).
+ *        Con espaciado logaritmico el salto relativo entre cubos consecutivos
+ *        es CONSTANTE (~12,7%) en todo el rango: la transicion de brillo es
+ *        pareja tanto en velocidades bajas como altas, y el techo sube a 16x.
+ *        Coste: la tabla crece de 7 a 24 filas (~1,5 MB, calculada UNA vez en
+ *        `xf_player_create`, NO RT-SAFE); el render no cambia, solo busca en
+ *        una tabla mas larga (bucle acotado a XF_PLAYER_NRATIOS, sigue barato).
  * ------------------------------------------------------------------ */
 #define XF_PLAYER_TAPS   32
 #define XF_PLAYER_HALF    (XF_PLAYER_TAPS / 2)   /* el tap central es HALF-1 */
 #define XF_PLAYER_PHASES 512
 
-static const double XF_PLAYER_RATIOS[] = { 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0 };
+static const double XF_PLAYER_RATIOS[] = {
+    1.000,  1.128,  1.273,  1.436,  1.620,  1.827,  2.061,  2.325,
+    2.623,  2.959,  3.338,  3.766,  4.249,  4.793,  5.407,  6.100,
+    6.881,  7.763,  8.757,  9.879, 11.145, 12.572, 14.183, 16.000,
+};
 #define XF_PLAYER_NRATIOS ((int)(sizeof(XF_PLAYER_RATIOS) / sizeof(XF_PLAYER_RATIOS[0])))
 
 struct xf_player {

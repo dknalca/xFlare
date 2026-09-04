@@ -2874,6 +2874,23 @@ FUTURIBLES.
 > "Fricción" de Ajustes › Debug ya los modulan (sliders propios: follow-up).
 > Tests: `PracticeSessionTests` +4 → 698 en verde.
 
+> **Iteración — F.45, más cubos de ratio de resampling (mismo día).**
+> `xf_player.c`: `XF_PLAYER_RATIOS` pasa de 7 cubos elegidos a ojo
+> (`{1, 1.5, 2, 3, 4, 6, 8}`, con saltos grandes entre los altos — 6→8 = +33 %,
+> que se oían como un escalón de brillo al barrer la velocidad — y sin ningún
+> cubo por encima de 8×, así que un scribble o crab que se pasaba de ahí se
+> quedaba con el kernel de 8×, filtrando de más de lo necesario) a **24 cubos
+> espaciados LOGARÍTMICAMENTE de 1× a 16×** (salto relativo constante, ~12,7 %,
+> en todo el rango). Coste: la tabla de kernels crece de 7×512×32 a 24×512×32
+> floats (~1,5 MB), calculada **una sola vez** en `xf_player_create`
+> (`NO RT-SAFE`, ya lo era). El render (`xf_player_render`) no cambia una
+> línea: sigue siendo una búsqueda acotada (`xf_player_ratio_index`) sobre una
+> tabla más larga — coste RT igual de barato. La garantía "se filtra de más,
+> nunca de menos" (nunca aliasing) se mantiene igual para velocidades por
+> encima de 16× (usan el cubo 16×, como antes usaban el de 8×). Test:
+> `testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x` (v=12, fuera del rango
+> viejo) → 699 en verde.
+
 ---
 
 ## Plantilla para nuevas entradas

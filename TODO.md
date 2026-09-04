@@ -985,9 +985,13 @@ en manos de gente.*
         los 80 ms). **Parar la mano sin levantarla → el plato se para en seco**,
         como sujetar el vinilo. La rueda de ratón sigue con `scrollBy`.
       - Tests: `PracticeSessionTests` +4. 698 en verde.
-- [ ] **F.45** Tacto: más cubos de ratio de resampling, techo > 8× `CXFAudioCore`
-      - `XF_PLAYER_RATIOS` de 7 a ~24 log-espaciados hasta 16×. Coste RT cero,
-        ~1,5 MB de tabla. Quita el escalón de brillo y el aliasing del scribble.
+- [x] **F.45** Tacto: más cubos de ratio de resampling, techo > 8× `CXFAudioCore` (ADR-072 iter.)
+      - `XF_PLAYER_RATIOS` de 7 cubos a ojo (techo 8×) a **24 log-espaciados de
+        1× a 16×** (salto relativo constante, ~12,7 %). Quita el escalón de
+        brillo al barrer la velocidad y el sobre-filtrado de un scribble/crab
+        que se pasaba de 8×. Coste RT igual (misma búsqueda acotada); la tabla
+        (~1,5 MB) se calcula una vez al crear el player.
+      - Test: `testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x` (v=12). 699 en verde.
 - [ ] **F.46** Tacto: rampa de velocidad dentro del bloque de audio `CXFAudioCore`
       - Interpolar `target_velocity` del bloque anterior al actual en vez de
         perseguir un escalón con un one-pole. El glide puede bajar sin meter clicks.

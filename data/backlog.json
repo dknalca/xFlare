@@ -1343,8 +1343,8 @@
           "title": "Tacto: mas cubos de ratio de resampling, y techo > 8x",
           "module": "CXFAudioCore",
           "acceptance": "XF_PLAYER_RATIOS pasa de 7 cubos {1,1.5,2,3,4,6,8} a ~24 espaciados log hasta 16x; la transicion de brillo al barrer la velocidad es continua y no hay aliasing por encima de 8x",
-          "status": "todo",
-          "note": "Hoy el corte del antialiasing cambia a escalones al barrer la velocidad (saltito de brillo en cada frontera) y un scribble/crab rapido pasa de 8x y se queda con el kernel de 8, filtrando de menos -> aliasing en el gesto mas rapido. Coste RT: cero (misma busqueda + 32 taps). Memoria: ~1,5 MB de tabla, calculada una vez en xf_player_create. Coste ~una tarde."
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-072 iter.). xf_player.c: XF_PLAYER_RATIOS pasa de 7 cubos a ojo ({1,1.5,2,3,4,6,8}, sin ninguno por encima de 8x -> un scribble/crab rapido se quedaba con el kernel de 8x, sobre-filtrando) a 24 cubos espaciados LOGARITMICAMENTE de 1x a 16x (salto relativo constante ~12,7% en todo el rango: transicion de brillo pareja, sin escalones). Coste: la tabla de kernels crece de 7x512x32 a 24x512x32 floats (~1,5 MB), calculada UNA vez en xf_player_create (NO RT-SAFE, ya lo era). xf_player_render no cambia: sigue siendo una busqueda acotada (xf_player_ratio_index) sobre una tabla mas larga, coste RT igual de barato. La garantia 'se filtra de mas, nunca de menos' se mantiene para v>16x (usan el cubo 16x, como antes el de 8x). Test: testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x (v=12, fuera del rango viejo). 699 en verde."
         },
         {
           "id": "F.46",

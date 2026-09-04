@@ -130,6 +130,23 @@ final class XFPlayerTests: XCTestCase {
         }
     }
 
+    func testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x() {
+        // F.45: la tabla de ratios sube de 7 cubos (techo 8x) a 24, hasta 16x.
+        // A v=12 (fuera del rango que existia antes) un scratch rapido de
+        // verdad ya no se queda pegado al kernel de 8x (sobre-filtrado, mas
+        // apagado de lo necesario): usa un cubo mas fino y SIGUE sin aliasing.
+        // 15 kHz a 12x -> 180 kHz aparentes; doblado a la banda de 48 kHz
+        // (Nyquist 24 kHz) el alias potencial cae en 12 kHz.
+        let src = sine(15_000, amp: 0.5)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            let out = Array(render(p, nframes: 8192, v: 12.0)[256...])
+            XCTAssertLessThan(goertzel(out, hz: 12_000), 0.01, "sin alias en 12 kHz")
+        }
+    }
+
     // MARK: - direccion, parada, bordes
 
     func testReversoLeeHaciaAtras() {
