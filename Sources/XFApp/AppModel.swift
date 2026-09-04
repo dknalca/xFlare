@@ -2,6 +2,7 @@
 
 import Foundation
 import Combine
+import XFClock
 import XFNotation
 import XFPersistence
 import XFProfiles
@@ -77,17 +78,34 @@ public final class AppModel: ObservableObject {
     /// Recorte del editor de samples (inicio + duración) por fichero.
     public let sampleEdits = SampleEditStore()
     @Published public var activeProfileId: String? {
-        didSet { rebuildMidiCommandMap() }
+        didSet {
+            rebuildMidiCommandMap()
+            rebuildCrossfaderSource()
+        }
     }
 
     /// Comandos de práctica que llegan por MIDI (cue, reiniciar base, congelar,
-    /// grabar, fader, …). El conector CoreMIDI (hardware) alimenta `midiCommands`
-    /// con `ingest`; la práctica se suscribe a este subject.
+    /// grabar, fader, …). `midiMonitor` (hardware, ver más abajo) alimenta
+    /// `midiCommands` con `ingest`; la práctica se suscribe a `practiceCommandEvents`.
     public let midiCommands = MidiCommandSource()
     public let practiceCommandEvents = PassthroughSubject<PracticeCommandEvent, Never>()
     /// "MIDI Learn" de Ajustes: escucha CoreMIDI mientras esa pantalla está
-    /// abierta y asigna el control que se mueva al comando seleccionado.
+    /// abierta y asigna el control que se mueva al comando seleccionado. Es
+    /// UN cliente CoreMIDI aparte de `midiMonitor` a propósito: mientras se
+    /// aprende no hace falta que los mensajes también disparen comandos reales.
     public let midiLearn = MidiLearnModel()
+
+    /// Escucha CoreMIDI real durante TODA la sesión (a diferencia de `midiLearn`,
+    /// que solo escucha mientras Ajustes está en pantalla): alimenta
+    /// `midiCommands` (cue, freeze, samples…, ADR-054) y, si el perfil activo
+    /// lee el crossfader por MIDI (ADR-021), `crossfaderSource`. `AppModel.boot()`
+    /// la abre — construirla aquí no toca CoreMIDI (para no abrirlo en los tests
+    /// que crean `AppModel` a mano, que no llaman a `boot()`).
+    public let midiMonitor = MidiMonitorConnector()
+    /// Crossfader por MIDI del perfil activo (ADR-021), si `crossfader.method
+    /// = midi`. `nil` si el perfil usa otro método o no se ha podido construir.
+    /// Se reconstruye cada vez que cambia `activeProfileId`.
+    private var crossfaderSource: MidiFaderSource?
     /// Ejercicio en curso para la tarjeta "Continuar" (en memoria por ahora).
     @Published public var continueExerciseId: String?
 
@@ -112,11 +130,62 @@ public final class AppModel: ObservableObject {
         self.midiCommands.onCommand = { [weak self] event in
             self?.practiceCommandEvents.send(event)
         }
+        // Un solo mensaje MIDI real puede ser, a la vez, un comando discreto
+        // (cue, freeze…) Y el crossfader — se reparte a los dos decodificadores,
+        // cada uno filtra lo que no es suyo. `midiMonitor.open()` no se llama
+        // aquí (ver doc de `midiMonitor`); solo se deja el reparto listo.
+        midiMonitor.onMessage = { [weak self] status, data1, data2 in
+            self?.midiCommands.ingest(status: status, data1: data1, data2: data2)
+            self?.crossfaderSource?.ingest(status: status, data1: data1, data2: data2,
+                                           hostTime: HostClock.now())
+        }
         // `midiLearn.onLearn` lo cablea `SettingsView` mientras está en pantalla
         // (tiene que actualizar SU copia de los ajustes, no solo la de aquí).
         rebuildMidiCommandMap()
+        rebuildCrossfaderSource()
         // el `didSet` de `settings` no salta en la asignación inicial de arriba.
         applyAudioDevicePreferences()
+    }
+
+    /// Abre `midiMonitor` de verdad (CoreMIDI). Separado del `init` a propósito:
+    /// los tests que construyen `AppModel(catalog:db:...)` a mano no llaman a
+    /// esto y no tocan CoreMIDI; solo lo hace la app real (`AppModel.boot()`).
+    /// No lanza si CoreMIDI falla (p. ej. sin ninguna fuente) — se queda sin
+    /// escuchar en vez de tumbar el arranque.
+    public func openMidiMonitor() {
+        try? midiMonitor.open()
+    }
+
+    /// Reconstruye `crossfaderSource` a partir del perfil activo: si
+    /// `crossfader.method = midi` (ADR-021), un `MidiFaderSource` listo para
+    /// recibir mensajes reales de `midiMonitor`; si no, `nil` (no hay
+    /// crossfader que leer por MIDI con este perfil).
+    ///
+    /// El umbral de corte (`cutIn`) sale de la calibración GUARDADA del
+    /// dispositivo si existe (`XFPersistence.DeviceCalibration`, la afina el
+    /// asistente) — es la fuente correcta, "calibrado a oído" por el usuario.
+    /// Si todavía no hay calibración (lo normal hoy: el asistente no cablea
+    /// ese paso, B4.2), se cae al `cut_in.left` del perfil como arranque
+    /// razonable, no a un valor inventado aquí.
+    private func rebuildCrossfaderSource() {
+        crossfaderSource?.stop()
+        crossfaderSource = nil
+        guard let id = activeProfileId, let profile = profiles.profile(id: id),
+              let config = try? MidiCrossfaderConfig(from: profile) else { return }
+
+        let saved = try? db.calibration(deviceKey: id)
+        let cutIn = Float(saved?.faderCutIn ?? profile.crossfader.cutInLeft ?? 0.5)
+        let hysteresis = Float(saved?.faderHysteresis ?? profile.crossfader.hysteresis ?? 0.05)
+        let hamster = saved?.hamster ?? profile.crossfader.reverseDefault ?? false
+        let binarizer = FaderBinarizer(cutIn: min(1, max(0, cutIn)),
+                                       hysteresis: max(0, hysteresis), hamster: hamster)
+
+        let source = MidiFaderSource(config: config, binarizer: binarizer)
+        source.onChange = { [weak self] sample in
+            self?.practiceCommandEvents.send(.faderClosed(!sample.isOpen))
+        }
+        try? source.start()
+        crossfaderSource = source
     }
 
     // MARK: - MIDI de comandos
@@ -179,6 +248,10 @@ public final class AppModel: ObservableObject {
                                  engine: EngineHandle(maxFrames: settings.bufferFrames),
                                  profiles: profiles, settings: settings, content: content)
             model.refreshHome()
+            // La app real escucha CoreMIDI desde que arranca (no solo en
+            // Ajustes): así el crossfader y los comandos de la mesa funcionan
+            // nada más abrir, sin un paso "activar MIDI" aparte.
+            model.openMidiMonitor()
             return model
         } catch {
             return failed("\(error)")

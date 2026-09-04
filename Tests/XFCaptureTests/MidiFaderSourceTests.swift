@@ -154,4 +154,31 @@ final class MidiFaderSourceTests: XCTestCase {
         s.ingest(bytes: [0xB0, 0x07, 0x40, 0x07, 0x7F], hostTime: 9)   // 2 CC seguidos
         XCTAssertEqual(try XCTUnwrap(s.latest()).value, Float(0x7F) / 127, accuracy: 1e-6)
     }
+
+    // MARK: - onChange (F.61: avisa solo al CRUZAR el umbral)
+
+    func testOnChangeSoloDisparaAlCambiarIsOpen() throws {
+        let s = source(cc: 7, cutIn: 0.5, hysteresis: 0.1)
+        try s.start()
+        var seen: [Bool] = []
+        s.onChange = { seen.append($0.isOpen) }
+
+        s.ingest(status: 0xB0, data1: 7, data2: 120, hostTime: 1)   // abre (~0.94)
+        s.ingest(status: 0xB0, data1: 7, data2: 125, hostTime: 2)   // sigue abierto, no dispara
+        s.ingest(status: 0xB0, data1: 7, data2: 100, hostTime: 3)   // sigue abierto (dentro de histéresis), no dispara
+        s.ingest(status: 0xB0, data1: 7, data2: 10, hostTime: 4)    // cierra (~0.08)
+        s.ingest(status: 0xB0, data1: 7, data2: 5, hostTime: 5)     // sigue cerrado, no dispara
+
+        XCTAssertEqual(seen, [true, false])
+    }
+
+    func testOnChangeNoDisparaConMensajesQueIgnora() throws {
+        let s = source(cc: 7)
+        try s.start()
+        var count = 0
+        s.onChange = { _ in count += 1 }
+        s.ingest(status: 0xB0, data1: 8, data2: 127, hostTime: 1)   // otro CC
+        s.ingest(status: 0x90, data1: 7, data2: 127, hostTime: 2)   // note on
+        XCTAssertEqual(count, 0)
+    }
 }

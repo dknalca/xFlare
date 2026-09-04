@@ -1133,6 +1133,56 @@ en manos de gente.*
         con el picker de dispositivo antiguo, sin parejas — es un stub sin
         motor real detrás (B4.2) y duplicar ahí el selector es prematuro
         hasta que el asistente haga algo de verdad.
+- [x] **F.61** El crossfader por MIDI llega de verdad a la práctica, no solo al perfil `XFCapture` `XFApp`
+      - Motivado por la pregunta directa del autor tras F.60: "¿está
+        configurado en todos los sitios necesarios?" — la respuesta, al
+        auditar, era **no**. El perfil (ADR-021) y la lógica de captura
+        (`MidiFaderSource`, sellada, probada con bytes sintéticos) estaban
+        bien, pero **nada en `XFApp` abría CoreMIDI de verdad durante la
+        práctica** — ni para el crossfader ni para los comandos discretos
+        (cue/freeze/samples…, ADR-054). El único sitio que escuchaba CoreMIDI
+        real era "MIDI Learn" de Ajustes, y solo mientras esa pantalla está
+        abierta. `AppModel.midiCommands`/`ingest` ya llevaba un comentario
+        diciendo "el conector CoreMIDI alimenta esto" — aspiracional, nadie
+        lo llamaba.
+      - Hecho (2026-09-04):
+        · `MidiFaderSource` (XFCapture): `onChange: ((FaderSample) -> Void)?`,
+          dispara solo cuando `isOpen` CAMBIA (no en cada CC — el crossfader
+          manda decenas de mensajes/segundo mientras se mueve).
+        · `AppModel`: `midiMonitor` (`MidiMonitorConnector`, un cliente
+          CoreMIDI **aparte** de `midiLearn`, para toda la sesión de
+          práctica, no solo Ajustes). Su `onMessage` reparte cada mensaje a
+          `midiCommands.ingest(...)` Y a `crossfaderSource?.ingest(...)` — un
+          mismo mensaje real puede ser, a la vez, candidato a comando
+          discreto y a crossfader; cada decodificador filtra lo que no es
+          suyo. `openMidiMonitor()` (llamado desde `AppModel.boot()`, NO
+          desde `init`: los tests que construyen `AppModel` a mano no tocan
+          CoreMIDI) abre el cliente real.
+        · `rebuildCrossfaderSource()`: si el perfil activo tiene
+          `crossfader.method = midi`, construye `MidiCrossfaderConfig(from:)`
+          + `FaderBinarizer` — el `cutIn`/`hysteresis`/`hamster` salen de la
+          **calibración guardada** (`XFPersistence.DeviceCalibration`) si
+          existe, si no del `cut_in.left`/`hysteresis`/`reverse_default` del
+          perfil como arranque razonable (no un número inventado aquí). Se
+          reconstruye en el `didSet` de `activeProfileId`.
+        · El cambio de estado del crossfader se reenvía como
+          `practiceCommandEvents.send(.faderClosed(!isOpen))` — el MISMO
+          evento que ya escucha `LivePracticeView.handleCommand`, cero
+          cableado nuevo en la vista de práctica.
+      - 7 tests nuevos: 2 en `MidiFaderSourceTests` (`onChange` dispara solo
+        al cruzar el umbral, no con mensajes que ignora) + 5 en
+        `AppModelMidiCrossfaderTests` (nuevo fichero: abre/cierra de verdad,
+        no repite dentro de la histéresis, un perfil sin `method = midi`
+        ignora los mismos bytes, cambiar de perfil desconecta el anterior, un
+        mismo mensaje puede ser comando discreto Y crossfader). Todo
+        verificable sin la mesa delante — se llama a
+        `model.midiMonitor.onMessage?(status, data1, data2)` directo, sin
+        abrir CoreMIDI real.
+      - Pendiente, no bloquea: sin `DeviceCalibration` guardada (lo normal
+        hoy, el asistente no cablea ese paso, B4.2) el `cutIn` es el del
+        perfil sin calibrar — hay que verificar con la mesa delante que el
+        umbral real (0,05) tiene sentido para el barrido de CC de la Rane 72
+        (B1.4 dejó pendiente los extremos exactos).
 
 ---
 

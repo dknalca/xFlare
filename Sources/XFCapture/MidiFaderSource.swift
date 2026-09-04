@@ -14,6 +14,12 @@ public final class MidiFaderSource: FaderSource {
     private var last: FaderSample?
     private var running = false
 
+    /// Se llama cuando `isOpen` CAMBIA (no en cada mensaje CC: el crossfader
+    /// manda decenas de mensajes por segundo mientras se mueve, la mayoría
+    /// sin cruzar el umbral). Quien escuche esto no tiene que sondear
+    /// `latest()`; lo usa `AppModel` para avisar a la práctica en vivo.
+    public var onChange: ((FaderSample) -> Void)?
+
     public init(config: MidiCrossfaderConfig, binarizer: FaderBinarizer) {
         self.config = config
         self.binarizer = binarizer
@@ -42,7 +48,10 @@ public final class MidiFaderSource: FaderSource {
         guard let v = config.value(fromCC: Int(data2)) else { return }
 
         let open = binarizer.update(rawValue: v)
-        last = FaderSample(hostTime: hostTime, value: v, isOpen: open)
+        let sample = FaderSample(hostTime: hostTime, value: v, isOpen: open)
+        let changed = last?.isOpen != open
+        last = sample
+        if changed { onChange?(sample) }
     }
 
     /// Version comoda para tests / bytes ya troceados.
