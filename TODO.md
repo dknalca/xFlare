@@ -1183,6 +1183,47 @@ en manos de gente.*
         perfil sin calibrar — hay que verificar con la mesa delante que el
         umbral real (0,05) tiene sentido para el barrido de CC de la Rane 72
         (B1.4 dejó pendiente los extremos exactos).
+- [x] **F.62** El scope de Calibración (paso 3, Timecode) lee el vinilo de verdad `XFApp`
+      - Motivado por petición directa del autor: "quiero que se muestre el
+        Scope View de la entrada de DVS... cómo el software está recibiendo
+        y leyendo la señal de código de tiempo". El componente visual
+        (`ScopeView`/`ScopeReading`/`ScopeFigure`, "el espejo del plato",
+        `docs/UI_DESIGN.md` §3.3) ya existía en `XFRender`, sellado — se
+        pintaba vacío porque nada le daba datos reales (mismo hueco B4.2 de
+        siempre: el motor solo se había arrancado "solo salida" en toda la
+        app, nunca capturando entrada de verdad).
+      - Hecho (2026-09-04):
+        · `AppModel.startTimecodeCapture()`: para el motor, lo reabre CON
+          entrada (`engine.start()`, usa `EngineHandle.preferred*` de F.60 —
+          canal elegido en Ajustes › Hardware), crea un `TimecodeMotionSource`
+          (formato fijo `serato_2a`, el único validado contra hardware real
+          en B5.5) y arranca un `Timer` a 30 Hz que drena
+          `engine.drainInput()` → `submit(...)` → acumula `[ScopeReading]`
+          (rastro acotado a ~8 s) y llama a `onTimecodeSample`.
+        · `AppModel.stopTimecodeCapture()`: para todo y devuelve el motor a
+          modo "solo salida" (listo para la próxima práctica). Idempotente.
+        · `AppRootView`: al entrar en `.calibration`, cablea
+          `model.onTimecodeSample` a `calibrationModel.reportTimecode(...)`
+          (el mismo modelo que ya dibuja el asistente — `AppModel` no conoce
+          `CalibrationWizardModel`, ADR-073) y llama a
+          `startTimecodeCapture()`; al SALIR (con un flag `capturingTimecode`
+          para no reiniciar el motor en cada cambio de pantalla sin motivo),
+          `stopTimecodeCapture()`. `scopeReadings: { model.scopeReadings }`
+          pasa a `CalibrationWizardView`.
+        · `CalibrationStep.pendingNote` para `.timecode` pasa a `nil` (ya lee
+          datos reales); nota corta en la UI avisando que hoy solo hay
+          definición Serato 2ª ed.
+      - 4 tests nuevos (`AppModelTimecodeCaptureTests`): sin motor no revienta
+        ni deja lecturas, parar sin haber arrancado es no-op seguro,
+        arrancar/parar repetido no revienta, `onTimecodeSample` no se llama
+        sin motor. El comportamiento CON motor real (captura de verdad,
+        drenaje, decode) no tiene test — como `xf_engine_start` y
+        `MidiFaderConnector`, necesita hardware delante.
+      - Pendiente, no bloquea: solo formato Serato 2ª ed. (sin selector de
+        vinilo por perfil/UI); "detección automática de hamster" (el spec
+        original de UI_DESIGN.md §3.1) sigue siendo manual — el toggle existe
+        pero nada lo auto-sugiere todavía, solo la dirección (adelante/atrás)
+        se detecta de verdad.
 
 ---
 

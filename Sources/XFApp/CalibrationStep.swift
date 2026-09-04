@@ -34,8 +34,8 @@ public enum CalibrationStep: Int, CaseIterable, Sendable {
     /// real (B4.2 — captura de entrada + timecode + detección de cortes,
     /// hardware en marcha ahora mismo): mientras tanto, la medida de verdad
     /// se hace con las herramientas de `docs/HW_BRINGUP.md`, no aquí. `nil` =
-    /// el paso ya lee datos reales (hoy solo el de audio, con
-    /// `AudioDeviceList`).
+    /// el paso ya lee datos reales (audio con `AudioDeviceList`; timecode con
+    /// `TimecodeMotionSource` de verdad, 2026-09-04, F.62).
     public var pendingNote: String? {
         switch self {
         case .audio:
@@ -44,8 +44,7 @@ public enum CalibrationStep: Int, CaseIterable, Sendable {
             return "Todavía no mide sola: hace falta el motor con captura de entrada (B4.2), en marcha. "
                  + "Mientras tanto, mide con tools/measure_latency.py (docs/HW_BRINGUP.md, paso 3)."
         case .timecode:
-            return "Todavía no lee el vinilo aquí dentro. Mientras tanto, usa "
-                 + "spike/b5-timecode/tcprobe (docs/HW_BRINGUP.md, paso 6)."
+            return nil
         case .fader:
             return "Todavía no detecta los cortes sola. El crossfader de la Rane 72 se lee "
                  + "por MIDI (CC8/canal16, ADR-021 corregida 2026-09-03), no por tono piloto: "

@@ -8,6 +8,8 @@ import XFPersistence
 import XFProfiles
 import XFCapture
 import XFAnalysis
+import XFRender
+import XFPrimitives
 
 /// El coordinador de la app: es dueño del contenido (`Catalog`), la base
 /// (`XFDatabase`) y el motor de audio (`EngineHandle`), lleva la navegacion entre
@@ -106,6 +108,83 @@ public final class AppModel: ObservableObject {
     /// = midi`. `nil` si el perfil usa otro método o no se ha podido construir.
     /// Se reconstruye cada vez que cambia `activeProfileId`.
     private var crossfaderSource: MidiFaderSource?
+
+    // MARK: - captura de timecode para el scope de calibración (paso 3)
+
+    /// Últimas lecturas del plato para `ScopeView` (`docs/UI_DESIGN.md` §3.1:
+    /// "Scope circular en vivo"). Vacío mientras no hay captura activa.
+    /// Acotado a un rastro corto — el scope solo dibuja lo reciente.
+    @Published public private(set) var scopeReadings: [ScopeReading] = []
+    /// Se llama en cada lectura nueva mientras hay captura activa. `AppRootView`
+    /// lo cablea a `CalibrationWizardModel.reportTimecode(...)` — `AppModel` no
+    /// es dueño de ese modelo (vive en la vista, ADR-073), así que no lo llama
+    /// directo.
+    public var onTimecodeSample: ((MotionSample) -> Void)?
+    private var timecodeSource: TimecodeMotionSource?
+    private var timecodeTimer: Timer?
+
+    /// Arranca la captura de entrada de verdad para leer el vinilo de timecode
+    /// en vivo: para el motor (que hasta ahora solo corría "solo salida", B4.2),
+    /// lo reabre con la entrada activada (canal de `AppSettings`, F.60) y drena
+    /// el PCM capturado ~30×/s hacia un `TimecodeMotionSource` propio (el mismo
+    /// wrapper de `xf_timecoder` que ya validó B5.5 con vinilo real). Para la
+    /// pantalla de Calibración (`AppRootView`); no toca nada si `engine` es
+    /// `nil` (tests sin motor).
+    public func startTimecodeCapture() {
+        guard timecodeSource == nil, let engine else { return }
+        engine.stop()
+        // deviceUID/canal salen de `EngineHandle.preferred*` (F.60), que
+        // `applyAudioDevicePreferences()` ya mantiene sincronizados con
+        // `settings`; no hace falta repetirlos aquí.
+        guard engine.start() else { return }
+
+        let source = TimecodeMotionSource(config: .init(
+            format: "serato_2a",   // única definición validada contra hardware real (B5.5)
+            sampleRate: UInt32(engine.sampleRateHz), hamster: settings.hamster))
+        guard (try? source.start()) != nil else {
+            engine.stop()
+            _ = engine.startOutput()
+            return
+        }
+        timecodeSource = source
+        scopeReadings = []
+
+        let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
+            self?.pollTimecode()
+        }
+        RunLoop.main.add(t, forMode: .common)
+        timecodeTimer = t
+    }
+
+    private func pollTimecode() {
+        guard let engine, let source = timecodeSource else { return }
+        let pcm = engine.drainInput()
+        guard pcm.count >= 2 else { return }
+        pcm.withUnsafeBufferPointer { buf in
+            guard let base = buf.baseAddress else { return }
+            source.submit(pcm: base, frames: pcm.count / 2, hostTime: HostClock.now())
+        }
+        guard let sample = source.latest() else { return }
+        scopeReadings.append(ScopeReading(position: sample.position, velocity: sample.velocity,
+                                          confidence: Double(sample.confidence)))
+        // ~8s de rastro a 30 Hz; el scope solo dibuja el tramo reciente.
+        if scopeReadings.count > 240 { scopeReadings.removeFirst(scopeReadings.count - 240) }
+        onTimecodeSample?(sample)
+    }
+
+    /// Para la captura y deja el motor en modo "solo salida" otra vez, listo
+    /// para practicar. Idempotente.
+    public func stopTimecodeCapture() {
+        timecodeTimer?.invalidate()
+        timecodeTimer = nil
+        timecodeSource?.stop()
+        timecodeSource = nil
+        scopeReadings = []
+        guard let engine else { return }
+        engine.stop()
+        _ = engine.startOutput()
+    }
+
     /// Ejercicio en curso para la tarjeta "Continuar" (en memoria por ahora).
     @Published public var continueExerciseId: String?
 

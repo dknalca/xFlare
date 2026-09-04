@@ -88,11 +88,24 @@ sale mal, todo lo demas miente.
 **Estado real (2026-09-04, primera vez con hardware conectado, ADR-073).** El
 paso 1 (Audio) ya lista dispositivos **reales** del sistema
 (`AudioDeviceList`, mismas llamadas CoreAudio que `spike/b1-latency/
-passthrough --list`) — antes los desplegables estaban vacíos. Los pasos 2-4
+passthrough --list`) — antes los desplegables estaban vacíos. Los pasos 2 y 4
 todavía no tienen el motor con captura conectado (B4.2, en marcha): en vez de
 un control mudo, muestran un aviso corto con la herramienta de
 `docs/HW_BRINGUP.md` que sí mide hoy (`tools/measure_latency.py`,
-`spike/b5-timecode/tcprobe`, `spike/b1-pilot-fader/pilot_fader`).
+`spike/b1-pilot-fader/pilot_fader`).
+
+**Paso 3 (Timecode), hecho el mismo día (F.62):** el scope circular **ya lee
+el vinilo de verdad**, no es un dibujo vacío. Al entrar en Calibración,
+`AppModel` para el audio que sonara, reabre el motor con captura de entrada
+(F.60: canal elegido en Ajustes › Hardware) y drena el PCM ~30×/s hacia un
+`TimecodeMotionSource` (el mismo wrapper de `xf_timecoder` validado con
+vinilo real en B5.5) — así el mismo `ScopeReading`/`ScopeFigure` que ya
+existía (`XFRender`, "el espejo del plato") por fin recibe datos reales:
+posición, velocidad y confianza en vivo, con dirección detectada
+automáticamente. Al salir de Calibración el motor vuelve a modo práctica
+solo. Fijo a la definición **Serato 2ª ed.**; Traktor/MixVibes quedan
+pendientes (no hay todavía un selector de formato de vinilo en el perfil ni
+en la UI).
 
 ### 3.2 Home — el mapa
 

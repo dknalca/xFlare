@@ -107,6 +107,9 @@ struct TimecodeCalibrationStep: View {
                         .font(XFFont.body(13))
                     Toggle("Corto en reverse (hamster)", isOn: $model.hamster)
                         .toggleStyle(.checkbox)
+
+                    Text("Vinilo Serato (2ª ed.). Otros formatos (Traktor, MixVibes) — pendiente.")
+                        .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
                 }
             }
         }

@@ -1473,6 +1473,14 @@
           "acceptance": "un mensaje MIDI real del crossfader (CC configurado) cambia session.faderClosed durante la practica",
           "status": "done",
           "note": "Hecho (2026-09-04), motivado por la pregunta directa del autor tras F.60. Auditoria: el perfil (ADR-021) y MidiFaderSource (sellado, probado con bytes sinteticos) estaban bien, pero NADA en XFApp abria CoreMIDI real durante la practica -- ni crossfader ni comandos discretos (ADR-054). Solo 'MIDI Learn' de Ajustes escuchaba CoreMIDI real, y solo mientras esa pantalla esta abierta. MidiFaderSource gana onChange (dispara solo al cruzar isOpen). AppModel.midiMonitor (MidiMonitorConnector aparte de midiLearn, toda la sesion) reparte cada mensaje a midiCommands.ingest Y a crossfaderSource?.ingest. openMidiMonitor() se llama desde boot(), no desde init (los tests no tocan CoreMIDI). rebuildCrossfaderSource() construye MidiCrossfaderConfig + FaderBinarizer con cutIn/hysteresis/hamster de DeviceCalibration guardada si existe, si no del perfil. El cambio de estado se reenvia como practiceCommandEvents.send(.faderClosed(!isOpen)), el MISMO evento que ya escucha LivePracticeView. 7 tests nuevos (2 MidiFaderSourceTests + 5 AppModelMidiCrossfaderTests), todo verificable sin mesa llamando a model.midiMonitor.onMessage?() directo. Pendiente: verificar con la mesa que el cutIn sin calibrar (perfil, 0.05) tiene sentido para el barrido real de CC."
+        },
+        {
+          "id": "F.62",
+          "title": "El scope de Calibracion (paso 3, Timecode) lee el vinilo de verdad",
+          "module": "XFApp",
+          "acceptance": "ScopeView del paso Timecode dibuja posicion/velocidad/confianza reales del vinilo, no vacio",
+          "status": "done",
+          "note": "Hecho (2026-09-04), a peticion directa del autor. ScopeView/ScopeReading/ScopeFigure (XFRender, sellado, 'el espejo del plato') ya existian, se pintaban vacios (mismo hueco B4.2: el motor solo se arrancaba 'solo salida' en toda la app). AppModel.startTimecodeCapture(): para el motor, lo reabre CON entrada (usa EngineHandle.preferred* de F.60), crea TimecodeMotionSource (serato_2a, el unico validado en B5.5), Timer a 30Hz drena engine.drainInput() -> submit() -> acumula [ScopeReading] (~8s de rastro) y llama a onTimecodeSample. stopTimecodeCapture() devuelve el motor a modo solo-salida. AppRootView cablea onTimecodeSample a calibrationModel.reportTimecode(...) al entrar en .calibration (con flag capturingTimecode para no reiniciar el motor en cada cambio de pantalla), para al salir. CalibrationStep.pendingNote de .timecode pasa a nil. 4 tests (AppModelTimecodeCaptureTests, sin motor no revienta). El comportamiento con motor real no tiene test, necesita hardware como xf_engine_start/MidiFaderConnector. Pendiente: solo Serato 2a ed. (sin selector de vinilo), hamster sigue siendo manual (solo la direccion se detecta de verdad)."
         }
       ]
     }

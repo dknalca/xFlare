@@ -25,6 +25,11 @@ public struct AppRootView: View {
     /// reevaluación del `body` — arrastrar un slider del asistente no tiene
     /// por qué disparar llamadas a CoreAudio.
     @State private var calibrationDevices: [AudioDeviceList.Device] = []
+    /// `true` mientras `model` está capturando entrada de verdad para el scope
+    /// del paso 3. Sin esto, cada cambio de pantalla llamaría a
+    /// `stopTimecodeCapture()` (reinicia el motor) aunque nunca hubiéramos
+    /// empezado a capturar — solo hace falta pararlo al SALIR de Calibración.
+    @State private var capturingTimecode = false
 
     public init(model: AppModel) {
         self.model = model
@@ -61,7 +66,29 @@ public struct AppRootView: View {
             // CoreAudio: barato, pero no hace falta repetirlo en cada
             // reevaluación del body mientras el asistente está abierto (p.
             // ej. al arrastrar un slider) — solo al ENTRAR en la pantalla.
-            if s == .calibration { calibrationDevices = AudioDeviceList.all() }
+            if s == .calibration {
+                calibrationDevices = AudioDeviceList.all()
+                // el scope del paso 3 (Timecode) necesita el motor capturando
+                // entrada de verdad — para lo que sonara en otra pantalla y
+                // reabre el motor con captura (F.60/F.61 dejaron el motor
+                // listo para esto). `model.onTimecodeSample` alimenta EL
+                // MISMO modelo que ya dibuja el asistente, sin que `AppModel`
+                // tenga que conocer `CalibrationWizardModel` (ADR-073: ese
+                // modelo vive en la vista).
+                model.onTimecodeSample = { sample in
+                    calibrationModel.reportTimecode(confidence: Double(sample.confidence),
+                                                    forwards: sample.velocity >= 0,
+                                                    suggestedHamster: calibrationModel.hamster)
+                }
+                model.startTimecodeCapture()
+                capturingTimecode = true
+            } else if capturingTimecode {
+                // SOLO al salir de Calibración habiendo capturado de verdad —
+                // si no, cualquier cambio de pantalla reiniciaría el motor.
+                model.onTimecodeSample = nil
+                model.stopTimecodeCapture()
+                capturingTimecode = false
+            }
         }
     }
 
@@ -220,6 +247,7 @@ public struct AppRootView: View {
                 model: calibrationModel,
                 inputDevices: calibrationDevices.filter { $0.inputChannels > 0 }.map(\.name),
                 outputDevices: calibrationDevices.filter { $0.outputChannels > 0 }.map(\.name),
+                scopeReadings: { model.scopeReadings },
                 onFinish: { cal in
                     try? model.db.saveCalibration(cal)
                     model.goHome()
