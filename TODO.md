@@ -737,6 +737,31 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - `Golden` estrena tests propios. `XFTestKitTests` nuevo (18). 656 en verde.
       - Los `*Fixtures` de los módulos sellados **no** se migran (tests inmutables);
         los nuevos tests y el trabajo pendiente de B6.7 / B8.5 ya usan esto.
+- [x] **F.16** Editor de instrumental: tempo/rejilla, cues y loops de una parte (ADR-067)
+      - "Un mini editor donde ajustar la rejilla y el tempo antes de entrar en
+        los ejercicios", "puntos Cue para practicar sobre partes", "hacer partes
+        loops infinitos".
+      - **RT** (`xf_player`): `loop_start`/`loop_end` — con loop activo el cabezal
+        y la lectura sinc envuelven dentro de la región (bucle de una parte tan
+        continuo como el del fichero entero). `xf_player_set_loop_region` (leída
+        1×/bloque y saneada en el render). `xf_engine_set_instrumental_loop_region`
+        + `xf_engine_seek_instrumental`. Por defecto = entero (sin cambio).
+      - **Datos**: `InstrumentalEdit` (puro, `Codable`) + `InstrumentalEditStore`
+        (JSON en `instrumental-edits.json`, por ruta) + `AppModel.instrumentalEdits`.
+      - **Editor**: `InstrumentalEditorView` (`Screen.instrumentalEditor`, botón
+        de ajustes en cada fila de la Librería). Reproduce de verdad (play/pausa,
+        pinchar la onda, oír el loop de una región). Onda + rejilla con números
+        arriba (SwiftUI, sin `Canvas`). BPM/TAP/÷2·×2/"fijar el 1 aquí"/compás;
+        cues (añadir/renombrar/saltar/borrar); regiones (crear 4 compases,
+        nudge, activar, borrar).
+      - **En la práctica**: `loadInstrumental` usa el `InstrumentalEdit` si lo
+        hay (BPM y "1" del editor mandan sobre la detección; la región activa se
+        aplica con `setInstrumentalLoopRegion`).
+      - Tests: `XFPlayerLoopTests` +4, `XFEngineInstrumentalTests` +2,
+        `InstrumentalEditTests` +5. 667 en verde.
+      - **Pendiente v2**: cues en la propia práctica (botones de salto);
+        re-aplicar la región de loop tras ÷2/×2/reiniciar la base; regiones que
+        crucen el "1".
 
 ---
 

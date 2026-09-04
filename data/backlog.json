@@ -1105,6 +1105,14 @@
           "acceptance": "los tests que consumen captura no necesitan hardware ni duplicar el generador de timecode; Golden con tests propios",
           "status": "done",
           "note": "Cerrado 2026-09-04 (ADR-066). El modulo existia desde B0.1 con solo Golden + un marcador. Anadido: Signals (sine/silence/quadratureTimecode deterministas), FakeMotionSource/FakeFaderSource (implementaciones de mentira de los protocolos de XFCapture: script o valor fijo, conteo de start/stop, startError), RepoFiles (root/url/data/text subiendo desde #filePath hasta Package.swift). Golden estrena tests. XFTestKit gana dependencia de XFPrimitives + target XFTestKitTests (18). scaffoldingVersion sigue en 0 (smoke test de XFEngineTests, sellado). Los *Fixtures de modulos sellados no se migran (tests inmutables). 656 en verde."
+        },
+        {
+          "id": "F.16",
+          "title": "Editor de instrumental: tempo/rejilla, cues y loops de una parte",
+          "module": "CXFAudioCore, XFApp",
+          "acceptance": "ajustar tempo/rejilla y marcar cues y regiones de loop antes de practicar; la base puede repetir SOLO un trozo",
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-067). RT: xf_player gana loop_start/loop_end (frames); con loop activo el cabezal y la lectura sinc envuelven dentro de [loop_start,loop_end) -> bucle de una parte tan continuo como el del fichero entero. xf_player_set_loop_region (leida 1x/bloque y saneada en el render: una lectura rasgada nunca sale de [0,frames)). xf_engine_set_instrumental_loop_region + xf_engine_seek_instrumental -> EngineHandle.setInstrumentalLoopRegion/seekInstrumental. Por defecto = entero (sin cambio; los espectrales igual). Datos: InstrumentalEdit (puro Codable: bpm?, downbeatSeconds?, beatsPerBar, cues, loops, activeLoopID) + InstrumentalEditStore (JSON en instrumental-edits.json, por ruta) + AppModel.instrumentalEdits. Editor: InstrumentalEditorView (Screen.instrumentalEditor, boton de ajustes en cada fila de la Libreria), reproduce de verdad (play/pausa, pinchar la onda, oir el loop de una region), onda + rejilla con numeros arriba (SwiftUI sin Canvas, macOS 11), BPM/TAP/div2 x2/'fijar el 1 aqui'/compas, cues (anadir en el cabezal/renombrar/saltar/borrar), regiones (crear 4 compases/nudge/activar/borrar). Practica: loadInstrumental usa el InstrumentalEdit si lo hay (BPM y '1' del editor mandan; region activa -> setInstrumentalLoopRegion en coords rotadas). Tests: XFPlayerLoopTests +4, XFEngineInstrumentalTests +2, InstrumentalEditTests +5. 667 en verde. Pendiente v2: cues en la propia practica, re-aplicar la region tras div2/x2/reiniciar, regiones que crucen el '1'."
         }
       ]
     }

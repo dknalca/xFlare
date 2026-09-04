@@ -21,6 +21,8 @@ struct MediaLibraryView: View {
     var onInstrumentalsChanged: ([String]) -> Void = { _ in }
     var onSamplesChanged: ([String]) -> Void = { _ in }
     var onSampleSlotsChanged: ([String]) -> Void = { _ in }
+    /// Abrir el editor de una instrumental (tempo/rejilla, cues, loops).
+    var onEditInstrumental: (String) -> Void = { _ in }
 
     private static let audioExts: Set<String> = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
 
@@ -28,12 +30,13 @@ struct MediaLibraryView: View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Librería").font(XFFont.title(22)).padding(XFSpacing.xl).padding(.bottom, 0)
             TabView {
-                mediaList(
-                    hint: "Loops y bases para practicar encima. Se cargan desde el panel "
-                        + "«Base» de la práctica (ya pre-analizadas: al instante). Se "
-                        + "analiza el tempo al añadirlas.",
+                DropList(
+                    hint: "Loops y bases para practicar encima. El botón de ajustes de "
+                        + "cada una abre el editor (tempo, rejilla, cues, loops).",
                     items: instrumentals, cap: 200, showAnalysis: true,
-                    onChange: onInstrumentalsChanged
+                    analysisCache: analysisCache, sampleRate: sampleRate,
+                    audioExts: Self.audioExts, onChange: onInstrumentalsChanged,
+                    onEdit: onEditInstrumental
                 ).tabItem { Text("Instrumentales") }
 
                 samplesTab.tabItem { Text("Samples") }
@@ -108,12 +111,6 @@ struct MediaLibraryView: View {
         onSampleSlotsChanged(slots)
     }
 
-    private func mediaList(hint: String, items: [String], cap: Int, showAnalysis: Bool,
-                           onChange: @escaping ([String]) -> Void) -> some View {
-        DropList(hint: hint, items: items, cap: cap, showAnalysis: showAnalysis,
-                 analysisCache: analysisCache, sampleRate: sampleRate,
-                 audioExts: Self.audioExts, onChange: onChange)
-    }
 }
 
 /// Una lista con zona de arrastrar-y-soltar + botón "Añadir…".
@@ -126,6 +123,8 @@ private struct DropList: View {
     let sampleRate: Double
     let audioExts: Set<String>
     let onChange: ([String]) -> Void
+    /// Si no es `nil`, cada fila (con análisis) muestra un botón de editar.
+    var onEdit: ((String) -> Void)? = nil
 
     @State private var targeted = false
     @State private var recurse = true
@@ -194,6 +193,12 @@ private struct DropList: View {
                 .font(XFFont.body(9))
             }
             Spacer(minLength: 0)
+            if showAnalysis, exists, let onEdit {
+                Button { onEdit(path) } label: {
+                    Image(systemName: "slider.horizontal.below.rectangle").foregroundColor(XFColor.accent)
+                }
+                .buttonStyle(.plain).help("Editar tempo, rejilla, cues y loops")
+            }
             Button { onChange(items.filter { $0 != path }); analysisCache.forget(path) } label: {
                 Image(systemName: "xmark.circle.fill").foregroundColor(XFColor.textMuted)
             }

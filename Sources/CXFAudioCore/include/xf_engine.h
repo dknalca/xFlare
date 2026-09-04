@@ -98,6 +98,11 @@ void xf_engine_set_metronome_drift(xf_engine *e, double ticks);
  * [0, frames-1]). Para arrancar el sample desde el principio al entrar. */
 void xf_engine_seek_scratch(xf_engine *e, double frame);
 
+/* Coloca el cabezal de la BASE instrumental en `frame` (se satura a
+ * [0, frames-1]). Para el editor de instrumental (pinchar la onda = saltar).
+ * NO RT-SAFE. */
+void xf_engine_seek_instrumental(xf_engine *e, double frame);
+
 /* Ancla el cabezal de scratch a `frame` como **trim anti-deriva ACOTADO**
  * (ADR-042): NO mueve el cabezal (lo hace `xf_engine_set_velocity`), solo evita
  * que el scratch se separe de la posicion de la autopista a la larga, con una

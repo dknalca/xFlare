@@ -261,6 +261,16 @@ En la práctica, el selector de instrumental es un **menú** que lista las
 instrumentales ya analizadas de la librería (además de la base por defecto y
 "Cargar otra…"); elegir una de la lista la carga al instante desde el caché.
 
+**Editor de instrumental (ADR-067).** El botón de ajustes de cada fila de
+Instrumentales abre `InstrumentalEditorView`: onda grande con rejilla de compases
+(números arriba), transporte real (play/pausa, pinchar la onda para saltar),
+**tempo y rejilla** (BPM con decimal + TAP + ÷2/×2, "fijar el 1 aquí", compás),
+**puntos Cue** (marcar partes con nombre para saltar) y **regiones de loop**
+(marcar un trozo y activarlo → la base repite SOLO esa parte, infinito, y se oye
+en el propio editor). Se guarda por fichero en
+`~/Library/Application Support/xFlare/instrumental-edits.json`; la práctica lo usa
+en vez de re-detectar el tempo.
+
 ### 3.7 Ajustes
 
 Tres **pestañas**: **General** (perfil, audio/buffer, sesión/tolerancia,

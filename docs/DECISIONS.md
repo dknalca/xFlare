@@ -2494,6 +2494,65 @@ entra en el binario); su "estado" en `MODULE_STATUS.md` es **UTIL**.
 
 ---
 
+## ADR-067 — Editor de instrumental: tempo/rejilla, cues y loops de una parte (feedback 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** El autor pidió, en la Librería de instrumentales, "un mini editor
+donde ajustar la rejilla y el tempo antes de entrar en los ejercicios", "poner
+puntos Cue para practicar sobre partes" y "hacer partes loops infinitos". Hasta
+ahora eso se hacía a mano y en caliente durante la práctica (TAP, ◀/▶, ÷2/×2), y
+el bucle de la base era siempre el fichero entero.
+
+**Decisión.**
+1. **RT — bucle de una región** (`xf_player`): campos `loop_start` / `loop_end`
+   (frames); con `loop` activo el cabezal y la lectura sinc envuelven dentro de
+   `[loop_start, loop_end)` — el bucle de una parte es tan continuo como el del
+   fichero entero. Por defecto `0..frames` = comportamiento de siempre.
+   `xf_player_set_loop_region` (NO-RT); la región se lee **una vez por bloque** y
+   se **sanea** en `xf_player_render` (acota `[rlo, rhi)` a `[0, frames)`), así
+   una lectura rasgada de los dos `int64` sin candado nunca da acceso fuera de
+   rango. `xf_engine_set_instrumental_loop_region` +
+   `xf_engine_seek_instrumental` (para pinchar la onda en el editor) →
+   `EngineHandle.setInstrumentalLoopRegion(start:end:)` / `seekInstrumental(fraction:)`.
+2. **Datos** — `InstrumentalEdit` (puro, `Codable`): `bpm?`, `downbeatSeconds?`,
+   `beatsPerBar`, `cues: [Cue]`, `loops: [LoopRegion]`, `activeLoopID?`. Todo
+   opcional: lo que esté `nil` cae a la detección de `TempoAnalyzer`.
+   `InstrumentalEditStore` (`ObservableObject`, JSON en
+   `~/Library/Application Support/xFlare/instrumental-edits.json`, por ruta).
+   `AppModel.instrumentalEdits`.
+3. **Editor** — `InstrumentalEditorView` (`Screen.instrumentalEditor(path:)`,
+   se abre con el botón de ajustes de cada fila de la Librería). Reproduce de
+   verdad (engancha `EngineHandle`): play/pausa, pinchar la onda para saltar,
+   activar una región para **oír el loop** mientras se ajusta. Onda +
+   rejilla de compases con números arriba (SwiftUI, macOS 11 → sin `Canvas`).
+   Controles: BPM + TAP + ÷2/×2 + "fijar el 1 aquí" + compás; cues (añadir en el
+   cabezal, renombrar, saltar, borrar); regiones (crear 4 compases, nudge de
+   inicio/fin, activar, borrar). Al guardar, `InstrumentalEdit` por fichero.
+4. **En la práctica** — `loadInstrumental` mira si hay `InstrumentalEdit`: si
+   trae `bpm` / `downbeatSeconds`, mandan sobre la detección (rama "instrumental
+   editada", pista larga, rota al "1", rejilla a ese BPM); si hay región de loop
+   activa, se traduce a coords rotadas y se aplica con
+   `setInstrumentalLoopRegion` tras cargar.
+
+**Alternativas descartadas.** Editor solo visual sin sonido (el autor pidió
+reproducción). Loop de región aproximado en Swift vigilando el cabezal y
+saltando (jitter; el sitio correcto es el RT). Rotar la pista por el downbeat y
+recalcular las regiones cada vez que se toca el tempo (frágil); en su lugar la
+región activa se fija al cargar. Meter `beatsPerBar` por instrumental en la
+rejilla de la práctica (la geometría es fija; el editor lo guarda pero la
+práctica sigue en 4/4 de momento).
+
+**Consecuencias.** `xf_player` gana 2 campos + 1 setter; el caso por defecto no
+cambia (68→74 tests, los espectrales igual). `InstrumentalEdit` /
+`InstrumentalEditStore` / `InstrumentalEditorView` nuevos en XFApp.
+`LivePracticeView` gana `instrumentalEdit` (cableado en `AppRootView`).
+**Pendiente (v2):** los puntos Cue en la propia práctica (botones de salto);
+re-aplicar la región de loop tras ÷2/×2/reiniciar la base; regiones que crucen
+el "1".
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

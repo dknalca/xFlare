@@ -170,6 +170,13 @@ public final class EngineHandle {
     /// sesión (rejilla). Se empuja suavizada unas veces por segundo. `seek` -> 0.
     public func setMetronomeDrift(_ ticks: Double) { xf_engine_set_metronome_drift(engine, ticks) }
     public func seekScratch(_ frame: Double) { xf_engine_seek_scratch(engine, frame) }
+    /// Salta el cabezal de la BASE a esa fracción (0…1) del fichero. Para el
+    /// editor de instrumental (pinchar la onda).
+    public func seekInstrumental(fraction f: Double) {
+        let n = instrumentalFrameCount
+        guard n >= 2 else { return }
+        xf_engine_seek_instrumental(engine, min(1, max(0, f)) * Double(n - 1))
+    }
     /// Ancla de posicion del scratch: trim anti-deriva acotado (ADR-042), no
     /// mueve el cabezal. `nil` = suelto.
     public func setScratchTarget(_ frame: Double?) {

@@ -298,6 +298,12 @@ void xf_engine_seek_scratch(xf_engine *e, double frame) {
     if (p) xf_player_set_playhead(p, frame);
 }
 
+void xf_engine_seek_instrumental(xf_engine *e, double frame) {
+    if (!e) return;
+    xf_player *ip = atomic_load(&e->instrumental);
+    if (ip) xf_player_set_playhead(ip, frame);
+}
+
 void xf_engine_set_scratch_target(xf_engine *e, double frame) {
     if (e) atomic_store(&e->scratch_target, frame);
 }

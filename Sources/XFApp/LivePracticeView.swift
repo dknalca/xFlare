@@ -160,6 +160,9 @@ public struct LivePracticeView: View {
     /// Análisis de tempo ya hecho para una ruta de instrumental (caché de la
     /// Librería, fase 2). `nil` = no hay, se analiza al vuelo.
     private let cachedAnalysis: (String) -> TempoAnalyzer.Result?
+    /// Ajuste del editor de instrumental para una ruta (tempo/rejilla, loop
+    /// activo). `nil` = usar la detección automática.
+    private let instrumentalEdit: (String) -> InstrumentalEdit?
     /// Instrumentales de la Librería (para el menú «Base»); ya pre-analizadas.
     private let instrumentalLibrary: [String]
     /// 4 slots de sample (`""` = vacío) que los comandos MIDI «Sample 1»…«Sample
@@ -202,6 +205,7 @@ public struct LivePracticeView: View {
                 onScratchSampleChanged: @escaping (String) -> Void = { _ in },
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 cachedAnalysis: @escaping (String) -> TempoAnalyzer.Result? = { _ in nil },
+                instrumentalEdit: @escaping (String) -> InstrumentalEdit? = { _ in nil },
                 instrumentalLibrary: [String] = [],
                 sampleSlots: [String] = [],
                 onSampleSlotsChanged: @escaping ([String]) -> Void = { _ in },
@@ -231,6 +235,7 @@ public struct LivePracticeView: View {
         self.onScratchSampleChanged = onScratchSampleChanged
         self.onSampleLibraryChanged = onSampleLibraryChanged
         self.cachedAnalysis = cachedAnalysis
+        self.instrumentalEdit = instrumentalEdit
         self.instrumentalLibrary = instrumentalLibrary
         self.sampleSlots = sampleSlots
         self.onSampleSlotsChanged = onSampleSlotsChanged
@@ -1378,6 +1383,10 @@ public struct LivePracticeView: View {
         // análisis ya hecho (librería, fase 2): se captura AQUÍ, en el hilo
         // principal, y se pasa al bloque de fondo — así no se re-analiza.
         let cached: TempoAnalyzer.Result? = url.flatMap { cachedAnalysis($0.path) }
+        // ajuste del editor de instrumental (F.16): si lo hay, manda sobre la
+        // detección automática (BPM y dónde cae el "1"), y su región de loop
+        // activa se aplica tras cargar.
+        let edit: InstrumentalEdit? = url.flatMap { instrumentalEdit($0.path) }
 
         DispatchQueue.global(qos: .userInitiated).async {
             let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
@@ -1393,13 +1402,35 @@ public struct LivePracticeView: View {
             // detección normal — BPM + fase del "1" — como la base del asset.
             var userLoopBars: Int? = nil
             var fileSeconds = 0.0
+            // región de loop activa del editor (F.16), en fracciones 0…1 de la
+            // pista YA ROTADA al "1". `nil` = base entera.
+            var loopRegionFrac: (start: Double, end: Double)? = nil
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
                 fileSeconds = Double(pcm.count) / sr
                 // caché primero (instantáneo); si no, analiza ahora.
                 let a = cached ?? TempoAnalyzer.analyze(pcm, sampleRate: sr, hintBPM: hint)
 
-                if let a = a, !a.isShortLoop {
+                if let edit = edit, !edit.isEmpty, (edit.bpm != nil || edit.downbeatSeconds != nil) {
+                    // instrumental EDITADA: BPM y "1" del editor (o de la
+                    // detección si un campo está sin tocar). Pista larga: no es
+                    // modo loop, se rota al "1" y la rejilla va a ese BPM.
+                    bpm = edit.bpm ?? (a?.bpm ?? AudioAsset.instrumentalNativeBPM)
+                    let downbeatSec = edit.downbeatSeconds
+                        ?? (a.map { Double($0.phaseFrames) / sr } ?? 0)
+                    let phi = ((Int(downbeatSec * sr) % pcm.count) + pcm.count) % pcm.count
+                    pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
+                    loopTicks = fileSeconds * (bpm / 60.0) * Double(ppq)
+                    // región de loop activa -> a coords ROTADAS (t - downbeat mod dur).
+                    if let lr = edit.activeLoop, fileSeconds > 0 {
+                        let s = ((lr.startSeconds - downbeatSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
+                            .truncatingRemainder(dividingBy: fileSeconds)
+                        let e = ((lr.endSeconds - downbeatSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
+                            .truncatingRemainder(dividingBy: fileSeconds)
+                        if s < e { loopRegionFrac = (s / fileSeconds, e / fileSeconds) }
+                        // si la región cruza el "1" (s >= e) se ignora en v1.
+                    }
+                } else if let a = a, !a.isShortLoop {
                     // pista larga con tempo detectado (asset o fichero del
                     // usuario): rejilla al BPM detectado y alineada al "1".
                     bpm = a.bpm
@@ -1436,6 +1467,12 @@ public struct LivePracticeView: View {
 
             DispatchQueue.main.async {
                 if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
+                // región de loop del editor (F.16): la base repite solo ese trozo.
+                if let lr = loopRegionFrac {
+                    engine.setInstrumentalLoopRegion(start: lr.start, end: lr.end)
+                } else {
+                    engine.setInstrumentalLoopRegion(start: -1, end: 0)
+                }
                 instrWave = wave
                 instrLoopTicks = loopTicks
                 instrLoopBars = userLoopBars
