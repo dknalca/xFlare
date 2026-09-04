@@ -2953,6 +2953,66 @@ FUTURIBLES.
 
 ---
 
+## ADR-073 — Asistente de calibración: dispositivos reales + estado estable (primer hardware, 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** Con la Rane 72 conectada por USB por primera vez (B1.7: enumera
+dúplex, 14 in / 10 out, 48 kHz), el autor probó el asistente de calibración y
+"no me deja asignar nada". Al mirar el código, tres cosas:
+
+1. `AppRootView` construía `CalibrationWizardView(model: CalibrationWizardModel(),
+   onFinish: {...})` **sin** `inputDevices`/`outputDevices` — los parámetros
+   por defecto son `[]`. Los desplegables de Entrada/Salida del paso 1
+   estaban vacíos: no había nada que elegir.
+2. Ese `CalibrationWizardModel()` se construía **inline dentro de una
+   `@ViewBuilder` computed property** (`current`). Cualquier reevaluación del
+   `body` de `AppRootView` — por cualquier `@Published` de `AppModel`, no
+   solo del propio asistente — creaba una instancia **nueva**, tirando en
+   silencio lo que el usuario ya hubiera elegido.
+3. `MyTableView(table:onActivate:)` se instanciaba sin pasar `onCalibrate` ni
+   `onTestLive`: los botones "Probar"/"Calibrar" de cada fila de "Mi mesa"
+   eran no-ops completos.
+
+**Decisión.**
+- `AudioDeviceList` (nuevo, XFApp): enumera los dispositivos de audio del
+  sistema con `AudioObjectGetPropertyData`/`kAudioHardwarePropertyDevices` —
+  el mismo par de llamadas que ya prueba `spike/b1-latency/passthrough.c
+  --list` (que sí ve la Rane 72 dúplex). Se enumera **una vez** al entrar en
+  la pantalla de calibración (`.onChange(of: model.screen)`), no en cada
+  render — arrastrar un slider del asistente no dispara llamadas a CoreAudio.
+- `AppRootView` guarda el asistente en `@StateObject private var
+  calibrationModel` (antes: instancia inline). Una sola instancia mientras
+  viva la vista raíz — arreglа el punto 2 de raíz, no solo con más datos.
+- `CalibrationStep.pendingNote`: los pasos 2-4 (latencia/timecode/fader)
+  siguen sin el motor con captura real (B4.2, en marcha ahora); en vez de un
+  control mudo, un aviso corto que dice qué usar mientras tanto — los spikes
+  y `tools/measure_latency.py` de `docs/HW_BRINGUP.md`, que son los que de
+  verdad miden hoy.
+- `MyTableView`: `onCalibrate` navega a la pantalla de Calibración (mismo
+  destino que el botón de la barra). `onTestLive` sigue sin conectar: no hay
+  todavía una rutina de "probar en vivo" real que ejecutar — se deja pendiente
+  a propósito en vez de inventarle un comportamiento.
+
+**Alternativas descartadas.** Fabricar una calibración falsa en los pasos 2-4
+para que el asistente "se complete" — sería mentir sobre datos no medidos, y
+esos números alimentan el scoring más adelante (`XFPersistence.DeviceCalibration`).
+Dejar saltar los pasos sin medir con valores por defecto — cambia el
+significado de "calibrado"; es una decisión de producto que no se toma aquí
+sin que el autor la pida explícitamente.
+
+**Consecuencias.** `AudioDeviceList` nuevo (3 tests estructurales — no
+dependen de qué hardware haya conectado en la máquina que corre el test).
+`AppRootView`, `CalibrationStep`, `CalibrationWizardView` tocados; todo
+XFApp (WIP), ningún módulo sellado. `docs/UI_DESIGN.md` §3.1 y §3.8
+anotados con el estado real de hoy — §3.8 en particular describe una "Mi
+mesa" más rica (buscador, agrupar por fabricante, autodetección,
+duplicar/crear/importar perfil) que la que hay implementada; queda pendiente
+decidir cuánto construir de eso ahora. Tests: `AudioDeviceListTests` +3 →
+707 en verde.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

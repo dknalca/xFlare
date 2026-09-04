@@ -368,6 +368,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 *Las pantallas.*
 
 - [x] **B11.1** Asistente de calibracion de 4 pasos `XFApp`
+      - **(2026-09-04, ADR-073, feedback con la Rane 72 recién conectada)**:
+        "no me deja asignar nada" — el paso 1 (Audio) no recibía NINGUNA lista
+        de dispositivos (`inputDevices`/`outputDevices` por defecto `[]`) y el
+        modelo se reconstruía inline en cada render de `AppRootView`, perdiendo
+        la selección. Arreglado: `AudioDeviceList` (nuevo) enumera dispositivos
+        reales; `@StateObject` para el modelo. Los pasos 2-4 aún sin motor de
+        captura (B4.2): muestran un aviso con qué usar mientras tanto (los
+        spikes / `tools/measure_latency.py`) en vez de un control mudo.
       - Criterio: un usuario nuevo llega a tocar sin ayuda externa
       - Hecho (2026-09-01): `CalibrationWizardModel` (`ObservableObject`, testeable) — 4 pasos `CalibrationStep` (audio / latencia / timecode / fader, `docs/UI_DESIGN.md` §3.1). **No mide nada**: la capa de audio le reporta (`reportLatency`/`reportTimecode`/`reportFaderCut`) y el modelo decide cuando cada paso esta listo. `LatencyVerdict` (semaforo ≤10 verde / ≤15 ambar / >15 rojo con consejo — ADR-024); la latencia rojo **avisa pero no bloquea**. `result()` → `DeviceCalibration` para `XFPersistence`. Vistas SwiftUI (`CalibrationWizardView` + 4 paneles, macOS 11; el de timecode embebe `ScopeView`) — verificacion visual pendiente para cuando corra la app. 10 tests.
 - [x] **B11.2** Home: mapa de la matriz, racha, continuar `XFApp`
@@ -404,6 +412,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: segun UI_DESIGN.md seccion 4
       - Hecho (2026-09-01): `A11y.Palette` (alto contraste: ghost al 60%, trazos mas gruesos — XFDesign esta sellado, esto va encima). `A11y.resultsDescription` (resumen de resultados para VoiceOver: N/3 estrellas, puntuacion sin leer la barra, mejor marca, que falta, diagnosticos) y `highwayLiveAnnouncement` (region en vivo con el resumen de compas). Atajos de teclado en `PracticeView` (flechas=BPM, Esc=salir) y `ResultsView` (R=otra vez). 4 tests.
 - [x] **B11.9** Pantalla Mi mesa: lista de perfiles, insignias y prueba en vivo `XFApp`
+      - **(2026-09-04, ADR-073)**: `onCalibrate` no estaba conectado — el botón
+        "Calibrar" de cada fila no hacía NADA. Ahora navega a la pantalla de
+        Calibración. `onTestLive` ("Probar") sigue sin conectar a propósito: no
+        hay todavía una rutina de "prueba en vivo" real (necesita B4.2).
+        `docs/UI_DESIGN.md` §3.8 describe una "Mi mesa" más rica (buscador,
+        agrupar por fabricante, autodetección, duplicar/crear/importar) que la
+        implementada — pendiente decidir cuánto construir de eso.
       - Criterio: UI_DESIGN.md 3.8
       - Hecho (2026-09-01): `MyTableRow` (perfil: fuente bundle/user, insignia verificado/sin verificar, si hay calibracion, latencia) + `MyTable` (`active`, `sorted` = activo primero, luego verificados, luego el resto; `verifiedCount`/`calibratedCount`). `MyTableView` SwiftUI con botones Probar / Calibrar / Usar. 3 tests.
 - [x] **B11.10** Asistente de mapeo MIDI/HID con monitor en crudo `XFApp`

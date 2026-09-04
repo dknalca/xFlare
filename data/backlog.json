@@ -746,7 +746,7 @@
           "module": "XFApp",
           "acceptance": "un usuario nuevo llega a tocar sin ayuda externa",
           "status": "done",
-          "note": "CalibrationWizardModel (ObservableObject, testeable): 4 pasos CalibrationStep (audio/latencia/timecode/fader, UI_DESIGN 3.1). No mide: la capa de audio reporta (reportLatency/reportTimecode/reportFaderCut) y el modelo decide readiness. LatencyVerdict (semaforo <=10 verde / <=15 ambar / >15 rojo con consejo, ADR-024); el rojo avisa pero no bloquea. result() -> DeviceCalibration para XFPersistence. Vistas SwiftUI (CalibrationWizardView + 4 paneles, macOS 11; timecode embebe ScopeView) - verificacion visual pendiente. 10 tests."
+          "note": "CalibrationWizardModel (ObservableObject, testeable): 4 pasos CalibrationStep (audio/latencia/timecode/fader, UI_DESIGN 3.1). No mide: la capa de audio reporta (reportLatency/reportTimecode/reportFaderCut) y el modelo decide readiness. LatencyVerdict (semaforo <=10 verde / <=15 ambar / >15 rojo con consejo, ADR-024); el rojo avisa pero no bloquea. result() -> DeviceCalibration para XFPersistence. Vistas SwiftUI (CalibrationWizardView + 4 paneles, macOS 11; timecode embebe ScopeView) - verificacion visual pendiente. 10 tests. (2026-09-04, ADR-073, feedback con la Rane 72 recien conectada) 'no me deja asignar nada' -- el paso 1 (Audio) no recibia NINGUNA lista de dispositivos (inputDevices/outputDevices por defecto []) y el modelo se reconstruia inline en cada render de AppRootView, perdiendo la seleccion. Arreglado: AudioDeviceList (nuevo, XFApp) enumera dispositivos reales via CoreAudio (mismas llamadas que spike/b1-latency/passthrough --list); AppRootView guarda el asistente en @StateObject en vez de construirlo inline. Los pasos 2-4 (latencia/timecode/fader) siguen sin motor de captura real (B4.2, en marcha): muestran un aviso (CalibrationStep.pendingNote) con que herramienta usar mientras tanto, en vez de un control mudo. Tests: AudioDeviceListTests +3. 707 en verde."
         },
         {
           "id": "B11.2",
@@ -810,7 +810,7 @@
           "module": "XFApp",
           "status": "done",
           "acceptance": "UI_DESIGN.md 3.8",
-          "note": "MyTableRow (perfil: fuente, insignia verificado/sin verificar, calibracion, latencia) + MyTable (active, sorted=activo>verificados>resto, verifiedCount/calibratedCount). MyTableView SwiftUI (Probar/Calibrar/Usar). 3 tests."
+          "note": "MyTableRow (perfil: fuente, insignia verificado/sin verificar, calibracion, latencia) + MyTable (active, sorted=activo>verificados>resto, verifiedCount/calibratedCount). MyTableView SwiftUI (Probar/Calibrar/Usar). 3 tests. (2026-09-04, ADR-073) onCalibrate no estaba conectado -- el boton 'Calibrar' de cada fila no hacia nada (MyTableView se instanciaba sin pasarle el callback). Ahora navega a la pantalla de Calibracion. onTestLive ('Probar') sigue sin conectar a proposito: no hay todavia una rutina de 'prueba en vivo' real que ejecutar (necesita B4.2). docs/UI_DESIGN.md 3.8 describe una 'Mi mesa' mas rica (buscador, agrupar por fabricante, autodeteccion, duplicar/crear/importar perfil) que la implementada -- pendiente decidir cuanto construir de eso."
         },
         {
           "id": "B11.10",

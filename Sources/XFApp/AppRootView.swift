@@ -12,6 +12,19 @@ public struct AppRootView: View {
 
     @ObservedObject private var model: AppModel
     @State private var showSplash = true
+    /// El asistente de calibración vive AQUÍ, no inline en `current`: si se
+    /// construyera un `CalibrationWizardModel()` nuevo en cada reevaluación
+    /// del `body` (que pasa por cualquier `@Published` de `AppModel`, no solo
+    /// los del propio asistente), cualquier dispositivo o dato que el usuario
+    /// ya hubiera elegido se perdería sin avisar — "no me deja asignar nada"
+    /// también podía venir de aquí. `@StateObject`: una sola instancia
+    /// mientras viva `AppRootView`.
+    @StateObject private var calibrationModel = CalibrationWizardModel()
+    /// Dispositivos de audio para el paso 1 del asistente: se enumeran UNA VEZ
+    /// al entrar en la pantalla (`.onChange(of: model.screen)`), no en cada
+    /// reevaluación del `body` — arrastrar un slider del asistente no tiene
+    /// por qué disparar llamadas a CoreAudio.
+    @State private var calibrationDevices: [AudioDeviceList.Device] = []
 
     public init(model: AppModel) {
         self.model = model
@@ -43,6 +56,13 @@ public struct AppRootView: View {
         .foregroundColor(XFColor.text)
         .preferredColorScheme(.dark)
         .onAppear { model.goHome() }
+        .onChange(of: model.screen) { s in
+            // enumerar dispositivos de audio es un puñado de llamadas a
+            // CoreAudio: barato, pero no hace falta repetirlo en cada
+            // reevaluación del body mientras el asistente está abierto (p.
+            // ej. al arrastrar un slider) — solo al ENTRAR en la pantalla.
+            if s == .calibration { calibrationDevices = AudioDeviceList.all() }
+        }
     }
 
     private var navBar: some View {
@@ -164,7 +184,8 @@ public struct AppRootView: View {
 
         case .myTable:
             MyTableView(table: model.myTable(),
-                        onActivate: { model.activeProfileId = $0 })
+                        onActivate: { model.activeProfileId = $0 },
+                        onCalibrate: { _ in model.openCalibration() })
 
         case .settings:
             SettingsView(settings: model.settings,
@@ -189,10 +210,20 @@ public struct AppRootView: View {
             }
 
         case .calibration:
-            CalibrationWizardView(model: CalibrationWizardModel(), onFinish: { cal in
-                try? model.db.saveCalibration(cal)
-                model.goHome()
-            })
+            // Dispositivos REALES (paso 1): antes los desplegables de
+            // Entrada/Salida no recibían ninguna lista y se veían vacíos —
+            // "no me deja asignar nada". `AudioDeviceList` es el mismo par de
+            // llamadas CoreAudio que ya usa `spike/b1-latency/passthrough
+            // --list` (ve la Rane 72 dúplex, 14 in / 10 out); se enumeran al
+            // entrar en la pantalla (`.onChange` más abajo), no aquí.
+            CalibrationWizardView(
+                model: calibrationModel,
+                inputDevices: calibrationDevices.filter { $0.inputChannels > 0 }.map(\.name),
+                outputDevices: calibrationDevices.filter { $0.outputChannels > 0 }.map(\.name),
+                onFinish: { cal in
+                    try? model.db.saveCalibration(cal)
+                    model.goHome()
+                })
 
         case .practice(let ex, let variant):
             livePractice(exerciseId: ex, variantId: variant)

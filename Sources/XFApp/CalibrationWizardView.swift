@@ -42,6 +42,13 @@ public struct CalibrationWizardView: View {
             VStack(alignment: .leading, spacing: XFSpacing.sm) {
                 Text(model.step.title).font(XFFont.title(22))
                 Text(model.step.instruction).foregroundColor(XFColor.textMuted)
+                // Honesto en vez de un control que se queda mudo: mientras el
+                // paso no tenga el motor real conectado, lo dice y apunta a
+                // la herramienta de docs/HW_BRINGUP.md que sí mide hoy.
+                if let note = model.step.pendingNote {
+                    Text(note).font(XFFont.body(12)).foregroundColor(Color(hex: 0xF5C542))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             currentStep

@@ -85,6 +85,15 @@ sale mal, todo lo demas miente.
 4. **Fader** — "haz diez cortes". Detecta el punto de corte, dibuja la curva
    medida y deja ajustarla a mano. Guarda el perfil por dispositivo.
 
+**Estado real (2026-09-04, primera vez con hardware conectado, ADR-073).** El
+paso 1 (Audio) ya lista dispositivos **reales** del sistema
+(`AudioDeviceList`, mismas llamadas CoreAudio que `spike/b1-latency/
+passthrough --list`) — antes los desplegables estaban vacíos. Los pasos 2-4
+todavía no tienen el motor con captura conectado (B4.2, en marcha): en vez de
+un control mudo, muestran un aviso corto con la herramienta de
+`docs/HW_BRINGUP.md` que sí mide hoy (`tools/measure_latency.py`,
+`spike/b5-timecode/tcprobe`, `spike/b1-pilot-fader/pilot_fader`).
+
 ### 3.2 Home — el mapa
 
 - **Rejilla de la matriz** como elemento central: cada celda es un scratch, agrupadas
@@ -353,6 +362,14 @@ La pantalla que hace util el sistema de perfiles.
   dispositivo de audio, lo propone en un aviso discreto, no lo impone.
 - Botones: `Duplicar y editar` (crea un perfil que hereda del oficial),
   `Crear desde cero`, `Importar .conf`, `Abrir carpeta de perfiles`.
+
+**Lo que hay hoy vs. esta sección (2026-09-04).** `MyTableView` (B11.9) es más
+sencilla que el diseño de arriba: lista simple con `Probar` / `Calibrar` /
+`Usar` por fila; sin buscador, sin agrupar por fabricante, sin autodetección,
+sin `Duplicar`/`Crear`/`Importar`/`Abrir carpeta`. `Calibrar` navega al
+asistente de 3.1 (ADR-073); `Probar` todavía no está conectado a nada — no hay
+todavía una rutina de "prueba en vivo" real (necesita B4.2). Pendiente decidir
+cuánto de esta sección construir ahora.
 
 ### 3.9 Asistente de mapeo MIDI/HID
 
