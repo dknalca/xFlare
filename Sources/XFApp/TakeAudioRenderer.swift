@@ -85,7 +85,7 @@ enum TakeAudioRenderer {
 
             bufL.withUnsafeMutableBufferPointer { lp in
                 bufR.withUnsafeMutableBufferPointer { rp in
-                    xf_engine_render(e, nil, nil, lp.baseAddress, rp.baseAddress,
+                    xf_engine_render(e, nil, nil, lp.baseAddress, rp.baseAddress, nil, nil,
                                      Int32(n), UInt64(frame))
                 }
             }

@@ -177,16 +177,27 @@ double xf_engine_output_peak(const xf_engine *e);
  *
  *  - `in_l` / `in_r`: entrada del dispositivo, **float no intercalado**, o NULL
  *    si este tic no hubo entrada (se mete silencio en el ring).
- *  - `out_l` / `out_r`: salida al dispositivo, **float no intercalado**.
+ *  - `out_scratch_l` / `out_scratch_r`: salida del reproductor de scratch
+ *    (con su EQ y ganancia), **float no intercalado**.
+ *  - `out_instr_l` / `out_instr_r`: salida de la base instrumental + el
+ *    metronomo. `NULL` (los dos) = modo COMBINADO (F.68): esa mezcla se suma
+ *    dentro del propio bus de scratch y sale por `out_scratch_*`, exactamente
+ *    como antes de que existiera el modo separado — es el camino por defecto,
+ *    para salir por un unico par de canales. No-NULL = modo SEPARADO: la base
+ *    y el scratch salen por PARES DE CANALES DISTINTOS del dispositivo (dos
+ *    tiras de mezclador reales), y el llamante (`xf_engine_start*`) tiene que
+ *    haber pedido el formato de 4 canales a juego.
  *  - `nframes` <= `max_frames`.
  *  - `host_time`: instante del bloque (mach_absolute_time), para sellar el ring.
  *
  * Efectos: convierte la entrada a int16 estereo y la escribe en el ring;
- * sintetiza la salida (reproductor + metronomo, con la ganancia de master);
- * avanza el reloj musical si el transporte esta sonando. */
+ * sintetiza la salida (reproductor + base + metronomo, con la ganancia de
+ * master aplicada a cada bus); avanza el reloj musical si el transporte esta
+ * sonando. */
 void xf_engine_render(xf_engine *e,
                       const float *in_l, const float *in_r,
-                      float *out_l, float *out_r,
+                      float *out_scratch_l, float *out_scratch_r,
+                      float *out_instr_l, float *out_instr_r,
                       int nframes, uint64_t host_time);
 
 /* ---- host CoreAudio (compila; sin tests, necesita dispositivo) ---- */
@@ -202,14 +213,23 @@ void xf_engine_render(xf_engine *e,
  * es el que lleva la senal que hace falta; sin esto el motor cogia siempre
  * los dos primeros a ciegas. Aplica `kAudioOutputUnitProperty_ChannelMap`
  * al arrancar (no en el callback RT: es preparacion del dispositivo, corre
- * una vez en el hilo que llama a esta funcion). */
-int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel);
+ * una vez en el hilo que llama a esta funcion).
+ *
+ * `instrumental_channel` (F.68): si es `> 0` Y distinto de `output_channel`,
+ * el motor arranca en modo SEPARADO -- 4 canales de salida, el scratch por el
+ * PAR de `output_channel` y la base+metronomo por el PAR de
+ * `instrumental_channel` (como dos tiras de un mezclador real, p. ej.
+ * "Deck 1"/"Deck 2"). `<= 0` o igual a `output_channel` = modo COMBINADO de
+ * siempre, un unico par de salida. */
+int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel,
+                    int instrumental_channel);
 
 /* NO RT-SAFE: como `xf_engine_start` pero **solo salida** (sin capturar la
  * entrada del dispositivo). Para practicar con la mesa desconectada: suena el
  * scratch y la base, y el ring de entrada queda en silencio. Devuelve 0 / -1.
- * `output_channel`: ver `xf_engine_start`. */
-int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel);
+ * `output_channel`/`instrumental_channel`: ver `xf_engine_start`. */
+int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel,
+                           int instrumental_channel);
 
 /* NO RT-SAFE: para y cierra la AudioUnit. */
 void xf_engine_stop(xf_engine *e);

@@ -549,6 +549,30 @@ public final class PracticeSession: ObservableObject {
     /// velocidad de la mano.
     public func endScrub() { scrubbing = false }
 
+    /// F.65 — vinilo de timecode **real** (`MotionSample.velocity`,
+    /// `XFCapture`: 1.0 = 33⅓ rpm nominal hacia delante). A diferencia de
+    /// `scrub`/`scrollBy`/`nudge` (pensados para ratón/trackpad, con su
+    /// propia ganancia "humana"), el DVS ya trae la velocidad exacta: mover
+    /// el vinilo a ritmo normal avanza el sample cargado al mismo ritmo —
+    /// así es el scratch por timecode, el cabezal del sample sigue al vinilo
+    /// 1:1. `sampleDurationSeconds` es la duración del sample de scratch
+    /// cargado en el motor (`scratchFrameCount / sampleRateHz`; la calcula
+    /// quien llama, porque `PracticeSession` no conoce el motor de audio a
+    /// propósito, ver la cabecera del fichero) — deshace la conversión de
+    /// `normalizedVelocity` para que, tras volver a pasar por ella en
+    /// `onAdvance` (`LivePracticeView`), el ratio real llegue **intacto** a
+    /// `engine.setVelocity`. Reutiliza `scrubbing`/`lastScrubAt` de `scrub()`:
+    /// si el vinilo deja de mandar muestras más de 80 ms (aguja levantada,
+    /// dropout — B5.5 ya lo valida a nivel de señal), la fricción sintética
+    /// retoma sola en vez de quedarse con la última velocidad congelada.
+    public func pushRealVelocity(_ ratio: Double, sampleDurationSeconds: Double) {
+        guard !machineDrivesDisc, sampleDurationSeconds > 0 else { return }
+        let normVel = ratio / sampleDurationSeconds
+        platterVelocity = normVel * patternSpan / AudioAsset.scratchPatternTopFraction
+        scrubbing = true
+        lastScrubAt = CACurrentMediaTime()
+    }
+
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).
     public func nudge(forward: Bool) {
         guard !machineDrivesDisc else { return }

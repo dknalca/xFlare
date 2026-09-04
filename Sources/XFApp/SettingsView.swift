@@ -99,6 +99,15 @@ public struct SettingsView: View {
             settings.outputChannel = first.first
             onChange(settings)
         }
+        // F.68: `0` (combinado) siempre es válido; un par de un dispositivo
+        // ANTERIOR que ya no existe en este no lo es — cae a combinado, no a
+        // "el primero que pille" (sería cambiar de modo sin que el usuario lo
+        // pidiera).
+        if settings.instrumentalOutputChannel != 0,
+           !outputPairs.contains(where: { $0.first == settings.instrumentalOutputChannel }) {
+            settings.instrumentalOutputChannel = 0
+            onChange(settings)
+        }
     }
 
     private func refreshInputPairs() {
@@ -157,6 +166,17 @@ public struct SettingsView: View {
                             }
                             .labelsHidden().frame(width: 240)
                         }
+                        row("Canal de la instrumental") {
+                            Picker("", selection: bind(\.instrumentalOutputChannel)) {
+                                Text("Combinado (con el scratch)").tag(0)
+                                ForEach(outputPairs) { p in Text(p.label).tag(p.first) }
+                            }
+                            .labelsHidden().frame(width: 240)
+                        }
+                        note("F.68: si eliges un par distinto al de \"Canal de salida\", el scratch y "
+                             + "la instrumental (+ metrónomo) salen por dos tiras separadas — como dos "
+                             + "canales de un mezclador real. \"Combinado\" es el comportamiento de "
+                             + "siempre, un único par.")
                     }
 
                     row("Entrada (timecode)") {

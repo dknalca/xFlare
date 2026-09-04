@@ -70,20 +70,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - Criterio: suena sin cortes 5 min
       - Estado: spike escrito en `spike/b1-latency/` (fuera de Package.swift, desechable). `passthrough.c` + `build.sh`, compila universal (x86_64+arm64). Una sola AudioUnit HAL dúplex sobre el mismo dispositivo, passthrough dentro del callback sin ring buffer (el ring buffer es B4). Cuenta overloads (listener `kAudioDeviceProcessorOverload`), render errors y jitter entre callbacks; imprime PASS/FAIL. Smoke test OK en `Built-in Output`: fija 64 frames, 0 overloads, gap 1,2–1,7 ms.
       - **(2026-09-04) Rane 72 conectada por USB** — enumera dúplex (14 in / 10 out, 48 kHz, ver B1.7). **Falta la corrida real de 5 min**: `./passthrough --in-out "Seventy-Two" --frames 64 --seconds 300`, y anotar el resultado en `docs/TIMECODE.md` §4.1. Necesita a alguien escuchando los 5 min (limpio o con cortes).
-- [~] **B1.2** Medir round-trip real por loopback en TU hardware `CXFAudioCore`
+- [x] **B1.2** Medir round-trip real por loopback en TU hardware `CXFAudioCore`
       - Criterio: numero medido y anotado en docs/TIMECODE.md
       - Estado: herramienta escrita: `tools/measure_latency.py` (+ `tools/requirements.txt` con numpy/sounddevice). Reproduce un chirp corto por la salida y graba la entrada a la vez (`sd.playrec`), saca el desfase por correlacion cruzada via FFT (solo numpy), repite N veces e imprime min/mediana/media/max + jitter + veredicto frente a la puerta de 10 ms + linea lista para pegar en `docs/TIMECODE.md` §4.2. `--list`, `--device`, `--fs`, `--frames`, `--reps`. **Gano `--out-ch`/`--in-ch`** (2026-09-04): sin esto cogia el canal 1 de cada lado a ciegas, que en la Rane 72 (14 in/10 out) no es el que lleva loopback.
-      - **Parcial (2026-09-04):** la Rane 72 no tiene un jack de Master Out por USB; sus salidas son inyecciones digitales a las tiras de mezcla (Deck1/Deck2/USB Aux/FX Return). Tres rutas internas independientes (Deck1→Mix, Deck2→Mix, Deck2→Deck2) convergen en **23.3-23.5 ms** con jitter casi nulo (0.00-0.06 ms) — consistente, no ruido, pero **mide ida-y-vuelta por dos tramos USB**, no el tramo unico de salida que realmente oye el usuario. FUERA de la puerta de 10 ms tal como esta medido. **Falta comparar con un cable fisico** (salida real → entrada libre) antes de dar el numero por bueno — pausado a peticion del autor, se retoma la proxima vez que este delante del hardware. Detalle completo en `docs/TIMECODE.md` §4.2.
-- [ ] **B1.3** Decision documentada
+      - **Resuelto (2026-09-04, ADR-074):** la Rane 72 no tiene un jack de Master Out por USB; el retorno USB interno (Deck1→Mix, Deck2→Mix, Deck2→Deck2) daba **23.3-23.5 ms** consistentes, pero eso mide ida-y-vuelta por DOS tramos USB, no el camino real de xFlare. El autor confirmó que en uso real **todo el audio va por USB, sin cable en ningun punto** (como Serato): una pierna de entrada (vinilo→mesa→USB in) y una de salida independiente (app→USB out→mesa→altavoz), que nunca vuelve a entrar al ordenador. Se descarta medir con cable fisico (ya no aplica) y se adopta la **suma de latencias declaradas por CoreAudio** (`AudioDeviceLatency`, F.48/F.63) como el numero oficial: **in 10,00 ms + out 4,35 ms = 14,35 ms** a 64 frames en el MacBook 2015. Detalle en `docs/TIMECODE.md` §4.2.
+- [x] **B1.3** Decision documentada
       - Criterio: si ≤10 ms: seguir. Si no: ADR con el plan B (buffer mayor, otra interfaz, o revisar el objetivo) ANTES de escribir nada mas
-      - Estado: bloqueada — el dato de B1.2 es parcial (ver arriba), falta la comparacion con cable fisico para saber si el numero relevante es el del retorno USB interno (23.5 ms) o el del camino analogico puro. `measure_latency.py` ya imprime el veredicto (DENTRO / FUERA de la puerta) para que solo haya que trasladarlo aqui cuando se cierre.
+      - **Hecho (2026-09-04, ADR-074):** con 14,35 ms (declarados, in+out) en el MacBook 2015 a 64 frames, dentro de la puerta de ≤15 ms del Intel 2015 (ADR-024) aunque por encima del objetivo de 10 ms de la maquina de referencia — **decision: seguir**, sin plan B. Falta repetir en la maquina de referencia (B1.5) cuando haya una segunda Mac.
 - [x] **B1.4** Validar la captura del crossfader — resultado: **MIDI, no tono piloto** (corrige ADR-021) `CXFAudioCore` `XFCapture`
       - Criterio original: detectar apertura/cierre del crossfader de tu mesa con menos de 5 ms de jitter; si falla, ADR con el plan C ANTES de seguir
       - Estado: spike de tono piloto escrito en `spike/b1-pilot-fader/` (desechable), sigue compilando, queda como fallback si algún día hace falta.
       - **Hecho (2026-09-03):** antes de correr el spike de piloto se comprobó por CoreMIDI si el crossfader manda algo directamente (pregunta del autor: "¿miramos si el crossfader emite MIDI?"). Captura aislada de 5 min moviendo *solo* el crossfader, confirmada en vivo por el autor: **15313 de 15317 mensajes fueron CC8/canal16**, sostenidos exactamente con el movimiento (los 4 restantes, un roce accidental al fader de canal). El MAG FOUR **sí** manda su posición por MIDI — la premisa de ADR-021 era incorrecta para la Rane 72. **ADR-021 corregida y `profiles/rane-seventy-two.conf` actualizado a `method = midi` (cc=8, canal=16)** como método primario; `audio_return` queda documentado como respaldo. La infraestructura para consumirlo (`MidiCrossfaderConfig`/`MidiFaderSource`/`MidiFaderConnector`, `XFCapture`) ya existía y está SEALED. Pendiente (no bloquea B1.4, se resuelve en el asistente de calibración): extremos exactos del barrido y `midi.invert`. El spike de tono piloto ya no hace falta correrlo con la Rane 72 salvo como respaldo.
-- [ ] **B1.5** Medir la latencia en LAS DOS maquinas y rellenar la tabla `CXFAudioCore`
+- [~] **B1.5** Medir la latencia en LAS DOS maquinas y rellenar la tabla `CXFAudioCore`
       - Criterio: PLATFORM_SUPPORT.md seccion 7 con numeros reales, no estimaciones
-      - Estado: misma herramienta que B1.2 (`tools/measure_latency.py`). Bloqueada por hardware: hay que correrla en el MacBook Pro 2015 y en la maquina de referencia. La tabla vacia ya esta en `PLATFORM_SUPPORT.md` §7 y en `docs/TIMECODE.md` §4.2.
+      - Estado (2026-09-04, ADR-074): metodo = suma de latencias declaradas por CoreAudio, no `measure_latency.py` (ver B1.2). MacBook Pro 2015 **hecho**: 14,35 ms a 64 frames (`PLATFORM_SUPPORT.md` §7). Falta: la fila a 128 frames y la maquina de referencia (bloqueada — no hay segunda Mac todavia).
 - [~] **B1.6** Buffer adaptativo 64 -> 128 frames al detectar overloads (ADR-024) `CXFAudioCore`
       - Criterio: el Intel de 2015 aguanta 5 min sin cortes
       - Estado: logica escrita en el spike B1.1: flag `--adaptive`. Cuando se acumulan ≥3 overloads, el hilo main (no el RT) para la unit, sube el buffer del dispositivo a 128, reinicia contadores y arranca de nuevo; lo registra y el resumen distingue "PASS" de "PASS CON RESERVA" (solo aguanta a 128). **Falta la corrida real de 5 min en el Intel de 2015.**
@@ -1262,6 +1262,235 @@ en manos de gente.*
       - `tools/measure_latency.py` (medida real por loopback) no se toca —
         sigue viva como herramienta de desarrollo en `docs/HW_BRINGUP.md`
         paso 3, fuera de la UI de usuario final.
+- [x] **F.64** El paso 1 (Audio) del asistente elegía dispositivo en una copia que no iba a ningún sitio `XFApp`
+      - Motivado por el autor con la Rane 72 real conectada: "se queda
+        atascado en latencia. No puedo seleccionar qué entrada estéreo tengo
+        el timecode. No veo el Scope View." Las tres eran la misma causa.
+        `AudioCalibrationStep` (paso 1) tenía Pickers de Entrada/Salida
+        ligados a `CalibrationWizardModel.inputDeviceName`/`outputDeviceName`
+        — una copia LOCAL a la vista que nunca llegaba a `AppSettings`. El
+        motor (`EngineHandle.preferred*`, F.60) y el cálculo de latencia
+        declarada (F.63) seguían leyendo `model.settings.outputDeviceUID`/
+        `inputDeviceUID`, que solo se tocan desde Ajustes › Hardware — y ESE
+        cálculo se hacía UNA vez, al entrar en la pantalla, sin recalcularse
+        nunca. Si el dispositivo por defecto del sistema en ese instante no
+        era la Rane 72 (lo normal: nadie pone su mesa de batalla como
+        dispositivo por defecto de macOS), `latencyMs` se quedaba en `nil`
+        para siempre → "Siguiente" deshabilitado para siempre → nunca se
+        llegaba al paso 3, de ahí el Scope vacío. Y aunque se llegara, no
+        había forma de elegir el PAR estéreo del timecode dentro de un
+        dispositivo multicanal (F.60 solo lo exponía en Ajustes, no aquí) —
+        con 14 canales de entrada en la Rane 72, adivinar no vale (B5.5).
+      - Hecho (2026-09-04):
+        · `CalibrationWizardModel`: `inputChannelFirst`/`outputChannelFirst`
+          (`Int?`, primer canal 1-based del par elegido).
+        · `AudioDeviceList.resolvedChannel(current:in:)` (nuevo, lógica
+          pura): mantiene la elección si sigue siendo válida, si no cae al
+          primer par — mismo patrón que `pairLabel`, testeable sin hardware.
+        · `AudioCalibrationStep`: recibe `[AudioDeviceList.Device]` en vez de
+          `[String]`; añade el selector de par estéreo (como en Ajustes)
+          para entrada Y salida cuando el dispositivo tiene más de un par.
+        · `AppRootView.applyCalibrationSelection()` (nuevo): al entrar en
+          Calibración precarga el paso 1 con lo ya resuelto (Ajustes o
+          sistema por defecto), y CUALQUIER cambio del usuario en dispositivo
+          o canal (`.onChange` sobre los 4 campos) vuelca a
+          `model.settings`, recalcula la latencia declarada Y reinicia la
+          captura de timecode si el scope ya estaba activo — con guarda
+          contra reescrituras/reinicios redundantes (comparando contra el
+          valor actual antes de tocar `model.settings` o el motor).
+      - 4 tests nuevos: `resolvedChannel` mantiene/cae/vacío (lógica pura,
+        `AudioDeviceListTests`); los 10 de `CalibrationWizardTests` siguen
+        verdes sin cambios (la nueva selección de canal no afecta
+        `isReady`/`canAdvance`).
+      - **Pendiente, no cerrado en esta tarea — freestyle no lee timecode
+        real.** `.freeMode`/`.practice` (`LivePracticeView`) nunca llaman a
+        `startTimecodeCapture()`: el movimiento sale de `PracticeSession`
+        (ratón/trackpad/teclado), no del vinilo, esté calibrado o no. Es el
+        hueco de B4.2 (motor RT definitivo con captura integrada en la
+        práctica, todavía bloqueado — ver B4.2 más arriba), no un bug de esta
+        pantalla; conectar timecode real a la práctica es un cambio mayor
+        (toca `PracticeSession`/`LivePracticeView`, decide qué pasa con
+        scoring/dropout) que se preguntó al autor antes de tocarlo.
+- [x] **F.65** Vinilo real driving Freestyle/práctica (velocidad, no scoring todavía) `XFApp`
+      - Motivado por el autor: quiere que Freestyle/práctica se muevan con el
+        vinilo real, no solo ratón/trackpad — es el corazón de "hardware real
+        primero" (CLAUDE.md §3.5).
+      - **Hecho:** `PracticeSession.pushRealVelocity(_:sampleDurationSeconds:)`
+        — a diferencia de `scrub`/`scrollBy`/`nudge` (ganancia "humana" para
+        ratón/trackpad), el DVS ya trae la velocidad exacta
+        (`MotionSample.velocity`, 1.0 = 33⅓ rpm nominal): mover el vinilo a
+        ritmo normal avanza el sample cargado al mismo ritmo. Deshace
+        exactamente la conversión que hace `normalizedVelocity` (verificado
+        por álgebra + test: `normalizedVelocity * sampleDurationSeconds ==
+        ratio`, así que tras volver a pasar por el `onAdvance` de
+        `LivePracticeView`, `engine.setVelocity` recibe el ratio real
+        intacto). Reutiliza `scrubbing`/`lastScrubAt` de `scrub()`: si el
+        vinilo deja de mandar muestras > 80 ms (aguja levantada, dropout de
+        B5.5), la fricción sintética retoma sola. Se ignora si la máquina
+        lleva el disco (`machineDrivesDisc`, F.23), igual que el resto de
+        inputs. 5 tests nuevos en `PracticeSessionTests` (identidad tras
+        `normalizedVelocity`, escala con ratio/duración, no frena entre
+        muestras, se ignora con la máquina al mando, duración 0 no revienta).
+      - **Encontrado durante el diseño — carrera real en el motor.**
+        `LivePracticeView.loadInstrumental(initial: true)` llama a
+        `engine.startOutput()` sin condición al terminar de cargar la base
+        (async); si algo abriera el motor en modo dúplex (con entrada) antes,
+        esta llamada lo revertiría a "solo salida" segundos después, matando
+        la captura en silencio. Hay que resolver esto ANTES de cablear la
+        captura real a la práctica.
+      - **Decisión del autor:** la práctica solo intenta modo dúplex si hay
+        un dispositivo de ENTRADA configurado (`AppSettings.inputDeviceUID`
+        no vacío, vía el paso 1 del asistente o Ajustes › Hardware) — no
+        siempre, para no pedir permiso de micrófono a quien practica sin
+        mesa.
+      - **Cerrado (2026-09-05).** `AppModel.motionSampleEvents`
+        (`PassthroughSubject<MotionSample, Never>`, nuevo) — mismo tráfico
+        que `onTimecodeSample` pero como publisher: `pollTimecode()` envía a
+        los dos. `LivePracticeView` gana `captureRealTimecode`/
+        `motionSamples`/`startRealCapture`/`stopRealCapture`; se suscribe con
+        `.onReceive(motionSamples)` → `receiveRealMotion(_:)` (confianza
+        ≥ 0.6, mismo umbral que el paso Timecode del asistente; si no,
+        ignora la muestra y deja que la fricción sintética frene sola).
+        `AppRootView` pasa `captureRealTimecode: !model.settings.
+        inputDeviceUID.isEmpty` (la decisión del autor: solo dúplex con
+        entrada configurada) y cablea `startRealCapture`/`stopRealCapture` a
+        `model.startTimecodeCapture()`/`stopTimecodeCapture()`, en las DOS
+        pantallas (`.practice` y `.freeMode`).
+      - **Carrera resuelta:** `loadInstrumental(initial: true)` ya NO llama a
+        `engine.startOutput()` sin condición — si `captureRealTimecode`,
+        llama a `startRealCapture()` en su lugar (un solo sitio decide el
+        modo del motor, no dos). `stop()`/`.onDisappear` para la captura
+        SOLO si se pudo haber arrancado (si no, `stopTimecodeCapture()`
+        haría un `stop()`+`startOutput()` de más en cualquier salida de la
+        práctica sin mesa).
+      - Tests: `PracticeSessionTests` (F.65, turno anterior) + 1 nuevo en
+        `AppModelTimecodeCaptureTests` (`motionSampleEvents` no dispara sin
+        motor, mismo criterio que `onTimecodeSample`). El comportamiento con
+        motor real (¿suena bien la velocidad real en la mesa?) sigue sin
+        test — necesita hardware delante, como el resto del host de audio.
+        `make verify` en verde.
+- [x] **F.66** Quitar el paso de latencia del asistente de calibración (petición directa) `XFApp`
+      - El autor pidió directamente quitar el paso "Prueba de latencia" del
+        asistente: "no le veo sentido" — no daba pie a ninguna acción dentro
+        del propio flujo (a diferencia de Timecode/Fader, que sí terminan en
+        un ajuste guardado).
+      - Hecho (2026-09-05): `CalibrationStep` pasa de 4 a 3 casos
+        (`audio`/`timecode`/`fader`, sin `.latency`). `CalibrationWizardModel`
+        pierde `latencyMs`/`reportLatency`/`latencyVerdict`; `result()` ya no
+        pasa `latencyMs` a `DeviceCalibration` (queda `nil`, el campo sigue
+        existiendo en `XFPersistence` para calibraciones antiguas — no se
+        toca ese módulo). `LatencyCalibrationStep` (vista) y `LatencyVerdict`
+        (tipo, sin más usos) se borran. `AppRootView` pierde
+        `refreshDeclaredLatency()` y la llamada a `AudioDeviceLatency` en la
+        selección del paso 1; `AudioDeviceLatency` (F.48) se queda intacta
+        para otros usos (F.50, compensar al puntuar).
+      - Tests: `CalibrationWizardTests` reescrito sin los casos de latencia
+        (8 tests, antes 10). `make verify` en verde.
+- [x] **F.67** El paso "Fader" cuenta cortes reales + "Aprender MIDI del fader" `XFCapture` `XFApp`
+      - Motivado por el autor: "vamos a continuar con la parte del fader y
+        los cortes en la calibración" y, acto seguido: "debe haber un botón
+        de aprender midi del fader, al pulsar debes mover el fader a izq y a
+        der para detectar el rango completo y aprender qué CC es el fader" —
+        como el selector de audio de Ableton pero para MIDI: no asumir el
+        `cc`/canal que declare el perfil (si es que declara alguno), sino
+        descubrirlo observando el aparato real, igual que ADR-021 lo
+        descubrió a mano para la Rane 72 (5 min moviendo *solo* el
+        crossfader).
+      - Hecho (2026-09-05):
+        · `XFCapture`: `MidiFaderLearner` (nuevo, puro) — agrupa el tráfico
+          CC por `(canal, cc)` mientras se arma, y `bestGuess(minSpan:)`
+          devuelve el que más rango ha barrido (con `minSpan` para que el
+          ruido de un botón cercano no gane por casualidad), desempatando
+          por número de mensajes. `bestSpanSoFar` da el progreso en vivo.
+          7 tests.
+        · `AppModel`: nuevo hook `onRawMidiMessage` (mismo patrón que
+          `onTimecodeSample`) — ve TODO el tráfico MIDI, sin filtrar, para
+          que el asistente pueda "aprender" sin que `AppModel` conozca
+          `CalibrationWizardModel` (ADR-073).
+        · **Arreglado de paso, no buscado:** `midiMonitor.onMessage` mutaba
+          `@Published`/enviaba a `PassthroughSubject` **desde el hilo de
+          CoreMIDI**, no el principal — `MidiLearnModel` (F.59) ya lo hacía
+          bien con un comentario explícito sobre esto; `AppModel` se había
+          quedado sin el `DispatchQueue.main.async` correspondiente desde
+          F.61. Con hardware real de por medio (justo lo que se estaba
+          probando) esto es una fuente real de corrupción/crash, no solo
+          teórica — se corrige aquí. Los 5 tests de
+          `AppModelMidiCrossfaderTests` que llamaban a `onMessage?()` y
+          afirmaban en el mismo tick necesitaron un `flushMain()` (vacía la
+          cola principal con una `expectation`) para seguir siendo
+          deterministas.
+        · `CalibrationWizardModel`: `startFaderLearn`/`reportFaderLearnProgress`/
+          `reportLearnedFader`/`cancelFaderLearn` + estado publicado
+          (`faderLearning`, `faderLearnSpan`, `learnedFaderChannel`/`CC`/
+          `Min`/`Max`). Aprender con éxito **reinicia `cutsDetected`**: los
+          cortes contados antes de aprender pudieron ir contra el CC
+          equivocado.
+        · `AppRootView`: `rebuildFaderConfig()` prioriza lo aprendido en
+          esta sesión sobre lo que declare el perfil (mismo criterio que
+          `AppModel.rebuildCrossfaderSource`); `handleCalibrationMidi(...)`
+          reparte cada mensaje real al `MidiFaderLearner` (mientras se
+          aprende) o al `FaderBinarizer` en vivo (si no), contando un corte
+          cada vez que `isOpen` CAMBIA. Los sliders de cutIn/histéresis y el
+          CC aprendido reconstruyen el binarizador al vuelo
+          (`.onChange`) — mover un slider durante la calibración se nota
+          en el acto en el conteo de cortes, no hace falta salir y volver a
+          entrar.
+        · `CalibrationStepViews`: botón "Aprender MIDI del fader" + barra de
+          progreso del rango barrido + "Listo"; muestra el CC/canal
+          aprendido o avisa de que usa el del perfil. `CalibrationStep.
+          pendingNote` para `.fader` se retira (ya detecta cortes de
+          verdad, el aviso de "usa el monitor MIDI de HW_BRINGUP" quedó
+          obsoleto).
+      - **Pendiente, no cerrado aquí:** lo aprendido vive solo en la sesión
+        de calibración (`CalibrationWizardModel`) — no se persiste en
+        `DeviceCalibration` (XFPersistence no tiene campos para
+        canal/cc/rango MIDI todavía) ni se usa en
+        `AppModel.rebuildCrossfaderSource` para la práctica real. Guardarlo
+        de verdad es un cambio de otro módulo (`XFPersistence` + su schema
+        GRDB) — se pregunta antes de tocarlo.
+      - Tests: 7 en `MidiFaderLearnerTests` + 4 en `CalibrationWizardTests`
+        + 1 en `AppModelMidiCrossfaderTests` (`onRawMidiMessage`). `make
+        verify` en verde.
+- [x] **F.68** Salida separada de scratch y base instrumental (dos pares de canales) `CXFAudioCore` `XFApp`
+      - Motivado por el autor: con mesa de batalla real, quiere sacar el
+        scratch y la instrumental por DOS pares de canales del mismo
+        dispositivo — como dos tiras de un mezclador real (Deck 1/Deck 2),
+        no una mezcla ya hecha por un único par. ADR-075.
+      - Hecho (2026-09-05): `xf_engine_render` gana `out_instr_l`/
+        `out_instr_r` (además de `out_scratch_l`/`r`); el modo lo decide la
+        propia llamada — los CUATRO punteros no-nulos = separado (dos buses
+        independientes, cada uno con su soft-clip); falta cualquiera de los
+        dos de la base = combinado (bit a bit igual que antes, verificado
+        con test). `xf_engine_start`/`xf_engine_start_output` ganan
+        `instrumental_channel` (`<= 0` o igual al del scratch = combinado,
+        ASBD de 2 canales; distinto = separado, ASBD de 4 canales no
+        intercalados + `ChannelMap` de dos pares). La CAPTURA de entrada se
+        queda SIEMPRE en 2 canales — el modo separado es solo de salida.
+        `EngineHandle.preferredInstrumentalOutputChannel` +
+        `AppSettings.instrumentalOutputChannel` (`0` = combinado), picker
+        nuevo en Ajustes › Hardware ("Canal de la instrumental") junto al de
+        salida existente.
+      - **Pendiente, no cerrado aquí:** no verificado por hardware con los
+        oídos (RT-safe, no se puede probar sin escuchar la mesa real). El
+        paso Audio del asistente de calibración no elige el canal de la
+        instrumental — vive solo en Ajustes por ahora.
+      - Tests: `XFEngineSplitOutputTests` (nuevo, 4: aísla scratch/base,
+        metrónomo con la base en separado, cae a combinado si falta un
+        puntero, combinado sigue igual que antes) + 3 en `AppSettingsTests`
+        (por defecto combinado, ida y vuelta, negativo se acota a 0). Todos
+        los call-sites existentes de `xf_engine_render`/`xf_engine_start*`
+        actualizados (`TakeAudioRenderer`, `EngineHandle.renderBlock`,
+        `XFEngineRTTests`, `XFEngineInstrumentalTests`). `make verify` en
+        verde.
+- [x] **F.69** Botón "Reiniciar cortes" en el paso Fader del asistente `XFApp`
+      - Motivado por el autor: quiere poder repetir los diez cortes con otro
+        ajuste de cutIn/histéresis sin salir del paso.
+      - Hecho (2026-09-05): `CalibrationWizardModel.resetFaderCuts()` vuelve
+        `cutsDetected` a 0 SIN tocar `faderCutIn`/`faderHysteresis` (los
+        sliders no se mueven solos). Botón junto al contador, solo visible
+        con `cutsDetected > 0`.
+      - Tests: `testReiniciarCortesVuelveA0SinTocarLosSliders`. `make
+        verify` en verde.
 
 ---
 

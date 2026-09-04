@@ -88,6 +88,10 @@ struct xf_engine {
     unsigned char wg_token[64];  /* os_workgroup_join_token_s (tamano de sobra) */
     _Atomic int  rt_promoted;    /* 0 hasta el primer callback */
     int          capture_input;  /* 1 = duplex; 0 = solo salida. Fijo antes de arrancar */
+    int          split_output;   /* 1 = scratch y base+metronomo por PARES de canales
+                                   * distintos (F.68); 0 = un unico par combinado.
+                                   * Fijo en xf_engine_start_impl, antes de arrancar
+                                   * la AudioUnit -- el hilo RT solo lo LEE. */
 };
 
 /* pow2 >= n */
@@ -372,13 +376,42 @@ static inline int16_t xf_f32_to_i16(float x) {
     return (int16_t)v;
 }
 
+/* Aplica soft-clip + ganancia de master a un bus y lo escribe DUPLICADO en
+ * `out_l`/`out_r`. Transparente hasta |s| = 0,7; por encima, rodilla suave con
+ * tanh (el recorte duro suena a crujido). Devuelve el pico ANTES de limitar
+ * (para el medidor de la UI) -- quien llama decide que hacer con el pico de
+ * cada bus (F.68: en modo separado se toma el mayor de los dos). */
+static float xf_engine_soft_clip_bus(const float *bus, float *out_l, float *out_r,
+                                     int nframes, float gain) {
+    float peak = 0.0f;
+    for (int n = 0; n < nframes; n++) {
+        float s = bus[n] * gain;
+        float a = s < 0.0f ? -s : s;
+        if (a > peak) peak = a;
+
+        const float knee = 0.7f;
+        if (a > knee) {
+            float over = (a - knee) / (1.0f - knee);   /* >0 */
+            float shaped = knee + (1.0f - knee) * tanhf(over);
+            s = s < 0.0f ? -shaped : shaped;
+        }
+        out_l[n] = s;
+        out_r[n] = s;
+    }
+    return peak;
+}
+
 void xf_engine_render(xf_engine *e,
                       const float *in_l, const float *in_r,
-                      float *out_l, float *out_r,
+                      float *out_scratch_l, float *out_scratch_r,
+                      float *out_instr_l, float *out_instr_r,
                       int nframes, uint64_t host_time) {
     (void)host_time;
-    if (!e || !out_l || !out_r || nframes <= 0) return;
+    if (!e || !out_scratch_l || !out_scratch_r || nframes <= 0) return;
     if ((uint32_t)nframes > e->max_frames) nframes = (int)e->max_frames;
+    /* modo separado (F.68) solo si el llamante trae los CUATRO punteros --
+     * si falta alguno, mejor combinado (silencioso) que escribir a medias. */
+    const int split = (out_instr_l != NULL && out_instr_r != NULL);
 
     const double bpm     = atomic_load(&e->bpm);
     const int    playing = atomic_load(&e->playing);
@@ -448,6 +481,11 @@ void xf_engine_render(xf_engine *e,
      * al reanudar sigue justo donde estaba. El reproductor de scratch NO se
      * toca: se puede seguir scratcheando sobre la imagen congelada. */
     xf_player *ip = atomic_load(&e->instrumental);
+    /* F.68 -- modo separado: la base+metronomo NO se mezclan con el scratch,
+     * viven en su propio bus (`e->mono2`) para salir por su propio par de
+     * canales. En modo combinado (de siempre) `e->mono2` sigue siendo solo un
+     * cuaderno de trabajo que se SUMA a `e->mono`, como toda la vida. */
+    if (split) memset(e->mono2, 0, (size_t)nframes * sizeof(float));
     if (ip && playing) {
         const double iratio = atomic_load(&e->instr_ratio);
         const float  igain  = (float)atomic_load(&e->instr_gain);
@@ -455,7 +493,11 @@ void xf_engine_render(xf_engine *e,
          * de gesto en gesto, asi que no le hace falta la rampa de F.46 (start
          * == end = velocidad constante para el bloque, como antes). */
         xf_player_render(ip, e->mono2, nframes, iratio, iratio);
-        for (int n = 0; n < nframes; n++) e->mono[n] += e->mono2[n] * igain;
+        if (split) {
+            for (int n = 0; n < nframes; n++) e->mono2[n] *= igain;
+        } else {
+            for (int n = 0; n < nframes; n++) e->mono[n] += e->mono2[n] * igain;
+        }
     }
 
     /* El metronomo va con el reloj del motor MAS el desfase de rejilla (◀/▶) MAS
@@ -463,33 +505,25 @@ void xf_engine_render(xf_engine *e,
      * compas DIBUJADA y sigue cayendo ahi aunque los dos relojes se separen a la
      * larga. Al cambiar el desfase, `dirty` -> re-fasear (marca el compas actual
      * como ya sonado) para no meter un clic de mas; la deriva NO re-fasea (se
-     * mueve muy poco a poco). */
+     * mueve muy poco a poco). Va SIEMPRE al bus de la base (`e->mono2` en modo
+     * separado, `e->mono` en combinado) -- suena aunque no haya base cargada. */
     {
         const double moff = atomic_load(&e->metro_offset) + atomic_load(&e->metro_drift);
         if (atomic_exchange(&e->metro_offset_dirty, 0)) {
             xf_metronome_resync(e->metronome, block_start_tick + moff);
         }
-        xf_metronome_render(e->metronome, e->mono, nframes, block_start_tick + moff, bpm);
+        xf_metronome_render(e->metronome, split ? e->mono2 : e->mono,
+                            nframes, block_start_tick + moff, bpm);
     }
 
-    /* Salida: soft-clip en vez de recorte duro (el recorte duro suena a
-     * crujido). Transparente hasta |s| = 0,7; por encima, rodilla suave con
-     * tanh. Ademas se guarda el pico ANTES de limitar, para el medidor de la UI
-     * (si supera 1,0, la mezcla estaba clipeando). */
-    float peak = 0.0f;
-    for (int n = 0; n < nframes; n++) {
-        float s = e->mono[n] * gain;
-        float a = s < 0.0f ? -s : s;
-        if (a > peak) peak = a;
-
-        const float knee = 0.7f;
-        if (a > knee) {
-            float over = (a - knee) / (1.0f - knee);   /* >0 */
-            float shaped = knee + (1.0f - knee) * tanhf(over);
-            s = s < 0.0f ? -shaped : shaped;
-        }
-        out_l[n] = s;
-        out_r[n] = s;
+    /* Salida: un soft-clip por bus (el recorte duro suena a crujido). En modo
+     * separado, dos buses independientes por sus propios canales -- como dos
+     * tiras de mezclador reales, no una mezcla previa. El pico de la UI es el
+     * mayor de los dos: sigue siendo un unico medidor, sin tocar la UI. */
+    float peak = xf_engine_soft_clip_bus(e->mono, out_scratch_l, out_scratch_r, nframes, gain);
+    if (split) {
+        float peak2 = xf_engine_soft_clip_bus(e->mono2, out_instr_l, out_instr_r, nframes, gain);
+        if (peak2 > peak) peak = peak2;
     }
     /* pico con decaimiento lento entre bloques, para que el medidor no parpadee */
     double prev = atomic_load(&e->out_peak);
@@ -546,11 +580,16 @@ static OSStatus xf_engine_render_cb(void *ref, AudioUnitRenderActionFlags *flags
         }
     }
 
-    /* 3) nucleo RT */
-    float *outL = (out->mNumberBuffers > 0) ? (float *)out->mBuffers[0].mData : NULL;
-    float *outR = (out->mNumberBuffers > 1) ? (float *)out->mBuffers[1].mData : outL;
-    if (outL && outR) {
-        xf_engine_render(e, inL, inR, outL, outR, (int)frames, mach_absolute_time());
+    /* 3) nucleo RT. En modo separado (F.68) la ABL trae 4 buffers no
+     * intercalados (scratch L/R, base+metronomo L/R); en modo combinado (de
+     * siempre) trae 2 y los dos punteros de la base van a NULL. */
+    float *outScratchL = (out->mNumberBuffers > 0) ? (float *)out->mBuffers[0].mData : NULL;
+    float *outScratchR = (out->mNumberBuffers > 1) ? (float *)out->mBuffers[1].mData : outScratchL;
+    float *outInstrL = (e->split_output && out->mNumberBuffers > 2) ? (float *)out->mBuffers[2].mData : NULL;
+    float *outInstrR = (e->split_output && out->mNumberBuffers > 3) ? (float *)out->mBuffers[3].mData : NULL;
+    if (outScratchL && outScratchR) {
+        xf_engine_render(e, inL, inR, outScratchL, outScratchR, outInstrL, outInstrR,
+                         (int)frames, mach_absolute_time());
     }
     return noErr;
 }
@@ -611,9 +650,13 @@ static AudioDeviceID xf_engine_device_by_uid(const char *uid) {
 }
 
 static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_input,
-                                 int input_channel, int output_channel) {
+                                 int input_channel, int output_channel, int instrumental_channel) {
     if (!e || e->au) return -1;
     e->capture_input = with_input ? 1 : 0;
+    /* F.68: modo separado solo si de verdad hay DOS pares distintos que
+     * pedir -- `<= 0` o el mismo par que el scratch es el modo combinado de
+     * siempre (un unico par de salida, comportamiento sin cambios). */
+    e->split_output = (instrumental_channel > 0 && instrumental_channel != output_channel) ? 1 : 0;
 
     AudioDeviceID dev = xf_engine_device_by_uid(device_uid);
     if (dev == kAudioObjectUnknown) return -1;
@@ -665,14 +708,17 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
     fmt.mFormatFlags      = kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked |
                             kAudioFormatFlagIsNonInterleaved;
     fmt.mBitsPerChannel   = 32;
-    fmt.mChannelsPerFrame = 2;
     fmt.mFramesPerPacket  = 1;
     fmt.mBytesPerFrame    = 4;
     fmt.mBytesPerPacket   = 4;
     if (with_input) {
+        /* la CAPTURA siempre va a 2 canales -- el modo separado (F.68) es
+         * cosa de la SALIDA, no toca el timecode ni el fader por retorno. */
+        fmt.mChannelsPerFrame = 2;
         AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
                              kAudioUnitScope_Output, 1, &fmt, sizeof(fmt));
     }
+    fmt.mChannelsPerFrame = e->split_output ? 4 : 2;
     AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
                          kAudioUnitScope_Input, 0, &fmt, sizeof(fmt));
 
@@ -697,12 +743,22 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
     }
     if (output_channel > 0) {
         UInt32 outCount = xf_engine_device_channel_count(dev, kAudioObjectPropertyScopeOutput);
-        if ((UInt32)output_channel + 1 <= outCount && outCount > 0) {
+        if (outCount > 0) {
             SInt32 *outMap = (SInt32 *)malloc(sizeof(SInt32) * outCount);
             if (outMap) {
                 for (UInt32 i = 0; i < outCount; i++) outMap[i] = -1;
-                outMap[output_channel - 1] = 0;   /* L de la app -> este canal del dispositivo */
-                if (output_channel < (int)outCount) outMap[output_channel] = 1;  /* R */
+                if ((UInt32)output_channel + 1 <= outCount) {
+                    outMap[output_channel - 1] = 0;   /* scratch L de la app -> este canal */
+                    if (output_channel < (int)outCount) outMap[output_channel] = 1;  /* scratch R */
+                }
+                /* F.68 -- segundo par para la base+metronomo, un canal de
+                 * app DISTINTO (2/3) al del scratch (0/1): dos tiras de
+                 * mezclador reales, no un mismo canal peleandose por dos
+                 * fuentes. */
+                if (e->split_output && (UInt32)instrumental_channel + 1 <= outCount) {
+                    outMap[instrumental_channel - 1] = 2;   /* base+metronomo L */
+                    if (instrumental_channel < (int)outCount) outMap[instrumental_channel] = 3;  /* R */
+                }
                 AudioUnitSetProperty(unit, kAudioOutputUnitProperty_ChannelMap,
                                      kAudioUnitScope_Output, 0, outMap, sizeof(SInt32) * outCount);
                 free(outMap);
@@ -753,12 +809,14 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
     return 0;
 }
 
-int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel) {
-    return xf_engine_start_impl(e, device_uid, 1, input_channel, output_channel);
+int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel,
+                    int instrumental_channel) {
+    return xf_engine_start_impl(e, device_uid, 1, input_channel, output_channel, instrumental_channel);
 }
 
-int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel) {
-    return xf_engine_start_impl(e, device_uid, 0, 0, output_channel);
+int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel,
+                           int instrumental_channel) {
+    return xf_engine_start_impl(e, device_uid, 0, 0, output_channel, instrumental_channel);
 }
 
 void xf_engine_stop(xf_engine *e) {

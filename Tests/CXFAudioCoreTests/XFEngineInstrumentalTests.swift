@@ -36,7 +36,7 @@ final class XFEngineInstrumentalTests: XCTestCase {
             var r = [Float](repeating: 0, count: 128)
             l.withUnsafeMutableBufferPointer { ol in
                 r.withUnsafeMutableBufferPointer { or in
-                    xf_engine_render(e, nil, nil, ol.baseAddress, or.baseAddress, 128, 0)
+                    xf_engine_render(e, nil, nil, ol.baseAddress, or.baseAddress, nil, nil, 128, 0)
                 }
             }
             acc += l

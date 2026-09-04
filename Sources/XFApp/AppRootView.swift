@@ -5,6 +5,7 @@ import Combine
 import XFDesign
 import XFRender
 import XFNotation
+import XFCapture
 
 /// La vista raiz de xFlare: barra de navegacion + la pantalla actual segun
 /// `AppModel.screen`. Sustituye a la maqueta inerte `HomeScaffoldView`.
@@ -30,6 +31,15 @@ public struct AppRootView: View {
     /// `stopTimecodeCapture()` (reinicia el motor) aunque nunca hubiéramos
     /// empezado a capturar — solo hace falta pararlo al SALIR de Calibración.
     @State private var capturingTimecode = false
+    /// Paso "Fader" del asistente (F.67): detecta qué CC/canal es el
+    /// crossfader observando el tráfico real mientras el usuario lo mueve de
+    /// tope a tope ("aprender"), y cuenta cortes en vivo con el cutIn/
+    /// histéresis que se estén ajustando ahí — ninguno de los dos depende de
+    /// hardware para EXISTIR (son puros, `XFCapture`), solo para recibir
+    /// datos reales.
+    @State private var faderLearner = MidiFaderLearner()
+    @State private var faderBinarizer: FaderBinarizer?
+    @State private var faderConfig: MidiCrossfaderConfig?
 
     public init(model: AppModel) {
         self.model = model
@@ -68,21 +78,20 @@ public struct AppRootView: View {
             // ej. al arrastrar un slider) — solo al ENTRAR en la pantalla.
             if s == .calibration {
                 calibrationDevices = AudioDeviceList.all()
-                // Paso 2 (Latencia, F.63): declarada por el driver, no medida
-                // por loopback — no hace falta cable. Suma el lado de salida
-                // y, si hay uno elegido, el de entrada; usa el dispositivo de
-                // Ajustes › Hardware o el de sistema por defecto si no hay
-                // ninguno elegido (mismo criterio que usaría el motor).
-                if let out = AudioDeviceList.resolvedOutput(uid: model.settings.outputDeviceUID,
-                                                            in: calibrationDevices),
-                   let outInfo = AudioDeviceLatency.outputInfo(for: out) {
-                    var totalMs = outInfo.totalMs
-                    if let inp = AudioDeviceList.resolvedInput(uid: model.settings.inputDeviceUID,
-                                                               in: calibrationDevices),
-                       let inInfo = AudioDeviceLatency.inputInfo(for: inp) {
-                        totalMs += inInfo.totalMs
-                    }
-                    calibrationModel.reportLatency(ms: totalMs)
+                // Precarga el paso 1 con lo que YA está resuelto (Ajustes ›
+                // Hardware, o el de sistema por defecto si no hay nada
+                // elegido) — si no, los desplegables se ven vacíos aunque el
+                // motor sí sepa qué dispositivo usar, y cualquier cambio real
+                // de canal exige partir de un dispositivo ya seleccionado.
+                if calibrationModel.outputDeviceName == nil,
+                   let out = AudioDeviceList.resolvedOutput(uid: model.settings.outputDeviceUID,
+                                                            in: calibrationDevices) {
+                    calibrationModel.outputDeviceName = out.name
+                }
+                if calibrationModel.inputDeviceName == nil,
+                   let inp = AudioDeviceList.resolvedInput(uid: model.settings.inputDeviceUID,
+                                                           in: calibrationDevices) {
+                    calibrationModel.inputDeviceName = inp.name
                 }
                 // el scope del paso 3 (Timecode) necesita el motor capturando
                 // entrada de verdad — para lo que sonara en otra pantalla y
@@ -96,15 +105,146 @@ public struct AppRootView: View {
                                                     forwards: sample.velocity >= 0,
                                                     suggestedHamster: calibrationModel.hamster)
                 }
-                model.startTimecodeCapture()
                 capturingTimecode = true
+                // Aplica la selección (precargada arriba, o la que ya
+                // hubiera de una visita anterior): fija canal por defecto,
+                // vuelca a Ajustes Y arranca la captura — un solo camino en
+                // vez de dos.
+                applyCalibrationSelection()
+                // Paso "Fader" (F.67): el crossfader real ya está sonando por
+                // `AppModel.midiMonitor` durante TODA la sesión (F.61) — solo
+                // hace falta escuchar el mismo grifo, no abrir nada nuevo.
+                rebuildFaderConfig()
+                model.onRawMidiMessage = { status, data1, data2 in
+                    handleCalibrationMidi(status: status, data1: data1, data2: data2)
+                }
             } else if capturingTimecode {
                 // SOLO al salir de Calibración habiendo capturado de verdad —
                 // si no, cualquier cambio de pantalla reiniciaría el motor.
                 model.onTimecodeSample = nil
                 model.stopTimecodeCapture()
                 capturingTimecode = false
+                model.onRawMidiMessage = nil
+            } else {
+                model.onRawMidiMessage = nil
             }
+        }
+        // Paso "Fader": si el usuario aprende un CC/canal nuevo, o mueve los
+        // sliders de cutIn/histéresis, el binarizador en vivo tiene que
+        // reflejarlo — si no, los cortes se seguirían contando contra el
+        // umbral viejo mientras la UI muestra el nuevo.
+        .onChange(of: calibrationModel.learnedFaderCC) { _ in rebuildFaderConfig() }
+        .onChange(of: calibrationModel.faderCutIn) { _ in rebuildFaderConfig() }
+        .onChange(of: calibrationModel.faderHysteresis) { _ in rebuildFaderConfig() }
+        // El paso 1 (Audio) del asistente elegía dispositivo/canal en una
+        // copia LOCAL (`calibrationModel`) que no llegaba a ningún sitio: el
+        // motor seguía leyendo `model.settings`, sin tocar. Resultado real
+        // con la Rane 72 conectada: "no puedo elegir la entrada estéreo del
+        // timecode" (el selector no hacía nada) y scope vacío (la captura
+        // seguía abierta con el canal viejo). Cualquier cambio del paso 1
+        // vuelve a aplicar la selección completa.
+        .onChange(of: calibrationModel.inputDeviceName) { _ in applyCalibrationSelection() }
+        .onChange(of: calibrationModel.outputDeviceName) { _ in applyCalibrationSelection() }
+        .onChange(of: calibrationModel.inputChannelFirst) { _ in applyCalibrationSelection() }
+        .onChange(of: calibrationModel.outputChannelFirst) { _ in applyCalibrationSelection() }
+    }
+
+    /// Traslada la selección de dispositivo/canal del paso 1 a `AppSettings`
+    /// — de donde de verdad lee el motor (`applyAudioDevicePreferences`) — y
+    /// relanza la captura de timecode si ya estaba activa (paso 2), para que
+    /// el scope refleje el canal nuevo sin tener que salir y volver a entrar
+    /// en Calibración.
+    private func applyCalibrationSelection() {
+        guard model.screen == .calibration else { return }
+        guard let outDevice = calibrationDevices.first(where: {
+            $0.name == calibrationModel.outputDeviceName && $0.outputChannels > 0
+        }) else { return }
+        let outPairs = AudioDeviceList.outputChannelPairs(for: outDevice)
+        let outFirst = AudioDeviceList.resolvedChannel(current: calibrationModel.outputChannelFirst, in: outPairs)
+        // Solo escribe/reinicia si algo CAMBIA de verdad: fijar el mismo par
+        // por defecto (nil -> primero) dispara este mismo método otra vez vía
+        // `.onChange`, y sin esta guarda el motor se pararía y arrancaría dos
+        // veces seguidas por cada entrada a la pantalla.
+        var changed = calibrationModel.outputChannelFirst != outFirst
+        calibrationModel.outputChannelFirst = outFirst
+        if model.settings.outputDeviceUID != outDevice.uid { model.settings.outputDeviceUID = outDevice.uid; changed = true }
+        if let outFirst, model.settings.outputChannel != outFirst { model.settings.outputChannel = outFirst; changed = true }
+
+        if let inDevice = calibrationDevices.first(where: {
+            $0.name == calibrationModel.inputDeviceName && $0.inputChannels > 0
+        }) {
+            let inPairs = AudioDeviceList.inputChannelPairs(for: inDevice)
+            let inFirst = AudioDeviceList.resolvedChannel(current: calibrationModel.inputChannelFirst, in: inPairs)
+            if calibrationModel.inputChannelFirst != inFirst { changed = true }
+            calibrationModel.inputChannelFirst = inFirst
+            if model.settings.inputDeviceUID != inDevice.uid { model.settings.inputDeviceUID = inDevice.uid; changed = true }
+            if let inFirst, model.settings.inputChannel != inFirst { model.settings.inputChannel = inFirst; changed = true }
+        }
+
+        guard changed, capturingTimecode else { return }
+        model.stopTimecodeCapture()
+        model.startTimecodeCapture()
+    }
+
+    // MARK: - paso "Fader" del asistente (F.67)
+
+    /// Qué `(canal, cc, rango)` usa el binarizador en vivo: lo aprendido en
+    /// esta sesión si lo hay, si no el que declare el perfil activo (si
+    /// declara `crossfader.method = midi`) — mismo criterio de prioridad que
+    /// `AppModel.rebuildCrossfaderSource` (lo GUARDADO/aprendido manda sobre
+    /// el `.conf`). Rearma también el binarizador con el cutIn/histéresis
+    /// actuales de los sliders.
+    private func rebuildFaderConfig() {
+        if let ch = calibrationModel.learnedFaderChannel, let cc = calibrationModel.learnedFaderCC,
+           let lo = calibrationModel.learnedFaderMin, let hi = calibrationModel.learnedFaderMax {
+            faderConfig = MidiCrossfaderConfig(channel: ch, cc: cc, rawMin: lo, rawMax: hi)
+        } else if let id = model.activeProfileId, let profile = model.profiles.profile(id: id) {
+            faderConfig = try? MidiCrossfaderConfig(from: profile)
+        } else {
+            faderConfig = nil
+        }
+        faderBinarizer = FaderBinarizer(cutIn: Float(min(1, max(0, calibrationModel.faderCutIn))),
+                                        hysteresis: Float(max(0, calibrationModel.faderHysteresis)))
+    }
+
+    /// Un mensaje MIDI real, mientras Calibración está en pantalla: durante
+    /// el aprendizaje alimenta al `MidiFaderLearner`; si no, binariza contra
+    /// `faderConfig`/`faderBinarizer` y cuenta un corte cada vez que
+    /// `isOpen` CAMBIA (mismo criterio que `MidiFaderSource.onChange`, F.61).
+    private func handleCalibrationMidi(status: UInt8, data1: UInt8, data2: UInt8) {
+        if calibrationModel.faderLearning {
+            faderLearner.ingest(status: status, data1: data1, data2: data2)
+            calibrationModel.reportFaderLearnProgress(span: faderLearner.bestSpanSoFar)
+            return
+        }
+        guard let config = faderConfig, status & 0xF0 == 0xB0 else { return }
+        let channel = Int(status & 0x0F) + 1
+        guard config.accepts(channel: channel), Int(data1) == config.cc,
+              let value = config.value(fromCC: Int(data2)) else { return }
+        let wasOpen = faderBinarizer?.isOpen ?? false
+        let isOpen = faderBinarizer?.update(rawValue: value) ?? wasOpen
+        guard isOpen != wasOpen else { return }
+        calibrationModel.reportFaderCut(cutIn: calibrationModel.faderCutIn,
+                                        hysteresis: calibrationModel.faderHysteresis)
+    }
+
+    /// Botón "Aprender MIDI del fader": arma la escucha y limpia lo que el
+    /// `MidiFaderLearner` hubiera visto de un intento anterior.
+    private func startFaderLearn() {
+        faderLearner.reset()
+        calibrationModel.startFaderLearn()
+    }
+
+    /// Botón "Listo" tras mover el fader de tope a tope: si el barrido es
+    /// fiable, lo aprende (y `rebuildFaderConfig` se dispara solo vía
+    /// `.onChange(of: calibrationModel.learnedFaderCC)`); si no, se cancela
+    /// sin pisar un aprendizaje anterior.
+    private func finishFaderLearn() {
+        if let g = faderLearner.bestGuess() {
+            calibrationModel.reportLearnedFader(channel: g.channel, cc: g.cc,
+                                                rawMin: g.rawMin, rawMax: g.rawMax)
+        } else {
+            calibrationModel.cancelFaderLearn()
         }
     }
 
@@ -261,9 +401,11 @@ public struct AppRootView: View {
             // entrar en la pantalla (`.onChange` más abajo), no aquí.
             CalibrationWizardView(
                 model: calibrationModel,
-                inputDevices: calibrationDevices.filter { $0.inputChannels > 0 }.map(\.name),
-                outputDevices: calibrationDevices.filter { $0.outputChannels > 0 }.map(\.name),
+                inputDevices: calibrationDevices.filter { $0.inputChannels > 0 },
+                outputDevices: calibrationDevices.filter { $0.outputChannels > 0 },
                 scopeReadings: { model.scopeReadings },
+                onStartFaderLearn: startFaderLearn,
+                onFinishFaderLearn: finishFaderLearn,
                 onFinish: { cal in
                     try? model.db.saveCalibration(cal)
                     model.goHome()
@@ -298,6 +440,10 @@ public struct AppRootView: View {
                     platterFriction: model.settings.platterFriction,
                     trackpadSensitivity: model.settings.trackpadSensitivity,
                     commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
+                    captureRealTimecode: !model.settings.inputDeviceUID.isEmpty,
+                    motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
+                    startRealCapture: { model.startTimecodeCapture() },
+                    stopRealCapture: { model.stopTimecodeCapture() },
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                     cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
@@ -357,6 +503,10 @@ public struct AppRootView: View {
                 platterFriction: model.settings.platterFriction,
                 trackpadSensitivity: model.settings.trackpadSensitivity,
                 commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
+                captureRealTimecode: !model.settings.inputDeviceUID.isEmpty,
+                motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
+                startRealCapture: { model.startTimecodeCapture() },
+                stopRealCapture: { model.stopTimecodeCapture() },
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)

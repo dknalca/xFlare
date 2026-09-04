@@ -71,6 +71,7 @@ public final class AppModel: ObservableObject {
         engine?.preferredOutputChannel = settings.outputChannel
         engine?.preferredInputDeviceUID = settings.inputDeviceUID.isEmpty ? nil : settings.inputDeviceUID
         engine?.preferredInputChannel = settings.inputChannel
+        engine?.preferredInstrumentalOutputChannel = settings.instrumentalOutputChannel
     }
 
     /// Caché de análisis de tempo de las instrumentales de la librería (fase 2).
@@ -104,6 +105,13 @@ public final class AppModel: ObservableObject {
     /// la abre — construirla aquí no toca CoreMIDI (para no abrirlo en los tests
     /// que crean `AppModel` a mano, que no llaman a `boot()`).
     public let midiMonitor = MidiMonitorConnector()
+    /// Cualquier mensaje MIDI real, sin filtrar — lo usa `AppRootView` para el
+    /// paso "Fader" del asistente (F.67): "aprender" qué CC/canal es el
+    /// crossfader observando el tráfico mientras el usuario lo mueve de tope a
+    /// tope, y contar cortes en vivo con el cutIn/histéresis que se estén
+    /// ajustando ahí. `AppModel` no conoce `CalibrationWizardModel` (ADR-073:
+    /// vive en la vista); esto es el mismo patrón que `onTimecodeSample`.
+    public var onRawMidiMessage: ((UInt8, UInt8, UInt8) -> Void)?
     /// Crossfader por MIDI del perfil activo (ADR-021), si `crossfader.method
     /// = midi`. `nil` si el perfil usa otro método o no se ha podido construir.
     /// Se reconstruye cada vez que cambia `activeProfileId`.
@@ -120,6 +128,12 @@ public final class AppModel: ObservableObject {
     /// es dueño de ese modelo (vive en la vista, ADR-073), así que no lo llama
     /// directo.
     public var onTimecodeSample: ((MotionSample) -> Void)?
+    /// F.65 — el mismo tráfico que `onTimecodeSample`, como publisher: lo
+    /// escucha `LivePracticeView` (Freestyle/práctica) para mover el plato
+    /// con el vinilo real. Un publisher (no un closure único como
+    /// `onTimecodeSample`) porque aquí SÍ puede haber más de un suscriptor
+    /// potencial sin que uno pise al otro.
+    public let motionSampleEvents = PassthroughSubject<MotionSample, Never>()
     private var timecodeSource: TimecodeMotionSource?
     private var timecodeTimer: Timer?
 
@@ -170,6 +184,7 @@ public final class AppModel: ObservableObject {
         // ~8s de rastro a 30 Hz; el scope solo dibuja el tramo reciente.
         if scopeReadings.count > 240 { scopeReadings.removeFirst(scopeReadings.count - 240) }
         onTimecodeSample?(sample)
+        motionSampleEvents.send(sample)
     }
 
     /// Para la captura y deja el motor en modo "solo salida" otra vez, listo
@@ -214,9 +229,15 @@ public final class AppModel: ObservableObject {
         // cada uno filtra lo que no es suyo. `midiMonitor.open()` no se llama
         // aquí (ver doc de `midiMonitor`); solo se deja el reparto listo.
         midiMonitor.onMessage = { [weak self] status, data1, data2 in
-            self?.midiCommands.ingest(status: status, data1: data1, data2: data2)
-            self?.crossfaderSource?.ingest(status: status, data1: data1, data2: data2,
-                                           hostTime: HostClock.now())
+            // CoreMIDI entrega en su propio hilo, no en el principal (mismo
+            // aviso que ya tenía `MidiLearnModel`); todo lo de aquí toca
+            // `@Published`/`@State` río abajo, así que salta al principal.
+            DispatchQueue.main.async {
+                self?.midiCommands.ingest(status: status, data1: data1, data2: data2)
+                self?.crossfaderSource?.ingest(status: status, data1: data1, data2: data2,
+                                               hostTime: HostClock.now())
+                self?.onRawMidiMessage?(status, data1, data2)
+            }
         }
         // `midiLearn.onLearn` lo cablea `SettingsView` mientras está en pantalla
         // (tiene que actualizar SU copia de los ajustes, no solo la de aquí).

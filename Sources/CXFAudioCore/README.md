@@ -150,22 +150,36 @@ double xf_engine_scratch_playhead(const xf_engine *);             /* RT-SAFE */
 double xf_engine_output_peak(const xf_engine *);                  /* pico ANTES de limitar, para el medidor */
 void xf_engine_load_instrumental(xf_engine *, const float *mono, int64_t frames, double native_bpm);
 void xf_engine_set_instrumental_gain(xf_engine *, float g);
-int  xf_engine_start_output(xf_engine *, const char *device_uid); /* solo salida, sin capturar entrada */
+/* input_channel/output_channel: PAR estereo 1-based dentro del dispositivo
+ * (F.60). instrumental_channel (F.68): <=0 o igual a output_channel = salida
+ * COMBINADA (de siempre, un unico par); distinto = SEPARADA (scratch y
+ * base+metronomo por dos pares de canales, dos tiras de mezclador reales). */
+int  xf_engine_start(xf_engine *, const char *device_uid,
+                     int input_channel, int output_channel, int instrumental_channel);
+int  xf_engine_start_output(xf_engine *, const char *device_uid,
+                            int output_channel, int instrumental_channel); /* solo salida, sin capturar entrada */
 xf_ring_t    *xf_engine_input_ring(xf_engine *);   /* Swift drena PCM int16 estereo */
 xf_metronome *xf_engine_metronome(xf_engine *);
 double        xf_engine_tick(const xf_engine *);   /* RT-SAFE */
+/* out_instr_l/r: NULL los dos = combinado (se suma dentro de out_scratch_l/r,
+ * bit a bit igual que antes de F.68); los cuatro punteros no-nulos = separado. */
 void xf_engine_render(xf_engine *, const float *inL, const float *inR,
-                      float *outL, float *outR, int n, uint64_t host_time); /* RT-SAFE */
+                      float *outScratchL, float *outScratchR,
+                      float *outInstrL, float *outInstrR,
+                      int n, uint64_t host_time); /* RT-SAFE */
 ```
 
 Cambiar el sample **sonando** es seguro: el puntero al reproductor es atomico y
 el anterior se retira sin `free` en el hilo RT. Mismo patron para la **base
 instrumental** (2º `xf_player` en bucle, tempo-lock por resample a
 `bpm/native_bpm`, ADR-039). La **salida**: soft-clip con rodilla `tanh` (el
-recorte duro cruje) y `output_peak` guarda el pico pre-limite para la UI.
+recorte duro cruje) por cada bus, y `output_peak` guarda el pico pre-limite
+(el mayor de los dos buses en modo separado) para la UI.
 `start_output` abre la AU **solo de salida** para practicar con la mesa
 desconectada; el buffer se puede recrear en caliente desde Swift
-(`EngineHandle.restartOutput`) sin reiniciar la app.
+(`EngineHandle.restartOutput`) sin reiniciar la app. La CAPTURA de entrada se
+queda siempre en 2 canales — el modo separado (F.68, ADR-075) es cosa de la
+salida.
 
 **Host CoreAudio (`xf_engine_start`/`xf_engine_stop`, compila; SIN tests):** abre
 la AudioUnit HAL sobre el dispositivo, fija 64 frames, instala el callback, y en
@@ -185,6 +199,11 @@ a `max_frames`, el reproductor suena, gain 0 silencia, el metronomo se mezcla, e
 reloj musical avanza solo sonando y publica el tick del inicio del bloque, seek,
 cambio de sample sonando. Los parametros de time-constraint: `computation <=
 period`, `constraint` entre medias, escala con el buffer.
+
+`XFEngineSplitOutputTests` (F.68): en modo separado el bus de scratch no lleva
+la base ni al reves (aislamiento de frecuencias), el metronomo sale por el bus
+de la base, falta cualquiera de los dos punteros de la base cae a combinado, y
+el modo combinado sigue siendo bit a bit el de siempre.
 
 ## Pendiente (necesita hardware / Instruments)
 

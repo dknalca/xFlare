@@ -518,6 +518,50 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.platterVelocity, 0, "y acaba parando del todo")
     }
 
+    // MARK: - F.65: vinilo de timecode real
+
+    /// `LivePracticeView.onAdvance` hace `engine.setVelocity(normalizedVelocity
+    /// * full/sr)`, y `sampleDurationSeconds` = `full/sr`. Si `pushRealVelocity`
+    /// deshace bien la conversión, `normalizedVelocity * sampleDurationSeconds`
+    /// tiene que devolver EXACTAMENTE el ratio real (1.0 = 33⅓ rpm nominal,
+    /// `MotionSample.velocity`) sin importar la duración del sample cargado.
+    func testPushRealVelocityLlegaIntactoTrasNormalizedVelocity() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.3)
+        XCTAssertEqual(s.normalizedVelocity * 2.3, 1.0, accuracy: 1e-9)
+    }
+
+    func testPushRealVelocityEscalaConElRatioYLaDuracionDelSample() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealVelocity(2.0, sampleDurationSeconds: 1.5)
+        XCTAssertEqual(s.normalizedVelocity * 1.5, 2.0, accuracy: 1e-9, "v=2 dobla el ritmo")
+        s.pushRealVelocity(-0.5, sampleDurationSeconds: 1.5)
+        XCTAssertEqual(s.normalizedVelocity * 1.5, -0.5, accuracy: 1e-9, "negativo = hacia atrás")
+    }
+
+    func testPushRealVelocityNoFrenaEntreMuestrasComoElScrub() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        let v = s.platterVelocity
+        for _ in 0..<5 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.platterVelocity, v, accuracy: 1e-9,
+                       "como el scrub, sujeta la velocidad mientras llegan muestras (< 80 ms)")
+    }
+
+    func testPushRealVelocitySeIgnoraSiLaMaquinaLlevaElDisco() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.setAssist(.fader)
+        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterVelocity, 0,
+                       "igual que scrub/nudge/scrollBy: se ignora si el disco no lo llevas tú")
+    }
+
+    func testPushRealVelocityConDuracionCeroNoRevienta() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealVelocity(1.0, sampleDurationSeconds: 0)
+        XCTAssertEqual(s.platterVelocity, 0)
+    }
+
     func testElScrubSeIgnoraSiLaMaquinaLlevaElDisco() throws {
         let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
         s.setAssist(.fader)                       // la máquina mueve el disco

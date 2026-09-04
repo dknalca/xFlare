@@ -17,7 +17,7 @@ final class XFEngineRTTests: XCTestCase {
         outL.withUnsafeMutableBufferPointer { ol in
             outR.withUnsafeMutableBufferPointer { or in
                 func go(_ il: UnsafePointer<Float>?, _ ir: UnsafePointer<Float>?) {
-                    xf_engine_render(e, il, ir, ol.baseAddress, or.baseAddress, Int32(n), host)
+                    xf_engine_render(e, il, ir, ol.baseAddress, or.baseAddress, nil, nil, Int32(n), host)
                 }
                 if let inL, let inR {
                     inL.withUnsafeBufferPointer { il in inR.withUnsafeBufferPointer { ir in

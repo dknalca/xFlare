@@ -255,32 +255,46 @@ public final class EngineHandle {
     public var preferredOutputChannel: Int?
     public var preferredInputDeviceUID: String?
     public var preferredInputChannel: Int?
+    /// F.68 — par de salida de la BASE INSTRUMENTAL (+ metrónomo), si es
+    /// DISTINTO del de `preferredOutputChannel` (el del scratch): dos tiras
+    /// de mezclador reales, como una mesa de batalla de verdad (Deck 1 =
+    /// scratch, Deck 2 = base). `nil`/`0`/igual al del scratch = el modo
+    /// combinado de siempre, un único par de salida.
+    public var preferredInstrumentalOutputChannel: Int?
 
     /// Arranca la AudioUnit sobre `deviceUID` (nil = el preferido de Ajustes,
     /// o el de sistema si tampoco hay). `inputChannel`/`outputChannel`
     /// (1-based, nil = el preferido) eligen el PAR estéreo dentro del
-    /// dispositivo — ver `AudioDeviceList.ChannelPair`. Devuelve `true` si
-    /// arrancó.
-    public func start(deviceUID: String? = nil, inputChannel: Int? = nil, outputChannel: Int? = nil) -> Bool {
+    /// dispositivo — ver `AudioDeviceList.ChannelPair`.
+    /// `instrumentalOutputChannel` (F.68, nil = el preferido): si es un par
+    /// DISTINTO de `outputChannel`, el motor arranca en modo separado (4
+    /// canales: scratch por su par, base+metrónomo por el suyo). Devuelve
+    /// `true` si arrancó.
+    public func start(deviceUID: String? = nil, inputChannel: Int? = nil, outputChannel: Int? = nil,
+                      instrumentalOutputChannel: Int? = nil) -> Bool {
         let uid = deviceUID ?? preferredInputDeviceUID
         let inCh = Int32(inputChannel ?? preferredInputChannel ?? 0)
         let outCh = Int32(outputChannel ?? preferredOutputChannel ?? 0)
+        let instrCh = Int32(instrumentalOutputChannel ?? preferredInstrumentalOutputChannel ?? 0)
         if let uid, !uid.isEmpty {
-            return uid.withCString { xf_engine_start(engine, $0, inCh, outCh) == 0 }
+            return uid.withCString { xf_engine_start(engine, $0, inCh, outCh, instrCh) == 0 }
         }
-        return xf_engine_start(engine, nil, inCh, outCh) == 0
+        return xf_engine_start(engine, nil, inCh, outCh, instrCh) == 0
     }
 
     /// Arranca **solo salida** (sin capturar la entrada): para practicar con la
     /// mesa desconectada. Suena el scratch + la base + el metronomo.
-    /// `deviceUID`/`outputChannel`: ver `start(deviceUID:inputChannel:outputChannel:)`.
-    public func startOutput(deviceUID: String? = nil, outputChannel: Int? = nil) -> Bool {
+    /// `deviceUID`/`outputChannel`/`instrumentalOutputChannel`: ver
+    /// `start(deviceUID:inputChannel:outputChannel:instrumentalOutputChannel:)`.
+    public func startOutput(deviceUID: String? = nil, outputChannel: Int? = nil,
+                            instrumentalOutputChannel: Int? = nil) -> Bool {
         let uid = deviceUID ?? preferredOutputDeviceUID
         let ch = Int32(outputChannel ?? preferredOutputChannel ?? 0)
+        let instrCh = Int32(instrumentalOutputChannel ?? preferredInstrumentalOutputChannel ?? 0)
         if let uid, !uid.isEmpty {
-            return uid.withCString { xf_engine_start_output(engine, $0, ch) == 0 }
+            return uid.withCString { xf_engine_start_output(engine, $0, ch, instrCh) == 0 }
         }
-        return xf_engine_start_output(engine, nil, ch) == 0
+        return xf_engine_start_output(engine, nil, ch, instrCh) == 0
     }
 
     public func stop() { xf_engine_stop(engine) }
@@ -325,7 +339,11 @@ public final class EngineHandle {
         outL.withUnsafeMutableBufferPointer { ol in
             outR.withUnsafeMutableBufferPointer { or in
                 func go(_ il: UnsafePointer<Float>?, _ ir: UnsafePointer<Float>?) {
-                    xf_engine_render(engine, il, ir, ol.baseAddress, or.baseAddress,
+                    // Modo combinado siempre aquí (dos NULL de más): este
+                    // camino es para tests/render offline, no el que toma
+                    // la AudioUnit en vivo (`xf_engine_render_cb`), que sí
+                    // consulta `e->split_output` (F.68).
+                    xf_engine_render(engine, il, ir, ol.baseAddress, or.baseAddress, nil, nil,
                                      Int32(count), hostTime)
                 }
                 if let inL, let inR {

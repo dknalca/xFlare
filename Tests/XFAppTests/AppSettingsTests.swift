@@ -106,4 +106,23 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(AppSettings(raw: ["hamster": "1"]).hamster)
         XCTAssertFalse(AppSettings(raw: ["hamster": "0"]).hamster)
     }
+
+    // MARK: - F.68: canal de salida separado para la instrumental
+
+    func testInstrumentalOutputChannelPorDefectoEsCombinado() {
+        XCTAssertEqual(AppSettings.defaults.instrumentalOutputChannel, 0)
+    }
+
+    func testInstrumentalOutputChannelIdaYVuelta() {
+        var s = AppSettings.defaults
+        s.instrumentalOutputChannel = 3
+        XCTAssertEqual(AppSettings(raw: s.raw).instrumentalOutputChannel, 3)
+    }
+
+    func testInstrumentalOutputChannelNegativoSeAcotaACero() {
+        // el recorte vive en el init (como `outputChannel`/`inputChannel`), no
+        // en un `didSet` -- se prueba pasando por `raw:`, que sí pasa por él.
+        let s = AppSettings(raw: ["audio.instrumentalOutputChannel": "-5"])
+        XCTAssertEqual(s.instrumentalOutputChannel, 0)
+    }
 }

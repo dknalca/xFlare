@@ -69,6 +69,16 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
     /// CC8/canal16: byte de status 0xBF (Control Change, canal 16 = nibble 0xF).
     private func ccByte(_ value: UInt8) -> (UInt8, UInt8, UInt8) { (0xBF, 8, value) }
 
+    /// `AppModel.midiMonitor.onMessage` salta a `DispatchQueue.main.async`
+    /// (CoreMIDI entrega en su propio hilo, no en el principal) — como el
+    /// test ya corre en el principal, hay que dejar que la cola lo procese
+    /// antes de mirar lo que se ha recogido.
+    private func flushMain() {
+        let exp = expectation(description: "cola principal vaciada")
+        DispatchQueue.main.async { exp.fulfill() }
+        wait(for: [exp], timeout: 1)
+    }
+
     func testElCrossfaderPorMidiAbreYCierraElFaderDeLaPractica() throws {
         let m = try model()
         m.activeProfileId = "test-midi-mesa"
@@ -81,6 +91,7 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
         m.midiMonitor.onMessage?(openSt, openD1, openD2)
         let (closeSt, closeD1, closeD2) = ccByte(10)    // ~0.08 -> cerrado
         m.midiMonitor.onMessage?(closeSt, closeD1, closeD2)
+        flushMain()
 
         XCTAssertEqual(got, [.faderClosed(false), .faderClosed(true)])
     }
@@ -97,6 +108,7 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
             let (s, d1, d2) = ccByte(v)
             m.midiMonitor.onMessage?(s, d1, d2)
         }
+        flushMain()
 
         XCTAssertEqual(got, [.faderClosed(false)], "solo el primer mensaje cruza el umbral")
     }
@@ -111,6 +123,7 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
 
         let (s, d1, d2) = ccByte(120)
         m.midiMonitor.onMessage?(s, d1, d2)
+        flushMain()
 
         XCTAssertTrue(got.isEmpty, "sin method = midi no hay crossfaderSource que dispare nada")
     }
@@ -127,6 +140,7 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
 
         let (s, d1, d2) = ccByte(120)
         m.midiMonitor.onMessage?(s, d1, d2)
+        flushMain()
 
         XCTAssertTrue(got.isEmpty, "el crossfaderSource del perfil viejo ya no debe escuchar")
     }
@@ -144,7 +158,33 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
         m.midiMonitor.onMessage?(0x90, 36, 100)          // Note On 36 canal 1 -> cue
         let (s, d1, d2) = ccByte(120)
         m.midiMonitor.onMessage?(s, d1, d2)               // crossfader abre
+        flushMain()
 
         XCTAssertEqual(got, [.trigger(.cue), .faderClosed(false)])
+    }
+
+    /// F.67: `onRawMidiMessage` es el mismo grifo que usa el paso "Fader" del
+    /// asistente para aprender el CC/canal del crossfader — tiene que ver
+    /// TODO el tráfico (no solo lo que ya reconoce `midiCommands`/
+    /// `crossfaderSource`), y en el hilo principal como el resto.
+    func testOnRawMidiMessageVeTodoElTraficoEnElHiloPrincipal() throws {
+        let m = try model()
+        m.activeProfileId = "test-midi-mesa"
+
+        var got: [(UInt8, UInt8, UInt8)] = []
+        m.onRawMidiMessage = { s, d1, d2 in
+            XCTAssertTrue(Thread.isMainThread)
+            got.append((s, d1, d2))
+        }
+
+        m.midiMonitor.onMessage?(0x90, 36, 100)
+        let (s, d1, d2) = ccByte(120)
+        m.midiMonitor.onMessage?(s, d1, d2)
+        flushMain()
+
+        XCTAssertEqual(got.count, 2, "ve el comando discreto Y el crossfader, sin filtrar nada")
+        XCTAssertEqual(got[1].0, s)
+        XCTAssertEqual(got[1].1, d1)
+        XCTAssertEqual(got[1].2, d2)
     }
 }

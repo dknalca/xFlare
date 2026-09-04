@@ -97,16 +97,16 @@
           "title": "Medir round-trip real por loopback en TU hardware",
           "module": "CXFAudioCore",
           "acceptance": "numero medido y anotado en docs/TIMECODE.md",
-          "status": "wip",
-          "note": "herramienta escrita: tools/measure_latency.py + tools/requirements.txt (numpy, sounddevice). Chirp corto por la salida + grabacion simultanea de la entrada (sd.playrec), desfase por correlacion cruzada FFT (solo numpy), N repeticiones, imprime min/mediana/media/max + jitter + veredicto vs puerta de 10 ms + linea para docs/TIMECODE.md 4.2. Sintaxis verificada. Falta correrlo: necesita el venv de tools/ y un loopback fisico. (2026-09-04) Parcial: la Rane 72 no tiene Master Out por USB; sus salidas son inyecciones digitales a las tiras de mezcla. Tres rutas internas independientes (Deck1->Mix, Deck2->Mix, Deck2->Deck2) convergen en 23.3-23.5 ms con jitter casi nulo (0.00-0.06 ms) -- consistente, pero mide ida-y-vuelta por dos tramos USB, no el tramo unico que oye el usuario. FUERA de la puerta de 10 ms tal como esta medido. Falta comparar con cable fisico antes de dar el numero por bueno -- pausado, se retoma con hardware delante. measure_latency.py gano --out-ch/--in-ch (antes cogia el canal 1 a ciegas). Detalle en docs/TIMECODE.md 4.2."
+          "status": "done",
+          "note": "Resuelto (2026-09-04, ADR-074): la Rane 72 no tiene Master Out USB; el retorno interno daba 23.3-23.5 ms pero mide dos tramos USB (ida+vuelta), no el camino real (una pierna de entrada + una de salida independiente, sin cable en ningun punto, como Serato). Se adopta la suma de latencias declaradas por CoreAudio: in 10,00 + out 4,35 = 14,35 ms a 64 frames en el MacBook 2015. Detalle en docs/TIMECODE.md 4.2."
         },
         {
           "id": "B1.3",
           "title": "Decision documentada",
           "module": "-",
           "acceptance": "si ≤10 ms: seguir. Si no: ADR con el plan B (buffer mayor, otra interfaz, o revisar el objetivo) ANTES de escribir nada mas",
-          "status": "todo",
-          "note": "bloqueada por los numeros de B1.2. measure_latency.py ya imprime el veredicto DENTRO/FUERA de la puerta; al tener el dato solo hay que trasladarlo aqui (y abrir ADR si sale fuera)."
+          "status": "done",
+          "note": "Hecho (2026-09-04, ADR-074): con 14,35 ms declarados (in+out) en el MacBook 2015 a 64 frames, dentro de la puerta de <=15 ms del Intel 2015 (ADR-024). Decision: seguir, sin plan B. Falta repetir en la maquina de referencia (B1.5) cuando haya una segunda Mac."
         },
         {
           "id": "B1.4",
@@ -120,9 +120,9 @@
           "id": "B1.5",
           "title": "Medir la latencia en LAS DOS maquinas y rellenar la tabla",
           "module": "CXFAudioCore",
-          "status": "todo",
+          "status": "wip",
           "acceptance": "PLATFORM_SUPPORT.md seccion 7 con numeros reales, no estimaciones",
-          "note": "misma herramienta que B1.2 (tools/measure_latency.py). Bloqueada por hardware: correrla en el MacBook Pro 2015 y en la maquina de referencia. Tabla vacia ya lista en PLATFORM_SUPPORT.md 7 y docs/TIMECODE.md 4.2."
+          "note": "Metodo (ADR-074): suma de latencias declaradas por CoreAudio, no measure_latency.py. MacBook Pro 2015 hecho: 14,35 ms a 64 frames (PLATFORM_SUPPORT.md 7). Falta la fila a 128 frames y la maquina de referencia (bloqueada, no hay segunda Mac todavia)."
         },
         {
           "id": "B1.6",
@@ -1489,6 +1489,54 @@
           "acceptance": "el paso 2 muestra un numero de latencia sin pedir cable ni boton Medir",
           "status": "done",
           "note": "Hecho (2026-09-04). Motivado por el autor: 'no le veo sentido, igual hay que eliminarlo'. El diseno original (round-trip por cable) no tenia forma clara de aplicarse en muchas mesas de batalla (Rane 72 incluida) y ademas B1.2 dejo documentado que un loopback mide dos tramos USB, no el tramo unico que el usuario realmente oye. Se ofrecieron 3 opciones (quitar, opcional, o sustituir por declarada) -- el autor eligio sustituir, reusando F.48 (AudioDeviceLatency). CalibrationWizardModel: measuredLatencyMs/reportLatency(roundTripMs:) -> latencyMs/reportLatency(ms:). AudioDeviceList.resolvedOutput/resolvedInput (dispositivo de Ajustes o el de sistema por defecto). AudioDeviceLatency.outputInfo/inputInfo. AppRootView resuelve y llama a reportLatency(ms:) automatico al entrar en Calibracion, sin boton. LatencyCalibrationStep pierde el boton 'Medir' y el aviso de cable. 5 tests nuevos + 1 renombrado. tools/measure_latency.py no se toca, sigue como herramienta de HW_BRINGUP.md."
+        },
+        {
+          "id": "F.64",
+          "title": "El paso 1 (Audio) del asistente elegia dispositivo en una copia que no iba a ningun sitio",
+          "module": "XFApp",
+          "acceptance": "elegir dispositivo/canal en el paso 1 llega de verdad a AppSettings, la latencia se recalcula y el scope arranca con el canal elegido",
+          "status": "done",
+          "note": "Hecho (2026-09-04). Motivado por el autor con la Rane 72 real conectada: 'se queda atascado en latencia. No puedo seleccionar que entrada estereo tengo el timecode. No veo el Scope View.' Misma causa las tres: AudioCalibrationStep (paso 1) ligaba sus Pickers a CalibrationWizardModel.inputDeviceName/outputDeviceName, una copia LOCAL que nunca llegaba a AppSettings; el motor y el calculo de latencia declarada (F.63) seguian leyendo model.settings, calculado UNA vez al entrar en la pantalla sin recalcularse. Si el dispositivo por defecto del sistema no era la Rane 72, latencyMs se quedaba nil para siempre y el asistente nunca llegaba al paso 3 (scope vacio). Tampoco habia forma de elegir el PAR estereo del timecode dentro de un dispositivo multicanal (14 entradas en la Rane 72, B5.5). CalibrationWizardModel gana inputChannelFirst/ outputChannelFirst; AudioDeviceList.resolvedChannel(current:in:) nuevo (logica pura, testeable); AudioCalibrationStep recibe [AudioDeviceList.Device] y anade el selector de par estereo; AppRootView.applyCalibrationSelection() vuelca cualquier cambio del paso 1 a model.settings, recalcula la latencia y reinicia la captura de timecode si el scope ya estaba activo, con guarda contra reescrituras/reinicios redundantes. 4 tests nuevos (resolvedChannel); los 10 de CalibrationWizardTests siguen verdes. Pendiente, fuera de esta tarea: freestyle no lee timecode real todavia (LivePracticeView usa PracticeSession con raton/trackpad, hueco de B4.2, no un bug de esta pantalla -- se pregunto al autor antes de tocar eso)."
+        },
+        {
+          "id": "F.65",
+          "title": "Vinilo real driving Freestyle/practica (velocidad, no scoring todavia)",
+          "module": "XFApp",
+          "acceptance": "PracticeSession se puede mover con MotionSample.velocity real sin romper el modelo de raton/trackpad; cablear a LivePracticeView queda pendiente de resolver la carrera del motor",
+          "status": "done",
+          "note": "Cerrado (2026-09-05). AppModel.motionSampleEvents (PassthroughSubject<MotionSample, Never>, nuevo) -- mismo trafico que onTimecodeSample pero como publisher: pollTimecode() envia a los dos. LivePracticeView gana captureRealTimecode/motionSamples/startRealCapture/stopRealCapture; se suscribe con .onReceive(motionSamples) -> receiveRealMotion(_:) (confianza >= 0.6, mismo umbral que el paso Timecode del asistente). AppRootView pasa captureRealTimecode: !model.settings.inputDeviceUID.isEmpty (decision del autor: solo duplex con entrada configurada) y cablea startRealCapture/stopRealCapture a model.startTimecodeCapture()/stopTimecodeCapture(), en .practice y .freeMode. Carrera resuelta: loadInstrumental(initial: true) ya no llama a engine.startOutput() sin condicion -- si captureRealTimecode, llama a startRealCapture() en su lugar. stop()/.onDisappear para la captura SOLO si se pudo haber arrancado. Tests: PracticeSessionTests (turno anterior) + 1 nuevo en AppModelTimecodeCaptureTests (motionSampleEvents no dispara sin motor). El comportamiento con motor real sigue sin test -- necesita hardware delante. make verify en verde."
+        },
+        {
+          "id": "F.66",
+          "title": "Quitar el paso de latencia del asistente de calibracion (peticion directa)",
+          "module": "XFApp",
+          "acceptance": "el asistente tiene 3 pasos (audio/timecode/fader), sin paso de latencia",
+          "status": "done",
+          "note": "Hecho (2026-09-05). El autor pidio directamente quitar el paso 'Prueba de latencia' del asistente: 'no le veo sentido' -- no daba pie a ninguna accion dentro del propio flujo (a diferencia de Timecode/Fader, que terminan en un ajuste guardado). CalibrationStep pasa de 4 a 3 casos (audio/timecode/fader, sin .latency). CalibrationWizardModel pierde latencyMs/reportLatency/latencyVerdict; result() ya no pasa latencyMs a DeviceCalibration (queda nil; el campo sigue en XFPersistence para calibraciones antiguas, no se toca ese modulo). LatencyCalibrationStep (vista) y LatencyVerdict (tipo, sin mas usos) se borran. AppRootView pierde refreshDeclaredLatency() y la llamada a AudioDeviceLatency en la seleccion del paso 1; AudioDeviceLatency (F.48) se queda intacta para otros usos (F.50, compensar al puntuar). CalibrationWizardTests reescrito sin los casos de latencia (8 tests, antes 10). make verify en verde."
+        },
+        {
+          "id": "F.67",
+          "title": "El paso Fader cuenta cortes reales + Aprender MIDI del fader",
+          "module": "XFCapture + XFApp",
+          "acceptance": "el paso Fader detecta cortes reales del crossfader MIDI y un boton aprende su CC/canal/rango moviendo el fader de tope a tope",
+          "status": "done",
+          "note": "Hecho (2026-09-05). Motivado por el autor: 'vamos a continuar con la parte del fader y los cortes en la calibracion' y despues: 'debe haber un boton de aprender midi del fader, al pulsar debes mover el fader a izq y a der para detectar el rango completo y aprender que CC es el fader' -- como el selector de audio de Ableton pero para MIDI. XFCapture: MidiFaderLearner (nuevo, puro) agrupa el trafico CC por (canal, cc) mientras se arma y bestGuess(minSpan:) devuelve el que mas rango ha barrido, desempatando por numero de mensajes; bestSpanSoFar da el progreso en vivo. AppModel gana onRawMidiMessage (mismo patron que onTimecodeSample). Arreglado de paso: midiMonitor.onMessage mutaba @Published/enviaba a un PassthroughSubject desde el hilo de CoreMIDI, no el principal -- MidiLearnModel (F.59) ya lo hacia bien; AppModel se habia quedado sin el DispatchQueue.main.async desde F.61. Se corrige con DispatchQueue.main.async en el reparto; los 5 tests de AppModelMidiCrossfaderTests que afirmaban en el mismo tick necesitaron un flushMain() (expectation) para seguir deterministas. CalibrationWizardModel gana startFaderLearn/reportFaderLearnProgress/reportLearnedFader/cancelFaderLearn + estado publicado; aprender con exito reinicia cutsDetected (los cortes de antes pudieron ir contra el CC equivocado). AppRootView.rebuildFaderConfig() prioriza lo aprendido en la sesion sobre el perfil (mismo criterio que AppModel.rebuildCrossfaderSource); handleCalibrationMidi reparte cada mensaje al MidiFaderLearner o al FaderBinarizer en vivo, contando un corte cuando isOpen cambia; sliders y CC aprendido reconstruyen el binarizador al vuelo. CalibrationStepViews: boton 'Aprender MIDI del fader' + barra de progreso + 'Listo'. CalibrationStep.pendingNote de .fader se retira (ya detecta cortes de verdad). Pendiente, no cerrado aqui: lo aprendido vive solo en la sesion (CalibrationWizardModel), no se persiste en DeviceCalibration (XFPersistence no tiene campos de canal/cc/rango MIDI todavia) ni se usa en rebuildCrossfaderSource para la practica real -- es un cambio de otro modulo, se pregunta antes de tocarlo. 7 tests en MidiFaderLearnerTests + 4 en CalibrationWizardTests + 1 en AppModelMidiCrossfaderTests. make verify en verde."
+        },
+        {
+          "id": "F.68",
+          "title": "Salida separada de scratch y base instrumental (dos pares de canales)",
+          "module": "CXFAudioCore + XFApp",
+          "acceptance": "el motor puede sacar el scratch y la instrumental por dos pares de canales distintos del mismo dispositivo, configurable en Ajustes",
+          "status": "done",
+          "note": "Hecho (2026-09-05, ADR-075). Motivado por el autor: con mesa de batalla real, quiere sacar el scratch y la instrumental por DOS pares de canales del mismo dispositivo -- como dos tiras de un mezclador real (Deck 1/Deck 2), no una mezcla ya hecha por un unico par. xf_engine_render gana out_instr_l/out_instr_r (ademas de out_scratch_l/r); el modo lo decide la propia llamada -- los CUATRO punteros no-nulos = separado (dos buses independientes, cada uno con su soft-clip); falta cualquiera de los dos de la base = combinado (bit a bit igual que antes, verificado con test). xf_engine_start/xf_engine_start_output ganan instrumental_channel (<=0 o igual al del scratch = combinado, ASBD de 2 canales; distinto = separado, ASBD de 4 canales no intercalados + ChannelMap de dos pares). La CAPTURA de entrada se queda SIEMPRE en 2 canales -- el modo separado es solo de salida. EngineHandle.preferredInstrumentalOutputChannel + AppSettings.instrumentalOutputChannel (0 = combinado), picker nuevo en Ajustes - Hardware. Pendiente, no cerrado aqui: no verificado por hardware con los oidos; el paso Audio del asistente de calibracion no elige el canal de la instrumental, vive solo en Ajustes por ahora. Tests: XFEngineSplitOutputTests (nuevo, 4) + 3 en AppSettingsTests. Todos los call-sites existentes de xf_engine_render/xf_engine_start* actualizados. make verify en verde."
+        },
+        {
+          "id": "F.69",
+          "title": "Boton Reiniciar cortes en el paso Fader del asistente",
+          "module": "XFApp",
+          "acceptance": "se puede volver a 0 el contador de cortes sin perder el ajuste de cutIn/histeresis",
+          "status": "done",
+          "note": "Hecho (2026-09-05). Motivado por el autor: quiere poder repetir los diez cortes con otro ajuste de cutIn/histeresis sin salir del paso. CalibrationWizardModel.resetFaderCuts() vuelve cutsDetected a 0 SIN tocar faderCutIn/faderHysteresis. Boton junto al contador, solo visible con cutsDetected > 0. Test: testReiniciarCortesVuelveA0SinTocarLosSliders. make verify en verde."
         }
       ]
     }

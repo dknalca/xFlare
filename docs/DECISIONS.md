@@ -3046,6 +3046,106 @@ duplicar/crear/importar perfil) que la que hay implementada; queda pendiente
 decidir cuánto construir de eso ahora. Tests: `AudioDeviceListTests` +3 →
 707 en verde.
 
+## ADR-074 — La latencia de B1.2/B1.5 se toma como suma de latencias declaradas por CoreAudio, no por loopback
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** B1.2 medía el round-trip con `tools/measure_latency.py` mandando
+un chirp por la salida y grabándolo por la entrada. Con la Rane 72 no hay un
+"Master Out" USB para hacer un loopback normal, así que se probó por el
+retorno USB interno de la mesa (Deck 1/2 → Mix), dando **23.3-23.5 ms**
+consistentes — pero ese camino es **ida (USB out) + vuelta (USB in) por la
+mesa**, dos tramos USB, y no corresponde al camino real de xFlare: el usuario
+que pregunta "¿seguimos con el cable físico?" contesta que **no habrá cable en
+ningún punto del flujo real** — todo el audio (timecode de entrada Y sample
+scratcheado de salida) viaja por USB, igual que en un setup de Serato/Traktor.
+El camino real de xFlare no es un bucle: es **una pierna de entrada** (vinilo
+→ mesa → USB in → app) y **una pierna de salida independiente** (app → USB out
+→ mesa → altavoz), que nunca vuelve a entrar al ordenador. Medir con un
+loopback (cable o retorno interno) cuenta ambos tramos **y además** el
+recorrido interno de la mesa entre ellos, sobreestimando. La propia corrida ya
+había impreso las latencias declaradas por separado: **in = 10,00 ms / out =
+4,35 ms** (CoreAudio, mismo mecanismo que usa `AudioDeviceLatency` desde F.48 y
+que ya se adoptó para la UI de calibración en F.63 — "declarada, no medida por
+cable" — por el mismo motivo: sin loopback fiable, la mejor fuente de verdad
+es lo que el driver declara).
+
+**Decisión.** El número de B1.2/B1.5/B4.5 (y de `PLATFORM_SUPPORT.md` §7) es
+la **suma de las latencias declaradas por CoreAudio de entrada y salida**
+(`AudioDeviceLatency.outputInfo`/`inputInfo`, F.63), no un round-trip medido
+por loopback. Se abandona el punto pendiente de "repetir con cable físico" de
+`docs/TIMECODE.md` §4.2 — no hay cable en el flujo real, así que no tiene
+sentido medir con uno. `tools/measure_latency.py` sigue vivo como herramienta
+de desarrollo (sirve para detectar regresiones de buffer/dispositivo, no como
+la puerta oficial).
+
+**Alternativas descartadas.** Mantener el round-trip de 23.3-23.5 ms como el
+número oficial — sobreestima al contar dos tramos USB más el proceso interno
+de la mesa; con ese número el proyecto queda FUERA de cualquier puerta sin que
+represente el camino real. Medir con micrófono el trayecto altavoz→oído para
+aislar la pierna de salida — instrumentación que no aporta más que confiar en
+lo que ya declara el driver, y añade una variable más (posición del micro).
+
+**Consecuencias.** En el MacBook Pro 2015 con la Rane 72 a 64 frames: **in
+10,00 ms + out 4,35 ms = 14,35 ms**, dentro de la puerta de **≤15 ms** del
+Intel 2015 (ADR-024), aunque por encima del objetivo de 10 ms de la máquina de
+referencia. B1.2 queda medido para esta máquina; B1.5 sigue pendiente en la
+máquina de referencia (no hay una segunda Mac todavía). B1.3 puede escribirse
+ya con este dato: **seguir**, sin plan B, en el Intel de 2015. `docs/TIMECODE.md`
+§4.2 y `docs/PLATFORM_SUPPORT.md` §7 se reescriben con este método; el número
+de 23.3-23.5 ms queda anotado como referencia histórica (round-trip por retorno
+interno, no el número del proyecto).
+
+## ADR-075 — Salida separada de scratch y base instrumental (dos pares de canales)
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** El motor mezclaba SIEMPRE scratch + base instrumental +
+metrónomo en un único bus mono duplicado a estéreo (`xf_engine_render`, el
+núcleo RT). Con una mesa de batalla real de por medio, el autor pidió poder
+sacar el scratch y la instrumental por **dos pares de canales distintos** del
+mismo dispositivo — como dos tiras de un mezclador de verdad (p. ej. "Deck 1"
+para el scratch, "Deck 2" para la base), no una mezcla ya hecha por un único
+par.
+
+**Decisión.** `xf_engine_render` gana dos punteros de salida más
+(`out_instr_l/r`, además de `out_scratch_l/r`); el modo lo decide la propia
+llamada, no un flag oculto: si los CUATRO punteros llegan no-nulos, el
+scratch y la base+metrónomo se procesan como **dos buses independientes**
+(cada uno con su propio soft-clip); si falta cualquiera de los dos punteros
+de la base, cae al modo COMBINADO de siempre (un único bus, bit a bit
+idéntico a antes de este ADR — verificado con test). `xf_engine_start`/
+`xf_engine_start_output` ganan `instrumental_channel`: `<= 0` o igual al
+`output_channel` del scratch = combinado (ASBD de 2 canales, sin cambios);
+distinto = separado (ASBD de 4 canales no intercalados, `ChannelMap` de
+salida con dos pares). La CAPTURA de entrada (timecode) se queda SIEMPRE en 2
+canales — el modo separado es cosa de la salida, no toca el timecode ni el
+fader por retorno. `AppSettings.instrumentalOutputChannel` (`0` = combinado)
+se expone en Ajustes › Hardware junto al canal de salida existente.
+
+**Alternativas descartadas.** Mantener siempre 2 canales de salida y hacer la
+mezcla de "dos tiras" fuera del motor (p. ej. con una segunda `AudioUnit`) —
+más complejidad de sincronización entre dos relojes de audio independientes
+para ganar nada; el motor ya tiene los dos buses por separado un instante
+antes de la mezcla final, así que exponerlos es más simple que duplicar el
+host CoreAudio entero. Convertir el modo en un parámetro de
+`xf_engine_create` (fijo de por vida del motor) en vez de por-arranque — se
+descarta porque el usuario puede cambiar el canal de la instrumental en
+Ajustes sin reiniciar la app; el modo tiene que poder cambiar en cada
+`start()`/`start_output()`.
+
+**Consecuencias.** El código combinado (de siempre) queda BIT A BIT intacto
+— mismo camino, mismas constantes de soft-clip, mismo cálculo de pico — así
+que no hay riesgo de regresión audible en el 99% de instalaciones (mesa de
+dos canales o sin mesa). El modo separado es nuevo y **no se ha podido
+verificar por hardware con los oídos** en esta sesión — corre en la máquina
+de referencia y pasa los tests del núcleo RT (aislamiento de frecuencias
+entre buses, metrónomo con la base, caída a combinado si falta un puntero),
+pero falta la confirmación de "suena bien en la mesa real" antes de darlo
+por cerrado. Pendiente, no cerrado aquí: el asistente de calibración (paso
+Audio) solo elige el canal de ENTRADA/salida del scratch, no el de la
+instrumental — esa elección vive solo en Ajustes › Hardware por ahora.
+
 ---
 
 ## Plantilla para nuevas entradas

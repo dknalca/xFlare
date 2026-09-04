@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import XCTest
+import Combine
 @testable import XFApp
 
 /// F.62 — captura de timecode real para el scope de Calibración (paso 3).
@@ -44,5 +45,17 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         m.onTimecodeSample = { _ in calls += 1 }
         m.startTimecodeCapture()
         XCTAssertEqual(calls, 0, "sin motor no hay nada que capturar ni que avisar")
+    }
+
+    /// F.65 — `motionSampleEvents` es el mismo tráfico que `onTimecodeSample`
+    /// pero como publisher (lo escucha `LivePracticeView` para el vinilo real
+    /// en Freestyle/práctica). Mismo criterio: sin motor, no dispara.
+    func testMotionSampleEventsNoDisparaSinMotor() throws {
+        let m = try modelSinMotor()
+        var calls = 0
+        let c = m.motionSampleEvents.sink { _ in calls += 1 }
+        defer { c.cancel() }
+        m.startTimecodeCapture()
+        XCTAssertEqual(calls, 0, "sin motor no hay nada que capturar ni que publicar")
     }
 }

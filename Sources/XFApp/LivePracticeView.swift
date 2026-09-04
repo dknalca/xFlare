@@ -7,6 +7,7 @@ import XFDesign
 import XFRender
 import XFNotation
 import XFCapture
+import XFPrimitives
 
 /// Pantalla de practica **rudimentaria**: la autopista corre con el reloj de
 /// `PracticeSession` y el trackpad / teclado mueven el plato. Con audio: el
@@ -197,6 +198,19 @@ public struct LivePracticeView: View {
     private let platterSpeedGate: Double
     private let platterFriction: Double
     private let trackpadSensitivity: Double
+    /// F.65 — vinilo de timecode real moviendo el plato (Freestyle/práctica),
+    /// no solo ratón/trackpad. `captureRealTimecode` (decidido por
+    /// `AppRootView` según haya o no un dispositivo de ENTRADA configurado,
+    /// para no pedir permiso de micrófono a quien practica sin mesa) decide
+    /// si el motor arranca en modo dúplex al cargar la instrumental; sin él,
+    /// exactamente el camino de siempre (`engine.startOutput()`).
+    /// `motionSamples` es el mismo tráfico que ya alimenta el scope del
+    /// asistente (`AppModel.pollTimecode`), aquí como muestras sueltas en vez
+    /// de un array acumulado.
+    private let captureRealTimecode: Bool
+    private let motionSamples: AnyPublisher<MotionSample, Never>
+    private let startRealCapture: () -> Void
+    private let stopRealCapture: () -> Void
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -219,6 +233,11 @@ public struct LivePracticeView: View {
                 trackpadSensitivity: Double = 1.0,
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
+                captureRealTimecode: Bool = false,
+                motionSamples: AnyPublisher<MotionSample, Never>
+                    = Empty(completeImmediately: false).eraseToAnyPublisher(),
+                startRealCapture: @escaping () -> Void = {},
+                stopRealCapture: @escaping () -> Void = {},
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
                 onWarmupScore: @escaping (XFSession, String, String)
@@ -251,6 +270,10 @@ public struct LivePracticeView: View {
         self.platterFriction = platterFriction
         self.trackpadSensitivity = trackpadSensitivity
         self.commandEvents = commandEvents
+        self.captureRealTimecode = captureRealTimecode
+        self.motionSamples = motionSamples
+        self.startRealCapture = startRealCapture
+        self.stopRealCapture = stopRealCapture
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
         self.onWarmupScore = onWarmupScore
@@ -405,6 +428,7 @@ public struct LivePracticeView: View {
             lastCrPhase = phase
         }
         .onReceive(commandEvents) { handleCommand($0) }
+        .onReceive(motionSamples) { receiveRealMotion($0) }
         .onAppear {
             quote = Quotes.random(from: content)
             library = sampleLibrary
@@ -417,7 +441,14 @@ public struct LivePracticeView: View {
             sensitivity = trackpadSensitivity
             start()
         }
-        .onDisappear { stop() }
+        .onDisappear {
+            stop()
+            // solo para si de verdad pudimos haberla arrancado -- si no,
+            // `stopTimecodeCapture()` haria un stop()+startOutput() de mas en
+            // CUALQUIER salida de la practica, aunque no hubiera dispositivo
+            // de entrada configurado (blip de audio gratuito).
+            if captureRealTimecode { stopRealCapture() }
+        }
 
         if loading {
             LoadingView(quote: quote).zIndex(1)
@@ -1479,6 +1510,22 @@ public struct LivePracticeView: View {
         e.setVelocity(session.normalizedVelocity * full / e.sampleRateHz)
     }
 
+    /// F.65 — una muestra real del vinilo de timecode: la convierte al espacio
+    /// del patrón (`PracticeSession.pushRealVelocity`, deshace la conversión
+    /// de `normalizedVelocity` para que el ratio real llegue intacto al
+    /// motor) y la empuja YA, como `pushPlatterVelocity` hace con ratón/
+    /// trackpad. Confianza baja (aguja levantada, señal sucia) se ignora —
+    /// mismo umbral que el paso "Timecode" del asistente — y el plato frena
+    /// solo por la fricción sintética (F.08) en vez de congelarse con la
+    /// última velocidad.
+    private func receiveRealMotion(_ sample: MotionSample) {
+        guard captureRealTimecode, sample.confidence >= 0.6,
+              let e = engine, e.scratchFrameCount > 1 else { return }
+        let full = Double(e.scratchFrameCount - 1)
+        session.pushRealVelocity(sample.velocity, sampleDurationSeconds: full / e.sampleRateHz)
+        pushPlatterVelocity()
+    }
+
     /// Segundo del fichero donde está ahora el cabezal de la base (coords
     /// originales, sin rotar). `instrumentalProgress` es 0…1 del bucle, que en el
     /// caso normal (pista editada / con tempo) cubre el fichero entero.
@@ -1902,7 +1949,15 @@ public struct LivePracticeView: View {
                 // rejilla de la sesión y el cabezal de la base recién cargada.
                 engine.seek(tick: 0)
                 if initial {
-                    _ = engine.startOutput()
+                    // F.65: si hay un dispositivo de ENTRADA configurado, el
+                    // motor arranca en modo dúplex (vinilo real moviendo el
+                    // plato) en vez de "solo salida" -- UN SOLO sitio decide
+                    // esto. Antes, `AppRootView` podía abrir el motor en
+                    // dúplex para el paso "Timecode" del asistente y ESTA
+                    // línea lo revertía a solo-salida segundos después, en
+                    // cuanto terminaba de cargar la base (silenciaba la
+                    // captura sin avisar).
+                    if captureRealTimecode { startRealCapture() } else { _ = engine.startOutput() }
                     session.start()
                     loading = false   // ya suena: fuera la pantalla de carga
                     // calentamiento: arranca en "repite conmigo" con N compases.

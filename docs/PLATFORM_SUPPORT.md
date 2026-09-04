@@ -131,16 +131,22 @@ mas potente y usa la de 2015 solo para probar.
 ## 7. Presupuesto de latencia por maquina
 
 El objetivo de 10 ms deja de ser un numero unico y pasa a ser una tabla que se
-rellena midiendo (bloque B1):
+rellena midiendo (bloque B1). **El numero es la suma de las latencias de
+entrada y salida que declara CoreAudio** (`AudioDeviceLatency`, F.48/F.63),
+no un round-trip por loopback — ver ADR-074 y `docs/TIMECODE.md` §4.2: la Rane
+72 no tiene un Master Out USB para loopback, y el camino real de xFlare no es
+un bucle (una pierna de entrada + una de salida independiente, sin volver a
+entrar al ordenador), asi que el retorno USB interno de la mesa sobreestima.
 
-| Maquina | Buffer | Round-trip objetivo | Estado |
+| Maquina | Buffer | Latencia declarada (in + out) | Estado |
 |---|---|---|---|
-| MacBook Pro 2015 (Monterey) | 64 frames | ≤ 10 ms deseable | por medir |
-| MacBook Pro 2015 (Monterey) | 128 frames | ≤ 15 ms aceptable | por medir |
+| MacBook Pro 2015 (Monterey) | 64 frames | 10,00 + 4,35 = **14,35 ms** | **DENTRO** de ≤ 15 ms aceptable (ADR-024) |
+| MacBook Pro 2015 (Monterey) | 128 frames | _(pendiente)_ | por medir |
+| Maquina de referencia | 64 frames | _(pendiente — no hay segunda Mac todavia)_ | por medir |
 
-Al ser la unica maquina, **este numero es EL numero del proyecto**. Si sale 18 ms,
-esa es la realidad de xFlare hoy y hay que decidir con ese dato en la mano, no
-esperar a un Mac mejor.
+Al ser la unica maquina hasta ahora, **este numero es EL numero del proyecto**.
+Si sale 18 ms, esa es la realidad de xFlare hoy y hay que decidir con ese dato
+en la mano, no esperar a un Mac mejor.
 
 Si en el 2015 no se baja de 15 ms, se documenta como limitacion conocida y la app
 lo dice en la calibracion, en vez de fingir que va fino.

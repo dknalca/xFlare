@@ -125,6 +125,16 @@ public enum AudioDeviceList {
                         element: AudioObjectPropertyElement(channel))
     }
 
+    /// `current` si sigue siendo un par válido de `pairs`; si no, el primero
+    /// disponible (o `nil` si el dispositivo no tiene ningún par completo).
+    /// Lógica pura (sin CoreAudio): la usa el asistente de calibración para
+    /// no perder la elección del usuario cuando se recalcula tras cambiar de
+    /// dispositivo, y para caer a un par razonable la primera vez.
+    public static func resolvedChannel(current: Int?, in pairs: [ChannelPair]) -> Int? {
+        if let current, pairs.contains(where: { $0.first == current }) { return current }
+        return pairs.first?.first
+    }
+
     /// "Analog 1 Left" + "Analog 1 Right" -> "1-2 · Analog 1". Si los nombres
     /// no encajan ese patrón pero son iguales, se usan tal cual. Si no hay
     /// nombres o no coinciden, solo el rango de canales.

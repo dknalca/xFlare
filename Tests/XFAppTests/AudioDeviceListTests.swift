@@ -71,6 +71,31 @@ final class AudioDeviceListTests: XCTestCase {
         XCTAssertEqual(AudioDeviceList.pairLabel(first: 1, nameL: "Mic 1", nameR: "Mic 2"), "1-2")
     }
 
+    // MARK: - resolvedChannel (asistente de calibración, paso 1)
+
+    /// Lógica pura: el asistente la usa para no perder la elección del
+    /// usuario al recalcular tras cambiar de dispositivo, y para caer a un
+    /// par razonable la primera vez (bug real con la Rane 72: el paso 1 no
+    /// dejaba elegir el par estéreo del timecode).
+    func testResolvedChannelMantieneLaEleccionSiSigueSiendoValida() {
+        let pairs = [AudioDeviceList.ChannelPair(first: 1, label: "1-2"),
+                     AudioDeviceList.ChannelPair(first: 3, label: "3-4 · Analog 2")]
+        XCTAssertEqual(AudioDeviceList.resolvedChannel(current: 3, in: pairs), 3)
+    }
+
+    func testResolvedChannelCaeAlPrimeroSiNoHayEleccionOEsInvalida() {
+        let pairs = [AudioDeviceList.ChannelPair(first: 1, label: "1-2 · Analog 1"),
+                     AudioDeviceList.ChannelPair(first: 3, label: "3-4 · Analog 2")]
+        XCTAssertEqual(AudioDeviceList.resolvedChannel(current: nil, in: pairs), 1)
+        XCTAssertEqual(AudioDeviceList.resolvedChannel(current: 99, in: pairs), 1,
+                       "un canal de un dispositivo anterior que ya no encaja cae al primero, no se queda pegado")
+    }
+
+    func testResolvedChannelSinParesEsNil() {
+        XCTAssertNil(AudioDeviceList.resolvedChannel(current: 1, in: []))
+        XCTAssertNil(AudioDeviceList.resolvedChannel(current: nil, in: []))
+    }
+
     /// `stereoPairs` con menos de 2 canales no devuelve nada (no hay pareja
     /// que formar); con un total impar, el canal suelto del final se queda
     /// fuera (nunca a medias).

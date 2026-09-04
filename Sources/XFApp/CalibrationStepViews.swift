@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// Los cuatro paneles del asistente de calibración (`docs/UI_DESIGN.md` §3.1).
+// Los tres paneles del asistente de calibración (`docs/UI_DESIGN.md` §3.1).
 // Son `internal`: solo los usa `CalibrationWizardView`. Toda la lógica está en
 // `CalibrationWizardModel`; esto solo la dibuja.
 
@@ -12,16 +12,30 @@ import XFRender
 
 struct AudioCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
-    let inputDevices: [String]
-    let outputDevices: [String]
+    let inputDevices: [AudioDeviceList.Device]
+    let outputDevices: [AudioDeviceList.Device]
 
     var body: some View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
                 devicePicker("Entrada (timecode)", devices: inputDevices,
                              selection: $model.inputDeviceName)
+                if let inDevice = inputDevices.first(where: { $0.name == model.inputDeviceName }) {
+                    let pairs = AudioDeviceList.inputChannelPairs(for: inDevice)
+                    if pairs.count > 1 {
+                        channelPicker("Canal del timecode", pairs: pairs,
+                                     selection: $model.inputChannelFirst)
+                    }
+                }
                 devicePicker("Salida", devices: outputDevices,
                              selection: $model.outputDeviceName)
+                if let outDevice = outputDevices.first(where: { $0.name == model.outputDeviceName }) {
+                    let pairs = AudioDeviceList.outputChannelPairs(for: outDevice)
+                    if pairs.count > 1 {
+                        channelPicker("Canal de salida", pairs: pairs,
+                                     selection: $model.outputChannelFirst)
+                    }
+                }
                 HStack {
                     Text("Buffer").foregroundColor(XFColor.textMuted)
                     Picker("", selection: $model.bufferFrames) {
@@ -33,55 +47,41 @@ struct AudioCalibrationStep: View {
                 }
                 Text("64 frames = 1,33 ms a 48 kHz. Sube a 128 si oyes cortes.")
                     .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+                if inputDevices.first(where: { $0.name == model.inputDeviceName })
+                    .map({ AudioDeviceList.inputChannelPairs(for: $0).count > 1 }) == true {
+                    Text("En una interfaz multicanal el canal 1 casi nunca es el que lleva el "
+                         + "timecode — elige la pareja correcta arriba en vez de a ciegas.")
+                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                }
             }
         }
     }
 
-    private func devicePicker(_ title: String, devices: [String],
+    private func devicePicker(_ title: String, devices: [AudioDeviceList.Device],
                               selection: Binding<String?>) -> some View {
         HStack {
             Text(title).foregroundColor(XFColor.textMuted).frame(width: 160, alignment: .leading)
             Picker("", selection: selection) {
                 Text("— elige —").tag(String?.none)
-                ForEach(devices, id: \.self) { Text($0).tag(String?.some($0)) }
+                ForEach(devices) { d in Text(d.name).tag(String?.some(d.name)) }
+            }
+            .labelsHidden()
+        }
+    }
+
+    private func channelPicker(_ title: String, pairs: [AudioDeviceList.ChannelPair],
+                               selection: Binding<Int?>) -> some View {
+        HStack {
+            Text(title).foregroundColor(XFColor.textMuted).frame(width: 160, alignment: .leading)
+            Picker("", selection: selection) {
+                ForEach(pairs) { p in Text(p.label).tag(Int?.some(p.first)) }
             }
             .labelsHidden()
         }
     }
 }
 
-// MARK: - 2 · Latencia
-
-struct LatencyCalibrationStep: View {
-    @ObservedObject var model: CalibrationWizardModel
-
-    var body: some View {
-        XFCard {
-            VStack(alignment: .leading, spacing: XFSpacing.md) {
-                if let ms = model.latencyMs, let verdict = model.latencyVerdict {
-                    HStack(spacing: XFSpacing.sm) {
-                        Circle().fill(verdict.color).frame(width: 14, height: 14)
-                        Text(String(format: "%.1f ms", ms)).font(XFFont.mono(28))
-                        Text(verdict.label).foregroundColor(XFColor.textMuted)
-                    }
-                    Text(verdict.advice)
-                        .font(XFFont.body(13)).foregroundColor(XFColor.textMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("Declarada por el driver (salida + entrada), no una medida real de ida y "
-                         + "vuelta — no hace falta cable. En muchas mesas de batalla no hay una forma "
-                         + "clara de puentear salida y entrada para medir de verdad.")
-                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("El dispositivo elegido en Ajustes › Hardware no ha declarado su latencia.")
-                        .foregroundColor(XFColor.textMuted)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - 3 · Timecode
+// MARK: - 2 · Timecode
 
 struct TimecodeCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
@@ -118,16 +118,30 @@ struct TimecodeCalibrationStep: View {
     }
 }
 
-// MARK: - 4 · Fader
+// MARK: - 3 · Fader
 
 struct FaderCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
+    /// F.67: arma/lee el tráfico MIDI real mientras el usuario mueve el
+    /// crossfader de tope a tope, para descubrir qué CC/canal es sin tener
+    /// que asumir lo que declare el perfil (que puede no existir, o estar
+    /// mal — B5.5 ya enseñó a no fiarse del papel).
+    let onStartLearn: () -> Void
+    let onFinishLearn: () -> Void
 
     var body: some View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
-                Text("\(min(model.cutsDetected, model.faderCutsNeeded)) / \(model.faderCutsNeeded) cortes")
-                    .font(XFFont.mono(22))
+                faderLearnSection
+
+                HStack(spacing: XFSpacing.sm) {
+                    Text("\(min(model.cutsDetected, model.faderCutsNeeded)) / \(model.faderCutsNeeded) cortes")
+                        .font(XFFont.mono(22))
+                    if model.cutsDetected > 0 {
+                        Button("Reiniciar cortes") { model.resetFaderCuts() }
+                            .xfButton(.bordered)
+                    }
+                }
 
                 slider("Punto de corte", value: $model.faderCutIn, range: 0...1)
                 slider("Histéresis", value: $model.faderHysteresis, range: 0...0.3)
@@ -135,6 +149,34 @@ struct FaderCalibrationStep: View {
                 Text("Los cortes calibran el punto donde empieza a oírse. Puedes afinarlo a mano.")
                     .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
             }
+        }
+    }
+
+    @ViewBuilder private var faderLearnSection: some View {
+        VStack(alignment: .leading, spacing: XFSpacing.xs) {
+            if model.faderLearning {
+                HStack(spacing: XFSpacing.sm) {
+                    ProgressView(value: min(1, Double(model.faderLearnSpan) / 127))
+                        .frame(width: 160)
+                    Text("rango \(model.faderLearnSpan) / 127")
+                        .font(XFFont.mono(12)).foregroundColor(XFColor.textMuted)
+                    Button("Listo") { onFinishLearn() }.xfButton(.filled)
+                }
+                Text("Mueve el crossfader de tope a tope varias veces.")
+                    .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+            } else {
+                HStack(spacing: XFSpacing.sm) {
+                    Button("Aprender MIDI del fader") { onStartLearn() }.xfButton(.bordered)
+                    if let cc = model.learnedFaderCC, let ch = model.learnedFaderChannel {
+                        Text("aprendido: CC \(cc) · canal \(ch)")
+                            .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+                    } else {
+                        Text("sin aprender — usa el CC del perfil, si lo declara")
+                            .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+                    }
+                }
+            }
+            Divider().background(XFColor.stroke)
         }
     }
 

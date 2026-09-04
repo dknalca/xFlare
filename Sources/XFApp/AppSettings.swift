@@ -70,6 +70,12 @@ public struct AppSettings: Equatable, Sendable {
     public var inputDeviceUID: String
     /// Igual que `outputChannel` pero para la entrada.
     public var inputChannel: Int
+    /// F.68 — par de salida de la BASE INSTRUMENTAL (+ metrónomo), en el
+    /// MISMO dispositivo que `outputDeviceUID`. `0` = modo combinado (de
+    /// siempre): la base sale mezclada con el scratch por `outputChannel`.
+    /// Un valor distinto de `outputChannel` reparte scratch y base por dos
+    /// pares de canales separados — dos tiras de mezclador reales.
+    public var instrumentalOutputChannel: Int
 
     // MARK: - Debug: "tacto" del plato (ventana Ajustes › Debug)
     /// Suavizado (ms) de la velocidad del plato de scratch. Menos = más seco y el
@@ -105,7 +111,8 @@ public struct AppSettings: Equatable, Sendable {
                 platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0,
                 instrumentalLibrary: [String] = [], sampleSlots: [String] = [],
                 outputDeviceUID: String = "", outputChannel: Int = 1,
-                inputDeviceUID: String = "", inputChannel: Int = 1) {
+                inputDeviceUID: String = "", inputChannel: Int = 1,
+                instrumentalOutputChannel: Int = 0) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -136,6 +143,7 @@ public struct AppSettings: Equatable, Sendable {
         self.outputChannel = max(1, outputChannel)
         self.inputDeviceUID = inputDeviceUID
         self.inputChannel = max(1, inputChannel)
+        self.instrumentalOutputChannel = max(0, instrumentalOutputChannel)
     }
 
     // MARK: - clave/valor
@@ -165,6 +173,7 @@ public struct AppSettings: Equatable, Sendable {
         static let outputChannel = "audio.outputChannel"
         static let inputDeviceUID = "audio.inputDeviceUID"
         static let inputChannel = "audio.inputChannel"
+        static let instrumentalOutputChannel = "audio.instrumentalOutputChannel"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -210,7 +219,8 @@ public struct AppSettings: Equatable, Sendable {
             outputDeviceUID: raw[Key.outputDeviceUID] ?? d.outputDeviceUID,
             outputChannel: int(Key.outputChannel, d.outputChannel),
             inputDeviceUID: raw[Key.inputDeviceUID] ?? d.inputDeviceUID,
-            inputChannel: int(Key.inputChannel, d.inputChannel))
+            inputChannel: int(Key.inputChannel, d.inputChannel),
+            instrumentalOutputChannel: int(Key.instrumentalOutputChannel, d.instrumentalOutputChannel))
     }
 
     public var raw: [String: String] {
@@ -239,6 +249,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.outputChannel: String(outputChannel),
             Key.inputDeviceUID: inputDeviceUID,
             Key.inputChannel: String(inputChannel),
+            Key.instrumentalOutputChannel: String(instrumentalOutputChannel),
         ]
     }
 }

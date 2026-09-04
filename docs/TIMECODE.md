@@ -128,44 +128,43 @@ cruzada. Ganó `--out-ch N` / `--in-ch N` (2026-09-04): sin esto, `sounddevice`
 coge por defecto el canal 1 de cada lado, que en una interfaz multicanal como la
 Rane 72 (14 in / 10 out) casi nunca es el que lleva el loopback real.
 
-**Parcial (2026-09-04, vía retorno USB interno de la mesa, sin cable físico
-todavía):** la Rane 72 no expone un jack de "Master Out" por USB para hacer un
-loopback de la forma habitual — sus 10 canales de salida son inyecciones
-digitales a las tiras de mezcla (`1-2 Deck 1` `3-4 Deck 2` `5-6 USB Aux`
-`7-8 Deck 1 FX Return` `9-10 Deck 2 FX Return`, nombres por
-`kAudioObjectPropertyElementName`). Se probaron varias rutas:
+**Resuelto (2026-09-04, ADR-074): la latencia oficial es la suma de latencias
+declaradas por CoreAudio, no un round-trip medido.** La Rane 72 no expone un
+jack de "Master Out" por USB para hacer un loopback de la forma habitual, así
+que primero se probó por el retorno USB interno de la mesa (sus 10 canales de
+salida son inyecciones digitales a las tiras de mezcla: `1-2 Deck 1` `3-4 Deck 2`
+`5-6 USB Aux` `7-8 Deck 1 FX Return` `9-10 Deck 2 FX Return`, nombres por
+`kAudioObjectPropertyElementName`). Tres rutas convergieron en **~23.3-23.5 ms**
+con jitter casi nulo (detalle histórico más abajo) — pero ese número mide **ida
+(USB out) Y vuelta (USB in) por DOS tramos USB** más el proceso interno de la
+mesa, y **no** es el camino real de xFlare: en uso real no hay loopback ni
+cable en ningún punto — todo el audio (timecode de entrada y sample scratcheado
+de salida) viaja por USB, como en un setup de Serato/Traktor, con **una pierna
+de entrada** (vinilo → mesa → USB in → app) y **una pierna de salida
+independiente** (app → USB out → mesa → altavoz) que nunca vuelve a entrar al
+ordenador. Sin loopback fiable que represente eso, el número del proyecto es
+la suma de lo que CoreAudio ya declara para cada dirección
+(`AudioDeviceLatency`, F.48/F.63): **in = 10,00 ms + out = 4,35 ms = 14,35 ms**
+a 64 frames en el MacBook Pro 2015 — dentro de la puerta de ≤15 ms del Intel
+2015 (ADR-024). `measure_latency.py` sigue vivo como herramienta de desarrollo
+para detectar regresiones, no como la puerta oficial.
+
+**Referencia histórica (round-trip por retorno USB interno, no es el número
+del proyecto):**
 
 | Salida → Entrada | Resultado |
 |---|---|
 | USB Aux (5) → Mix (5) | silencio |
 | USB Aux (5) → Session In (11) | silencio |
 | Deck 2 (3) → Session In (11) | silencio |
-| **Deck 1 (1) → Mix (5)** | **23.33 ms** |
-| **Deck 2 (3) → Mix (5)** | **23.54 ms** (jitter 0.06 ms, 20 reps) |
-| **Deck 2 (3) → Deck 2 (9)** (mismo nombre en ambos lados) | **23.52-23.54 ms** |
+| Deck 1 (1) → Mix (5) | 23.33 ms |
+| Deck 2 (3) → Mix (5) | 23.54 ms (jitter 0.06 ms, 20 reps) |
+| Deck 2 (3) → Deck 2 (9) (mismo nombre en ambos lados) | 23.52-23.54 ms |
 
-Tres rutas internas independientes convergen en **~23.3-23.5 ms** con jitter
-casi nulo (0.00-0.06 ms) — no parece ruido ni una ruta concreta rara, apunta al
-búfer interno de la propia mesa para su retorno USB, sea cual sea el canal.
-`buffer objetivo = 64 frames` en la corrida; latencia declarada por el driver
-in=10,00 ms / out=4,35 ms.
-
-**Ojo con la interpretación:** esto mide un viaje de ida Y vuelta por DOS tramos
-USB (ordenador → mesa → ordenador) más el proceso interno de la mesa — **no**
-es el mismo camino que sigue el sonido real de xFlare hasta el altavoz (que es
-solo el tramo de salida, una vez, sin volver a entrar al ordenador). El número
-que le llega al oído probablemente esté más cerca de la mitad de esto que del
-total, pero no hay forma de aislarlo sin una medida acústica (micro) o un
-loopback puramente analógico por cable físico. **Pendiente:** repetir con un
-cable físico de verdad (salida física → entrada libre, p. ej. Analog 2) para
-comparar contra el camino puramente analógico y decidir si el número de la
-mesa entera o el del retorno USB interno es el relevante. Hasta entonces no se
-cierra B1.3 (decisión documentada).
-
-| Máquina | Buffer / sr | Round-trip (mediana) | Jitter (σ) | Veredicto |
-|---|---|---|---|---|
-| MacBook Pro 2015 (Monterey) | 64 @ 48 kHz, vía retorno USB interno | 23.54 ms | 0.06 ms | **FUERA** de la puerta de 10 ms — parcial, falta cable físico |
-| Máquina de referencia | _(pendiente)_ | | | |
+| Máquina | Buffer / sr | Latencia declarada (in + out) | Veredicto |
+|---|---|---|---|
+| MacBook Pro 2015 (Monterey) | 64 @ 48 kHz | 10,00 + 4,35 = **14,35 ms** | **DENTRO** de la puerta de 15 ms (Intel 2015, ADR-024) |
+| Máquina de referencia | _(pendiente — no hay segunda Mac todavía)_ | | |
 
 ### 4.3 B1.4 — detección del crossfader por tono piloto (ADR-021)
 

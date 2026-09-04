@@ -74,52 +74,77 @@ autopista (mata el rendimiento y ensucia la lectura).
 
 ### 3.1 Calibracion (primer arranque, y accesible siempre)
 
-Asistente de cuatro pasos. Es la pantalla mas importante del producto: si esto
-sale mal, todo lo demas miente.
+Asistente de **tres** pasos. Es la pantalla mas importante del producto: si
+esto sale mal, todo lo demas miente.
 
-1. **Audio** — elegir interfaz y salida. Muestra el buffer y la latencia estimada.
-2. **Latencia** — la latencia que **declara** el dispositivo/driver (no una
-   medida real de ida y vuelta por loopback: ver "F.63" más abajo). Semaforo:
-   verde ≤10 ms, ambar ≤15, rojo por encima con explicacion de que ajustar.
-3. **Timecode** — "gira el plato despacio". Scope circular en vivo, indicador de
+1. **Audio** — elegir interfaz, salida y el **par estéreo** dentro de cada una
+   (como el selector de audio de Ableton Live: la Rane 72 expone 14 canales de
+   entrada / 6 de salida, agrupados en parejas — "1-2 · Analog 1", "7-8 · Deck
+   1"…). Muestra el buffer.
+2. **Timecode** — "gira el plato despacio". Scope circular en vivo, indicador de
    calidad de senal y deteccion automatica de direccion y hamster.
-4. **Fader** — "haz diez cortes". Detecta el punto de corte, dibuja la curva
-   medida y deja ajustarla a mano. Guarda el perfil por dispositivo.
+3. **Fader** — "haz diez cortes". Botón **"Aprender MIDI del fader"**: mueve el
+   crossfader de tope a tope y la app descubre solo qué CC/canal es (F.67, como
+   el selector de audio de Ableton pero para MIDI). Cuenta cortes reales en
+   vivo contra el cutIn/histéresis de los sliders — muévelos y el conteo
+   reacciona en el acto.
+
+**Sin paso de latencia (2026-09-05, F.66).** Hubo un paso 2 ("Prueba de
+latencia") que mostraba la latencia **declarada** por el driver (F.63,
+`AudioDeviceLatency`/F.48, sin cable ni loopback). El autor pidió quitarlo
+directamente del asistente: no daba pie a ninguna acción dentro del propio
+flujo de calibración. `AudioDeviceLatency` sigue en el código para otros usos
+(compensar al puntuar, F.50); lo que desaparece es el paso que solo mostraba
+el número. `docs/DECISIONS.md` ADR-074 (la latencia oficial del proyecto en
+`PLATFORM_SUPPORT.md` §7) no depende de este paso — se calcula aparte, fuera
+de la UI de usuario final.
 
 **Estado real (2026-09-04, primera vez con hardware conectado, ADR-073).** El
 paso 1 (Audio) ya lista dispositivos **reales** del sistema
 (`AudioDeviceList`, mismas llamadas CoreAudio que `spike/b1-latency/
-passthrough --list`) — antes los desplegables estaban vacíos. El paso 4
-todavía no tiene el motor con captura conectado (B4.2, en marcha): en vez de
-un control mudo, muestra un aviso corto con la herramienta de
-`docs/HW_BRINGUP.md` que sí mide hoy (`spike/b1-pilot-fader/pilot_fader`).
+passthrough --list`) — antes los desplegables estaban vacíos.
 
-**Paso 2 (Latencia), rediseñado el mismo día (F.63).** El diseño original
-pedía un loopback real por cable — al construir F.62 (el scope del paso 3)
-quedó claro que muchas mesas de batalla (la Rane 72 entre ellas) no tienen
-una forma clara de puentear salida y entrada para medir de verdad, y pedirle
-eso a cualquier usuario en un asistente es mucha fricción para un dato poco
-fiable. El autor lo cuestionó directamente ("no le veo sentido") y se
-sustituyó: `AudioDeviceLatency` (F.48) ya leía `kAudioDevicePropertyLatency` +
-margen de seguridad + búfer por CoreAudio, sin cable ni medida activa —
-`AppRootView` resuelve el dispositivo de salida/entrada elegido en Ajustes ›
-Hardware (o el de sistema por defecto si no hay ninguno, `AudioDeviceList.
-resolvedOutput`/`resolvedInput`) y llama a `calibrationModel.reportLatency(ms:)`
-al entrar en Calibración — automático, sin botón "Medir". El paso deja claro
-en texto que es una cifra **declarada**, no medida de ida y vuelta.
+**Paso 3 (Fader), hecho el 2026-09-05 (F.67):** cuenta cortes reales del
+crossfader por MIDI (no un control mudo) y añade **"Aprender MIDI del
+fader"** — arma la escucha, el usuario mueve el fader de tope a tope, y
+`MidiFaderLearner` (`XFCapture`, puro) mira TODO el tráfico CC y elige el
+`(canal, cc)` que más rango ha barrido (con un mínimo para que el ruido de un
+botón cercano no gane por casualidad). Sin aprender, usa el `cc`/canal que
+declare el perfil activo si los tiene. Los sliders de cutIn/histéresis
+reconstruyen el binarizador en vivo — se ve el efecto en el conteo de cortes
+al momento, sin salir del paso. Aprender un CC nuevo reinicia el contador de
+cortes (los de antes pudieron ir contra el CC equivocado). Lo aprendido vive
+solo en esta sesión de calibración; guardarlo para la práctica real (en
+`DeviceCalibration`) queda pendiente — toca `XFPersistence`, un módulo
+distinto. **Botón "Reiniciar cortes" (F.69):** vuelve el contador a 0 sin
+tocar los sliders de cutIn/histéresis, para repetir los diez cortes con otro
+ajuste sin salir del paso — solo aparece si ya hay algún corte contado.
 
-**Paso 3 (Timecode), hecho el mismo día (F.62):** el scope circular **ya lee
+**Paso 2 (Timecode), hecho el mismo día (F.62):** el scope circular **ya lee
 el vinilo de verdad**, no es un dibujo vacío. Al entrar en Calibración,
 `AppModel` para el audio que sonara, reabre el motor con captura de entrada
-(F.60: canal elegido en Ajustes › Hardware) y drena el PCM ~30×/s hacia un
-`TimecodeMotionSource` (el mismo wrapper de `xf_timecoder` validado con
-vinilo real en B5.5) — así el mismo `ScopeReading`/`ScopeFigure` que ya
-existía (`XFRender`, "el espejo del plato") por fin recibe datos reales:
-posición, velocidad y confianza en vivo, con dirección detectada
+(F.60: canal elegido en el paso 1 o en Ajustes › Hardware) y drena el PCM
+~30×/s hacia un `TimecodeMotionSource` (el mismo wrapper de `xf_timecoder`
+validado con vinilo real en B5.5) — así el mismo `ScopeReading`/`ScopeFigure`
+que ya existía (`XFRender`, "el espejo del plato") por fin recibe datos
+reales: posición, velocidad y confianza en vivo, con dirección detectada
 automáticamente. Al salir de Calibración el motor vuelve a modo práctica
 solo. Fijo a la definición **Serato 2ª ed.**; Traktor/MixVibes quedan
 pendientes (no hay todavía un selector de formato de vinilo en el perfil ni
 en la UI).
+
+**Paso 1 (Audio), corregido con hardware real (F.64, 2026-09-04):** los
+Pickers de Entrada/Salida elegían dispositivo en una copia local
+(`CalibrationWizardModel`) que no llegaba a ningún sitio — el motor seguía
+leyendo `AppSettings`, sin tocar por el paso 1. Con la Rane 72 conectada esto
+se notó de golpe: no había forma de elegir el PAR estéreo del timecode dentro
+de un dispositivo de 14 entradas (B5.5: el canal correcto no es el que
+parece), y el scope del paso 2 se quedaba vacío. Ahora el paso 1 también deja
+elegir el **par estéreo** (mismo `AudioDeviceList.stereoPairs` que usa Ajustes
+› Hardware) para entrada y salida cuando el dispositivo tiene más de uno, y
+cualquier cambio aquí se vuelca de verdad a `AppSettings` y reinicia la
+captura del scope si ya estaba activo — un solo dispositivo/canal, el mismo
+en Ajustes y en lo que arranca el motor.
 
 ### 3.2 Home — el mapa
 
@@ -358,6 +383,13 @@ al fichero la primera vez.
 
 - **Vídeo**: FPS (24/30/60) y resolución (Rápida/Estándar/Alta) de la exportación
   de tomas (F.4).
+- **Hardware** — dispositivo y **par estéreo** de Salida/Entrada (como el
+  selector de audio de Ableton Live), buffer. **Canal de la instrumental**
+  (F.68, ADR-075): si eliges un par DISTINTO al de "Canal de salida", el
+  scratch y la base+metrónomo salen por dos tiras separadas del mismo
+  dispositivo (dos canales de un mezclador real); "Combinado" (por defecto)
+  es el único par de siempre. Solo aparece si el dispositivo elegido tiene
+  más de un par de salida.
 - Pestaña **Debug** — sliders para dejar fino el "tacto" del plato mientras no
   hay mesa: **glide** (suavizado de velocidad; menos = el audio sigue mejor al
   gesto), **puerta de velocidad** (por debajo enmudece), **fricción** (cómo frena

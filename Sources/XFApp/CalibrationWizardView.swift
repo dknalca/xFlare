@@ -5,31 +5,36 @@ import XFDesign
 import XFRender
 import XFPersistence
 
-/// El asistente de calibración de 4 pasos (`docs/UI_DESIGN.md` §3.1). La pantalla
+/// El asistente de calibración de 3 pasos (`docs/UI_DESIGN.md` §3.1). La pantalla
 /// más importante: si esto sale mal, todo lo demás miente.
 ///
 /// El estado vive en `CalibrationWizardModel` (testeable). Esta vista solo lo
 /// dibuja y conecta los botones. Las listas de dispositivos y las lecturas
-/// del scope las aporta `XFApp`; la latencia (declarada por el driver,
-/// F.48/F.63) se reporta al modelo directamente, sin pasar por esta vista.
+/// del scope las aporta `XFApp`.
 public struct CalibrationWizardView: View {
 
     @ObservedObject private var model: CalibrationWizardModel
 
-    private let inputDevices: [String]
-    private let outputDevices: [String]
+    private let inputDevices: [AudioDeviceList.Device]
+    private let outputDevices: [AudioDeviceList.Device]
     private let scopeReadings: () -> [ScopeReading]
+    private let onStartFaderLearn: () -> Void
+    private let onFinishFaderLearn: () -> Void
     private let onFinish: (DeviceCalibration) -> Void
 
     public init(model: CalibrationWizardModel,
-                inputDevices: [String] = [],
-                outputDevices: [String] = [],
+                inputDevices: [AudioDeviceList.Device] = [],
+                outputDevices: [AudioDeviceList.Device] = [],
                 scopeReadings: @escaping () -> [ScopeReading] = { [] },
+                onStartFaderLearn: @escaping () -> Void = {},
+                onFinishFaderLearn: @escaping () -> Void = {},
                 onFinish: @escaping (DeviceCalibration) -> Void = { _ in }) {
         self.model = model
         self.inputDevices = inputDevices
         self.outputDevices = outputDevices
         self.scopeReadings = scopeReadings
+        self.onStartFaderLearn = onStartFaderLearn
+        self.onFinishFaderLearn = onFinishFaderLearn
         self.onFinish = onFinish
     }
 
@@ -85,12 +90,11 @@ public struct CalibrationWizardView: View {
         switch model.step {
         case .audio:
             AudioCalibrationStep(model: model, inputDevices: inputDevices, outputDevices: outputDevices)
-        case .latency:
-            LatencyCalibrationStep(model: model)
         case .timecode:
             TimecodeCalibrationStep(model: model, scopeReadings: scopeReadings)
         case .fader:
-            FaderCalibrationStep(model: model)
+            FaderCalibrationStep(model: model, onStartLearn: onStartFaderLearn,
+                                 onFinishLearn: onFinishFaderLearn)
         }
     }
 
