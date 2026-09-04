@@ -29,6 +29,43 @@ public final class PracticeSession: ObservableObject {
     /// (`respond`). `off` = práctica libre normal.
     public enum CallResponsePhase: Equatable { case off, listen, respond }
 
+    /// Qué capa del gesto lleva **la máquina** mientras practicas tú.
+    ///
+    /// Un flare no se aprende haciendo las dos cosas a la vez desde el primer
+    /// día: se separan las manos — primero el giro del disco solo, luego el
+    /// corte de fader solo, y cuando cada una va sola, se juntan. Esto es esa
+    /// separación, en la app.
+    ///
+    /// Es **ortogonal** al "repite conmigo": durante la fase de escucha la
+    /// máquina toca las dos capas pase lo que pase; el modo de manos solo
+    /// manda en tu turno y en la práctica libre.
+    public enum AssistMode: String, Equatable, CaseIterable {
+        /// Tú llevas disco y fader. La práctica normal.
+        case both
+        /// Tú mueves el disco; **la máquina corta**. Aísla la mano del plato.
+        case hand
+        /// La máquina mueve el disco; **tú cortas**. Aísla la mano del fader.
+        case fader
+
+        /// Nombre corto para la UI.
+        public var label: String {
+            switch self {
+            case .both:  return "Las dos"
+            case .hand:  return "Solo mano"
+            case .fader: return "Solo fader"
+            }
+        }
+
+        /// Qué está haciendo la máquina, para el aviso de la barra superior.
+        public var badge: String? {
+            switch self {
+            case .both:  return nil
+            case .hand:  return "EL FADER LO LLEVA LA MÁQUINA"
+            case .fader: return "EL DISCO LO LLEVA LA MÁQUINA"
+            }
+        }
+    }
+
     // --- el patron, para que el fantasma pueda mover el sample en `listen`.
     // `var` (no `let`): el calentamiento en una sola sesión cambia de patrón sin
     // recrear la sesión (`reload(scratch:)`).
@@ -97,6 +134,11 @@ public final class PracticeSession: ObservableObject {
     private var pbFader: [(t: Double, closed: Bool)] = []
     private var pbLen: Double = 0
     private var pbClock: Double = 0
+
+    // --- descomposición mano / fader (F.23) ---
+    /// Qué capa lleva la máquina cuando practicas tú (fuera de la escucha del
+    /// "repite conmigo"). `.both` = práctica normal.
+    @Published public private(set) var assist: AssistMode = .both
 
     // --- llamada y respuesta ---
     @Published public private(set) var crPhase: CallResponsePhase = .off
@@ -288,7 +330,7 @@ public final class PracticeSession: ObservableObject {
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
-                setFaderClosed(false)
+                applyFaderClosed(false)
             }
         }
 
@@ -301,25 +343,35 @@ public final class PracticeSession: ObservableObject {
             let g = pbPositionAt(pbClock)
             platterVelocity = (g - platterPosition) / step
             platterPosition = g
-            setFaderClosed(pbClosedAt(pbClock))
-        } else if crPhase == .listen {
-            // la MAQUINA toca: el fantasma mueve el plato (y con el, el sample).
-            // La posicion viene de la curva del patron; la velocidad, de su
-            // derivada; el fader, del estado del patron en ese tick. Se evalua en
-            // `currentTick + gridPhaseTicks` para que el fantasma que se OYE vaya
-            // con el que se DIBUJA cuando la rejilla se ha movido con ◀/▶.
-            let gt = currentTick + gridPhaseTicks
-            let g = ghostPosition(atTick: gt)
-            platterVelocity = (g - platterPosition) / step
-            platterPosition = g
-            setFaderClosed(!ghostFaderOpen(atTick: gt))
+            applyFaderClosed(pbClosedAt(pbClock))
         } else {
-            // tu turno (o practica libre): el plato lo mueves tu
-            platterVelocity *= exp(-frictionPerSecond * step)
-            if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
-            platterPosition += platterVelocity * step
-            if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
-            if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+            // Cada capa del gesto la lleva la MÁQUINA o TÚ, por separado (F.23):
+            //  - en la escucha del "repite conmigo" la máquina lleva las dos;
+            //  - fuera de ella, `assist` decide (solo mano / solo fader / las dos).
+            // El patrón se muestrea en `currentTick + gridPhaseTicks`, igual que
+            // la escucha, para que lo que se OYE vaya con lo que se DIBUJA cuando
+            // la rejilla se ha movido con ◀/▶.
+            let gt = currentTick + gridPhaseTicks
+
+            // --- DISCO ---
+            if machineDrivesDisc {
+                let g = ghostPosition(atTick: gt)
+                platterVelocity = (g - platterPosition) / step
+                platterPosition = g
+            } else {
+                platterVelocity *= exp(-frictionPerSecond * step)
+                if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
+                platterPosition += platterVelocity * step
+                if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
+                if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+            }
+
+            // --- FADER ---
+            // si lo lleva la máquina, sale del patrón; si lo llevas tú, no se
+            // toca aquí (lo mueve `setFaderClosed` desde el input / MIDI).
+            if machineDrivesFader {
+                applyFaderClosed(!ghostFaderOpen(atTick: gt))
+            }
         }
 
         // traza: un punto por fotograma. Con el fader cerrado no suena, asi que
@@ -405,22 +457,55 @@ public final class PracticeSession: ObservableObject {
         return Int(m < 0 ? m + lengthTicks : m)
     }
 
+    // MARK: - descomposición mano / fader (F.23)
+
+    /// ¿Lleva la máquina el DISCO ahora mismo? (escucha del "repite conmigo", o
+    /// modo "solo fader"). Si es `true`, el input de plato se ignora.
+    var machineDrivesDisc: Bool { crPhase == .listen || assist == .fader }
+    /// ¿Lleva la máquina el FADER ahora mismo? (escucha, o modo "solo mano").
+    var machineDrivesFader: Bool { crPhase == .listen || assist == .hand }
+
+    /// Elige qué capa lleva la máquina mientras practicas tú. Al ceder una capa
+    /// se resetea su estado para no arrancar con un valor viejo.
+    public func setAssist(_ mode: AssistMode) {
+        guard mode != assist else { return }
+        assist = mode
+        if mode == .fader { platterVelocity = 0 }        // la máquina va a llevar el disco
+        if mode != .hand, faderClosed { applyFaderClosed(false) }  // te devuelvo el fader abierto
+    }
+
+    /// Recorre los tres modos: las dos → solo mano → solo fader → … (para MIDI).
+    public func cycleAssist() {
+        let all = AssistMode.allCases
+        let i = (all.firstIndex(of: assist).map { $0 + 1 } ?? 0) % all.count
+        setAssist(all[i])
+    }
+
     // MARK: - entrada
 
     /// Scroll horizontal del trackpad. `deltaX` en puntos (signo: + = adelante).
-    /// En `listen` se ignora: manda la máquina.
+    /// Se ignora si el disco lo lleva la máquina (`listen` o modo "solo fader").
     public func scrollBy(_ deltaX: Double) {
-        guard crPhase != .listen else { return }
+        guard !machineDrivesDisc else { return }
         platterVelocity += deltaX * scrollGain * scrollSensitivity
     }
 
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).
     public func nudge(forward: Bool) {
-        guard crPhase != .listen else { return }
+        guard !machineDrivesDisc else { return }
         platterVelocity += (forward ? 1.0 : -1.0) * keyImpulse
     }
 
+    /// Fader desde el INPUT del usuario (Espacio / MIDI). Se ignora si el fader
+    /// lo lleva la máquina (escucha del "repite conmigo", o modo "solo mano").
     public func setFaderClosed(_ closed: Bool) {
+        guard !machineDrivesFader else { return }
+        applyFaderClosed(closed)
+    }
+
+    /// Aplica el estado del fader SIN mirar quién manda. Lo usan las rutas en
+    /// que la propia máquina mueve el fader (escucha, playback, `setAssist`).
+    private func applyFaderClosed(_ closed: Bool) {
         if faderClosed != closed { faderClosed = closed }
     }
 

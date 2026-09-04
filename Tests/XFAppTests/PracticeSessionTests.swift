@@ -477,4 +477,95 @@ final class PracticeSessionTests: XCTestCase {
         for _ in 0..<20 { s.advance(by: 1.0 / 60.0) }
         XCTAssertGreaterThan(abs(s.platterPosition - p0), 1e-6, "el scroll vuelve a mover el plato")
     }
+
+    // MARK: - F.23: descomposición mano / fader
+
+    func testSoloMano_tuMuevesElDiscoYLaMaquinaCortaElFader() throws {
+        // forward-cut: el patrón abre y cierra el fader a lo largo del compás.
+        let s = PracticeSession(scratch: try scratch("forward-cut"), bpm: 120)
+        s.setAssist(.hand)
+
+        // tu input de fader (Espacio / MIDI) se ignora: lo lleva la máquina
+        s.setFaderClosed(true)
+        XCTAssertFalse(s.faderClosed, "en 'solo mano' el fader no lo cierras tú")
+
+        // pero tu scroll SÍ mueve el disco
+        let p0 = s.platterPosition
+        s.scrollBy(35)
+        for _ in 0..<20 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan(s.platterPosition, p0, "el disco lo mueves tú")
+
+        // y a lo largo de dos compases el fader lo abre y lo cierra el patrón
+        var sawOpen = false, sawClosed = false
+        for _ in 0..<Int(60 * 2) {
+            s.advance(by: 1.0 / 60.0)
+            s.faderClosed ? (sawClosed = true) : (sawOpen = true)
+        }
+        XCTAssertTrue(sawOpen && sawClosed, "el corte lo lleva la máquina, siguiendo el patrón")
+    }
+
+    func testSoloFader_laMaquinaMueveElDiscoYTuCortas() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        s.setAssist(.fader)
+
+        // tu scroll se ignora: el disco lo lleva la máquina
+        s.scrollBy(80)
+        var positions: [Double] = []
+        for _ in 0..<48 { s.advance(by: 1.0 / 60.0); positions.append(s.platterPosition) }
+        let travel = (positions.max() ?? 0) - (positions.min() ?? 0)
+        XCTAssertGreaterThan(travel, 1e-3, "el disco se mueve solo (lo lleva la máquina)")
+
+        // tu fader SÍ funciona
+        s.setFaderClosed(true)
+        XCTAssertTrue(s.faderClosed, "en 'solo fader' el corte lo llevas tú")
+    }
+
+    func testLasDos_esLaPracticaNormal() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        XCTAssertEqual(s.assist, .both)
+        // sin scroll, el disco no se mueve (la máquina no interviene)
+        let p0 = s.platterPosition
+        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.platterPosition, p0, accuracy: 1e-6)
+        // y tu fader funciona
+        s.setFaderClosed(true)
+        XCTAssertTrue(s.faderClosed)
+    }
+
+    func testCicloDeManos() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        XCTAssertEqual(s.assist, .both)
+        s.cycleAssist(); XCTAssertEqual(s.assist, .hand)
+        s.cycleAssist(); XCTAssertEqual(s.assist, .fader)
+        s.cycleAssist(); XCTAssertEqual(s.assist, .both)
+    }
+
+    func testLaEscuchaMandaSobreElModoDeManos() throws {
+        // en 'solo mano' dices que el disco es tuyo; pero en la ESCUCHA del
+        // "repite conmigo" la máquina toca las dos capas igual.
+        let s = PracticeSession(scratch: try scratch("forward-cut"), bpm: 120)
+        s.setAssist(.hand)
+        s.setCallResponse(true)
+        XCTAssertEqual(s.crPhase, .listen)
+        s.setFaderClosed(true)
+        XCTAssertFalse(s.faderClosed, "en escucha el input de fader se ignora igualmente")
+        // y tu scroll tampoco entra en escucha
+        s.scrollBy(80)
+        XCTAssertEqual(s.platterVelocity, 0, accuracy: 1e-9)
+    }
+
+    func testAlRecuperarElFaderQuedaAbierto() throws {
+        // chirp: el patrón cierra el fader. Al pasar de 'solo mano' a 'las dos'
+        // se te devuelve abierto para no arrancar mudo.
+        let s = PracticeSession(scratch: try scratch("chirp"), bpm: 120)
+        s.setAssist(.hand)
+        var closed = false
+        for _ in 0..<600 {
+            s.advance(by: 1.0 / 60.0)
+            if s.faderClosed { closed = true; break }
+        }
+        XCTAssertTrue(closed, "el patrón del chirp cierra el fader")
+        s.setAssist(.both)
+        XCTAssertFalse(s.faderClosed, "al recuperar el fader, abierto")
+    }
 }

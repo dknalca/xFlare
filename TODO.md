@@ -874,6 +874,21 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         hasta la traza en reposo. Ahora usa el mismo mapeo que `traceY`
         (`railY(fraction:)`): f=0 cae exacto en el reposo del teal. El sprite
         va en un crop; la aguja no se recorta.
+- [x] **F.23** Descomposición mano / fader en la práctica (ADR-071)
+      - Así se enseña un flare: separando las manos. Tres modos en
+        `PracticeSession.AssistMode` — `both` (normal), `hand` (tú el disco, la
+        máquina corta), `fader` (la máquina mueve el disco, tú cortas). La
+        máquina lleva la capa que sueltas, muestreada de la misma curva del
+        patrón que la escucha (`ghostPosition`/`ghostFaderOpen`).
+      - Ortogonal al "repite conmigo": en `listen` la máquina lleva las dos
+        (`machineDrivesDisc`/`machineDrivesFader = crPhase == .listen || …`).
+      - UI: sección "Manos" en el rail derecho (también Freestyle), insignia
+        ámbar en la barra superior mientras el modo no es `both`, comando MIDI
+        `assist_cycle` (categoría global). `setFaderClosed` (input) se ignora si
+        la máquina lleva el fader; rutas internas por `applyFaderClosed`.
+      - Casi toda la fontanería ya estaba: el fantasma del call & response ya
+        movía las dos capas.
+      - Tests: `PracticeSessionTests` +7, `PracticeCommandMidiTests` +1. 693 en verde.
 
 ---
 

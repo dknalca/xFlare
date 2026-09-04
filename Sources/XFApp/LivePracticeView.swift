@@ -454,10 +454,11 @@ public struct LivePracticeView: View {
     /// Secciones del panel derecho. Colapsado se ve solo el rail de iconos;
     /// pulsar uno despliega esa sección.
     enum RightSection: Hashable {
-        case callResponse, record, adjust
+        case callResponse, hands, record, adjust
         var icon: String {
             switch self {
             case .callResponse: return "arrow.triangle.2.circlepath"
+            case .hands:        return "hand.raised"
             case .record:       return "record.circle"
             case .adjust:       return "dial.min"
             }
@@ -465,6 +466,7 @@ public struct LivePracticeView: View {
         var title: String {
             switch self {
             case .callResponse: return "Repite conmigo"
+            case .hands:        return "Manos"
             case .record:       return "Grabar línea"
             case .adjust:       return "Ajuste rápido"
             }
@@ -472,7 +474,7 @@ public struct LivePracticeView: View {
     }
 
     private var rightSections: [RightSection] {
-        freestyle ? [.record, .adjust] : [.callResponse, .record, .adjust]
+        freestyle ? [.hands, .record, .adjust] : [.callResponse, .hands, .record, .adjust]
     }
 
     private var rightPanel: some View {
@@ -514,6 +516,7 @@ public struct LivePracticeView: View {
     @ViewBuilder private func rightSectionBody(_ s: RightSection) -> some View {
         switch s {
         case .callResponse: callResponsePanel
+        case .hands:        handsPanel
         case .record:       recordPanel
         case .adjust:
             volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
@@ -524,6 +527,39 @@ public struct LivePracticeView: View {
                 // seguir; no toca el movimiento ni el sample.
                 volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
             }
+        }
+    }
+
+    /// F.23 — descomposición mano / fader. Un flare se aprende separando las
+    /// manos: primero el disco solo, luego el corte solo, y al final juntas.
+    /// Tres botones; la máquina lleva la capa que tú sueltas.
+    private var handsPanel: some View {
+        VStack(alignment: .leading, spacing: XFSpacing.xs) {
+            HStack(spacing: 4) {
+                ForEach(PracticeSession.AssistMode.allCases, id: \.self) { m in
+                    let on = session.assist == m
+                    Button { session.setAssist(m) } label: {
+                        Text(m.label).font(XFFont.body(9)).lineLimit(1).minimumScaleFactor(0.75)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 5)
+                            .background(RoundedRectangle(cornerRadius: 5)
+                                .fill(on ? XFColor.accent.opacity(0.18) : XFColor.surface))
+                            .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
+                            .foregroundColor(on ? XFColor.accent : XFColor.textMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            Text(handsHint).font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var handsHint: String {
+        switch session.assist {
+        case .both:  return "Llevas disco y fader. Sepáralos para aislar una mano."
+        case .hand:  return "Mueve solo el disco: el corte lo clava la máquina al patrón."
+        case .fader: return "Corta solo el fader: el disco lo mueve la máquina sobre el patrón."
         }
     }
 
@@ -1368,6 +1404,9 @@ public struct LivePracticeView: View {
             guard !freestyle else { break }
             s.setCallResponse(s.crPhase == .off)
 
+        case .trigger(.assistCycle):
+            s.cycleAssist()
+
         case .trigger(.sample1): loadSlot(0)
         case .trigger(.sample2): loadSlot(1)
         case .trigger(.sample3): loadSlot(2)
@@ -1886,23 +1925,7 @@ public struct LivePracticeView: View {
             XFWordmark(size: 14)
             Divider().frame(height: 16).background(XFColor.stroke)
             Text(activeName).font(XFFont.bodyMedium(14))
-            if !warmupSteps.isEmpty {
-                // Progreso del calentamiento: en que ejercicio de la tanda vamos.
-                Text("Calentamiento \(min(warmupIndex + 1, warmupSteps.count))/\(warmupSteps.count)")
-                    .font(XFFont.mono(10))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(XFColor.accent.opacity(0.18))
-                    .foregroundColor(XFColor.accent)
-                    .cornerRadius(3)
-            }
-            if session.frozen {
-                Text("CONGELADO")
-                    .font(XFFont.mono(10))
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(XFColor.accent.opacity(0.18))
-                    .foregroundColor(XFColor.accent)
-                    .cornerRadius(3)
-            }
+            statusBadges
             Spacer()
             HStack(spacing: XFSpacing.xs) {
                 Circle()
@@ -1930,6 +1953,26 @@ public struct LivePracticeView: View {
         .padding(.horizontal, XFSpacing.md)
         .padding(.vertical, XFSpacing.xs)
         .background(XFColor.surface)
+    }
+
+    /// Insignias de estado de la barra superior (calentamiento · congelado ·
+    /// qué capa lleva la máquina). Agrupadas para no pasar de 10 hijos el HStack.
+    @ViewBuilder private var statusBadges: some View {
+        if !warmupSteps.isEmpty {
+            topBadge("Calentamiento \(min(warmupIndex + 1, warmupSteps.count))/\(warmupSteps.count)")
+        }
+        if session.frozen { topBadge("CONGELADO") }
+        if let badge = session.assist.badge { topBadge(badge, warm: true) }
+    }
+
+    private func topBadge(_ text: String, warm: Bool = false) -> some View {
+        let c = warm ? Color(hex: 0xF5C542) : XFColor.accent
+        return Text(text)
+            .font(XFFont.mono(10))
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background(c.opacity(0.18))
+            .foregroundColor(c)
+            .cornerRadius(3)
     }
 
     private var crColor: Color {

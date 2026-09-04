@@ -14,6 +14,7 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
     case fader              // momentáneo: pulsado = crossfader cerrado (Espacio)
     case metronome          // toggle del metrónomo
     case callResponse       // toggle de "Repite conmigo"
+    case assistCycle        // recorre las dos → solo mano → solo fader
     case sample1            // carga el sample del slot 1 de la Librería
     case sample2            // slot 2
     case sample3            // slot 3
@@ -57,6 +58,7 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .fader:        return "command.fader"
         case .metronome:    return "command.metronome"
         case .callResponse: return "command.call_response"
+        case .assistCycle:  return "command.assist_cycle"
         case .sample1:      return "command.sample_1"
         case .sample2:      return "command.sample_2"
         case .sample3:      return "command.sample_3"
@@ -88,6 +90,7 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .fader:        return "Fader cerrado (momentáneo)"
         case .metronome:    return "Metrónomo"
         case .callResponse: return "Repite conmigo"
+        case .assistCycle:  return "Manos: las dos / solo mano / solo fader"
         case .sample1:      return "Sample 1"
         case .sample2:      return "Sample 2"
         case .sample3:      return "Sample 3"

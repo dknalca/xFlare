@@ -2756,6 +2756,52 @@ Sin código nuevo, sin tests.
 
 ---
 
+## ADR-071 — Descomposición mano / fader en la práctica (F.23)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** Así se enseña un flare con un profesor delante: se separan las
+manos. Primero el giro del disco solo, con el fader abierto; luego el corte del
+fader solo, con el disco quieto o en modo automático; y cuando cada mano va sola,
+se juntan. Ningún entrenador de scratch (Melodics, los DVS) ofrece esto — y
+xFlare ya tenía toda la maquinaria: el fantasma del "repite conmigo"
+**ya mueve las dos capas** (`ghostPosition` + `ghostFaderOpen` en
+`PracticeSession.advance`).
+
+**Decisión.** Un modo `AssistMode` en `PracticeSession` con tres casos:
+`both` (práctica normal, tú llevas las dos), `hand` (tú el disco, la máquina
+corta el fader clavado al patrón), `fader` (la máquina mueve el disco sobre el
+patrón, tú cortas). La máquina lleva **la capa que tú sueltas**, muestreada de la
+misma curva del patrón que usa la escucha, en `currentTick + gridPhaseTicks`.
+
+El modo es **ortogonal al "repite conmigo"**: durante la fase `listen` la máquina
+toca las dos capas pase lo que pase (`machineDrivesDisc`/`machineDrivesFader`
+son `crPhase == .listen || …`); `assist` solo manda en tu turno y en la práctica
+libre. `setFaderClosed` (input) se ignora cuando la máquina lleva el fader; las
+rutas internas usan un `applyFaderClosed` privado que no mira quién manda.
+`scrollBy`/`nudge` se ignoran cuando la máquina lleva el disco (misma guarda que
+ya tenía la escucha).
+
+UI: sección **"Manos"** en el rail derecho de la práctica (también en Freestyle),
+tres botones; insignia ámbar en la barra superior mientras el modo no es `both`;
+comando MIDI `assist_cycle` (categoría global) que recorre los tres.
+
+**Alternativas descartadas.** Reutilizar la escucha del call & response para esto
+(son cosas distintas: la escucha es "mira y escucha", esto es "toca una capa
+mientras yo llevo la otra"). Un cuarto modo "ninguna" (la práctica libre ya lo
+es). Botones separados por capa en vez de un ciclo para MIDI (un solo botón de
+mesa basta y sobra).
+
+**Consecuencias.** `PracticeSession` gana `AssistMode`, `assist`, `setAssist`,
+`cycleAssist`, `machineDrivesDisc`/`machineDrivesFader` y el split
+`setFaderClosed` / `applyFaderClosed`. `LivePracticeView` gana la sección
+"Manos", la insignia y el caso `.assistCycle` en `handleCommand`. XFCapture
+(WIP): `PracticeCommand.assistCycle`. `docs/CURRICULUM.md` debería, más adelante,
+recomendar el modo por nivel de truco. Tests: `PracticeSessionTests` +7,
+`PracticeCommandMidiTests` +1 → 693 en verde.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

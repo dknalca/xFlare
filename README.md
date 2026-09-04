@@ -31,7 +31,9 @@ de transitorios** para colocar el arranque). Los cues y loops de la instrumental
 se **ven en la practica** sobre la tira de la onda y se recorren con botones
 anterior/siguiente. 4 slots de sample asignables a botones MIDI. Ajustes con
 reasignacion de comandos por MIDI, agrupados por categoria (global / sample /
-instrumental) — incluye saltar al cue/loop anterior y siguiente. El render de la autopista va a
+instrumental) — incluye saltar al cue/loop anterior y siguiente. **Descomposicion
+mano / fader**: practica el disco solo, el corte solo, o las dos — la maquina
+lleva la capa que sueltas, clavada al patron. El render de la autopista va a
 **60 fps estables** en el MacBook Pro Intel de 2015 (medido). Ajustes y librerías
 se guardan en ficheros de texto copiables
 (`~/Library/Application Support/xFlare/*.json`).

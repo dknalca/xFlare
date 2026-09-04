@@ -153,6 +153,14 @@ final class PracticeCommandMidiTests: XCTestCase {
         XCTAssertEqual(m.event(status: 0xB0, data1: 21, data2: 127), .trigger(.instrCuePrev))
     }
 
+    func testCicloDeManosEsUnComandoGlobalMapeable() {
+        XCTAssertEqual(PracticeCommand.assistCycle.confKey, "command.assist_cycle")
+        XCTAssertEqual(PracticeCommand.assistCycle.category, .global)
+        let ini = try! INIDocument(text: "[transport]\ncommand.assist_cycle = note:1:48")
+        let m = MidiCommandMap.fromProfile(ini)
+        XCTAssertEqual(m.event(status: 0x90, data1: 48, data2: 100), .trigger(.assistCycle))
+    }
+
     func testCadaComandoTieneUnaCategoria() {
         XCTAssertEqual(PracticeCommand.cue.category, .sample)
         XCTAssertEqual(PracticeCommand.sample3.category, .sample)

@@ -162,9 +162,17 @@ sale mal, todo lo demas miente.
   acepta coma o punto). El botón ▴ despliega la **lista de instrumentales ya
   analizadas de la Librería** (nombre + "≈ 120.0 · 4 comp." del caché) para
   cargar otra al instante; al cargar, se minimiza sola.
-- **Panel derecho** — **colapsable**: un rail de iconos (Repite conmigo · Grabar
-  línea · Ajuste rápido); pulsar un icono despliega esa sección, volver a
-  pulsarlo la colapsa. Arranca colapsado (solo el rail).
+- **Panel derecho** — **colapsable**: un rail de iconos (Repite conmigo ·
+  **Manos** · Grabar línea · Ajuste rápido); pulsar un icono despliega esa
+  sección, volver a pulsarlo la colapsa. Arranca colapsado (solo el rail).
+- **Manos (F.23)** — descomposición mano / fader: tres botones —*Las dos* /
+  *Solo mano* / *Solo fader*. La máquina lleva la capa que sueltas, clavada al
+  patrón: en *solo mano* mueves el disco y la máquina corta; en *solo fader* la
+  máquina mueve el disco y tú cortas. Así se aprende un flare — separando las
+  manos hasta que cada una va sola. Mientras el modo no es *Las dos*, una
+  insignia ámbar en la barra superior dice qué lleva la máquina. Comando MIDI
+  `assist_cycle` (recorre los tres). Es **independiente** de "Repite conmigo":
+  durante la escucha la máquina toca las dos capas igual.
 - **Números de la rejilla** — sobre cada línea vertical, **arriba del todo**
   (encima de la tira de la onda de la instrumental), pequeños y discretos:
   `compás.subdivisión` (1.1, 1.2, 1.3, 1.4, 2.1…). El "1" es el tick 0. Se mueven
