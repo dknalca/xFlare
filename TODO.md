@@ -762,6 +762,19 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Pendiente v2**: cues en la propia práctica (botones de salto);
         re-aplicar la región de loop tras ÷2/×2/reiniciar la base; regiones que
         crucen el "1".
+- [x] **F.17** Pulido: panel derecho colapsable, números de rejilla arriba del todo, icono en oscuro
+      - Feedback del autor (2026-09-04):
+      - **Panel derecho colapsable**: `rightPanel` de `LivePracticeView` pasa a un
+        **rail de iconos** (uno por sección: Repite conmigo / Grabar línea /
+        Ajuste rápido); pulsar un icono despliega esa sección (`openRight`),
+        vuelve a pulsarlo para colapsar. Arranca colapsado.
+      - **Números de rejilla arriba del todo**: `PracticeScene.moveGridLabels`
+        pinta los números de compás en `y = size.height - 1` (encima de la tira
+        de la onda de la instrumental), `zPosition` 20.
+      - **Icono legible en oscuro** (`icon/xflare.svg` + `.icns` regenerado): la
+        placa de fondo era casi negra (#171B22→#0A0C0F) y sobre un escritorio
+        oscuro solo flotaba el cap verde. Ahora #2C333E→#141920 + borde tenue;
+        cap fantasma y marcas un poco más visibles.
 
 ---
 

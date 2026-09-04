@@ -162,12 +162,13 @@ sale mal, todo lo demas miente.
   acepta coma o punto). El botón ▴ despliega la **lista de instrumentales ya
   analizadas de la Librería** (nombre + "≈ 120.0 · 4 comp." del caché) para
   cargar otra al instante; al cargar, se minimiza sola.
-- **Panel derecho** — solo lo que no es sample ni base: "Repite conmigo",
-  "Grabar línea", "Ajuste rápido" (sensibilidad del trackpad, amplitud de la
-  onda fantasma).
-- **Números de la rejilla** — sobre cada línea vertical, arriba del todo,
-  pequeños y discretos: `compás.subdivisión` (1.1, 1.2, 1.3, 1.4, 2.1…). El "1"
-  es el tick 0. Se mueven con los botones ◀/▶ (siguen al desplazamiento).
+- **Panel derecho** — **colapsable**: un rail de iconos (Repite conmigo · Grabar
+  línea · Ajuste rápido); pulsar un icono despliega esa sección, volver a
+  pulsarlo la colapsa. Arranca colapsado (solo el rail).
+- **Números de la rejilla** — sobre cada línea vertical, **arriba del todo**
+  (encima de la tira de la onda de la instrumental), pequeños y discretos:
+  `compás.subdivisión` (1.1, 1.2, 1.3, 1.4, 2.1…). El "1" es el tick 0. Se mueven
+  con los botones ◀/▶ (siguen al desplazamiento).
 - El **BPM** de la rejilla va siempre enganchado al de la instrumental (que se
   detecta con decimales); TAP y ÷2/×2 lo cambian en caliente sin reiniciar la
   base ni el reloj.

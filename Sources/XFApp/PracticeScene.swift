@@ -554,12 +554,12 @@ final class PracticeScene: SKScene {
             l.fontColor = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.5)
             l.horizontalAlignmentMode = .left
             l.verticalAlignmentMode = .top
-            l.zPosition = 8            // sobre la autopista, discreto
+            l.zPosition = 20           // sobre la tira de instrumental, discreto
             fullGridLayer.addChild(l)
             gridLabelPool.append(l)
         }
-        // arriba del todo de la autopista (justo bajo la tira de instrumental).
-        let yTop = geometry.size.height - 2
+        // arriba del TODO: encima de la tira de la onda de la instrumental.
+        let yTop = size.height - 1
         for (i, l) in gridLabelPool.enumerated() {
             if i < items.count {
                 l.isHidden = false

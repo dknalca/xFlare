@@ -56,6 +56,8 @@ public struct LivePracticeView: View {
     /// Zona inferior de la base: desplegada muestra la lista de la Librería; al
     /// cargar una instrumental se minimiza a la fila compacta (nombre + botones).
     @State private var instrExpanded = true
+    /// Sección abierta del panel derecho (`nil` = colapsado a solo iconos).
+    @State private var openRight: RightSection? = nil
     // Volumenes por sesion (no se persisten: asi la practica nunca arranca muda).
     // Ambos arrancan a la mitad: el sample a tope tapaba la instrumental.
     @State private var sampleVol: Double = 0.5
@@ -402,30 +404,82 @@ public struct LivePracticeView: View {
         // "repite conmigo" ya está en marcha a 2 compases; solo cambia el patrón.
     }
 
-    // MARK: - panel derecho: medidor + volumenes (provisional)
+    // MARK: - panel derecho: rail de iconos + la sección abierta
+
+    /// Secciones del panel derecho. Colapsado se ve solo el rail de iconos;
+    /// pulsar uno despliega esa sección.
+    enum RightSection: Hashable {
+        case callResponse, record, adjust
+        var icon: String {
+            switch self {
+            case .callResponse: return "arrow.triangle.2.circlepath"
+            case .record:       return "record.circle"
+            case .adjust:       return "dial.min"
+            }
+        }
+        var title: String {
+            switch self {
+            case .callResponse: return "Repite conmigo"
+            case .record:       return "Grabar línea"
+            case .adjust:       return "Ajuste rápido"
+            }
+        }
+    }
+
+    private var rightSections: [RightSection] {
+        freestyle ? [.record, .adjust] : [.callResponse, .record, .adjust]
+    }
 
     private var rightPanel: some View {
-        ScrollView(.vertical, showsIndicators: false) {
-            VStack(alignment: .leading, spacing: XFSpacing.md) {
-                if !freestyle {
-                    panelSection("Repite conmigo") { callResponsePanel }
-                }
-                panelSection("Grabar línea") { recordPanel }
-                panelSection("Ajuste rápido") {
-                    volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
-                        session.scrollSensitivity = v
+        HStack(spacing: 0) {
+            VStack(spacing: 6) {
+                ForEach(rightSections, id: \.self) { s in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.12)) {
+                            openRight = (openRight == s) ? nil : s
+                        }
+                    } label: {
+                        Image(systemName: s.icon).font(.system(size: 13))
+                            .frame(width: 30, height: 30)
+                            .background(RoundedRectangle(cornerRadius: 6)
+                                .fill(openRight == s ? XFColor.accent.opacity(0.18) : Color.clear))
+                            .foregroundColor(openRight == s ? XFColor.accent : XFColor.textMuted)
+                            .contentShape(Rectangle())
                     }
-                    if !freestyle {
-                        // "Amplitud" solo cambia el ALTO de la onda fantasma que
-                        // hay que seguir; no toca el movimiento ni el sample.
-                        volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
-                    }
+                    .buttonStyle(.plain).help(s.title)
                 }
+                Spacer()
             }
-            .padding(XFSpacing.sm)
+            .padding(.vertical, XFSpacing.sm)
+            .frame(width: 40)
+            .background(XFColor.surface)
+
+            if let s = openRight {
+                ScrollView(.vertical, showsIndicators: false) {
+                    panelSection(s.title) { rightSectionBody(s) }
+                        .padding(XFSpacing.sm)
+                }
+                .frame(width: 176)
+                .background(XFColor.surface)
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
-        .frame(width: 176)
-        .background(XFColor.surface)
+    }
+
+    @ViewBuilder private func rightSectionBody(_ s: RightSection) -> some View {
+        switch s {
+        case .callResponse: callResponsePanel
+        case .record:       recordPanel
+        case .adjust:
+            volSlider("Trackpad", $sensitivity, range: 0.1...1.5) { v in
+                session.scrollSensitivity = v
+            }
+            if !freestyle {
+                // "Amplitud" solo cambia el ALTO de la onda fantasma que hay que
+                // seguir; no toca el movimiento ni el sample.
+                volSlider("Amplitud", $amplitude, range: 0.3...1.0) { _ in }
+            }
+        }
     }
 
     // MARK: - columna izquierda: todo lo del SAMPLE

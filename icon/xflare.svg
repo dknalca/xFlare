@@ -8,8 +8,11 @@
   -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#171B22"/>
-      <stop offset="1" stop-color="#0A0C0F"/>
+      <!-- Mas claro que antes (#171B22->#0A0C0F): sobre un escritorio oscuro la
+           placa se perdia y solo flotaba el cap verde. Ahora la silueta del
+           icono se lee sobre cualquier fondo. -->
+      <stop offset="0" stop-color="#2C333E"/>
+      <stop offset="1" stop-color="#141920"/>
     </linearGradient>
     <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#66F0DC"/>
@@ -18,14 +21,15 @@
     </linearGradient>
   </defs>
 
-  <!-- placa redondeada de fondo -->
-  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <!-- placa redondeada de fondo, con un borde tenue para que el canto se vea -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"
+        stroke="#4A5560" stroke-opacity="0.55" stroke-width="4"/>
 
   <!-- ranura del crossfader -->
   <rect x="182" y="466" width="660" height="92" rx="46"
         fill="#090B0E" stroke="#2A323B" stroke-width="4"/>
   <!-- marcas de posicion (centro y cuartos), muy tenues -->
-  <g fill="#39434E">
+  <g fill="#4A5560">
     <rect x="350" y="492" width="4" height="40" rx="2"/>
     <rect x="510" y="488" width="4" height="48" rx="2"/>
     <rect x="670" y="492" width="4" height="40" rx="2"/>
@@ -35,7 +39,7 @@
   <path transform="translate(-210,0)"
         d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
            L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
-        fill="#7A8794" fill-opacity="0.17"/>
+        fill="#8B98A5" fill-opacity="0.22"/>
 
   <!-- sombra del cap vivo -->
   <path transform="translate(0,12)"
