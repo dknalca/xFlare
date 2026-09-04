@@ -2559,9 +2559,9 @@ práctica sigue en 4/4 de momento).
 cambia (68→74 tests, los espectrales igual). `InstrumentalEdit` /
 `InstrumentalEditStore` / `InstrumentalEditorView` nuevos en XFApp.
 `LivePracticeView` gana `instrumentalEdit` (cableado en `AppRootView`).
-**Pendiente (v2):** los puntos Cue en la propia práctica (botones de salto);
-re-aplicar la región de loop tras ÷2/×2/reiniciar la base; regiones que crucen
-el "1".
+**Pendiente (v2):** re-aplicar la región de loop tras ÷2/×2/reiniciar la base;
+regiones que crucen el "1". *(Los puntos Cue en la propia práctica se cerraron en
+la iteración 2, más abajo.)*
 
 > **Iteración (2026-09-04).** Feedback del autor sobre el editor:
 > - **Play no sonaba** al abrir el editor "en frío" (sin venir de una práctica):

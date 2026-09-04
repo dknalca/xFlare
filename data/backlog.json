@@ -1115,6 +1115,14 @@
           "note": "Cerrado 2026-09-04 (ADR-067). RT: xf_player gana loop_start/loop_end (frames); con loop activo el cabezal y la lectura sinc envuelven dentro de [loop_start,loop_end) -> bucle de una parte tan continuo como el del fichero entero. xf_player_set_loop_region (leida 1x/bloque y saneada en el render: una lectura rasgada nunca sale de [0,frames)). xf_engine_set_instrumental_loop_region + xf_engine_seek_instrumental -> EngineHandle.setInstrumentalLoopRegion/seekInstrumental. Por defecto = entero (sin cambio; los espectrales igual). Datos: InstrumentalEdit (puro Codable: bpm?, downbeatSeconds?, beatsPerBar, cues, loops, activeLoopID) + InstrumentalEditStore (JSON en instrumental-edits.json, por ruta) + AppModel.instrumentalEdits. Editor: InstrumentalEditorView (Screen.instrumentalEditor, boton de ajustes en cada fila de la Libreria), reproduce de verdad (play/pausa, pinchar la onda, oir el loop de una region), onda + rejilla con numeros arriba (SwiftUI sin Canvas, macOS 11), BPM/TAP/div2 x2/'fijar el 1 aqui'/compas, cues (anadir en el cabezal/renombrar/saltar/borrar), regiones (crear 4 compases/nudge/activar/borrar). Practica: loadInstrumental usa el InstrumentalEdit si lo hay (BPM y '1' del editor mandan; region activa -> setInstrumentalLoopRegion en coords rotadas). Tests: XFPlayerLoopTests +4, XFEngineInstrumentalTests +2, InstrumentalEditTests +5. 667 en verde. Pendiente v2: cues en la propia practica, re-aplicar la region tras div2/x2/reiniciar, regiones que crucen el '1'."
         },
         {
+          "id": "F.17",
+          "title": "Pulido: panel derecho colapsable, numeros de rejilla arriba, icono en oscuro",
+          "module": "XFApp, icon",
+          "acceptance": "el panel derecho se puede ocultar a un rail de iconos; los numeros de compas van encima de la tira de instrumental; el icono se lee sobre un escritorio oscuro",
+          "status": "done",
+          "note": "Cerrado 2026-09-04. Panel derecho colapsable: rightPanel de LivePracticeView pasa a un rail de iconos (Repite conmigo / Grabar linea / Ajuste rapido); pulsar un icono despliega esa seccion (openRight), volver a pulsarlo la colapsa. Arranca colapsado. Numeros de rejilla arriba del todo: PracticeScene.moveGridLabels los pinta en y = size.height - 1 (encima de la tira de la onda de la instrumental), zPosition 20. Icono legible en oscuro (icon/xflare.svg + .icns regenerado): la placa era casi negra (#171B22->#0A0C0F) y sobre un escritorio oscuro solo flotaba el cap verde; ahora #2C333E->#141920 + borde tenue; luego una segunda pasada de color (ADR-067 iter. no, feedback aparte) para distinguir placa/ranura/marcas/cap fantasma/cap vivo/surco/brillo. 667 en verde."
+        },
+        {
           "id": "F.18",
           "title": "Fixes del editor + regresion: la libreria de instrumentales se vaciaba",
           "module": "XFApp, icon",
