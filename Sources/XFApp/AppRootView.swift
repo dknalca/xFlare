@@ -46,32 +46,64 @@ public struct AppRootView: View {
     }
 
     private var navBar: some View {
-        HStack(spacing: XFSpacing.md) {
-            XFWordmark(size: 16)
+        HStack(spacing: XFSpacing.xxs) {
+            XFWordmark(size: 17)
+                .padding(.trailing, XFSpacing.xs)
             Divider().frame(height: 18).background(XFColor.stroke)
+                .padding(.trailing, XFSpacing.xs)
             Group {
-                navButton("Home", "square.grid.3x3.fill") { model.goHome() }
-                navButton("Trucos", "books.vertical") { model.openLibrary() }
-                navButton("Librería", "square.stack") { model.openMediaLibrary() }
-                navButton("Mi mesa", "pianokeys") { model.openMyTable() }
-                navButton("Calentar", "flame") { model.openWarmup() }
-                navButton("Freestyle", "waveform.and.mic") { model.openFreeMode() }
-                navButton("Ajustes", "slider.horizontal.3") { model.openSettings() }
+                navButton("Home", "square.grid.3x3.fill", active: onHome) { model.goHome() }
+                navButton("Trucos", "books.vertical", active: onTrucos) { model.openLibrary() }
+                navButton("Librería", "square.stack", active: onLibreria) { model.openMediaLibrary() }
+                navButton("Mi mesa", "pianokeys", active: isScreen(.myTable)) { model.openMyTable() }
+                navButton("Calentar", "flame", active: isScreen(.warmup)) { model.openWarmup() }
+                navButton("Freestyle", "waveform.and.mic", active: isScreen(.freeMode)) { model.openFreeMode() }
+                navButton("Ajustes", "slider.horizontal.3", active: isScreen(.settings)) { model.openSettings() }
             }
             Spacer()
-            navButton("Calibración", "dot.radiowaves.left.and.right") { model.openCalibration() }
+            navButton("Calibración", "dot.radiowaves.left.and.right",
+                      active: isScreen(.calibration)) { model.openCalibration() }
         }
         .padding(.horizontal, XFSpacing.md)
         .padding(.vertical, XFSpacing.xs)
         .background(XFColor.surface)
+        .overlay(Rectangle().fill(XFColor.stroke).frame(height: XFStroke.hairline),
+                 alignment: .bottom)
     }
 
-    private func navButton(_ title: String, _ symbol: String, _ action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label(title, systemImage: symbol).font(XFFont.body(12))
+    // MARK: - qué sección está activa
+
+    private func isScreen(_ s: AppModel.Screen) -> Bool { model.screen == s }
+    private var onHome: Bool { model.screen == .home }
+    private var onTrucos: Bool {
+        switch model.screen { case .library, .exerciseDetail, .progress: return true; default: return false }
+    }
+    private var onLibreria: Bool {
+        switch model.screen { case .mediaLibrary, .instrumentalEditor, .sampleEditor: return true; default: return false }
+    }
+
+    @State private var hovered: String? = nil
+
+    private func navButton(_ title: String, _ symbol: String, active: Bool,
+                           _ action: @escaping () -> Void) -> some View {
+        let hot = hovered == title
+        return Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(XFFont.body(12))
+                .padding(.horizontal, XFSpacing.xs)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                        .fill(active ? XFColor.accent.opacity(0.14)
+                              : (hot ? XFColor.surfaceRaised : Color.clear))
+                )
+                .foregroundColor(active ? XFColor.accent
+                                 : (hot ? XFColor.text : XFColor.textMuted))
         }
         .buttonStyle(.plain)
-        .foregroundColor(XFColor.textMuted)
+        .onHover { hovered = $0 ? title : (hovered == title ? nil : hovered) }
+        .animation(.easeOut(duration: 0.12), value: active)
+        .animation(.easeOut(duration: 0.12), value: hot)
     }
 
     @ViewBuilder private var current: some View {

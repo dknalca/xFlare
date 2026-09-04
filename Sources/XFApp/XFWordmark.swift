@@ -4,8 +4,9 @@ import SwiftUI
 import XFDesign
 
 /// El logotipo de xFlare: la marca (una **tapa de crossfader** de mesa de
-/// batalla, con su silueta de reloj de arena) + el texto "xFlare". Sin ficheros:
-/// todo `Shape` + `Text`, así funciona en cualquier build sin recursos.
+/// batalla, con su silueta de reloj de arena y el surco del fader) + el texto
+/// "xFlare". Sin ficheros: todo `Shape` + `Text`, así funciona en cualquier
+/// build sin recursos. Mismo motivo que el icono de la app (`icon/xflare.svg`).
 ///
 /// Se usa en la barra de navegación (todas las pantallas de menú) y en la barra
 /// superior de la práctica.
@@ -22,21 +23,36 @@ public struct XFWordmark: View {
     }
 
     public var body: some View {
-        HStack(spacing: size * 0.34) {
-            FaderCapMark()
-                .fill(XFColor.accent)
-                .frame(width: size * 0.60, height: size * 1.18)
-                .shadow(color: XFColor.accent.opacity(0.35), radius: size * 0.14)
+        HStack(spacing: size * 0.36) {
+            mark
 
             if showText {
                 (Text("x").foregroundColor(XFColor.accent)
                  + Text("Flare").foregroundColor(XFColor.text))
-                    .font(.system(size: size, weight: .heavy, design: .rounded))
-                    .kerning(-0.4)
+                    .font(.system(size: size, weight: .bold, design: .default))
+                    .kerning(size * 0.005)
             }
         }
         .accessibilityElement()
         .accessibilityLabel("xFlare")
+    }
+
+    /// La tapa del crossfader: silueta de acento + surco del fader + un brillo
+    /// tenue arriba. Sin sombra difusa (ensuciaba sobre fondos claros).
+    private var mark: some View {
+        let w = size * 0.62, h = size * 1.16
+        return ZStack {
+            FaderCapMark().fill(XFColor.accent)
+            // surco del fader (indicador de posición), como en el icono
+            Capsule().fill(XFColor.bg)
+                .frame(width: w * 0.66, height: max(1.5, h * 0.11))
+            // brillo superior
+            Capsule().fill(Color.white.opacity(0.30))
+                .frame(width: w * 0.5, height: max(1, h * 0.055))
+                .offset(y: -h * 0.30)
+        }
+        .frame(width: w, height: h)
+        .compositingGroup()
     }
 }
 
