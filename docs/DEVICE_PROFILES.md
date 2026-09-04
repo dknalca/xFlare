@@ -7,16 +7,21 @@
 
 Hay un hallazgo que condiciona todo este sistema:
 
-> **El crossfader de una mesa de battle probablemente NO emite MIDI.**
-> En la Rane Seventy-Two (MK1, el hardware de referencia) el MAG FOUR es un
-> componente de audio por hardware, cableado a la ruta de senal. El mapeo MIDI de
-> la mesa esta pensado para pads y para Serato, no para exponer la posicion del
-> crossfader a terceros.
+> **El crossfader de una mesa de battle puede o no emitir MIDI — no lo des por
+> supuesto, midelo.** Durante mucho tiempo se asumio que el MAG FOUR de la Rane
+> Seventy-Two (MK1, el hardware de referencia) era puramente un componente de
+> audio, sin exponer su posicion por MIDI. Esa suposicion resulto ser
+> **incorrecta**: confirmado con el aparato (2026-09-03, corrige ADR-021), el
+> crossfader de la Rane 72 SI manda su posicion por Control Change (CC8, canal
+> MIDI 16). El mapeo MIDI de la mesa esta pensado sobre todo para pads y para
+> Serato, pero el crossfader tambien esta ahi. No se puede generalizar esto a
+> otras mesas (p. ej. la DJM-S11) sin medirlo igual.
 
 Esto no es un detalle de configuracion: es **el riesgo tecnico numero dos del
 proyecto** despues de la latencia. Y es exactamente por eso que el perfil de
 dispositivo no puede ser "una lista de numeros CC". Tiene que declarar, para cada
-mesa, **por que via se captura cada cosa**.
+mesa, **por que via se captura cada cosa** — y esa via se confirma con el
+aparato delante, no se asume por la hoja de especificaciones.
 
 ### Los tres metodos de captura del crossfader
 
@@ -26,8 +31,14 @@ mesa, **por que via se captura cada cosa**.
 | `audio_return` | Se captura el master de la mesa por USB y se deduce el corte | Mesas de battle con fader hardware |
 | `hid` | Protocolo propietario por USB | Ultimo recurso, requiere ingenieria inversa |
 
-**`audio_return` con tono piloto** es la apuesta para la Rane 72 y hay que validarla
-en el bloque B1: xFlare mezcla en su salida un tono inaudible (por ejemplo 19,5 kHz
+**`midi` es el metodo confirmado para la Rane 72** (B1.4, 2026-09-03): CC8 en
+canal MIDI 16, sostenido y limpio en una captura aislada de 5 minutos. Es la via
+mas simple — sin tono piloto, sin mezcla de audio de vuelta, sin canal de
+retorno USB, con timestamp de CoreMIDI directo.
+
+**`audio_return` con tono piloto** queda como **respaldo** para mesas que de
+verdad no expongan el crossfader por MIDI (queda por confirmar en la DJM-S11,
+por ejemplo): xFlare mezcla en su salida un tono inaudible (por ejemplo 19,5 kHz
 a -40 dBFS), captura el retorno del master de la mesa por USB, y mide la presencia
 de ese tono. Si el tono desaparece, el fader esta cerrado. Ventajas: funciona con
 cualquier mesa que tenga retorno USB, y no depende de que el fabricante quiera.
@@ -66,9 +77,11 @@ output.main.ch    = 1,2
 return.ch         = 7,8
 
 [crossfader]
-method          = audio_return
-pilot.frequency = 19500
-pilot.level_db  = -40
+method          = midi
+midi.channel    = 16
+midi.cc         = 8
+midi.min        = 0
+midi.max        = 127
 cut_in.left     = 0.05
 cut_in.right    = 0.95
 hysteresis      = 0.03
@@ -114,10 +127,11 @@ reverse_default = true
 | `hysteresis` | 0..1 | Anti-rebote |
 | `reverse_default` | bool | Hamster de fabrica |
 
-> **`method = hid`** es la ruta de respaldo de ADR-021: si la mesa (Rane 72,
-> DJM-S11) no expone el crossfader por MIDI, muchas hablan HID con Serato. Los
-> valores `hid.*` salen de leer el descriptor HID del aparato (asistente de §8, o
-> `hidutil`/`ioreg`). La lectura la implementa `XFCapture.HIDFaderSource`.
+> **`method = hid`** es la segunda ruta de respaldo de ADR-021 (la primera es
+> `audio_return`): si una mesa no expone el crossfader ni por MIDI ni por audio
+> de vuelta, muchas hablan HID con Serato. Los valores `hid.*` salen de leer el
+> descriptor HID del aparato (asistente de §8, o `hidutil`/`ioreg`). La lectura
+> la implementa `XFCapture.HIDFaderSource`.
 
 ### `[linefader.deckN]`, `[pads]`
 Misma logica. Los controles se escriben `tipo:canal:numero`, por ejemplo

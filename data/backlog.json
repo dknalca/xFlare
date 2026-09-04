@@ -110,11 +110,11 @@
         },
         {
           "id": "B1.4",
-          "title": "Validar la captura del crossfader por tono piloto (ADR-021)",
+          "title": "Validar la captura del crossfader — resultado: MIDI, no tono piloto (corrige ADR-021)",
           "module": "CXFAudioCore",
-          "status": "wip",
+          "status": "done",
           "acceptance": "detectar apertura/cierre del crossfader de tu mesa con menos de 5 ms de jitter; si falla, ADR con el plan C ANTES de seguir",
-          "note": "spike en spike/b1-pilot-fader/ (desechable): pilot_fader.c + build.sh, compila universal, 0 warnings -Werror. Genera piloto 19,5 kHz a -40 dBFS (tabla precalculada), analiza la entrada con Goertzel de un bin por hop de 64 muestras, histeresis de dos umbrales, ring SPSC lock-free para los flancos. Modos --selfcheck (calibra umbrales con un cable, sin mesa) y deteccion (imprime flancos + desv. tipica vs criterio de 5 ms). Falta correrlo con la Rane 72."
+          "note": "Spike de tono piloto en spike/b1-pilot-fader/ (desechable, sigue compilando, queda de respaldo). (2026-09-03) Antes de correrlo se comprobo por CoreMIDI si el crossfader manda algo directamente: captura aislada de 5 min moviendo solo el crossfader, confirmada en vivo por el autor -> 15313 de 15317 mensajes fueron CC8/canal16, sostenidos exactamente con el movimiento (los 4 restantes, un roce accidental al fader de canal). El MAG FOUR SI manda su posicion por MIDI; la premisa de ADR-021 era incorrecta para la Rane 72. ADR-021 corregida y profiles/rane-seventy-two.conf actualizado a method = midi (cc=8, canal=16) como metodo primario; audio_return queda documentado como respaldo. Pendiente (no bloquea, se resuelve en calibracion): extremos exactos del barrido y midi.invert."
         },
         {
           "id": "B1.5",
@@ -442,7 +442,7 @@
           "module": "XFCapture",
           "acceptance": "funciona con Rane 72 (MK1); si no emite MIDI, cae al fallback solo",
           "status": "done",
-          "note": "Parte testeable + conectores. MidiCrossfaderConfig + MidiFaderSource (ingest(status:data1:data2:hostTime:), filtra CC/canal, normaliza, binariza; messages(from:) trocea el flujo con running status/SysEx/tiempo real). AudioEnvelopeFaderSource: fallback de ultimo recurso (RMS del retorno -> FaderBinarizer, sin tono piloto). MidiFaderConnector (CoreMIDI clasico, MIDIPacketList) y HIDFaderConnector (IOHIDManager) compilan pero SIN tests (necesitan el dispositivo real); la decodificacion si esta probada. 22 tests. Falta la Rane 72."
+          "note": "Parte testeable + conectores. MidiCrossfaderConfig + MidiFaderSource (ingest(status:data1:data2:hostTime:), filtra CC/canal, normaliza, binariza; messages(from:) trocea el flujo con running status/SysEx/tiempo real). AudioEnvelopeFaderSource: fallback de ultimo recurso (RMS del retorno -> FaderBinarizer, sin tono piloto). MidiFaderConnector (CoreMIDI clasico, MIDIPacketList) y HIDFaderConnector (IOHIDManager) compilan pero SIN tests (necesitan el dispositivo real); la decodificacion si esta probada. 22 tests. Falta la Rane 72. (2026-09-03) Confirmado con la Rane 72 real: el crossfader SI manda CC8/canal16 (ver B1.4, corrige ADR-021). profiles/rane-seventy-two.conf ya declara method = midi. Falta la corrida con MidiFaderConnector real (hoy solo probado con ingest(bytes:) sintetico) para B6.7."
         },
         {
           "id": "B6.4b",

@@ -175,14 +175,18 @@ Los conectores CoreMIDI (`MidiFaderConnector`) e IOHIDManager
 (`HIDFaderConnector`) están escritos pero **sin tests: necesitan el aparato**.
 La decodificación sí está probada.
 
-- **MIDI:** si la Rane emite algo por el crossfader (no se espera, ADR-021),
-  `MidiFaderConnector` lo recoge. Si no, se confirma que `crossfader_no_midi =
-  true` del perfil es correcto.
-- **HID (respaldo):** lee el descriptor HID del aparato
+- **MIDI (ahora el método primario, corrige ADR-021 el 2026-09-03):** se
+  confirmó con el aparato que el crossfader SÍ manda CC8/canal16 (15313/15317
+  mensajes limpios en una captura aislada de 5 min). `profiles/rane-seventy-two.conf`
+  ya declara `method = midi`. Queda probar `MidiFaderConnector` real (hoy solo
+  probado con `ingest(bytes:)` sintético) y confirmar en el asistente de
+  calibración los extremos del barrido (0/127 en los topes) y `midi.invert`.
+- **audio_return (respaldo):** `AudioReturnFaderSource` (B6.4b) queda como
+  método de reserva para mesas que de verdad no expongan el crossfader por
+  MIDI — no hace falta para la Rane 72, pero el código no se retira.
+- **HID (respaldo 2):** lee el descriptor HID del aparato
   (`hidutil list` / `ioreg -p IOUSB`), rellena el bloque `hid.*` **comentado**
   de `profiles/rane-seventy-two.conf` y prueba `HIDFaderConnector`.
-- **audio_return:** `AudioReturnFaderSource` (B6.4b) con el retorno real, no el
-  piloto sintético del paso 4.
 - Smoke test de `TimecodeMotionSource` con el vinilo (solapa con el paso 6).
 
 **Anota:** `verified = true` en `profiles/rane-seventy-two.conf` cuando los

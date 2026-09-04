@@ -449,24 +449,58 @@ o el repositorio comunitario pierde toda credibilidad.
 
 ## ADR-021 — Captura del crossfader por retorno de audio con tono piloto
 
-**Estado:** propuesta — **VALIDAR EN EL BLOQUE B1**
+**Estado:** corregida 2026-09-03 — ver "Correccion" mas abajo. La decision
+original (`audio_return` primario) queda **revertida para la Rane 72**;
+`method = midi` pasa a ser el metodo primario en su perfil.
 **Contexto:** El crossfader MAG FOUR de la Rane Seventy-Two (MK1, el hardware de
 referencia) es un componente de audio por hardware. La mesa no parece exponer su
 posicion por MIDI a terceros; su mapeo MIDI esta orientado a pads y a Serato. Lo
 mismo cabe esperar de la DJM-S11.
 Sin la posicion del fader, xFlare no puede puntuar clicks, que es el nucleo del
 producto.
-**Decision:** Que el perfil declare el metodo de captura (`midi`, `audio_return`,
-`hid`, `none`). Para mesas de battle, `audio_return`: xFlare mezcla en su salida un
-tono piloto inaudible (~19,5 kHz a -40 dBFS), captura el retorno del master de la
-mesa por USB y detecta la presencia del tono. Tono ausente = fader cerrado.
-**Consecuencias:** Funciona con cualquier mesa que tenga retorno USB, sin depender
-del fabricante. Anade la latencia del bucle, que es **constante y medible**: se
-determina en calibracion y se resta. Requiere un canal de retorno libre y que el
-usuario no filtre agudos en el master.
-**Riesgo:** si la validacion de B1 falla, el proyecto necesita un plan C (por
-ejemplo, un fader externo MIDI barato en paralelo). No construir nada encima de
-esto hasta tener el numero medido.
+**Decision (original):** Que el perfil declare el metodo de captura (`midi`,
+`audio_return`, `hid`, `none`). Para mesas de battle, `audio_return`: xFlare
+mezcla en su salida un tono piloto inaudible (~19,5 kHz a -40 dBFS), captura el
+retorno del master de la mesa por USB y detecta la presencia del tono. Tono
+ausente = fader cerrado.
+**Consecuencias (originales):** Funciona con cualquier mesa que tenga retorno
+USB, sin depender del fabricante. Anade la latencia del bucle, que es
+**constante y medible**: se determina en calibracion y se resta. Requiere un
+canal de retorno libre y que el usuario no filtre agudos en el master.
+**Riesgo (original):** si la validacion de B1 falla, el proyecto necesita un
+plan C (por ejemplo, un fader externo MIDI barato en paralelo). No construir
+nada encima de esto hasta tener el numero medido.
+
+**Correccion (2026-09-03).** El contexto de arriba era una suposicion, nunca se
+midio contra el aparato. Con la Rane 72 conectada por USB se monitorizo CoreMIDI
+en tres pasadas (libre de 90 s, aislada de 25 s sin captura util por no estar
+delante a tiempo, y aislada de 5 min confirmada en vivo por el autor moviendo
+*solo* el crossfader). Resultado de la pasada concluyente: **15313 de 15317
+mensajes fueron Control Change 8 en canal MIDI 16**, sostenidos exactamente
+mientras el crossfader se movia; los 4 mensajes restantes fueron un roce
+accidental al fader de canal (CC28/canal1). El MAG FOUR **si** manda su
+posicion por MIDI CC — la premisa central del ADR era incorrecta para este
+aparato.
+**Decision (corregida):** `profiles/rane-seventy-two.conf` pasa a
+`crossfader.method = midi` (`midi.cc = 8`, `midi.channel = 16`) como metodo
+**primario**. `audio_return` (tono piloto) queda documentado en el perfil como
+bloque comentado, para mesas que de verdad no expongan el crossfader — sigue
+siendo la estrategia de referencia para esas mesas (p. ej. si la DJM-S11 se
+confirma sin MIDI de crossfader) y el codigo de captura (`AudioReturnFaderSource`)
+no se retira.
+**Consecuencias (nuevas).** La captura del crossfader en la Rane 72 no necesita
+tono piloto, mezcla de audio de vuelta, canal de retorno USB ni compensacion de
+la latencia del bucle: es un CC de CoreMIDI, con timestamp en el mismo dominio
+de reloj que el resto del MIDI de la mesa. Esto simplifica B6.4b para este
+aparato y probablemente reduce la latencia total (principio #1 de
+`CLAUDE.md`). La infraestructura para consumirlo (`MidiCrossfaderConfig`,
+`MidiFaderSource`, `MidiFaderConnector`, todas en `XFCapture`, ya SEALED) ya
+existia — se escribio pensando en mesas/controladores que si mandan MIDI, sin
+saber entonces que la propia mesa de referencia era una de ellas.
+**Pendiente.** Los extremos exactos del barrido (¿llega limpio a 0 y 127 en los
+topes?) y el sentido (`midi.invert`) no estan confirmados — se resuelven en el
+asistente de calibracion, no bloquean este cambio. `verified = true` en el
+perfil espera a esa confirmacion y a medir los canales de audio reales (B6.4b).
 
 ## ADR-022 — Minimo macOS 11.0 y binario universal Intel + Apple Silicon
 
@@ -1975,8 +2009,9 @@ la instrumental de nuevo con lo grabado").
 **Contexto.** En la práctica hay comandos que hoy solo están en el teclado (cue,
 reiniciar la base, congelar, grabar, BPM ±1, metrónomo, "repite conmigo", fader).
 Con la mesa delante el usuario quiere dispararlos desde sus pads / botones MIDI
-sin soltar los platos. La Rane 72 no expone el crossfader por MIDI (ADR-021),
-pero sus pads sí mandan notas.
+sin soltar los platos. En el momento de escribir esto se asumía que la Rane 72
+no exponía el crossfader por MIDI (ADR-021, corregido 2026-09-03: sí lo hace,
+CC8/canal16); sus pads sí mandan notas.
 
 **Decisión.** Un decodificador puro en `XFCapture` (`MidiCommandMap`) traduce
 mensajes MIDI a `PracticeCommandEvent`. El mapa base sale de una sección
