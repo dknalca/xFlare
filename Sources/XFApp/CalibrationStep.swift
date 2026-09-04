@@ -47,8 +47,9 @@ public enum CalibrationStep: Int, CaseIterable, Sendable {
             return "Todavía no lee el vinilo aquí dentro. Mientras tanto, usa "
                  + "spike/b5-timecode/tcprobe (docs/HW_BRINGUP.md, paso 6)."
         case .fader:
-            return "Todavía no detecta los cortes sola. Mientras tanto, usa "
-                 + "spike/b1-pilot-fader/pilot_fader (docs/HW_BRINGUP.md, paso 4)."
+            return "Todavía no detecta los cortes sola. El crossfader de la Rane 72 se lee "
+                 + "por MIDI (CC8/canal16, ADR-021 corregida 2026-09-03), no por tono piloto: "
+                 + "usa el monitor MIDI de docs/HW_BRINGUP.md, paso 4."
         }
     }
 }

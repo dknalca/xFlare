@@ -110,22 +110,38 @@ y la calibración de la app lo dice.
 
 ---
 
-### Paso 4 — B1.4 · el crossfader por tono piloto (ADR-021)
+### Paso 4 — B1.4 · el crossfader por MIDI (corrige ADR-021, ya hecho)
 
+**Ya validado (2026-09-03), no hace falta repetirlo salvo que quieras más
+confianza.** Se confirmó por CoreMIDI, aislado y en vivo, que el crossfader de
+la Rane 72 manda **CC8 en canal MIDI 16** (15313/15317 mensajes limpios en 5
+min): ver ADR-021 (corregida) y B1.4 en `TODO.md`.
+
+Pendiente, no bloqueante — confirmar en el asistente de calibración cuando
+exista (paso "Fader" del wizard, hoy stub, bloqueado por B4.2):
+- Extremos exactos del barrido (¿0 y 127 limpios en los topes del recorrido?).
+- Sentido (`midi.invert`) — con el contour en la posición de uso real.
+- **Jitter** de la propia entrega MIDI: cronometra cortes rítmicos (a un
+  metrónomo, como hacía `pilot_fader`) y mide la desviación típica de los
+  intervalos vs el mismo criterio de **< 5 ms**. CoreMIDI entrega con
+  `hostTime` de alta resolución, así que se espera que pase con holgura, pero
+  no se ha medido formalmente — no hay todavía una herramienta para esto en
+  el repo (a diferencia de `measure_latency.py` para B1.2). Si hace falta,
+  se escribe entonces.
+
+**Respaldo (tono piloto, ADR-021 original)** — solo si algún día una mesa NO
+expone el crossfader por MIDI:
 ```sh
 spike/b1-pilot-fader/pilot_fader --in-out "Seventy-Two" --selfcheck        # calibra umbrales
 spike/b1-pilot-fader/pilot_fader --in-out "Seventy-Two" --seconds 60 --on -68 --off -80
 ```
-
 Con el `--selfcheck` hecho, en la corrida de 60 s **abre y cierra el crossfader
-al ritmo del metrónomo**.
-**Lee:** `--selfcheck` → `min` del tono (si < −70 dBFS el piloto no sobrevive:
-sube `--level-db` o revisa cableado). Corrida → `flancos vistos` (= veces que
-moviste el fader) y la **desviación típica de los intervalos**.
-**Anota:** fila en `docs/TIMECODE.md` §4.3 (piloto en dBFS, flancos, σ,
-veredicto). Marca B1.4.
-**Puerta:** σ de los intervalos **< 5 ms** → PASA. Si no → ADR con el plan C
-(fader MIDI externo barato en paralelo), antes de construir nada encima.
+al ritmo del metrónomo**. **Lee:** `--selfcheck` → `min` del tono (si < −70
+dBFS el piloto no sobrevive: sube `--level-db` o revisa cableado). Corrida →
+`flancos vistos` y la **desviación típica de los intervalos**. **Puerta:** σ
+**< 5 ms** → PASA; si no, ADR con el plan C (fader MIDI externo barato en
+paralelo) antes de construir nada encima. **Anota:** fila en
+`docs/TIMECODE.md` §4.3 si se llega a usar.
 
 ---
 
