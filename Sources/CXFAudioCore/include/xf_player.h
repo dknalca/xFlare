@@ -86,9 +86,13 @@ void xf_player_set_loop(xf_player *p, bool loop);
 void xf_player_set_loop_region(xf_player *p, int64_t start, int64_t end);
 
 /* NO RT-SAFE: puerta por velocidad. Si `gate_velocity > 0`, la amplitud de
- * salida escala con `min(1, |v| / gate_velocity)`: el disco casi parado casi no
- * suena (como un vinilo de verdad), y desaparece el zumbido de DC del cabezal
- * quieto. `0` = desactivada (por defecto; asi la base instrumental suena plana). */
+ * salida sube de 0 a 1 con un TAPER DE COSENO ALZADO (pendiente cero en los
+ * dos extremos, sin esquinas — F.47) segun `|v|` se acerca a `gate_velocity`:
+ * el disco casi parado casi no suena (como un vinilo de verdad). Dentro de
+ * esa zona (SOLO ahi — fuera, a velocidad normal, no se toca la senal) va
+ * ademas un bloqueador de DC de un polo, que quita el zumbido de continua
+ * del cabezal casi quieto (deja bajar el umbral sin que vuelva). `0` =
+ * desactivada (por defecto; asi la base instrumental suena plana). */
 void xf_player_set_speed_gate(xf_player *p, double gate_velocity);
 
 /* NO RT-SAFE: tiempo (ms) que tarda la velocidad en alcanzar el objetivo.

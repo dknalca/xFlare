@@ -2920,6 +2920,37 @@ FUTURIBLES.
 > media de una progresión aritmética) y
 > `testVelocidadConstanteEnLaRampaEsIgualQueAntes` → 701 en verde.
 
+> **Iteración — F.47, puerta con taper suave + bloqueador de DC (mismo día).**
+> La puerta por velocidad (`amp = min(1, |v|/gate)`) era una **rampa lineal**:
+> valor continuo, pero con un cambio de pendiente brusco justo en `av = gate`.
+> Como un scratch es todo inversiones de sentido (`|v|` cruza la puerta DOS
+> veces por cada una), esa esquina se notaba como una muesca en la envolvente
+> en cada cruce. Ahora `amp` sube con un **taper de coseno alzado**
+> (`0.5 - 0.5·cos(π·g)`, `g = |v|/gate`): pendiente CERO en los dos extremos,
+> se junta sin esquina con el silencio de abajo y con `amp=1` de arriba.
+>
+> Además, **dentro de la zona de puerta** (`|v| < gate` — no fuera), un
+> bloqueador de DC de un polo (`y[n] = x[n] - x[n-1] + 0.995·y[n-1]`, corte
+> ~38 Hz) quita el zumbido de continua del cabezal casi quieto; con eso el
+> umbral por defecto baja de **0,12 a 0,04** (más rango de velocidad audible)
+> sin que vuelva el zumbido. `xf_player` gana `dc_x1`/`dc_y1` (memoria del
+> filtro; solo se toca con la puerta activa, coste cero si no).
+>
+> **Regresión atrapada por los propios tests, antes de commitear**: la primera
+> versión aplicaba el bloqueador de DC siempre que la puerta estaba
+> configurada, **también a velocidad normal** (`amp=1`, fuera de la zona) —
+> eso borraba el contenido grave/casi-DC de cualquier sample en cuanto la
+> puerta tenía un valor > 0, que es el caso por defecto. Lo delató
+> `XFEngineRTTests.testSoftClipYPicoDeSalida` (un sample plano de prueba
+> perdía casi toda su amplitud). Arreglo: el bloqueador solo se evalúa con
+> `av < speed_gate` — fuera de la zona de puerta la señal no se toca, suene lo
+> que suene. Test de regresión propio:
+> `testFueraDeLaZonaDePuertaLaSenalNoSeToca`.
+>
+> `xf_engine.c`: `scratch_speed_gate` por defecto 0,12 → 0,04.
+> `AppSettings.platterSpeedGate` / `LivePracticeView` con el mismo default.
+> Tests: `XFPlayerTests` +3 → 704 en verde.
+
 ---
 
 ## Plantilla para nuevas entradas

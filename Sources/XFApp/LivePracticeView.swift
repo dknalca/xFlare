@@ -214,7 +214,7 @@ public struct LivePracticeView: View {
                 videoLongSide: Int = 1600,
                 sampleLibrary: [String] = [],
                 platterGlideMs: Double = 3.0,
-                platterSpeedGate: Double = 0.12,
+                platterSpeedGate: Double = 0.04,   // F.47: taper de coseno + bloqueador de DC
                 platterFriction: Double = 1.8,
                 trackpadSensitivity: Double = 1.0,
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>

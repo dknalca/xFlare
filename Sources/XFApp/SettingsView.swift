@@ -198,8 +198,9 @@ public struct SettingsView: View {
                          + "suave pero con retardo.")
                     debugSlider("Puerta de velocidad", bind(\.platterSpeedGate),
                                 in: 0...0.4, step: 0.01, fmt: "%.2f")
-                    note("Por debajo de esta velocidad el scratch enmudece (mata el "
-                         + "zumbido del cabezal quieto). 0 = sin puerta.")
+                    note("Por debajo de esta velocidad el scratch se atenúa hasta "
+                         + "enmudecer (un bloqueador de DC mata el zumbido del "
+                         + "cabezal quieto, F.47). 0 = sin puerta.")
                     debugSlider("Fricción", bind(\.platterFriction),
                                 in: 0.3...6, step: 0.1, fmt: "%.1f")
                     note("Cómo de rápido frena el plato al soltar. Menos = rueda más "

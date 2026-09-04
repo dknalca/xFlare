@@ -143,7 +143,7 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     e->scratch_gain_cur = 1.0;
     e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
     e->scratch_glide_ms = 3.0;      /* antes 5; mas seco = el audio sigue mejor al gesto */
-    e->scratch_speed_gate = 0.12;
+    e->scratch_speed_gate = 0.04;   /* F.47: bajado de 0.12 — el taper de coseno + el bloqueador de DC ya quitan el zumbido sin necesitar un umbral tan alto */
     xf_eq_init(&e->sample_eq, sample_rate);   /* plano por defecto */
     atomic_store(&e->reported_tick, 0.0);
     atomic_store(&e->metro_offset, 0.0);

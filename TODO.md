@@ -1003,9 +1003,19 @@ en manos de gente.*
         evento, así que la rampa interpola valores que representan la mano.
       - Coste RT: cero (un `double` más por muestra).
       - Tests: `XFPlayerTests` +2. 701 en verde.
-- [ ] **F.47** Tacto: puerta de velocidad con forma, no con rampa `CXFAudioCore`
-      - Coseno alzado + umbral 0,12→0,04 + bloqueador de DC aguas abajo. Cada
-        inversión de sentido cruza la puerta hoy y deja una muesca con esquinas.
+- [x] **F.47** Tacto: puerta de velocidad con forma, no con rampa `CXFAudioCore` (ADR-072 iter.)
+      - La puerta pasa de rampa lineal (esquina dura en `av=gate`, se notaba en
+        cada inversión de sentido) a **taper de coseno alzado** (pendiente cero
+        en los dos extremos).
+      - Dentro de la zona de puerta (`av < gate`, no fuera) un **bloqueador de
+        DC** de un polo (corte ~38 Hz) quita el zumbido del cabezal casi
+        quieto; el umbral por defecto baja de 0,12 a **0,04**.
+      - **Regresión atrapada por los tests antes de commitear**: la 1ª versión
+        aplicaba el bloqueador SIEMPRE que la puerta estaba configurada
+        (también a velocidad normal), borrando el grave/casi-DC de cualquier
+        sample — lo delató `XFEngineRTTests.testSoftClipYPicoDeSalida`.
+        Arreglado: solo actúa dentro de la zona de puerta.
+      - Tests: `XFPlayerTests` +3. 704 en verde.
 - [ ] **F.48** Tacto: compensar la latencia que declara el dispositivo `CXFAudioCore`
       - Leer `kAudioDevicePropertyLatency` + safety offset. Alimenta F.50, F.54 y
         el término a restar al puntuar (mitad de F.42). Clave con mesa.

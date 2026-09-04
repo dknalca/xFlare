@@ -249,6 +249,91 @@ final class XFPlayerTests: XCTestCase {
         }
     }
 
+    // MARK: - puerta por velocidad: taper suave + bloqueador de DC (F.47)
+
+    func testLaPuertaUsaUnTaperDeCosenoNoUnaRampaLineal() {
+        // gate=0.1; a v = 0,25·gate (g=0,25) el taper de coseno alzado da
+        // amp = 0,5 - 0,5·cos(pi·0,25) ≈ 0,146 — bien por debajo del 0,25 que
+        // daría la rampa lineal de antes (con pendiente cero en los extremos,
+        // en vez de la esquina dura que había en g=1).
+        let gate = 0.1
+        let v = 0.25 * gate
+        // 15 kHz a v=0,025 sale a ~375 Hz: por encima del corte del
+        // bloqueador de DC (~38 Hz), así no contamina la medida de amplitud.
+        let src = sine(15_000, amp: 0.8)
+        src.withUnsafeBufferPointer { buf in
+            let pOff = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(pOff) }
+            xf_player_set_glide_ms(pOff, 0)
+            let ref = Array(render(pOff, nframes: 8192, v: v)[512...])   // SIN puerta
+
+            let pOn = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(pOn) }
+            xf_player_set_glide_ms(pOn, 0)
+            xf_player_set_speed_gate(pOn, gate)
+            let gated = Array(render(pOn, nframes: 8192, v: v)[512...])   // CON puerta
+
+            let measuredAmp = rms(gated) / rms(ref)
+            XCTAssertEqual(measuredAmp, 0.1464, accuracy: 0.03,
+                           "coseno alzado: amp(g=0,25) ≈ 0,146")
+            XCTAssertLessThan(measuredAmp, 0.20,
+                              "más atenuado en g=0,25 que la rampa lineal de antes (0,25)")
+        }
+    }
+
+    func testElBloqueadorDeDCVaciaElZumbidoDelCabezalCasiQuieto() {
+        let dc = [Float](repeating: 1.0, count: 4096)
+        dc.withUnsafeBufferPointer { buf in
+            // SIN puerta: la DC pasa a ganancia 1 (igual que testGananciaDCUnidad),
+            // a cualquier velocidad — es lo que habría que oír como zumbido.
+            let pOff = xf_player_create(buf.baseAddress, Int64(dc.count), 48_000)!
+            defer { xf_player_destroy(pOff) }
+            xf_player_set_glide_ms(pOff, 0)
+            let unblocked = Array(render(pOff, nframes: 2048, v: 0.05)[64...])
+            XCTAssertEqual(rms(unblocked), 1.0, accuracy: 1e-3, "sin puerta: DC a ganancia 1 (el zumbido)")
+
+            // CON puerta, justo DENTRO de la zona (g≈0,995 -> amp≈1: el taper
+            // apenas atenúa, así que esto mide sobre todo el bloqueador de DC)
+            // el mismo tramo constante se vacía con el tiempo en vez de sonar
+            // como un zumbido sostenido. (El bloqueador solo actúa DENTRO de
+            // la zona de puerta, `av < gate`: en `v == gate` exacto ya no.)
+            let gate = 0.05
+            let pOn = xf_player_create(buf.baseAddress, Int64(dc.count), 48_000)!
+            defer { xf_player_destroy(pOn) }
+            xf_player_set_glide_ms(pOn, 0)
+            xf_player_set_speed_gate(pOn, gate)
+            let blocked = Array(render(pOn, nframes: 2048, v: gate * 0.995)[64...])
+            XCTAssertLessThan(rms(Array(blocked.suffix(200))), 0.01,
+                              "el bloqueador de DC vacía el zumbido tras unos ms")
+        }
+    }
+
+    func testFueraDeLaZonaDePuertaLaSenalNoSeToca() {
+        // Regresión: la primera versión de F.47 aplicaba el bloqueador de DC
+        // SIEMPRE que la puerta estaba configurada, aunque la velocidad fuera
+        // normal (amp=1) — eso borraba el contenido grave/casi-DC de CUALQUIER
+        // sample en cuanto la puerta tenía un valor > 0 (que es el caso por
+        // defecto). Un sample con grave real a velocidad normal debe sonar
+        // EXACTAMENTE igual con la puerta configurada que sin ella.
+        let dc = [Float](repeating: 0.95, count: 8192)
+        dc.withUnsafeBufferPointer { buf in
+            let pOff = xf_player_create(buf.baseAddress, Int64(dc.count), 48_000)!
+            defer { xf_player_destroy(pOff) }
+            xf_player_set_glide_ms(pOff, 0)
+            let withoutGate = Array(render(pOff, nframes: 4096, v: 1.0)[64...])
+
+            let pOn = xf_player_create(buf.baseAddress, Int64(dc.count), 48_000)!
+            defer { xf_player_destroy(pOn) }
+            xf_player_set_glide_ms(pOn, 0)
+            xf_player_set_speed_gate(pOn, 0.04)   // el default del motor (F.47)
+            let withGate = Array(render(pOn, nframes: 4096, v: 1.0)[64...])   // muy por encima de la puerta
+
+            XCTAssertEqual(rms(withGate), rms(withoutGate), accuracy: 1e-6,
+                           "a velocidad normal, con puerta o sin ella suena IGUAL")
+            XCTAssertEqual(rms(withGate), 0.95, accuracy: 1e-3)
+        }
+    }
+
     func testCabezalSeSaturaAlFinal() {
         let src = sine(1000)
         src.withUnsafeBufferPointer { buf in

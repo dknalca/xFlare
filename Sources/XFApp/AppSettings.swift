@@ -61,8 +61,11 @@ public struct AppSettings: Equatable, Sendable {
     /// Suavizado (ms) de la velocidad del plato de scratch. Menos = más seco y el
     /// audio sigue mejor al gesto; más = más suave pero con retardo. Def. 3.
     public var platterGlideMs: Double
-    /// |v| por debajo de la cual el scratch enmudece (mata el zumbido del cabezal
-    /// quieto). Def. 0,12. `0` = sin puerta.
+    /// |v| por debajo de la cual el scratch se atenúa con un taper de coseno
+    /// (F.47; antes rampa lineal) hasta enmudecer — el bloqueador de DC aguas
+    /// abajo mata el zumbido del cabezal quieto. Def. 0,04 (antes 0,12: el
+    /// bloqueador de DC deja bajar el umbral sin que vuelva el zumbido).
+    /// `0` = sin puerta.
     public var platterSpeedGate: Double
     /// Fricción del plato: cómo de rápido frena al soltar (1/s del decaimiento
     /// exponencial). Más = frena antes. Def. 1,8.
@@ -84,7 +87,7 @@ public struct AppSettings: Equatable, Sendable {
                 allUnlocked: Bool = true, lastScratchSamplePath: String = "",
                 midiCommandOverrides: [String: String] = [:], showFPS: Bool = false,
                 sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600,
-                platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.12,
+                platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.04,
                 platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0,
                 instrumentalLibrary: [String] = [], sampleSlots: [String] = []) {
         self.username = String(username.prefix(40))

@@ -38,6 +38,12 @@
 #define XF_PLAYER_TAPS   32
 #define XF_PLAYER_HALF    (XF_PLAYER_TAPS / 2)   /* el tap central es HALF-1 */
 #define XF_PLAYER_PHASES 512
+/* F.47 — coeficiente del bloqueador de DC (un polo) que va DESPUES de la
+ * puerta por velocidad: y[n] = x[n] - x[n-1] + R*y[n-1]. Con R=0.995 a 48 kHz
+ * el corte queda sobre ~38 Hz — bajo el fundamental de casi cualquier sample
+ * de scratch, pero se lleva por delante la continua/zumbido del cabezal casi
+ * quieto. Deja BAJAR el umbral de la puerta sin que vuelva el zumbido. */
+#define XF_PLAYER_DC_R 0.995
 
 static const double XF_PLAYER_RATIOS[] = {
     1.000,  1.128,  1.273,  1.436,  1.620,  1.827,  2.061,  2.325,
@@ -61,7 +67,11 @@ struct xf_player {
      * el RT se auto-corrige en el siguiente bloque (el wrap re-encaja). */
     int64_t loop_start;
     int64_t loop_end;
-    double speed_gate;        /* >0: amplitud ~ min(1, |v|/speed_gate). 0 = off */
+    double speed_gate;        /* >0: taper de coseno alzado hasta |v|=speed_gate. 0 = off */
+    /* F.47 — memoria del bloqueador de DC (solo se usa/avanza con la puerta
+     * activa; con `speed_gate == 0` el player ni la toca, coste cero). */
+    double dc_x1;
+    double dc_y1;
 
     /* ancla de posicion (ADR-042): NO es el driver del cabezal (lo es la
      * velocidad), es un TRIM anti-deriva. Cada muestra suma a la velocidad
@@ -287,8 +297,15 @@ void xf_player_render(xf_player *p, float *out, int nframes,
         double av = v < 0.0 ? -v : v;
         float amp = 1.0f;
         if (p->speed_gate > 0.0) {
+            /* F.47 — taper de COSENO ALZADO en vez de rampa lineal: amp(0)=0,
+             * amp(gate)=1, con PENDIENTE CERO en los dos extremos (se junta
+             * sin esquina con el silencio de abajo y con el amp=1 de arriba).
+             * La rampa lineal de antes tenia un cambio de pendiente brusco
+             * justo en av=gate; como un scratch es todo inversiones de
+             * sentido (|v| cruza la puerta DOS veces por cada una), esa
+             * esquina se notaba como una muesca en cada cruce. */
             double g = av / p->speed_gate;
-            amp = g < 1.0 ? (float)g : 1.0f;
+            amp = g < 1.0 ? (float)(0.5 - 0.5 * cos(M_PI * g)) : 1.0f;
         }
 
         if (av == 0.0) {
@@ -339,7 +356,25 @@ void xf_player_render(xf_player *p, float *out, int nframes,
                     acc += s * k[t];
                 }
             }
-            out[n] = acc * amp;
+            float y = acc * amp;
+            if (p->speed_gate > 0.0 && av < p->speed_gate) {
+                /* F.47 — bloqueador de DC de UN POLO, aguas abajo de la
+                 * puerta, pero SOLO dentro de la zona de puerta (`av <
+                 * speed_gate`, donde el taper ya esta atenuando): ahi es
+                 * donde vive el zumbido de DC del cabezal casi quieto. Fuera
+                 * de la zona (velocidad normal, amp=1) NO se toca la senal —
+                 * un sample con grave de verdad (incluso casi-DC) suena
+                 * exactamente igual que con la puerta desactivada. Deja tener
+                 * la puerta con un umbral mas bajo sin que vuelva el zumbido,
+                 * sin filtrar el audio normal. Con `speed_gate == 0` (la base
+                 * instrumental) ni se evalua: coste cero. */
+                double dcx = (double)y;
+                double dcy = dcx - p->dc_x1 + XF_PLAYER_DC_R * p->dc_y1;
+                p->dc_x1 = dcx;
+                p->dc_y1 = dcy;
+                y = (float)dcy;
+            }
+            out[n] = y;
         }
 
         /* 6) avanza el cabezal: se satura a los extremos (el plato no se sale
