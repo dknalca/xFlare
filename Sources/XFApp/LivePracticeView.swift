@@ -95,6 +95,9 @@ public struct LivePracticeView: View {
     // F.3: cue points A/B como fracción 0…1 del sample (por sesión, no se guardan).
     @State private var cueA: Double?
     @State private var cueB: Double?
+    // F.16: Cues de la INSTRUMENTAL cargada (del editor). Saltables por MIDI
+    // («Cue instr. 1»…4) o por los botones de la zona inferior.
+    @State private var instrCues: [InstrumentalEdit.Cue] = []
     // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
     @State private var videoProgress: Double = 0
@@ -847,6 +850,24 @@ public struct LivePracticeView: View {
                     chip("plus", icon: true) { relockLoop(bars: bars + 1) }
                 }
             }
+
+            if !instrCues.isEmpty {
+                // Cues del editor: saltar a una parte (también por MIDI «Cue instr. N»).
+                HStack(spacing: 5) {
+                    Text("Cues").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                    ForEach(Array(instrCues.prefix(4).enumerated()), id: \.offset) { idx, c in
+                        Button { jumpInstrCue(idx) } label: {
+                            Text(c.name).font(XFFont.body(9)).lineLimit(1)
+                                .padding(.horizontal, 6).padding(.vertical, 3)
+                                .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surface))
+                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
+                                .foregroundColor(XFColor.text)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
         }
     }
 
@@ -1249,6 +1270,11 @@ public struct LivePracticeView: View {
         case .trigger(.sample2): loadSlot(1)
         case .trigger(.sample3): loadSlot(2)
         case .trigger(.sample4): loadSlot(3)
+
+        case .trigger(.instrCue1): jumpInstrCue(0)
+        case .trigger(.instrCue2): jumpInstrCue(1)
+        case .trigger(.instrCue3): jumpInstrCue(2)
+        case .trigger(.instrCue4): jumpInstrCue(3)
         }
     }
 
@@ -1260,6 +1286,20 @@ public struct LivePracticeView: View {
         guard !path.isEmpty, FileManager.default.fileExists(atPath: path) else { return }
         cueA = nil; cueB = nil
         chooseSample(path: path)
+    }
+
+    /// Salta la BASE al Cue `i` del editor de instrumental (MIDI «Cue instr. N» o
+    /// los botones de la zona inferior). Ese punto pasa a ser el "1": la rejilla
+    /// y el metrónomo se re-cuadran ahí, como "reiniciar la base" pero desde el
+    /// cue. Sin cues para esta instrumental o índice fuera de rango: nada.
+    private func jumpInstrCue(_ i: Int) {
+        guard instrCues.indices.contains(i), instrFileSeconds > 0.01, let e = engine else { return }
+        let f = min(1, max(0, instrCues[i].atSeconds / instrFileSeconds))
+        e.seekInstrumental(fraction: f)
+        session.resyncClock()
+        setGridShift(0)
+        e.seek(tick: 0)
+        e.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
     }
 
     /// EQ Lo/Mid/Hi del sample de scratch (dB). Cada mando 0 = plano; el motor no
@@ -1531,6 +1571,7 @@ public struct LivePracticeView: View {
                 instrLoopTicks = loopTicks
                 instrLoopBars = userLoopBars
                 instrFileSeconds = fileSeconds
+                instrCues = edit?.cues ?? []          // F.16: cues saltables (MIDI / botones)
                 // cargada: la zona inferior se minimiza a la fila compacta.
                 withAnimation(.easeInOut(duration: 0.12)) { instrExpanded = false }
                 // la sesion necesita la longitud del bucle para cuadrar las

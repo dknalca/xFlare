@@ -795,6 +795,21 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Colores del logo** (`icon/xflare.svg`): pasada para que se distingan
         placa / ranura / marcas / cap fantasma / cap vivo / surco / brillo.
       - 667 en verde.
+- [x] **F.19** Editor: re-render al zoom · Cues instrumental por MIDI · Ajustes MIDI por categorías
+      - Feedback del autor (2026-09-04):
+      - **La onda del editor se re-renderiza al hacer zoom** (`renderWindow`):
+        dibuja SOLO el tramo visible del PCM a 2400 px en 2º plano, con gen
+        counter para descartar resultados tardíos. Antes estiraba la imagen del
+        fichero entero y se veía borroso.
+      - **Cues de la instrumental por MIDI**: `PracticeCommand.instrCue1…4`
+        (`command.instr_cue_1…4`). En la práctica `jumpInstrCue(i)` salta la base
+        al Cue `i` del `InstrumentalEdit` y re-cuadra rejilla + metrónomo ahí
+        (como "reiniciar la base" pero desde el cue). Botones también en la zona
+        inferior; cues sembrados en `loadInstrumental` desde `edit?.cues`.
+      - **Ajustes › MIDI por categorías**: `PracticeCommand.Category`
+        (global / sample / instrumental); `SettingsView.midiTab` con cabecera por
+        grupo.
+      - Tests: `PracticeCommandMidiTests` +2. 669 en verde.
 
 ---
 

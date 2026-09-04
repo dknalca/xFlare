@@ -1121,6 +1121,14 @@
           "acceptance": "los ajustes y la libreria no se pisan; el Play del editor suena; se puede hacer zoom y ajustar la duracion de los loops",
           "status": "done",
           "note": "Cerrado 2026-09-04 (ADR-063 corr. + ADR-067 iter.). REGRESION: SettingsView guardaba todo el AppSettings en un @State sembrado una vez; en una visita posterior estaba viejo y el primer cambio lo subia entero pisando instrumentalLibrary (se vaciaba). Arreglo: re-sembrar el @State desde la copia entrante (.onChange(of:) + .onAppear). + AppModel.recoverInstrumentalLibraryIfNeeded (una vez, flag libraryRecovered): recupera las instrumentales analizadas que siguen en disco. Editor: startEngine llama a engine.startOutput() (idempotente) -> el Play suena en frio. Zoom de la onda (zoom 1..64x, botones -/+, pan con arrastre + toque=saltar, la ventana sigue al cabezal); rejilla/cues/regiones/cabezal por la ventana visible. Regiones de loop con div2/x2 (scaleLoop, inicio fijo, recortado; la fila muestra 'N s . M compases'). Colores del icono (icon/xflare.svg + .icns): pasada para distinguir placa/ranura/marcas/cap fantasma/cap vivo/surco/brillo. 667 en verde."
+        },
+        {
+          "id": "F.19",
+          "title": "Editor: re-render al zoom, Cues instrumental por MIDI, Ajustes MIDI por categorias",
+          "module": "XFApp, XFCapture",
+          "acceptance": "la onda no se ve borrosa al hacer zoom; los cues de la instrumental se disparan por MIDI; Ajustes MIDI esta agrupado",
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-067 iter. 2). La onda del editor se re-renderiza al hacer zoom (renderWindow: solo el tramo visible del PCM a 2400 px en 2o plano, gen counter para descartar tardios; se llama al cargar, al cambiar zoom, al terminar pan y al seguir al cabezal). Cues de instrumental por MIDI: PracticeCommand.instrCue1..4 (command.instr_cue_1..4); jumpInstrCue(i) salta la base al Cue i del InstrumentalEdit y re-cuadra rejilla+metronomo ahi (como reiniciar la base pero desde el cue); botones tambien en la zona inferior; cues sembrados en loadInstrumental desde edit.cues. Ajustes MIDI por categorias: PracticeCommand.Category (global/sample/instrumental), SettingsView.midiTab con cabecera por grupo. Tests: PracticeCommandMidiTests +2. 669 en verde."
         }
       ]
     }

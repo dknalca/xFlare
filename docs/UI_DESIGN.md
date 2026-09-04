@@ -292,10 +292,12 @@ al fichero la primera vez.
   gesto), **puerta de velocidad** (por debajo enmudece), **fricción** (cómo frena
   al soltar) y **sensibilidad del trackpad**. Se guardan en `AppSettings` y se
   aplican al abrir la práctica. Botón "Restablecer valores".
-- Pestaña **MIDI** — asigna una nota o un CC a cada comando de la practica (cue,
-  reiniciar la base, congelar, grabar, BPM ±1, fader como momentaneo, metronomo,
-  repite conmigo, y `Sample 1`…`Sample 4` para los slots de la Librería) — los
-  mismos que el teclado. **MIDI Learn**: seleccionas el
+- Pestaña **MIDI** — asigna una nota o un CC a cada comando de la practica,
+  **agrupados por categoría** (Global: congelar, grabar, BPM ±1, fader, metrónomo,
+  repite conmigo · Sample: cue del sample, `Sample 1`…`Sample 4` · Instrumental:
+  reiniciar la base, `Cue instrumental 1`…`4`) — los mismos que el teclado.
+  Los `Cue instrumental N` saltan la base al Cue N marcado en el **editor de
+  instrumental** y re-cuadran la rejilla ahí. **MIDI Learn**: seleccionas el
   comando, pulsas "Aprender MIDI" y el siguiente control que muevas queda
   asignado (mientras Ajustes esta abierto se escucha CoreMIDI). Tambien se puede
   escribir a mano (`note:canal:nº` / `cc:canal:nº`); vacio = lo que traiga el

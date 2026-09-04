@@ -157,8 +157,14 @@ public struct SettingsView: View {
                          + "control MIDI que muevas queda asignado. También puedes "
                          + "escribir la nota/CC a mano (note:canal:nº · cc:canal:nº).")
                     midiMonitor
-                    ForEach(PracticeCommand.allCases, id: \.self) { cmd in
-                        midiRow(cmd)
+                    ForEach(PracticeCommand.Category.allCases, id: \.self) { cat in
+                        Text(Self.categoryTitle(cat).uppercased())
+                            .font(XFFont.body(9)).kerning(0.6)
+                            .foregroundColor(XFColor.textMuted)
+                            .padding(.top, XFSpacing.xs)
+                        ForEach(PracticeCommand.allCases.filter { $0.category == cat }, id: \.self) { cmd in
+                            midiRow(cmd)
+                        }
                     }
                     midiLearnControls
                 }
@@ -167,6 +173,14 @@ public struct SettingsView: View {
             .padding(XFSpacing.xl)
         }
         .background(XFColor.bg)
+    }
+
+    private static func categoryTitle(_ c: PracticeCommand.Category) -> String {
+        switch c {
+        case .global:       return "Global"
+        case .sample:       return "Sample"
+        case .instrumental: return "Instrumental"
+        }
     }
 
     // MARK: - pestaña Debug (afinar el "tacto" del plato)

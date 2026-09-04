@@ -26,7 +26,9 @@ struct InstrumentalEditorView: View {
     // audio decodificado + onda
     @State private var pcm: [Float] = []
     @State private var durationSeconds: Double = 0
-    @State private var waveImage: NSImage?
+    /// Onda del **tramo visible** (se re-renderiza al hacer zoom / pan).
+    @State private var windowImage: NSImage?
+    @State private var renderGen = 0
     @State private var loading = true
 
     // el ajuste en curso
@@ -75,13 +77,12 @@ struct InstrumentalEditorView: View {
         viewStart = min(max(0, viewStart), max(0, 1 - visibleFrac))
     }
     private func setZoom(_ z: Double) {
-        let old = zoom
-        zoom = min(64, max(1, z))
         // mantener el cabezal (o el centro) en el mismo sitio al ampliar
         let focus = min(max(headFraction, viewStart), viewStart + visibleFrac)
-        _ = old
+        zoom = min(64, max(1, z))
         viewStart = focus - visibleFrac / 2
         clampView()
+        renderWindow()
     }
 
     var body: some View {
@@ -108,11 +109,11 @@ struct InstrumentalEditorView: View {
             guard playing, let p = engine?.instrumentalProgress, p >= 0 else { return }
             headFraction = p
             // con zoom, la ventana sigue al cabezal si se sale por un borde.
-            if zoom > 1 {
-                if p < viewStart + visibleFrac * 0.08 || p > viewStart + visibleFrac * 0.92 {
-                    viewStart = p - visibleFrac / 2
-                    clampView()
-                }
+            if zoom > 1,
+               p < viewStart + visibleFrac * 0.08 || p > viewStart + visibleFrac * 0.92 {
+                viewStart = p - visibleFrac / 2
+                clampView()
+                renderWindow()
             }
         }
     }
@@ -162,12 +163,11 @@ struct InstrumentalEditorView: View {
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface)
 
-                if let img = waveImage {
-                    // la imagen entera mide `w * zoom`; se desplaza a la izquierda
-                    // según `viewStart` para enseñar solo la ventana visible.
+                if let img = windowImage {
+                    // ya es SOLO la ventana visible, a resolución alta: se dibuja
+                    // a lo ancho del panel sin estirar (nítida a cualquier zoom).
                     Image(nsImage: img).resizable()
-                        .frame(width: w * CGFloat(zoom), height: h - 16)
-                        .offset(x: -CGFloat(viewStart) * w * CGFloat(zoom), y: 8)
+                        .frame(width: w, height: h - 16).offset(y: 8)
                         .opacity(0.9)
                 }
 
@@ -221,12 +221,14 @@ struct InstrumentalEditorView: View {
                 }
                 .onEnded { g in
                     defer { panAnchor = nil }
-                    // sin apenas movimiento = pinchar para saltar
                     if abs(g.translation.width) < 4 {
+                        // sin apenas movimiento = pinchar para saltar
                         let t = timeAt(px: g.location.x, w)
                         let f = min(1, max(0, t / max(0.001, durationSeconds)))
                         headFraction = f
                         engine?.seekInstrumental(fraction: f)
+                    } else {
+                        renderWindow()   // se ha hecho pan: redibuja el tramo
                     }
                 })
         }
@@ -403,16 +405,37 @@ struct InstrumentalEditorView: View {
         let url = URL(fileURLWithPath: path)
         DispatchQueue.global(qos: .userInitiated).async {
             let mono = AudioAsset.loadMono(url, sampleRate: sr) ?? []
-            let wave = WaveformColored.build(mono, sampleRate: sr, buckets: min(max(200, mono.count / 200), 6_000))
-            let img = WaveformImage.render(wave, width: 1600, height: 200).map { NSImage(cgImage: $0, size: .zero) }
             let dur = Double(mono.count) / sr
             DispatchQueue.main.async {
                 pcm = mono
                 durationSeconds = dur
-                waveImage = img
                 seedEdit(fileSeconds: dur)
                 loading = false
                 startEngine()
+                renderWindow()          // dibuja la onda de la ventana visible
+            }
+        }
+    }
+
+    /// (Re)dibuja la onda **solo del tramo visible** a resolución alta, así al
+    /// hacer zoom no se estira una imagen del fichero entero (se veía borroso).
+    /// Un contador de generación descarta resultados que llegan tarde.
+    private func renderWindow() {
+        guard !pcm.isEmpty else { return }
+        renderGen &+= 1
+        let gen = renderGen
+        let count = pcm.count
+        let a = min(max(0, Int(viewStart * Double(count))), count - 2)
+        let b = min(count, max(a + 2, Int((viewStart + visibleFrac) * Double(count))))
+        let slice = Array(pcm[a..<b])
+        DispatchQueue.global(qos: .userInitiated).async {
+            let wave = WaveformColored.build(slice, sampleRate: sr,
+                                             buckets: min(max(200, slice.count / 64), 4_000))
+            let img = WaveformImage.render(wave, width: 2400, height: 220)
+                .map { NSImage(cgImage: $0, size: .zero) }
+            DispatchQueue.main.async {
+                guard gen == renderGen, let img = img else { return }
+                windowImage = img
             }
         }
     }

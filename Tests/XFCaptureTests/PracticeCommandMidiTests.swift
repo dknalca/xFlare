@@ -125,6 +125,29 @@ final class PracticeCommandMidiTests: XCTestCase {
         XCTAssertNil(m.bindings[.sample2])
     }
 
+    func testCuesDeInstrumentalSonComandosMapeables() {
+        let cues: [PracticeCommand] = [.instrCue1, .instrCue2, .instrCue3, .instrCue4]
+        XCTAssertEqual(cues.map { $0.confKey },
+                       ["command.instr_cue_1", "command.instr_cue_2",
+                        "command.instr_cue_3", "command.instr_cue_4"])
+        let ini = try! INIDocument(text: "[transport]\ncommand.instr_cue_2 = note:1:70")
+        let m = MidiCommandMap.fromProfile(ini)
+        XCTAssertEqual(m.event(status: 0x90, data1: 70, data2: 100), .trigger(.instrCue2))
+    }
+
+    func testCadaComandoTieneUnaCategoria() {
+        XCTAssertEqual(PracticeCommand.cue.category, .sample)
+        XCTAssertEqual(PracticeCommand.sample3.category, .sample)
+        XCTAssertEqual(PracticeCommand.restartBase.category, .instrumental)
+        XCTAssertEqual(PracticeCommand.instrCue1.category, .instrumental)
+        XCTAssertEqual(PracticeCommand.freeze.category, .global)
+        XCTAssertEqual(PracticeCommand.fader.category, .global)
+        // toda categoría tiene al menos un comando; entre todas cubren allCases
+        let byCat = Dictionary(grouping: PracticeCommand.allCases, by: { $0.category })
+        XCTAssertEqual(byCat.values.map { $0.count }.reduce(0, +), PracticeCommand.allCases.count)
+        for c in PracticeCommand.Category.allCases { XCTAssertFalse((byCat[c] ?? []).isEmpty) }
+    }
+
     // MARK: - source
 
     func testSourceEmiteAlRecibirBytes() {

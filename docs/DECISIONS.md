@@ -2574,6 +2574,24 @@ el "1".
 > - **Regiones de loop con ÷2 / ×2**: `scaleLoop` dobla/mitad la duración
 >   dejando el inicio fijo, recortado al fichero; la fila muestra
 >   "N s · M compases".
+>
+> **Iteración 2 (2026-09-04).**
+> - **La onda se re-renderiza al hacer zoom**: antes se estiraba una imagen del
+>   fichero entero (borroso). Ahora `renderWindow` dibuja **solo el tramo
+>   visible** del PCM a resolución alta (2400 px) en segundo plano, con un
+>   contador de generación que descarta resultados que llegan tarde. Se llama al
+>   cargar, al cambiar el zoom, al terminar un *pan* y cuando la ventana sigue al
+>   cabezal.
+> - **Los Cue de la instrumental se disparan por MIDI**:
+>   `PracticeCommand.instrCue1…4` (`command.instr_cue_1…4`). En la práctica
+>   `jumpInstrCue(i)` salta la base al Cue `i` del `InstrumentalEdit` cargado y
+>   **re-cuadra** la rejilla y el metrónomo ahí (ese punto pasa a ser el "1", como
+>   "reiniciar la base" pero desde el cue). También hay botones en la zona
+>   inferior. Los cues activos se siembran en `loadInstrumental` desde
+>   `edit?.cues`.
+> - **Ajustes › MIDI por categorías**: `PracticeCommand.Category`
+>   (`global` / `sample` / `instrumental`); `SettingsView.midiTab` pinta cada
+>   grupo con su cabecera en vez de una lista plana.
 
 ---
 

@@ -18,6 +18,24 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
     case sample2            // slot 2
     case sample3            // slot 3
     case sample4            // slot 4
+    case instrCue1          // salta la base al Cue 1 del editor de instrumental
+    case instrCue2          // Cue 2
+    case instrCue3          // Cue 3
+    case instrCue4          // Cue 4
+
+    /// Categoría para agrupar en Ajustes › MIDI.
+    public enum Category: String, CaseIterable, Sendable { case global, sample, instrumental }
+
+    public var category: Category {
+        switch self {
+        case .cue, .sample1, .sample2, .sample3, .sample4:
+            return .sample
+        case .restartBase, .instrCue1, .instrCue2, .instrCue3, .instrCue4:
+            return .instrumental
+        default:
+            return .global
+        }
+    }
 
     /// Clave en la sección `[transport]` del `.conf` (`command.cue`, …).
     public var confKey: String {
@@ -35,6 +53,10 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .sample2:      return "command.sample_2"
         case .sample3:      return "command.sample_3"
         case .sample4:      return "command.sample_4"
+        case .instrCue1:    return "command.instr_cue_1"
+        case .instrCue2:    return "command.instr_cue_2"
+        case .instrCue3:    return "command.instr_cue_3"
+        case .instrCue4:    return "command.instr_cue_4"
         }
     }
 
@@ -57,6 +79,10 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .sample2:      return "Sample 2"
         case .sample3:      return "Sample 3"
         case .sample4:      return "Sample 4"
+        case .instrCue1:    return "Cue instrumental 1"
+        case .instrCue2:    return "Cue instrumental 2"
+        case .instrCue3:    return "Cue instrumental 3"
+        case .instrCue4:    return "Cue instrumental 4"
         }
     }
 }
