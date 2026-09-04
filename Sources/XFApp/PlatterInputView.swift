@@ -60,6 +60,13 @@ struct PlatterInputView: NSViewRepresentable {
         }
 
         override func scrollWheel(with event: NSEvent) {
+            // F.03 — ignora la INERCIA del trackpad: macOS sigue mandando
+            // eventos de scroll despues de levantar los dedos (`momentumPhase`
+            // != []). Sin este filtro el plato recibe empujones de una mano que
+            // ya no esta, y encima la sesion le aplica su friccion -> el disco
+            // se escapa hacia delante justo cuando quieres pararlo.
+            if event.momentumPhase != [] { return }
+
             // trackpad: deltas precisos; raton de rueda: paso grande escalado
             let dx: CGFloat = event.hasPreciseScrollingDeltas
                 ? event.scrollingDeltaX

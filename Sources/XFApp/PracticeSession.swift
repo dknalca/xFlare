@@ -192,6 +192,12 @@ public final class PracticeSession: ObservableObject {
     /// 2.5 a 1.8 para poder llegar al final del sample (n=1.5) con un gesto.
     /// `var` para poder afinarlo desde la ventana Debug de Ajustes.
     public var frictionPerSecond: Double = 1.8
+    /// F.08 — **rozamiento seco (Coulomb)**: una deceleración CONSTANTE, en
+    /// unidades/s², que se suma al decaimiento exponencial. El exponencial solo
+    /// nunca llega a cero (el disco se arrastra asintóticamente); el término de
+    /// Coulomb lo para **en firme** cerca de cero, como hace un slipmat de
+    /// verdad. `var` para afinarlo desde Ajustes › Debug.
+    public var coulombFriction: Double = 3.0
     /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
     /// recorrido del plato es ~1,5x el span del patron; un gesto normal tiene
     /// que poder cubrirlo entero (hasta el final del sample) en las dos
@@ -295,8 +301,7 @@ public final class PracticeSession: ObservableObject {
         // plato sigue con su fisica y se sigue empujando el motor de audio ->
         // puedes scratchear el sample sobre la imagen quieta, sin dibujar.
         if frozen {
-            platterVelocity *= exp(-frictionPerSecond * step)
-            if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
+            decayPlatterVelocity(step: step)
             platterPosition += platterVelocity * step
             if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
             if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
@@ -359,8 +364,7 @@ public final class PracticeSession: ObservableObject {
                 platterVelocity = (g - platterPosition) / step
                 platterPosition = g
             } else {
-                platterVelocity *= exp(-frictionPerSecond * step)
-                if abs(platterVelocity) < 1e-4 { platterVelocity = 0 }
+                decayPlatterVelocity(step: step)
                 platterPosition += platterVelocity * step
                 if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
                 if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
@@ -395,6 +399,19 @@ public final class PracticeSession: ObservableObject {
 
         recordFrame()
         onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
+    }
+
+    /// Frena el plato al soltarlo: decaimiento **exponencial** (arrastre
+    /// viscoso, rueda hacia cero) + **Coulomb** (deceleración constante que lo
+    /// para en firme cerca de cero). Antes solo el exponencial + un corte a
+    /// `1e-4`; el Coulomb da la detención corta y seca de un slipmat real
+    /// (F.08).
+    private func decayPlatterVelocity(step: Double) {
+        platterVelocity *= exp(-frictionPerSecond * step)
+        let c = coulombFriction * step
+        if platterVelocity > c { platterVelocity -= c }
+        else if platterVelocity < -c { platterVelocity += c }
+        else { platterVelocity = 0 }
     }
 
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)

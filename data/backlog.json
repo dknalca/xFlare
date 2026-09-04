@@ -1321,6 +1321,142 @@
           "acceptance": "el evento de click que se empareja es el cruce del cut-in point (no la posicion mecanica del fader); el Report resta la latencia round-trip medida en B1",
           "status": "todo",
           "note": "El click audible ocurre donde el fader cruza el umbral en que empieza a pasar sonido, no donde llega el dedo. Y se oye ~10 ms despues de lo que se hace: sin restar la latencia medida todos salen 'tarde' por igual y el diagnostico da consejos falsos con confianza. La unica de las 20 que, si falta, hace falso el resto del producto. Mejor pensada y escrita ANTES de la primera sesion con hardware. Coste ~medio."
+        },
+        {
+          "id": "F.43",
+          "title": "Tacto: 1a tanda — latencia del gesto + frenado del plato",
+          "module": "XFApp",
+          "acceptance": "el trackpad ignora la inercia de macOS; la velocidad llega al motor en el instante del evento (no en el paso de 60 Hz); el buffer arranca en 128; el plato frena en firme (rozamiento seco)",
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-072). Del cuaderno del tacto. F.03: PlatterInputView.scrollWheel descarta eventos con momentumPhase != [] (inercia de macOS tras levantar los dedos -> el plato recibia empujones fantasma Y la sesion le aplicaba friccion = inercia doble). F.01: LivePracticeView.onScroll/onNudge llaman a pushPlatterVelocity() que empuja la velocidad al EngineHandle en el instante del evento; el reloj de sesion sigue integrando a 60 Hz solo para la traza dibujada y el ancla de posicion. F.04: AppSettings.defaultBufferFrames = 128 (antes 512); el fallback de bufferFrames deja de ser 512 literal. La subida automatica al detectar overloads sigue pendiente (B1.6). F.08: PracticeSession.decayPlatterVelocity anade al decaimiento exponencial un termino de Coulomb (coulombFriction, deceleracion constante) que para el plato en firme cerca de cero en vez de arrastrarse; sustituye el corte a 1e-4. Nada de RT en C. Tests: PracticeSessionTests +1. 694 en verde."
+        },
+        {
+          "id": "F.44",
+          "title": "Tacto: modelo de posicion en vez de impulso",
+          "module": "XFApp",
+          "acceptance": "con los dedos en el trackpad la velocidad del plato ES la de la mano (velocidad = dx/dt, sin acumular); al soltar (event.phase .ended) empieza la friccion",
+          "status": "todo",
+          "note": "scrollBy hace velocity += delta*ganancia: cada gesto ANADE momento a un volante. Una mano sobre un vinilo impone posicion, no anade momento. Usar event.phase como 'mano puesta/levantada'. Explica por que hubo que subir scrollGain 0,26->0,40 y bajar la friccion 2,5->1,8. Hacerlo cuando la latencia (F.43) ya este baja, para poder juzgarlo. Coste ~medio."
+        },
+        {
+          "id": "F.45",
+          "title": "Tacto: mas cubos de ratio de resampling, y techo > 8x",
+          "module": "CXFAudioCore",
+          "acceptance": "XF_PLAYER_RATIOS pasa de 7 cubos {1,1.5,2,3,4,6,8} a ~24 espaciados log hasta 16x; la transicion de brillo al barrer la velocidad es continua y no hay aliasing por encima de 8x",
+          "status": "todo",
+          "note": "Hoy el corte del antialiasing cambia a escalones al barrer la velocidad (saltito de brillo en cada frontera) y un scribble/crab rapido pasa de 8x y se queda con el kernel de 8, filtrando de menos -> aliasing en el gesto mas rapido. Coste RT: cero (misma busqueda + 32 taps). Memoria: ~1,5 MB de tabla, calculada una vez en xf_player_create. Coste ~una tarde."
+        },
+        {
+          "id": "F.46",
+          "title": "Tacto: rampa de velocidad dentro del bloque de audio",
+          "module": "CXFAudioCore",
+          "acceptance": "xf_engine_render interpola linealmente target_velocity del bloque anterior al actual a lo largo del bloque, en vez de leerla una vez y que el player persiga un escalon con un one-pole",
+          "status": "todo",
+          "note": "La velocidad pasa a ser continua a trozos en vez de escalonada; el glide puede bajar (o desaparecer) sin volver a meter clicks, porque los clicks venian del escalon, no de la falta de filtro. Con F.01/F.43 hay varios eventos por bloque y esto mejora mas (se interpola entre muestras reales del gesto). Coste ~medio."
+        },
+        {
+          "id": "F.47",
+          "title": "Tacto: puerta de velocidad con forma, no con rampa",
+          "module": "CXFAudioCore",
+          "acceptance": "la puerta usa un taper de coseno alzado sobre el umbral (sin esquinas duras) y el umbral baja de 0,12 a ~0,04; el zumbido de DC del cabezal quieto se ataca con un bloqueador de DC de un polo aguas abajo",
+          "status": "todo",
+          "note": "Hoy amp = min(1, |v|/0,12): rampa lineal con dos esquinas duras que cada inversion de sentido cruza, y un scratch es todo inversiones -> muesca de amplitud audible en cada una. Coste ~una tarde."
+        },
+        {
+          "id": "F.48",
+          "title": "Tacto: compensar la latencia que declara el dispositivo de audio",
+          "module": "CXFAudioCore",
+          "acceptance": "al abrir el dispositivo se leen kAudioDevicePropertyLatency + safety offset + latencia de stream; el numero real alimenta el panel de latencia (I.01), el desplazamiento de la traza (I.05) y el termino a restar al puntuar",
+          "status": "todo",
+          "note": "Hoy nada de eso se consulta: la app no sabe cuanto tarda su propia salida. Es la mitad de F.42 (puntuar el cut-in). Sin esto todos saldran 'tarde' por igual el dia que haya timecode. Clave con mesa. Coste ~una tarde."
+        },
+        {
+          "id": "F.49",
+          "title": "Tacto: grabar el gesto a resolucion de audio (no a 60 Hz)",
+          "module": "XFApp + XFCapture",
+          "acceptance": "un .xfsession guarda el movimiento a ritmo de evento/bloque en vez de a 60 Hz (recordFrame se llama desde advance); la toma reproducida y el video exportado suenan como lo que se toco",
+          "status": "todo",
+          "note": "Hoy un scratch rapido tiene mas detalle que 16,7 ms y la reproduccion sale mas suave y lenta que el original. Con F.01/F.43 la velocidad ya llega a ritmo de evento: grabar eso. Da tambien los datos del inspector de gesto (I.08). Coste ~medio."
+        },
+        {
+          "id": "F.50",
+          "title": "Tacto/UI: el reparto de la latencia en pantalla (medidor)",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "panel en Ajustes > Tacto (y una linea en el HUD de la practica) con los ms medidos de: evento->tick de sesion, espera del bloque, glide, y lo que declara el dispositivo",
+          "status": "todo",
+          "note": "Los 4 primeros tramos se miden sin hardware (NSEvent.timestamp vs CACurrentMediaTime, host_time del bloque, constante del glide); el 5o de kAudioDevicePropertyLatency (F.48). Convierte 'se siente pastoso' en 'tienes 16 ms de reloj de sesion'. Sin esto todo lo demas es fe. Coste ~medio."
+        },
+        {
+          "id": "F.51",
+          "title": "Tacto/UI: osciloscopio de velocidad (pedida vs. real)",
+          "module": "XFApp",
+          "acceptance": "una tira de ~1 s con dos trazos: la velocidad objetivo que manda Swift (escalera de 60 Hz) y la real del cabezal ya suavizada (xf_player_velocity); se ve el retraso del glide, la escalera y el sobrepaso en los cambios de sentido",
+          "status": "todo",
+          "note": "Es el instrumento que le falta al slider de glide: hoy lo mueves y juzgas de oido con 40 ms de latencia de por medio. El motor ya expone las dos velocidades: muestrear y dibujar. Coste ~una tarde."
+        },
+        {
+          "id": "F.52",
+          "title": "Tacto/UI: curva de respuesta del trackpad editable, no un slider",
+          "module": "XFApp",
+          "acceptance": "la sensibilidad deja de ser un numero lineal y pasa a una curva con zona muerta + gamma + techo, dibujada como grafica arrastrable con un punto que se mueve en vivo",
+          "status": "todo",
+          "note": "Un plato real no es lineal para la mano: los gestos pequenos quieren precision y los grandes recorrido. Es lo que tiene cualquier config de mando serio. Coste ~medio."
+        },
+        {
+          "id": "F.53",
+          "title": "Tacto/UI: Ajustes > Tacto con presets y A/B instantaneo",
+          "module": "XFApp",
+          "acceptance": "los 4 sliders de Debug (glide, puerta, friccion, sensibilidad) ascienden a pestana propia con presets (Seco / Vinilo / Suelto) y un boton A/B que alterna entre dos ajustes sin soltar el gesto; los presets se guardan por mesa",
+          "status": "todo",
+          "note": "Comparar tacto de memoria es imposible: para cuando has movido el slider ya no te acuerdas de como iba. El A/B hace la comparacion real. Aprovecha los perfiles por dispositivo que ya existen. Coste ~una tarde."
+        },
+        {
+          "id": "F.54",
+          "title": "Tacto/UI: compensar la latencia en lo que se DIBUJA",
+          "module": "XFApp",
+          "acceptance": "un ajuste 'compensar latencia en la traza' desplaza el dibujo de la traza teal por la latencia medida (I.01/F.50), para que lo que ves bajo el cabezal sea lo que estas oyendo",
+          "status": "todo",
+          "note": "Hoy la traza se pinta en el tick de sesion y el sonido sale ~20-40 ms despues: calibras la mano contra una imagen que va por delante del sonido. Es una resta en la X de renderUserTrace. Necesita F.50. Coste ~una tarde."
+        },
+        {
+          "id": "F.55",
+          "title": "Tacto/UI: la puerta de velocidad, visible en el rail",
+          "module": "XFApp",
+          "acceptance": "una banda tenue en el rail del sample (o un aro en el scope) se enciende mientras |v| esta por debajo del umbral de la puerta",
+          "status": "todo",
+          "note": "speed_gate = 0,12 atenua por debajo del 12 % de velocidad; es correcto pero invisible: no sabes si estas en zona muerta o si el sample no ha cargado. Coste ~una tarde."
+        },
+        {
+          "id": "F.56",
+          "title": "Tacto/UI: medidor de tiron (cuanto corrige el ancla)",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "un indicador fino con el valor del trim del ancla anti-deriva (ADR-042) respecto a su tope de +-1,5 % de pitch; si vive saturado, hay algo mal aguas arriba",
+          "status": "todo",
+          "note": "El ancla suma a tu velocidad un trim acotado que normalmente no se oye. Cuando la traza y el cabezal se separan mucho, el trim va pegado al tope todo el rato -> la app tira de tu disco constantemente, y hoy no hay forma de saberlo. Coste ~una tarde."
+        },
+        {
+          "id": "F.57",
+          "title": "Tacto/UI: inspector de un solo gesto (con P / congelar)",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "congelas y examinas el ultimo segundo con detalle de audio: posicion, velocidad objetivo, velocidad real, estado del fader y amplitud de salida, alineados en el mismo eje de tiempo",
+          "status": "todo",
+          "note": "Un analizador logico para un baby: se ven el sobrepaso al invertir, el escalon del reloj de sesion, el instante en que la puerta atenua. Se alimenta de un buffer circular que el motor puede publicar por el ring que ya existe. Coste ~medio."
+        },
+        {
+          "id": "F.58",
+          "title": "Tacto/UI: ficha del dispositivo de audio con sus numeros",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "el desplegable de buffer muestra al lado los ms que son, la latencia declarada, el safety offset, los overloads de los ultimos 5 min y si la sample rate del sistema coincide; aviso si el ajuste guardado no es el que recomienda la calibracion",
+          "status": "todo",
+          "note": "Hoy 'buffer de audio' es un desplegable 64/128/.../512 sin ningun contexto. Coste ~una tarde."
+        },
+        {
+          "id": "F.59",
+          "title": "Tacto/UI: calibracion del gesto (que la app proponga tus ajustes)",
+          "module": "XFApp",
+          "acceptance": "'haz ocho babies al metronomo'; la app mide velocidad de pico, brusquedad de inversiones, duracion tipica de trazo y regularidad, y PROPONE glide/puerta/friccion/sensibilidad, comparables en A/B (F.53)",
+          "status": "todo",
+          "note": "Convierte la pestana de tacto de una caja de sliders a ciegas en una medida. Encaja con el asistente de calibracion que ya existe: es un paso mas. Necesita F.53. Coste ~medio."
         }
       ]
     }

@@ -2802,6 +2802,62 @@ recomendar el modo por nivel de truco. Tests: `PracticeSessionTests` +7,
 
 ---
 
+## ADR-072 — Primera tanda de "tacto": latencia del gesto y frenado del plato (F.01/F.03/F.04/F.08)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** Leyendo `xf_player.c` / `xf_engine.c` / `PracticeSession` /
+`PlatterInputView` para responder a "que vaya mejor la sensibilidad y el tacto":
+el presupuesto de latencia de `CLAUDE.md` mide el camino del **audio**, pero el
+camino del **gesto** tenía dos tramos grandes sin contar (~24 ms de media) y un
+bug de inercia. El `glide` de 3 ms, el único mando que había, es la porción más
+pequeña — por eso tocarlo se nota tan poco.
+
+**Decisión.** Cuatro cambios, todos en XFApp, que se refuerzan:
+
+- **F.03 — ignorar la inercia del trackpad.** `PlatterInputView.scrollWheel`
+  descarta los eventos con `momentumPhase != []` (los que macOS sigue mandando
+  tras levantar los dedos). Sin esto el plato recibía empujones de una mano que
+  ya no estaba **y** la sesión le aplicaba su fricción: inercia doble, el disco
+  se escapaba justo al querer pararlo. Es un bug.
+- **F.01 — velocidad al motor a ritmo de evento.** El `onScroll`/`onNudge` de
+  `LivePracticeView` empuja la velocidad al `EngineHandle` **en el instante del
+  evento** (`pushPlatterVelocity()`), sin esperar al siguiente paso de 60 Hz de
+  `PracticeSession` (0–16,7 ms de espera). El reloj de sesión sigue integrando a
+  60 Hz para la traza dibujada y el ancla de posición (`onAdvance`), que son
+  correcciones lentas. Misma conversión que `onAdvance`.
+- **F.04 — buffer de arranque 512 → 128.** `AppSettings.defaultBufferFrames`
+  (nuevo) = 128 (2,7 ms). Antes `defaults` enviaba 512 (10,7 ms) mientras el
+  asistente de calibración proponía 64 y ADR-024 presupuesta 1,33. Recorta ~16 ms.
+  La subida automática al detectar overloads sigue pendiente (B1.6); mientras
+  tanto se sube a mano en Ajustes.
+- **F.08 — frenado con rozamiento seco.** `PracticeSession.decayPlatterVelocity`
+  añade al decaimiento exponencial un término de **Coulomb** (`coulombFriction`,
+  deceleración constante) que para el plato **en firme** cerca de cero, en vez de
+  arrastrarse asintóticamente. Es la detención corta y seca de un slipmat real.
+  Sustituye el corte a `1e-4` que había.
+
+**Alternativas descartadas.** Bajar a 64 frames de golpe (128 es el compromiso
+seguro del Intel de 2015 sin la lógica adaptativa de B1.6). Tocar la frontera
+C↔Swift para F.01 (no hace falta: `setVelocity` es un store atómico, se puede
+llamar desde el hilo de UI en el evento). El modelo de **posición** en vez de
+impulso (F.02): cambia cómo se *siente* el gesto, no cuánto tarda — mejor
+hacerlo cuando la latencia ya esté baja, para poder juzgarlo. Un slider de
+Coulomb en Ajustes › Debug (el valor por defecto es sensato; se expone si
+alguien lo quiere afinar).
+
+**Consecuencias.** `PlatterInputView` (+1 guarda), `LivePracticeView`
+(`pushPlatterVelocity`, `onScroll`/`onNudge`), `PracticeSession`
+(`coulombFriction`, `decayPlatterVelocity`), `AppSettings`
+(`defaultBufferFrames`, el fallback de `bufferFrames` ya no es 512 literal).
+Nada de RT en C. **La primera vez que la app arranca tras esto, corre a 128
+frames**: si el Intel de 2015 crepita, subir en Ajustes › Audio. Tests:
+`PracticeSessionTests` +1 (`testElRozamientoSecoParaElPlatoEnFirme`) → 694 en
+verde. El resto del cuaderno del tacto (F.02, F.05–F.10, I.01–I.10) queda en
+FUTURIBLES.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

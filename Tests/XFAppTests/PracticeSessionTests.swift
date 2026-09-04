@@ -478,6 +478,30 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertGreaterThan(abs(s.platterPosition - p0), 1e-6, "el scroll vuelve a mover el plato")
     }
 
+    // MARK: - F.08: rozamiento seco (Coulomb)
+
+    func testElRozamientoSecoParaElPlatoEnFirme() throws {
+        // con Coulomb, el plato llega a velocidad EXACTAMENTE 0 (no se arrastra
+        // asintoticamente). Empuje pequeno para no chocar con el tope del recorrido.
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.nudge(forward: true)                        // impulso ~2.2 unidades/s
+        var framesToStop = 0
+        for i in 1...120 {
+            s.advance(by: 1.0 / 60.0)
+            if s.platterVelocity == 0 { framesToStop = i; break }
+        }
+        XCTAssertGreaterThan(framesToStop, 0, "el plato se para del todo (v == 0 exacto)")
+        XCTAssertLessThan(framesToStop, 90, "y rapido (< 1,5 s)")
+
+        // sin Coulomb (0) el exponencial se arrastra: sigue moviendose al mismo tiempo
+        let s2 = PracticeSession(scratch: try scratch(), bpm: 90)
+        s2.coulombFriction = 0
+        s2.nudge(forward: true)
+        for _ in 0..<framesToStop { s2.advance(by: 1.0 / 60.0) }
+        XCTAssertGreaterThan(abs(s2.platterVelocity), 1e-6,
+                             "solo exponencial: todavia rueda cuando el Coulomb ya lo habia parado")
+    }
+
     // MARK: - F.23: descomposición mano / fader
 
     func testSoloMano_tuMuevesElDiscoYLaMaquinaCortaElFader() throws {

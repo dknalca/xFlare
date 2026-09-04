@@ -961,6 +961,71 @@ en manos de gente.*
         única que, si falta, hace falso el resto del producto. Escribirla ANTES
         de la primera sesión con hardware.
 
+### FUT — del cuaderno del tacto (2026-09-04)
+
+*Sensibilidad y tacto del audio. `F.43` ya está hecha; el resto en cola.*
+
+- [x] **F.43** Tacto — 1ª tanda: latencia del gesto + frenado del plato (ADR-072)
+      - **F.03** `PlatterInputView` ignora la inercia del trackpad
+        (`momentumPhase != []`); era inercia doble (empujón fantasma + fricción).
+      - **F.01** `LivePracticeView.pushPlatterVelocity()` empuja la velocidad al
+        motor **en el instante del evento**, no en el paso de 60 Hz de la sesión.
+      - **F.04** `AppSettings.defaultBufferFrames` = 128 (antes 512): −16 ms.
+        La subida automática al detectar overloads sigue siendo B1.6.
+      - **F.08** `PracticeSession.decayPlatterVelocity` añade rozamiento seco de
+        Coulomb (`coulombFriction`): el plato para **en firme**, no se arrastra.
+      - Tests: `PracticeSessionTests` +1. 694 en verde.
+- [ ] **F.44** Tacto: modelo de posición en vez de impulso `XFApp`
+      - Con los dedos en el trackpad, `velocidad = dx/dt` (no acumular momento);
+        al soltar (`event.phase .ended`), fricción. Hacerlo cuando la latencia ya
+        esté baja, para poder juzgarlo.
+- [ ] **F.45** Tacto: más cubos de ratio de resampling, techo > 8× `CXFAudioCore`
+      - `XF_PLAYER_RATIOS` de 7 a ~24 log-espaciados hasta 16×. Coste RT cero,
+        ~1,5 MB de tabla. Quita el escalón de brillo y el aliasing del scribble.
+- [ ] **F.46** Tacto: rampa de velocidad dentro del bloque de audio `CXFAudioCore`
+      - Interpolar `target_velocity` del bloque anterior al actual en vez de
+        perseguir un escalón con un one-pole. El glide puede bajar sin meter clicks.
+- [ ] **F.47** Tacto: puerta de velocidad con forma, no con rampa `CXFAudioCore`
+      - Coseno alzado + umbral 0,12→0,04 + bloqueador de DC aguas abajo. Cada
+        inversión de sentido cruza la puerta hoy y deja una muesca con esquinas.
+- [ ] **F.48** Tacto: compensar la latencia que declara el dispositivo `CXFAudioCore`
+      - Leer `kAudioDevicePropertyLatency` + safety offset. Alimenta F.50, F.54 y
+        el término a restar al puntuar (mitad de F.42). Clave con mesa.
+- [ ] **F.49** Tacto: grabar el gesto a resolución de audio `XFApp` + `XFCapture`
+      - Hoy `recordFrame` va a 60 Hz; la toma reproducida y el vídeo salen más
+        suaves y lentos que el original. Con F.01/F.43 la velocidad ya llega a
+        ritmo de evento: grabar eso.
+- [ ] **F.50** Tacto/UI: el reparto de la latencia en pantalla `XFApp` + `CXFAudioCore`
+      - Panel en Ajustes › Tacto + línea en el HUD. Los 4 tramos se miden sin
+        hardware. Sin la medida, todo lo demás es fe.
+- [ ] **F.51** Tacto/UI: osciloscopio de velocidad (pedida vs. real) `XFApp`
+      - Dos trazos: el objetivo (escalera de 60 Hz) y `xf_player_velocity`. Es el
+        instrumento que le falta al slider de glide.
+- [ ] **F.52** Tacto/UI: curva de respuesta del trackpad editable `XFApp`
+      - Zona muerta + gamma + techo, gráfica arrastrable con un punto en vivo.
+        Un plato no es lineal para la mano.
+- [ ] **F.53** Tacto/UI: Ajustes › Tacto con presets y A/B instantáneo `XFApp`
+      - Los 4 sliders de Debug ascienden a pestaña propia; presets (Seco/Vinilo/
+        Suelto) y un A/B que alterna sin soltar el gesto. Presets por mesa.
+- [ ] **F.54** Tacto/UI: compensar la latencia en lo que se DIBUJA `XFApp`
+      - Desplazar la traza por la latencia medida (F.50): que ver y oír cuenten
+        la misma historia. Una resta en la X de `renderUserTrace`.
+- [ ] **F.55** Tacto/UI: la puerta de velocidad, visible en el rail `XFApp`
+      - Banda/aro que se enciende mientras `|v|` está bajo el umbral: saber si el
+        silencio es tuyo o de la app.
+- [ ] **F.56** Tacto/UI: medidor de tirón (cuánto corrige el ancla) `XFApp` + `CXFAudioCore`
+      - El trim del ancla anti-deriva respecto a su tope. Si vive saturado, hay
+        algo mal aguas arriba y hoy no se ve.
+- [ ] **F.57** Tacto/UI: inspector de un solo gesto (con `P`) `XFApp` + `CXFAudioCore`
+      - Congelas y examinas el último segundo con detalle de audio: posición,
+        velocidad pedida/real, fader, amplitud. Un analizador lógico para un baby.
+- [ ] **F.58** Tacto/UI: ficha del dispositivo de audio con sus números `XFApp` + `CXFAudioCore`
+      - Al lado del desplegable de buffer: ms, latencia declarada, safety offset,
+        overloads, sample rate. Aviso si el ajuste no es el recomendado.
+- [ ] **F.59** Tacto/UI: calibración del gesto (la app propone tus ajustes) `XFApp`
+      - "Haz ocho babies al metrónomo": mide tu gesto y propone glide/puerta/
+        fricción/sensibilidad, comparables en A/B (F.53).
+
 ---
 
 ## Reglas de uso

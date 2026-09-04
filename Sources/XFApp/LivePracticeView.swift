@@ -322,8 +322,14 @@ public struct LivePracticeView: View {
                         onHighwaySize: { highwaySize = $0 },
                         showFPS: showFPS)
                     PlatterInputView(
-                        onScroll: { s.scrollBy($0) },
-                        onNudge: { s.nudge(forward: $0) },
+                        onScroll: { dx in
+                            s.scrollBy(dx)
+                            pushPlatterVelocity()   // F.01: al motor YA, no en el próximo tick
+                        },
+                        onNudge: { fwd in
+                            s.nudge(forward: fwd)
+                            pushPlatterVelocity()
+                        },
                         onFaderClosed: { closed in
                             // solo avisa a la sesion; el gain lo pone el
                             // .onChange de session.faderClosed (asi tambien
@@ -1455,6 +1461,17 @@ public struct LivePracticeView: View {
         setGridShift(0)
         e.seek(tick: 0)
         e.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
+    }
+
+    /// F.01 — empuja la velocidad del plato al motor de audio **en el instante
+    /// del evento de entrada**, sin esperar al siguiente paso del reloj de la
+    /// sesión (0–16,7 ms de espera a 60 Hz). El reloj de sesión sigue integrando
+    /// a 60 Hz para la traza dibujada y el ancla de posición (`onAdvance`), que
+    /// son correcciones lentas y ahí 60 Hz sobra. Misma conversión que `onAdvance`.
+    private func pushPlatterVelocity() {
+        guard let e = engine, e.scratchFrameCount > 1 else { return }
+        let full = Double(e.scratchFrameCount - 1)
+        e.setVelocity(session.normalizedVelocity * full / e.sampleRateHz)
     }
 
     /// Segundo del fichero donde está ahora el cabezal de la base (coords

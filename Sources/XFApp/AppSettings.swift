@@ -11,6 +11,9 @@ public struct AppSettings: Equatable, Sendable {
     /// Tamaños de buffer de audio que se ofrecen (frames @ 48 kHz). Rango amplio
     /// a propósito: sirve para aislar si el buffer es la causa de un crepiteo.
     public static let bufferOptions = [64, 128, 256, 512, 1024, 2048]
+    /// Buffer de arranque: 128 frames (2,7 ms). El compromiso seguro del Intel
+    /// de 2015 (ADR-024); recorta ~16 ms frente a 512 (F.04).
+    public static let defaultBufferFrames = 128
 
     /// Opciones para la exportación de vídeo (F.4).
     public static let videoFpsOptions = [24, 30, 60]
@@ -67,8 +70,11 @@ public struct AppSettings: Equatable, Sendable {
     /// Multiplicador de la sensibilidad del trackpad al girar el plato. Def. 1,0.
     public var trackpadSensitivity: Double
 
+    // F.04 — arranca en `defaultBufferFrames` (128), no en 512: recorta ~16 ms
+    // de latencia de ida+vuelta. Si aparecen overloads, subir a mano en Ajustes
+    // › Audio (la subida automática al detectar overloads es B1.6, pendiente).
     public static let defaults = AppSettings(
-        username: "", hamster: false, metronomeEnabled: true, bufferFrames: 512,
+        username: "", hamster: false, metronomeEnabled: true, bufferFrames: defaultBufferFrames,
         toleranceScale: 1.0, highContrast: false, reduceMotion: false, allUnlocked: true,
         lastScratchSamplePath: "", midiCommandOverrides: [:], showFPS: false,
         sampleLibrary: [], videoFps: 30, videoLongSide: 1600)
@@ -84,7 +90,8 @@ public struct AppSettings: Equatable, Sendable {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
-        self.bufferFrames = AppSettings.bufferOptions.contains(bufferFrames) ? bufferFrames : 512
+        self.bufferFrames = AppSettings.bufferOptions.contains(bufferFrames)
+            ? bufferFrames : AppSettings.defaultBufferFrames
         self.toleranceScale = toleranceScale
         self.highContrast = highContrast
         self.reduceMotion = reduceMotion
