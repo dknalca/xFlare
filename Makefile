@@ -97,6 +97,13 @@ app:
 	find xFlare.app -name .DS_Store -delete; \
 	xattr -cr xFlare.app 2>/dev/null || true; \
 	codesign --force --deep --sign - xFlare.app 2>/dev/null && echo "  firmado ad-hoc" || echo "  (codesign no disponible)"; \
+	touch xFlare.app xFlare.app/Contents/Resources/xflare.icns; \
+	UCACHE="$$(getconf DARWIN_USER_CACHE_DIR 2>/dev/null)"; \
+	[ -n "$$UCACHE" ] && rm -rf "$$UCACHE"com.apple.iconservices "$$UCACHE"com.apple.dock.iconcache 2>/dev/null || true; \
+	LSR=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister; \
+	[ -x "$$LSR" ] && "$$LSR" -f xFlare.app >/dev/null 2>&1 || true; \
+	killall Dock >/dev/null 2>&1 || true; \
+	echo "  icono: cache de iconos de macOS refrescada (si aun sale el viejo: mueve/renombra el .app)"; \
 	echo "  hecho: xFlare.app$${ICON:+  (con icono)}"; \
 	echo "  abrelo: clic derecho sobre xFlare.app > Abrir > Abrir  (solo la 1a vez)"; \
 	echo "  o sin Gatekeeper:  xFlare.app/Contents/MacOS/xFlare"
