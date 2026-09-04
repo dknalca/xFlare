@@ -1365,10 +1365,10 @@
         {
           "id": "F.48",
           "title": "Tacto: compensar la latencia que declara el dispositivo de audio",
-          "module": "CXFAudioCore",
+          "module": "XFApp",
           "acceptance": "al abrir el dispositivo se leen kAudioDevicePropertyLatency + safety offset + latencia de stream; el numero real alimenta el panel de latencia (I.01), el desplazamiento de la traza (I.05) y el termino a restar al puntuar",
-          "status": "todo",
-          "note": "Hoy nada de eso se consulta: la app no sabe cuanto tarda su propia salida. Es la mitad de F.42 (puntuar el cut-in). Sin esto todos saldran 'tarde' por igual el dia que haya timecode. Clave con mesa. Coste ~una tarde."
+          "status": "done",
+          "note": "Hecho (2026-09-04): AudioDeviceLatency.swift (mismo patron de consulta CoreAudio que AudioDeviceList, en XFApp -- no es RT, son consultas puntuales del hilo principal, no va en CXFAudioCore). info(for:scope:) lee kAudioDevicePropertyLatency + kAudioDevicePropertySafetyOffset por lado (entrada/salida) y kAudioDevicePropertyBufferFrameSize + kAudioDevicePropertyNominalSampleRate del dispositivo entero; suma todo a totalFrames/totalMs. nil si el dispositivo no responde. 5 tests hardware-agnosticos. Es solo el dato medido -- cablearlo al HUD/Ajustes (F.50) y a la resta al puntuar queda pendiente."
         },
         {
           "id": "F.49",

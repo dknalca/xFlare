@@ -1043,9 +1043,21 @@ en manos de gente.*
         sample — lo delató `XFEngineRTTests.testSoftClipYPicoDeSalida`.
         Arreglado: solo actúa dentro de la zona de puerta.
       - Tests: `XFPlayerTests` +3. 704 en verde.
-- [ ] **F.48** Tacto: compensar la latencia que declara el dispositivo `CXFAudioCore`
+- [x] **F.48** Tacto: compensar la latencia que declara el dispositivo `XFApp`
       - Leer `kAudioDevicePropertyLatency` + safety offset. Alimenta F.50, F.54 y
         el término a restar al puntuar (mitad de F.42). Clave con mesa.
+      - Hecho (2026-09-04): `AudioDeviceLatency.swift` (mismo patrón de
+        consulta CoreAudio que `AudioDeviceList`, no en `CXFAudioCore` — esto
+        no es RT, son consultas puntuales del hilo principal). `info(for:scope:)`
+        lee `kAudioDevicePropertyLatency` + `kAudioDevicePropertySafetyOffset`
+        por lado (entrada/salida) y `kAudioDevicePropertyBufferFrameSize` +
+        `kAudioDevicePropertyNominalSampleRate` del dispositivo entero; suma
+        todo a `totalFrames`/`totalMs`. `nil` si el dispositivo no responde
+        (algunos virtuales no exponen estas claves). 5 tests hardware-agnósticos
+        (mismo patrón que `AudioDeviceListTests`): con el micrófono integrado si
+        hay uno, con un id inventado, con casos numéricos fijos. Este es solo el
+        dato medido — cablearlo al HUD/Ajustes (F.50) y a la resta al puntuar
+        queda para cuando toquen esas tareas.
 - [ ] **F.49** Tacto: grabar el gesto a resolución de audio `XFApp` + `XFCapture`
       - Hoy `recordFrame` va a 60 Hz; la toma reproducida y el vídeo salen más
         suaves y lentos que el original. Con F.01/F.43 la velocidad ya llega a
