@@ -1481,6 +1481,14 @@
           "acceptance": "ScopeView del paso Timecode dibuja posicion/velocidad/confianza reales del vinilo, no vacio",
           "status": "done",
           "note": "Hecho (2026-09-04), a peticion directa del autor. ScopeView/ScopeReading/ScopeFigure (XFRender, sellado, 'el espejo del plato') ya existian, se pintaban vacios (mismo hueco B4.2: el motor solo se arrancaba 'solo salida' en toda la app). AppModel.startTimecodeCapture(): para el motor, lo reabre CON entrada (usa EngineHandle.preferred* de F.60), crea TimecodeMotionSource (serato_2a, el unico validado en B5.5), Timer a 30Hz drena engine.drainInput() -> submit() -> acumula [ScopeReading] (~8s de rastro) y llama a onTimecodeSample. stopTimecodeCapture() devuelve el motor a modo solo-salida. AppRootView cablea onTimecodeSample a calibrationModel.reportTimecode(...) al entrar en .calibration (con flag capturingTimecode para no reiniciar el motor en cada cambio de pantalla), para al salir. CalibrationStep.pendingNote de .timecode pasa a nil. 4 tests (AppModelTimecodeCaptureTests, sin motor no revienta). El comportamiento con motor real no tiene test, necesita hardware como xf_engine_start/MidiFaderConnector. Pendiente: solo Serato 2a ed. (sin selector de vinilo), hamster sigue siendo manual (solo la direccion se detecta de verdad)."
+        },
+        {
+          "id": "F.63",
+          "title": "Paso Latencia del asistente: declarada por el driver, no medida por loopback",
+          "module": "XFApp",
+          "acceptance": "el paso 2 muestra un numero de latencia sin pedir cable ni boton Medir",
+          "status": "done",
+          "note": "Hecho (2026-09-04). Motivado por el autor: 'no le veo sentido, igual hay que eliminarlo'. El diseno original (round-trip por cable) no tenia forma clara de aplicarse en muchas mesas de batalla (Rane 72 incluida) y ademas B1.2 dejo documentado que un loopback mide dos tramos USB, no el tramo unico que el usuario realmente oye. Se ofrecieron 3 opciones (quitar, opcional, o sustituir por declarada) -- el autor eligio sustituir, reusando F.48 (AudioDeviceLatency). CalibrationWizardModel: measuredLatencyMs/reportLatency(roundTripMs:) -> latencyMs/reportLatency(ms:). AudioDeviceList.resolvedOutput/resolvedInput (dispositivo de Ajustes o el de sistema por defecto). AudioDeviceLatency.outputInfo/inputInfo. AppRootView resuelve y llama a reportLatency(ms:) automatico al entrar en Calibracion, sin boton. LatencyCalibrationStep pierde el boton 'Medir' y el aviso de cable. 5 tests nuevos + 1 renombrado. tools/measure_latency.py no se toca, sigue como herramienta de HW_BRINGUP.md."
         }
       ]
     }

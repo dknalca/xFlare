@@ -10,7 +10,7 @@ final class CalibrationWizardTests: XCTestCase {
         // deja los 4 pasos en verde
         m.inputDeviceName = "Rane 72 In"
         m.outputDeviceName = "Rane 72 Out"
-        m.reportLatency(roundTripMs: 8.5)
+        m.reportLatency(ms: 8.5)
         m.reportTimecode(confidence: 0.9, forwards: true, suggestedHamster: true)
         for _ in 0..<10 { m.reportFaderCut(cutIn: 0.44, hysteresis: 0.07) }
     }
@@ -56,12 +56,12 @@ final class CalibrationWizardTests: XCTestCase {
 
     // MARK: - latencia
 
-    func testLatenciaNoBloqueaPeroPideMedir() {
+    func testLatenciaNoBloqueaPeroPideElDato() {
         let m = CalibrationWizardModel()
         m.inputDeviceName = "in"; m.outputDeviceName = "out"; m.advance()
         XCTAssertEqual(m.step, .latency)
         XCTAssertFalse(m.canAdvance)
-        m.reportLatency(roundTripMs: 22)          // rojo, pero medido
+        m.reportLatency(ms: 22)          // rojo, pero declarado
         XCTAssertTrue(m.canAdvance, "el semáforo avisa, no bloquea")
         XCTAssertEqual(m.latencyVerdict, .tooHigh)
     }

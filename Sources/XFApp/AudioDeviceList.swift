@@ -46,6 +46,31 @@ public enum AudioDeviceList {
     /// Solo los que tienen SALIDA.
     public static func outputs() -> [Device] { all().filter { $0.outputChannels > 0 } }
 
+    /// El dispositivo de SALIDA elegido en Ajustes (`uid` no vacío y presente
+    /// en `candidates`), o el de salida por defecto del sistema si `uid` está
+    /// vacío o ya no existe (mismo criterio que usa el motor,
+    /// `xf_engine_device_by_uid`, para que "lo que se calibra" sea "lo que
+    /// realmente se usa").
+    public static func resolvedOutput(uid: String, in candidates: [Device]) -> Device? {
+        if !uid.isEmpty, let d = candidates.first(where: { $0.uid == uid }) { return d }
+        return defaultDevice(selector: kAudioHardwarePropertyDefaultOutputDevice, in: candidates)
+    }
+    /// Igual que `resolvedOutput` pero de ENTRADA.
+    public static func resolvedInput(uid: String, in candidates: [Device]) -> Device? {
+        if !uid.isEmpty, let d = candidates.first(where: { $0.uid == uid }) { return d }
+        return defaultDevice(selector: kAudioHardwarePropertyDefaultInputDevice, in: candidates)
+    }
+
+    private static func defaultDevice(selector: AudioObjectPropertySelector, in candidates: [Device]) -> Device? {
+        var addr = AudioObjectPropertyAddress(mSelector: selector, mScope: kAudioObjectPropertyScopeGlobal,
+                                               mElement: kAudioObjectPropertyElementMain)
+        var id = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        guard AudioObjectGetPropertyData(AudioObjectID(kAudioObjectSystemObject), &addr, 0, nil, &size, &id) == noErr,
+              id != kAudioObjectUnknown else { return nil }
+        return candidates.first(where: { $0.id == id })
+    }
+
     // MARK: - parejas estéreo (como el selector de entrada/salida de Ableton)
 
     /// Un PAR estéreo de canales dentro de un dispositivo: `first` es el

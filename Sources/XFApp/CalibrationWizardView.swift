@@ -9,28 +9,26 @@ import XFPersistence
 /// más importante: si esto sale mal, todo lo demás miente.
 ///
 /// El estado vive en `CalibrationWizardModel` (testeable). Esta vista solo lo
-/// dibuja y conecta los botones. Las listas de dispositivos, la medición de
-/// latencia y las lecturas del scope las aporta `XFApp` cuando cablee el audio.
+/// dibuja y conecta los botones. Las listas de dispositivos y las lecturas
+/// del scope las aporta `XFApp`; la latencia (declarada por el driver,
+/// F.48/F.63) se reporta al modelo directamente, sin pasar por esta vista.
 public struct CalibrationWizardView: View {
 
     @ObservedObject private var model: CalibrationWizardModel
 
     private let inputDevices: [String]
     private let outputDevices: [String]
-    private let onMeasureLatency: () -> Void
     private let scopeReadings: () -> [ScopeReading]
     private let onFinish: (DeviceCalibration) -> Void
 
     public init(model: CalibrationWizardModel,
                 inputDevices: [String] = [],
                 outputDevices: [String] = [],
-                onMeasureLatency: @escaping () -> Void = {},
                 scopeReadings: @escaping () -> [ScopeReading] = { [] },
                 onFinish: @escaping (DeviceCalibration) -> Void = { _ in }) {
         self.model = model
         self.inputDevices = inputDevices
         self.outputDevices = outputDevices
-        self.onMeasureLatency = onMeasureLatency
         self.scopeReadings = scopeReadings
         self.onFinish = onFinish
     }
@@ -88,7 +86,7 @@ public struct CalibrationWizardView: View {
         case .audio:
             AudioCalibrationStep(model: model, inputDevices: inputDevices, outputDevices: outputDevices)
         case .latency:
-            LatencyCalibrationStep(model: model, onMeasure: onMeasureLatency)
+            LatencyCalibrationStep(model: model)
         case .timecode:
             TimecodeCalibrationStep(model: model, scopeReadings: scopeReadings)
         case .fader:

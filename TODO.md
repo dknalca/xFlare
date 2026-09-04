@@ -1224,6 +1224,44 @@ en manos de gente.*
         original de UI_DESIGN.md §3.1) sigue siendo manual — el toggle existe
         pero nada lo auto-sugiere todavía, solo la dirección (adelante/atrás)
         se detecta de verdad.
+- [x] **F.63** Paso "Latencia" del asistente: declarada por el driver, no medida por loopback `XFApp`
+      - Motivado por el autor tras ver el paso: "no le veo sentido, igual hay
+        que eliminarlo". El diseño original (round-trip real por cable) tenía
+        un problema real que F.62 dejó claro el mismo día: muchas mesas de
+        batalla (la Rane 72 entre ellas) no tienen una forma clara de
+        puentear salida y entrada — pedirle un cable a cualquier usuario en
+        un asistente es mucha fricción para un dato que además ni siquiera
+        sería el que el usuario realmente oye (B1.2 lo dejó documentado: un
+        loopback mide DOS tramos USB, no el tramo único de salida).
+      - Se ofrecieron 3 opciones (quitar el paso, dejarlo opcional, o
+        sustituirlo por la latencia DECLARADA sin cable) — el autor eligió
+        sustituirlo, reutilizando F.48 (`AudioDeviceLatency`, construido el
+        mismo día) en vez de tirar el paso entero.
+      - Hecho (2026-09-04):
+        · `CalibrationWizardModel`: `measuredLatencyMs`/`reportLatency(roundTripMs:)`
+          → `latencyMs`/`reportLatency(ms:)` (el nombre viejo afirmaba una
+          medida que ya no se hace; deshonesto dejarlo).
+        · `AudioDeviceList`: `resolvedOutput(uid:in:)`/`resolvedInput(uid:in:)`
+          — el dispositivo elegido en Ajustes si existe, si no el de sistema
+          por defecto (mismo criterio que usa el motor,
+          `xf_engine_device_by_uid`).
+        · `AudioDeviceLatency`: `outputInfo(for:)`/`inputInfo(for:)`,
+          envoltorios fino sobre `info(for:scope:)` para no obligar a
+          `AppRootView` a importar CoreAudio.
+        · `AppRootView`: al entrar en `.calibration`, resuelve salida (+
+          entrada si hay) y llama a `calibrationModel.reportLatency(ms:)` —
+          automático, sin botón. `LatencyCalibrationStep` pierde el botón
+          "Medir" y el aviso de "conecta un cable"; muestra el número y una
+          nota corta de qué es (declarada, no medida).
+        · `CalibrationStep`: instrucción y `pendingNote` del paso actualizados
+          (ya no pide loopback ni remite a `measure_latency.py`).
+      - 5 tests nuevos (`resolvedOutput`/`resolvedInput` con uid vacío/real/
+        inventado, `outputInfo`/`inputInfo` coinciden con `info(for:scope:)`
+        directo) + el test de latencia existente renombrado
+        (`testLatenciaNoBloqueaPeroPideElDato`).
+      - `tools/measure_latency.py` (medida real por loopback) no se toca —
+        sigue viva como herramienta de desarrollo en `docs/HW_BRINGUP.md`
+        paso 3, fuera de la UI de usuario final.
 
 ---
 

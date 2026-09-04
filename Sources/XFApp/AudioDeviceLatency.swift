@@ -68,6 +68,18 @@ public enum AudioDeviceLatency {
                     bufferFrames: Int(bufferFrames), sampleRate: sr)
     }
 
+    /// Latencia de SALIDA de `device`. Envuelve `info(for:scope:)` con el
+    /// scope correcto para que quien dibuja la UI (`AppRootView`) no tenga
+    /// que importar CoreAudio — mismo patrón que
+    /// `AudioDeviceList.outputChannelPairs(for:)`.
+    public static func outputInfo(for device: AudioDeviceList.Device) -> Info? {
+        info(for: device.id, scope: kAudioObjectPropertyScopeOutput)
+    }
+    /// Igual que `outputInfo` pero de ENTRADA.
+    public static func inputInfo(for device: AudioDeviceList.Device) -> Info? {
+        info(for: device.id, scope: kAudioObjectPropertyScopeInput)
+    }
+
     // MARK: - propiedades crudas
 
     private static func uint32Property(_ id: AudioDeviceID, _ selector: AudioObjectPropertySelector,

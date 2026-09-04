@@ -104,4 +104,34 @@ final class AudioDeviceListTests: XCTestCase {
             XCTAssertEqual(pairs.count, d.inputChannels / 2)
         }
     }
+
+    // MARK: - resolvedOutput/resolvedInput (F.63: latencia declarada sin cable)
+
+    func testResolvedOutputConUidVacioCaeAlDeVerdadPorDefecto() {
+        let candidates = AudioDeviceList.outputs()
+        guard !candidates.isEmpty else { return }   // maquina sin salida: nada que comprobar
+        let resolved = AudioDeviceList.resolvedOutput(uid: "", in: candidates)
+        // el de sistema por defecto SIEMPRE esta entre los candidatos si hay
+        // al menos una salida real (Built-in Output, si no hay otra cosa).
+        XCTAssertNotNil(resolved)
+    }
+
+    func testResolvedOutputConUidRealLoDevuelveTalCual() {
+        guard let real = AudioDeviceList.outputs().first else { return }
+        let resolved = AudioDeviceList.resolvedOutput(uid: real.uid, in: AudioDeviceList.outputs())
+        XCTAssertEqual(resolved, real)
+    }
+
+    func testResolvedOutputConUidInventadoCaeAlDeVerdadPorDefecto() {
+        let candidates = AudioDeviceList.outputs()
+        guard !candidates.isEmpty else { return }
+        let resolved = AudioDeviceList.resolvedOutput(uid: "no-existe-esto-de-verdad", in: candidates)
+        XCTAssertNotNil(resolved)
+    }
+
+    func testResolvedInputConUidVacioNoRevientaSinEntrada() {
+        // el mismo criterio para entrada; si la maquina no tiene ninguna
+        // entrada real (raro, pero posible en CI), no debe reventar.
+        _ = AudioDeviceList.resolvedInput(uid: "", in: AudioDeviceList.inputs())
+    }
 }

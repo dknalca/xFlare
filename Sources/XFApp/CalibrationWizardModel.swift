@@ -23,7 +23,13 @@ public final class CalibrationWizardModel: ObservableObject {
     @Published public var bufferFrames: Int = 64
 
     // MARK: paso 2 · latencia
-    @Published public private(set) var measuredLatencyMs: Double?
+    /// Latencia declarada por el dispositivo/driver (F.48/F.63: `kAudioDevicePropertyLatency`
+    /// + margen de seguridad + búfer, sumado en salida y entrada), **no** una
+    /// medida real de ida y vuelta — eso pedía un cable de loopback que no
+    /// todas las mesas tienen forma clara de puentear (la Rane 72 no tiene un
+    /// jack de "Master Out" por USB en el sentido habitual). Sigue siendo una
+    /// cifra útil y honesta: es lo que el propio sistema dice que tarda.
+    @Published public private(set) var latencyMs: Double?
 
     // MARK: paso 3 · timecode
     @Published public private(set) var signalConfidence: Double = 0
@@ -53,8 +59,8 @@ public final class CalibrationWizardModel: ObservableObject {
 
     // MARK: - lo que reporta la capa de audio
 
-    public func reportLatency(roundTripMs: Double) {
-        measuredLatencyMs = roundTripMs
+    public func reportLatency(ms: Double) {
+        latencyMs = ms
     }
 
     public func reportTimecode(confidence: Double, forwards: Bool, suggestedHamster: Bool) {
@@ -76,7 +82,7 @@ public final class CalibrationWizardModel: ObservableObject {
     public func isReady(_ s: CalibrationStep) -> Bool {
         switch s {
         case .audio:    return inputDeviceName != nil && outputDeviceName != nil
-        case .latency:  return measuredLatencyMs != nil   // el semáforo avisa; no bloquea
+        case .latency:  return latencyMs != nil   // el semáforo avisa; no bloquea
         case .timecode: return signalConfidence >= timecodeConfidenceGate
         case .fader:    return cutsDetected >= faderCutsNeeded
         }
@@ -85,7 +91,7 @@ public final class CalibrationWizardModel: ObservableObject {
     public var canAdvance: Bool { isReady(step) }
 
     public var latencyVerdict: LatencyVerdict? {
-        measuredLatencyMs.map(LatencyVerdict.init(roundTripMs:))
+        latencyMs.map(LatencyVerdict.init(roundTripMs:))
     }
 
     public func advance() {
@@ -111,7 +117,7 @@ public final class CalibrationWizardModel: ObservableObject {
             faderCutIn: faderCutIn,
             faderHysteresis: faderHysteresis,
             hamster: hamster,
-            latencyMs: measuredLatencyMs,
+            latencyMs: latencyMs,
             updatedAt: now)
     }
 }

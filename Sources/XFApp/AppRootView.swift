@@ -68,6 +68,22 @@ public struct AppRootView: View {
             // ej. al arrastrar un slider) — solo al ENTRAR en la pantalla.
             if s == .calibration {
                 calibrationDevices = AudioDeviceList.all()
+                // Paso 2 (Latencia, F.63): declarada por el driver, no medida
+                // por loopback — no hace falta cable. Suma el lado de salida
+                // y, si hay uno elegido, el de entrada; usa el dispositivo de
+                // Ajustes › Hardware o el de sistema por defecto si no hay
+                // ninguno elegido (mismo criterio que usaría el motor).
+                if let out = AudioDeviceList.resolvedOutput(uid: model.settings.outputDeviceUID,
+                                                            in: calibrationDevices),
+                   let outInfo = AudioDeviceLatency.outputInfo(for: out) {
+                    var totalMs = outInfo.totalMs
+                    if let inp = AudioDeviceList.resolvedInput(uid: model.settings.inputDeviceUID,
+                                                               in: calibrationDevices),
+                       let inInfo = AudioDeviceLatency.inputInfo(for: inp) {
+                        totalMs += inInfo.totalMs
+                    }
+                    calibrationModel.reportLatency(ms: totalMs)
+                }
                 // el scope del paso 3 (Timecode) necesita el motor capturando
                 // entrada de verdad — para lo que sonara en otra pantalla y
                 // reabre el motor con captura (F.60/F.61 dejaron el motor

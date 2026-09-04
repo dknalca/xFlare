@@ -78,7 +78,8 @@ Asistente de cuatro pasos. Es la pantalla mas importante del producto: si esto
 sale mal, todo lo demas miente.
 
 1. **Audio** — elegir interfaz y salida. Muestra el buffer y la latencia estimada.
-2. **Prueba de latencia** — mide round-trip real por loopback. Semaforo:
+2. **Latencia** — la latencia que **declara** el dispositivo/driver (no una
+   medida real de ida y vuelta por loopback: ver "F.63" más abajo). Semaforo:
    verde ≤10 ms, ambar ≤15, rojo por encima con explicacion de que ajustar.
 3. **Timecode** — "gira el plato despacio". Scope circular en vivo, indicador de
    calidad de senal y deteccion automatica de direccion y hamster.
@@ -88,11 +89,24 @@ sale mal, todo lo demas miente.
 **Estado real (2026-09-04, primera vez con hardware conectado, ADR-073).** El
 paso 1 (Audio) ya lista dispositivos **reales** del sistema
 (`AudioDeviceList`, mismas llamadas CoreAudio que `spike/b1-latency/
-passthrough --list`) — antes los desplegables estaban vacíos. Los pasos 2 y 4
-todavía no tienen el motor con captura conectado (B4.2, en marcha): en vez de
-un control mudo, muestran un aviso corto con la herramienta de
-`docs/HW_BRINGUP.md` que sí mide hoy (`tools/measure_latency.py`,
-`spike/b1-pilot-fader/pilot_fader`).
+passthrough --list`) — antes los desplegables estaban vacíos. El paso 4
+todavía no tiene el motor con captura conectado (B4.2, en marcha): en vez de
+un control mudo, muestra un aviso corto con la herramienta de
+`docs/HW_BRINGUP.md` que sí mide hoy (`spike/b1-pilot-fader/pilot_fader`).
+
+**Paso 2 (Latencia), rediseñado el mismo día (F.63).** El diseño original
+pedía un loopback real por cable — al construir F.62 (el scope del paso 3)
+quedó claro que muchas mesas de batalla (la Rane 72 entre ellas) no tienen
+una forma clara de puentear salida y entrada para medir de verdad, y pedirle
+eso a cualquier usuario en un asistente es mucha fricción para un dato poco
+fiable. El autor lo cuestionó directamente ("no le veo sentido") y se
+sustituyó: `AudioDeviceLatency` (F.48) ya leía `kAudioDevicePropertyLatency` +
+margen de seguridad + búfer por CoreAudio, sin cable ni medida activa —
+`AppRootView` resuelve el dispositivo de salida/entrada elegido en Ajustes ›
+Hardware (o el de sistema por defecto si no hay ninguno, `AudioDeviceList.
+resolvedOutput`/`resolvedInput`) y llama a `calibrationModel.reportLatency(ms:)`
+al entrar en Calibración — automático, sin botón "Medir". El paso deja claro
+en texto que es una cifra **declarada**, no medida de ida y vuelta.
 
 **Paso 3 (Timecode), hecho el mismo día (F.62):** el scope circular **ya lee
 el vinilo de verdad**, no es un dibujo vacío. Al entrar en Calibración,

@@ -4,7 +4,7 @@
 /// orden importa: cada paso se apoya en el anterior.
 public enum CalibrationStep: Int, CaseIterable, Sendable {
     case audio      // interfaz y salida, buffer
-    case latency    // round-trip real por loopback
+    case latency    // declarada por el driver (F.48/F.63), sin loopback
     case timecode   // "gira el plato despacio": señal, dirección, hamster
     case fader      // "haz diez cortes": cut-in y curva
 
@@ -24,7 +24,7 @@ public enum CalibrationStep: Int, CaseIterable, Sendable {
     public var instruction: String {
         switch self {
         case .audio:    return "Elige la interfaz de entrada y la salida."
-        case .latency:  return "Mide la latencia real de ida y vuelta por loopback."
+        case .latency:  return "Esto es lo que el dispositivo declara que tarda."
         case .timecode: return "Gira el plato despacio hacia delante."
         case .fader:    return "Haz diez cortes limpios con el crossfader."
         }
@@ -34,15 +34,15 @@ public enum CalibrationStep: Int, CaseIterable, Sendable {
     /// real (B4.2 — captura de entrada + timecode + detección de cortes,
     /// hardware en marcha ahora mismo): mientras tanto, la medida de verdad
     /// se hace con las herramientas de `docs/HW_BRINGUP.md`, no aquí. `nil` =
-    /// el paso ya lee datos reales (audio con `AudioDeviceList`; timecode con
-    /// `TimecodeMotionSource` de verdad, 2026-09-04, F.62).
+    /// el paso ya lee datos reales (audio con `AudioDeviceList`; latencia
+    /// declarada con `AudioDeviceLatency`, F.63; timecode con
+    /// `TimecodeMotionSource` de verdad, F.62).
     public var pendingNote: String? {
         switch self {
         case .audio:
             return nil
         case .latency:
-            return "Todavía no mide sola: hace falta el motor con captura de entrada (B4.2), en marcha. "
-                 + "Mientras tanto, mide con tools/measure_latency.py (docs/HW_BRINGUP.md, paso 3)."
+            return nil
         case .timecode:
             return nil
         case .fader:

@@ -64,4 +64,19 @@ final class AudioDeviceLatencyTests: XCTestCase {
         XCTAssertEqual(info.totalFrames, 224)
         XCTAssertEqual(info.totalMs, 224.0 / 48_000.0 * 1000.0, accuracy: 1e-9)
     }
+
+    // MARK: - outputInfo/inputInfo (F.63: paso 2 de Calibración, sin cable)
+
+    /// Envoltorios finos sobre `info(for:scope:)`: mismo resultado, sin que
+    /// quien los llama tenga que nombrar el scope de CoreAudio.
+    func testOutputInfoYInputInfoCoincidenConInfoDirecto() {
+        for d in AudioDeviceList.outputs() {
+            XCTAssertEqual(AudioDeviceLatency.outputInfo(for: d),
+                           AudioDeviceLatency.info(for: d.id, scope: kAudioObjectPropertyScopeOutput))
+        }
+        for d in AudioDeviceList.inputs() {
+            XCTAssertEqual(AudioDeviceLatency.inputInfo(for: d),
+                           AudioDeviceLatency.info(for: d.id, scope: kAudioObjectPropertyScopeInput))
+        }
+    }
 }

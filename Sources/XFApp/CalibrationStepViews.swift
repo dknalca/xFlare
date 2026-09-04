@@ -54,14 +54,11 @@ struct AudioCalibrationStep: View {
 
 struct LatencyCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
-    let onMeasure: () -> Void
 
     var body: some View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
-                Button("Medir latencia", action: onMeasure).xfButton(.filled)
-
-                if let ms = model.measuredLatencyMs, let verdict = model.latencyVerdict {
+                if let ms = model.latencyMs, let verdict = model.latencyVerdict {
                     HStack(spacing: XFSpacing.sm) {
                         Circle().fill(verdict.color).frame(width: 14, height: 14)
                         Text(String(format: "%.1f ms", ms)).font(XFFont.mono(28))
@@ -70,8 +67,13 @@ struct LatencyCalibrationStep: View {
                     Text(verdict.advice)
                         .font(XFFont.body(13)).foregroundColor(XFColor.textMuted)
                         .fixedSize(horizontal: false, vertical: true)
+                    Text("Declarada por el driver (salida + entrada), no una medida real de ida y "
+                         + "vuelta — no hace falta cable. En muchas mesas de batalla no hay una forma "
+                         + "clara de puentear salida y entrada para medir de verdad.")
+                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
-                    Text("Conecta un cable de la salida a la entrada (o usa el retorno del máster) y pulsa Medir.")
+                    Text("El dispositivo elegido en Ajustes › Hardware no ha declarado su latencia.")
                         .foregroundColor(XFColor.textMuted)
                 }
             }
