@@ -11,6 +11,12 @@ buffer de salida + DAC + cable + ADC + buffer de entrada + host.
 Uso:
     python3 tools/measure_latency.py --list
     python3 tools/measure_latency.py --device "Rane" --frames 64 --reps 20
+    python3 tools/measure_latency.py --device "Rane" --out-ch 3 --in-ch 5
+
+Sin --out-ch/--in-ch usa el canal 1 de cada lado (el primero del dispositivo),
+que en una interfaz multicanal (p. ej. la Rane 72, 14 in / 10 out) casi nunca
+es el que lleva el loopback real -- especifica el par exacto en vez de
+adivinar (docs/HW_BRINGUP.md paso 3).
 
 Al terminar imprime una linea lista para pegar en docs/TIMECODE.md seccion 4.2.
 
@@ -79,6 +85,10 @@ def main():
     ap.add_argument("--fs", type=int, default=48000, help="sample rate (por defecto 48000)")
     ap.add_argument("--frames", type=int, default=64, help="tamano de buffer objetivo (por defecto 64)")
     ap.add_argument("--reps", type=int, default=20, help="numero de medidas (por defecto 20)")
+    ap.add_argument("--out-ch", type=int, default=1,
+                     help="canal de SALIDA a usar, 1-based (por defecto 1: el primero del dispositivo)")
+    ap.add_argument("--in-ch", type=int, default=1,
+                     help="canal de ENTRADA a usar, 1-based (por defecto 1: el primero del dispositivo)")
     args = ap.parse_args()
 
     if args.list:
@@ -92,7 +102,6 @@ def main():
         sd.default.device = (dev, dev)  # mismo dispositivo para entrada y salida
 
     sd.default.samplerate = args.fs
-    sd.default.channels = 1
     sd.default.dtype = "float32"
     try:
         sd.default.blocksize = args.frames
@@ -106,26 +115,45 @@ def main():
     except Exception as e:
         sys.exit("  no se pudo abrir el dispositivo: %s\n  prueba --list" % e)
 
-    print("  entrada : %s" % info_in["name"])
-    print("  salida  : %s" % info_out["name"])
+    max_out = info_out["max_output_channels"]
+    max_in = info_in["max_input_channels"]
+    if not (1 <= args.out_ch <= max_out):
+        sys.exit("  --out-ch %d fuera de rango: el dispositivo tiene %d canales de salida"
+                  % (args.out_ch, max_out))
+    if not (1 <= args.in_ch <= max_in):
+        sys.exit("  --in-ch %d fuera de rango: el dispositivo tiene %d canales de entrada"
+                  % (args.in_ch, max_in))
+
+    print("  entrada : %s  (canal %d de %d)" % (info_in["name"], args.in_ch, max_in))
+    print("  salida  : %s  (canal %d de %d)" % (info_out["name"], args.out_ch, max_out))
     print("  fs=%d Hz  buffer objetivo=%d frames  reps=%d" % (args.fs, args.frames, args.reps))
     print("  latencia declarada por el driver: in=%.2f ms  out=%.2f ms\n"
           % (info_in["default_low_input_latency"] * 1000,
              info_out["default_low_output_latency"] * 1000))
 
-    stim = make_stimulus(args.fs)
+    # El chirp mono se coloca en la columna --out-ch (0-based) de un buffer
+    # que abarca TODOS los canales de salida del dispositivo (el resto va a
+    # cero); para grabar se piden TODOS los canales de entrada y luego se
+    # recorta la columna --in-ch. Es la unica forma de elegir canal concreto
+    # con sounddevice/PortAudio -- sin esto, "channels=1" coge siempre el
+    # primer canal del dispositivo, casi nunca el que lleva el loopback real
+    # en una interfaz multicanal.
+    stim_mono = make_stimulus(args.fs)
+    stim = np.zeros((len(stim_mono), max_out), dtype="float32")
+    stim[:, args.out_ch - 1] = stim_mono
+
     lags_ms = []
     for i in range(args.reps):
-        rec = sd.playrec(stim, samplerate=args.fs, channels=1, blocksize=args.frames)
+        rec = sd.playrec(stim, samplerate=args.fs, channels=max_in, blocksize=args.frames)
         sd.wait()
-        rec = rec[:, 0].astype("float64")
+        rec = rec[:, args.in_ch - 1].astype("float64")
 
         rms = float(np.sqrt(np.mean(rec ** 2)))
         if rms < 1e-4:
             sys.exit("  la grabacion esta en silencio (rms=%.2e).\n"
                      "  ¿has puenteado la salida a la entrada? ¿sube el volumen del loopback?" % rms)
 
-        lag, cc = xcorr_lag(rec, stim.astype("float64"))
+        lag, cc = xcorr_lag(rec, stim_mono.astype("float64"))
         # calidad del pico: cuanto sobresale del resto
         peak = cc[lag]
         med = np.median(np.abs(cc))

@@ -98,7 +98,7 @@
           "module": "CXFAudioCore",
           "acceptance": "numero medido y anotado en docs/TIMECODE.md",
           "status": "wip",
-          "note": "herramienta escrita: tools/measure_latency.py + tools/requirements.txt (numpy, sounddevice). Chirp corto por la salida + grabacion simultanea de la entrada (sd.playrec), desfase por correlacion cruzada FFT (solo numpy), N repeticiones, imprime min/mediana/media/max + jitter + veredicto vs puerta de 10 ms + linea para docs/TIMECODE.md 4.2. Sintaxis verificada. Falta correrlo: necesita el venv de tools/ y un loopback fisico."
+          "note": "herramienta escrita: tools/measure_latency.py + tools/requirements.txt (numpy, sounddevice). Chirp corto por la salida + grabacion simultanea de la entrada (sd.playrec), desfase por correlacion cruzada FFT (solo numpy), N repeticiones, imprime min/mediana/media/max + jitter + veredicto vs puerta de 10 ms + linea para docs/TIMECODE.md 4.2. Sintaxis verificada. Falta correrlo: necesita el venv de tools/ y un loopback fisico. (2026-09-04) Parcial: la Rane 72 no tiene Master Out por USB; sus salidas son inyecciones digitales a las tiras de mezcla. Tres rutas internas independientes (Deck1->Mix, Deck2->Mix, Deck2->Deck2) convergen en 23.3-23.5 ms con jitter casi nulo (0.00-0.06 ms) -- consistente, pero mide ida-y-vuelta por dos tramos USB, no el tramo unico que oye el usuario. FUERA de la puerta de 10 ms tal como esta medido. Falta comparar con cable fisico antes de dar el numero por bueno -- pausado, se retoma con hardware delante. measure_latency.py gano --out-ch/--in-ch (antes cogia el canal 1 a ciegas). Detalle en docs/TIMECODE.md 4.2."
         },
         {
           "id": "B1.3",
