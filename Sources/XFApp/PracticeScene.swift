@@ -86,6 +86,15 @@ final class PracticeScene: SKScene {
     /// Longitud del bucle de la instrumental en ticks (cada cuanto repite su onda).
     var instrumentalLoopTicks: Double = 1
 
+    /// Cues de la instrumental (del editor), como fracción 0…1 del bucle ya
+    /// rotado al "1". Se pintan como marca vertical amarilla en la tira de
+    /// arriba, repetida en cada vuelta del bucle. Vacío = no hay.
+    var instrumentalCues: [Double] = []
+    /// Región de loop activa (fracciones 0…1 del bucle, ya rotadas al "1").
+    /// `nil` = la base suena entera. Se pinta como banda tenue de acento en la
+    /// tira, con sus dos bordes marcados.
+    var instrumentalLoopRegion: (start: Double, end: Double)?
+
     let railWidth: CGFloat = 44
     let stripHeight: CGFloat = 46
 
@@ -183,6 +192,11 @@ final class PracticeScene: SKScene {
 
     // --- tira de la instrumental ---
     private var instrSprites: [SKSpriteNode] = []
+    // marcas del editor sobre la tira: cues (líneas verticales) y la región de
+    // loop activa (banda). Se pintan en 3 copias — una por vuelta visible del
+    // bucle — igual que los sprites de la onda.
+    private var cueTickPool: [SKShapeNode] = []
+    private var loopRegionPool: [SKShapeNode] = []
 
     // --- rail del sample ---
     private var sampleSprite: SKSpriteNode?
@@ -204,6 +218,9 @@ final class PracticeScene: SKScene {
     private let phantomColor  = SKColor(red: 0x7A/255, green: 0x87/255, blue: 0x94/255, alpha: 0.6)
     private let needleColor   = SKColor(red: 0x34/255, green: 0xE1/255, blue: 0xC4/255, alpha: 0.6)
     private let axisColor     = SKColor(red: 0x2A/255, green: 0x32/255, blue: 0x3B/255, alpha: 1.0)
+    // cues del editor: amarillo, para que no se confundan con la rejilla (gris)
+    // ni con el acento (teal) de la región de loop.
+    private let cueColor      = SKColor(red: 0xF5/255, green: 0xC5/255, blue: 0x42/255, alpha: 0.9)
 
     // MARK: - init
 
@@ -716,6 +733,61 @@ final class PracticeScene: SKScene {
             s.position = CGPoint(x: baseX + CGFloat(i - 1) * imgW, y: stripHeight / 2)
             if resize { s.size = CGSize(width: imgW, height: stripHeight) }
         }
+
+        renderStripMarkers(baseX: baseX, imgW: imgW, stripW: geometry.size.width)
+    }
+
+    /// Cues (líneas) y región de loop (banda) del editor sobre la tira. `baseX`
+    /// es la X de la fracción 0 del bucle "actual"; el bucle anterior/siguiente
+    /// caen en `baseX ± imgW` (igual que los 3 sprites de la onda). Se ocultan
+    /// las copias que quedan fuera de la ventana visible.
+    private func renderStripMarkers(baseX: CGFloat, imgW: CGFloat, stripW: CGFloat) {
+        // --- región de loop activa: banda tenue de acento con sus bordes ---
+        let region = instrumentalLoopRegion
+        ensureShapePool(&loopRegionPool, count: region == nil ? 0 : 3, into: stripContainer) { n in
+            n.fillColor = self.accentColor.withAlphaComponent(0.14)
+            n.strokeColor = self.accentColor.withAlphaComponent(0.6)
+            n.lineWidth = 1
+            n.zPosition = 0        // sobre la onda (-1), bajo los cues (1)
+        }
+        if let r = region, r.end > r.start {
+            let wRect = CGFloat(r.end - r.start) * imgW
+            for k in -1...1 {
+                let n = loopRegionPool[k + 1]
+                let x0 = baseX + CGFloat(r.start + Double(k)) * imgW
+                if x0 + wRect >= 0, x0 <= stripW {
+                    n.isHidden = false
+                    n.path = CGPath(rect: CGRect(x: x0, y: 0, width: wRect, height: stripHeight),
+                                    transform: nil)
+                } else if !n.isHidden {
+                    n.isHidden = true
+                }
+            }
+        } else {
+            for n in loopRegionPool where !n.isHidden { n.isHidden = true }
+        }
+
+        // --- cues: una línea vertical por cue y por vuelta visible ---
+        ensureShapePool(&cueTickPool, count: instrumentalCues.count * 3, into: stripContainer) { n in
+            n.path = PracticeScene.vline(self.stripHeight)   // forma constante
+            n.strokeColor = self.cueColor
+            n.lineWidth = 2
+            n.zPosition = 1
+        }
+        var idx = 0
+        for f in instrumentalCues {
+            for k in -1...1 {
+                let n = cueTickPool[idx]; idx += 1
+                let x = baseX + CGFloat(f + Double(k)) * imgW
+                if x >= -2, x <= stripW + 2 {
+                    if n.isHidden { n.isHidden = false }
+                    n.position = CGPoint(x: x, y: 0)
+                } else if !n.isHidden {
+                    n.isHidden = true
+                }
+            }
+        }
+        for j in idx..<cueTickPool.count where !cueTickPool[j].isHidden { cueTickPool[j].isHidden = true }
     }
 
     /// X (locales a la autopista) de las lineas de negra y de compas visibles en

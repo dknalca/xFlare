@@ -135,6 +135,24 @@ final class PracticeCommandMidiTests: XCTestCase {
         XCTAssertEqual(m.event(status: 0x90, data1: 70, data2: 100), .trigger(.instrCue2))
     }
 
+    func testNavegacionRelativaDeCuesYLoopsEsMapeable() {
+        // cue anterior/siguiente + saltar/anterior/siguiente loop: comandos
+        // discretos de categoría instrumental, con su clave de perfil.
+        let nav: [PracticeCommand] = [.instrCuePrev, .instrCueNext, .loopJump, .loopPrev, .loopNext]
+        XCTAssertEqual(nav.map { $0.confKey },
+                       ["command.instr_cue_prev", "command.instr_cue_next",
+                        "command.loop_jump", "command.loop_prev", "command.loop_next"])
+        for c in nav { XCTAssertEqual(c.category, .instrumental) }
+        let ini = try! INIDocument(text: """
+        [transport]
+        command.loop_next = note:1:80
+        command.instr_cue_prev = cc:1:21
+        """)
+        let m = MidiCommandMap.fromProfile(ini)
+        XCTAssertEqual(m.event(status: 0x90, data1: 80, data2: 100), .trigger(.loopNext))
+        XCTAssertEqual(m.event(status: 0xB0, data1: 21, data2: 127), .trigger(.instrCuePrev))
+    }
+
     func testCadaComandoTieneUnaCategoria() {
         XCTAssertEqual(PracticeCommand.cue.category, .sample)
         XCTAssertEqual(PracticeCommand.sample3.category, .sample)

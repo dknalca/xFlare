@@ -22,6 +22,11 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
     case instrCue2          // Cue 2
     case instrCue3          // Cue 3
     case instrCue4          // Cue 4
+    case instrCuePrev       // salta al Cue anterior al cabezal de la base
+    case instrCueNext       // salta al Cue siguiente al cabezal de la base
+    case loopJump           // salta al inicio de la región de loop activa
+    case loopPrev           // activa la región de loop anterior (y salta a ella)
+    case loopNext           // activa la región de loop siguiente (y salta a ella)
 
     /// Categoría para agrupar en Ajustes › MIDI.
     public enum Category: String, CaseIterable, Sendable { case global, sample, instrumental }
@@ -30,7 +35,10 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         switch self {
         case .cue, .sample1, .sample2, .sample3, .sample4:
             return .sample
-        case .restartBase, .instrCue1, .instrCue2, .instrCue3, .instrCue4:
+        case .restartBase,
+             .instrCue1, .instrCue2, .instrCue3, .instrCue4,
+             .instrCuePrev, .instrCueNext,
+             .loopJump, .loopPrev, .loopNext:
             return .instrumental
         default:
             return .global
@@ -57,6 +65,11 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .instrCue2:    return "command.instr_cue_2"
         case .instrCue3:    return "command.instr_cue_3"
         case .instrCue4:    return "command.instr_cue_4"
+        case .instrCuePrev: return "command.instr_cue_prev"
+        case .instrCueNext: return "command.instr_cue_next"
+        case .loopJump:     return "command.loop_jump"
+        case .loopPrev:     return "command.loop_prev"
+        case .loopNext:     return "command.loop_next"
         }
     }
 
@@ -83,6 +96,11 @@ public enum PracticeCommand: String, CaseIterable, Sendable, Codable {
         case .instrCue2:    return "Cue instrumental 2"
         case .instrCue3:    return "Cue instrumental 3"
         case .instrCue4:    return "Cue instrumental 4"
+        case .instrCuePrev: return "Cue instrumental anterior"
+        case .instrCueNext: return "Cue instrumental siguiente"
+        case .loopJump:     return "Saltar al loop"
+        case .loopPrev:     return "Loop anterior"
+        case .loopNext:     return "Loop siguiente"
         }
     }
 }

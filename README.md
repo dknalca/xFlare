@@ -26,9 +26,12 @@ por trackpad/teclado + base instrumental + metronomo), Freestyle, grabar una
 linea y exportarla a `.xfsession` o a **video** (con audio, con la proporcion de
 la ventana), calentamiento adaptativo, "Mi mesa" (perfiles), **Libreria** de
 medios con **editores** por fichero: instrumentales (tempo/rejilla, puntos Cue,
-regiones de loop infinito — todo mapeable a MIDI) y samples (elegir inicio y
-duracion). 4 slots de sample asignables a botones MIDI. Ajustes con reasignacion
-de comandos por MIDI, agrupados por categoria. El render de la autopista va a
+regiones de loop infinito) y samples (elegir inicio y duracion, con **deteccion
+de transitorios** para colocar el arranque). Los cues y loops de la instrumental
+se **ven en la practica** sobre la tira de la onda y se recorren con botones
+anterior/siguiente. 4 slots de sample asignables a botones MIDI. Ajustes con
+reasignacion de comandos por MIDI, agrupados por categoria (global / sample /
+instrumental) — incluye saltar al cue/loop anterior y siguiente. El render de la autopista va a
 **60 fps estables** en el MacBook Pro Intel de 2015 (medido). Ajustes y librerías
 se guardan en ficheros de texto copiables
 (`~/Library/Application Support/xFlare/*.json`).

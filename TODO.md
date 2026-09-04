@@ -838,6 +838,25 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         lo hay, si no `SampleTrim` (F.3). `LivePracticeView` gana `sampleEdit`;
         `MediaLibraryView` gana `onEditSample`.
       - Tests: `SampleEditTests` (4). 673 en verde.
+- [x] **F.22** Cues/loops de la instrumental: visibles en la práctica + navegación MIDI (ADR-069)
+      - Feedback del autor (2026-09-04):
+      - Editor de samples: **detección de transitorios** (`TransientDetector`,
+        puro — envolvente de energía + flujo positivo + umbral adaptativo +
+        separación mínima). Marcas amarillas en la onda; botones "◀ / al más
+        cercano / ▶" ponen el inicio sobre un ataque; el `◀/▶` de Inicio baja a
+        5 ms para el ajuste fino.
+      - Los **cues y la región de loop** del editor de instrumental ya se **ven**
+        en la práctica: sobre la tira superior (`PracticeScene` gana
+        `instrumentalCues` [fracciones] y `instrumentalLoopRegion`; `LivePracticeView`
+        guarda `instrDownbeatSec` para mapear coords del fichero a la tira rotada).
+      - **Navegación**, por botones en la zona inferior y **mapeable a MIDI**
+        (`PracticeCommand` +5): `instrCuePrev`/`instrCueNext` (cue relativo al
+        cabezal, en círculo) y `loopJump`/`loopPrev`/`loopNext` (recorren las
+        regiones del editor y las aplican en caliente con
+        `EngineHandle.setInstrumentalLoopRegion`). Aritmética pura en
+        `InstrumentalNav` (testeada).
+      - Tests: `TransientDetectorTests` (5), `InstrumentalNavTests` (7),
+        `PracticeCommandMidiTests` +1. 686 en verde.
 
 ---
 

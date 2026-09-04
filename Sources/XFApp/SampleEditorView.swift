@@ -29,6 +29,10 @@ struct SampleEditorView: View {
     @State private var startSec: Double = 0
     @State private var lengthSec: Double = AudioAsset.scratchMaxSeconds
 
+    // transitorios detectados (segundos). Sirven para colocar el inicio "de un
+    // salto" sobre un ataque y luego afinar a mano.
+    @State private var transients: [Double] = []
+
     // vista
     @State private var zoom: Double = 1
     @State private var viewStart: Double = 0
@@ -52,6 +56,15 @@ struct SampleEditorView: View {
         (viewStart + Double(px / max(1, w)) * visibleFrac) * durationSeconds
     }
     private func clampView() { viewStart = min(max(0, viewStart), max(0, 1 - visibleFrac)) }
+
+    /// Transitorios que caen dentro de la ventana visible (para no dibujar
+    /// cientos de rectángulos fuera de pantalla).
+    private func visibleTransients(_ w: CGFloat) -> [Double] {
+        guard durationSeconds > 0 else { return [] }
+        let lo = viewStart * durationSeconds
+        let hi = (viewStart + visibleFrac) * durationSeconds
+        return transients.filter { $0 >= lo && $0 <= hi }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -101,6 +114,16 @@ struct SampleEditorView: View {
                     .frame(width: max(0, xa), height: h)
                 Rectangle().fill(XFColor.bg.opacity(0.55))
                     .frame(width: max(0, w - xb), height: h).offset(x: xb)
+
+                // transitorios detectados: marca vertical fina, la más cercana
+                // al inicio resaltada.
+                ForEach(visibleTransients(w), id: \.self) { t in
+                    let near = abs(t - startSec) < 0.004
+                    Rectangle()
+                        .fill(near ? XFColor.accent : Color(hex: 0xF5C542).opacity(0.55))
+                        .frame(width: near ? 2 : 1, height: h)
+                        .offset(x: x(t, w))
+                }
 
                 // ventana seleccionada + asas
                 Rectangle().fill(XFColor.accent.opacity(0.10))
@@ -178,9 +201,22 @@ struct SampleEditorView: View {
             }
 
             HStack(spacing: XFSpacing.md) {
+                Text("Transitorios").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                chip("◀") { snapToTransient(-1) }
+                Button("al más cercano") { snapToNearestTransient() }
+                    .buttonStyle(.plain).font(XFFont.body(10)).foregroundColor(XFColor.accent)
+                    .disabled(transients.isEmpty)
+                chip("▶") { snapToTransient(1) }
+                Text(transients.isEmpty ? "ninguno detectado"
+                     : "\(transients.count) detectados")
+                    .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                Spacer()
+            }
+
+            HStack(spacing: XFSpacing.md) {
                 Text("Inicio").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
-                chip("◀") { nudgeStart(-0.02) }
-                chip("▶") { nudgeStart(0.02) }
+                chip("◀") { nudgeStart(-0.005) }
+                chip("▶") { nudgeStart(0.005) }
                 Text(String(format: "%.3f s", startSec)).font(XFFont.mono(10)).foregroundColor(XFColor.text)
 
                 Text("Duración").font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
@@ -197,8 +233,10 @@ struct SampleEditorView: View {
                 .buttonStyle(.plain).font(XFFont.body(10)).foregroundColor(XFColor.accent)
             }
 
-            Text("El scratch responde mejor con un sample corto: la duración se "
-                 + "limita a \(String(format: "%.1f", maxLen)) s.")
+            Text("Coloca el inicio sobre un transitorio y ajústalo fino con ◀ ▶ de "
+                 + "Inicio (5 ms) o arrastrando el asa. El scratch responde mejor "
+                 + "con un sample corto: la duración se limita a "
+                 + "\(String(format: "%.1f", maxLen)) s.")
                 .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
         }
         .frame(maxWidth: 640, alignment: .leading)
@@ -213,9 +251,11 @@ struct SampleEditorView: View {
         DispatchQueue.global(qos: .userInitiated).async {
             let mono = AudioAsset.loadMono(url, sampleRate: sr) ?? []
             let dur = Double(mono.count) / sr
+            let ons = TransientDetector.onsets(mono, sampleRate: sr)
             DispatchQueue.main.async {
                 pcm = mono
                 durationSeconds = dur
+                transients = ons
                 if let e = initialEdit {
                     startSec = min(max(0, e.startSeconds), max(0, dur - 0.05))
                     lengthSec = min(maxLen, min(e.lengthSeconds, dur - startSec))
@@ -259,6 +299,34 @@ struct SampleEditorView: View {
         startSec = min(durationSeconds - 0.05, max(0, startSec + d))
         lengthSec = min(lengthSec, durationSeconds - startSec)
         if previewing { startPreview() }
+    }
+
+    /// Pone el inicio del recorte exactamente en `t` segundos (un transitorio) y
+    /// mantiene el recorte dentro del fichero. Recentra la vista si hace falta.
+    private func snapStart(to t: Double) {
+        startSec = min(durationSeconds - 0.05, max(0, t))
+        lengthSec = min(maxLen, min(lengthSec, durationSeconds - startSec))
+        let f = startSec / max(0.001, durationSeconds)
+        if f < viewStart || f > viewStart + visibleFrac {
+            viewStart = f - visibleFrac / 2
+            clampView()
+            renderWindow()
+        }
+        if previewing { startPreview() }
+    }
+
+    /// Inicio al transitorio más cercano a donde está ahora.
+    private func snapToNearestTransient() {
+        guard let t = transients.min(by: { abs($0 - startSec) < abs($1 - startSec) }) else { return }
+        snapStart(to: t)
+    }
+
+    /// Inicio al transitorio anterior (`dir < 0`) o siguiente (`dir > 0`).
+    private func snapToTransient(_ dir: Int) {
+        let eps = 0.003
+        let t = dir >= 0 ? transients.first { $0 > startSec + eps }
+                         : transients.last { $0 < startSec - eps }
+        if let t { snapStart(to: t) }
     }
     private func nudgeLen(_ d: Double) {
         lengthSec = min(maxLen, max(0.05, min(lengthSec + d, durationSeconds - startSec)))

@@ -22,6 +22,12 @@ struct PracticeSceneView: NSViewRepresentable {
     /// tira de la instrumental se dibuja pegada a ESTO, no a un reloj de ticks:
     /// así no se descuadra del audio al cambiar el tempo (TAP, ÷2/×2).
     var instrumentalHeadFraction: () -> Double = { -1 }
+    /// Cues del editor de la instrumental, como fracción 0…1 del bucle (ya
+    /// rotadas al "1"). Se pintan sobre la tira superior.
+    var instrumentalCues: [Double] = []
+    /// Región de loop activa del editor (fracciones 0…1 del bucle). `nil` = base
+    /// entera.
+    var instrumentalLoopRegion: (start: Double, end: Double)?
     let sampleWave: WaveformColored.Data
     let ghostDimmed: Bool
     /// `false` en Freestyle: sin onda fantasma que seguir.
@@ -74,6 +80,8 @@ struct PracticeSceneView: NSViewRepresentable {
         s.currentTick = tick
         s.userTrace = trace
         s.instrumentalHeadFraction = instrumentalHeadFraction
+        s.instrumentalCues = instrumentalCues
+        s.instrumentalLoopRegion = instrumentalLoopRegion
         s.ghostDimmed = ghostDimmed
         s.showGhost = showGhost
         s.patternAmplitude = patternAmplitude

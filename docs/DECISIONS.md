@@ -2651,6 +2651,60 @@ punto cero marcado.
 
 ---
 
+## ADR-069 — Cues/loops de la instrumental visibles en la práctica + navegación (feedback 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** Tras los editores (ADR-067/068), el autor señaló tres cosas:
+1. En el editor de samples, poner el inicio "a raíz de" los transitorios y luego
+   afinar a mano.
+2. Los cues y las regiones de loop programados en el editor de instrumental **no
+   se veían** al cargar la base en un ejercicio o en Freestyle.
+3. Faltaban botones —mapeables a MIDI— para **saltar al loop / loop siguiente /
+   anterior**, y lo mismo para los cues.
+
+**Decisión.**
+- **Transitorios (editor de samples).** `TransientDetector` (puro, XFApp): sin
+  FFT — envolvente de **log-energía** en tramos de ~5 ms, **flujo positivo**
+  (subidas de energía), **umbral adaptativo** con la media local · factor
+  (`sensitivity` lo modula) y **separación mínima** de 40 ms. `SampleEditorView`
+  pinta las marcas (amarillo) sobre la onda y añade "inicio ◀ / al más cercano /
+  ▶"; el `◀/▶` de Inicio baja de 20 a **5 ms** para el ajuste fino.
+- **Pintado en la práctica.** `PracticeScene` gana `instrumentalCues`
+  (`[Double]`, fracción 0…1 del bucle) e `instrumentalLoopRegion`
+  (`(start,end)` fracciones), dibujados sobre la **tira superior** —cue = línea
+  vertical amarilla, loop = banda de acento con sus bordes— en 3 copias, igual
+  que los sprites de la onda, para que sigan al bucle en cada vuelta.
+  `LivePracticeView` guarda `instrDownbeatSec` (el desfase con el que se rotó el
+  fichero al "1") y con él mapea `atSeconds` del fichero a la tira ya rotada
+  (`loopFraction`).
+- **Navegación + MIDI.** `PracticeCommand` +5: `instrCuePrev` / `instrCueNext`
+  (cue relativo al cabezal, en círculo) y `loopJump` / `loopPrev` / `loopNext`
+  (recorren las regiones del editor y las **aplican en caliente** con
+  `EngineHandle.setInstrumentalLoopRegion`, saltando a su inicio y re-cuadrando
+  la rejilla). Todas categoría `.instrumental` → aparecen solas en Ajustes ›
+  MIDI. La aritmética de bordes (dar la vuelta, sin activa, epsilon para no
+  re-disparar el cue actual) va en `InstrumentalNav` (puro, testeado); la vista
+  solo la usa.
+
+**Alternativas descartadas.** Onset por flujo espectral (necesita FFT; para un
+sample de scratch —una frase con pocos ataques— la energía basta y es más
+barata y legible). Dibujar los cues/loops en la autopista en vez de la tira (la
+tira ES la instrumental; ahí es donde el autor los espera). Un estado "loop
+apagado" al ciclar (los botones recorren solo las regiones definidas; apagar el
+loop es otro gesto). Reaprovechar `instrCue1…4` con módulo (el autor pidió
+explícitamente "anterior/siguiente", que es relativo al cabezal, no un índice).
+
+**Consecuencias.** XFApp: `TransientDetector`, `InstrumentalNav` nuevos;
+`PracticeScene` / `PracticeSceneView` / `LivePracticeView` / `SampleEditorView`
+tocados. XFCapture (WIP): `PracticeCommand` +5 casos con su `confKey`, `label` y
+`category`. Ajustes › MIDI no cambia (ya itera por categoría). **Límite (v1):**
+una región de loop que cruce el "1" se ignora al pintarla y al aplicarla (igual
+que ya hacía el audio). Tests: `TransientDetectorTests` (5), `InstrumentalNavTests`
+(7), `PracticeCommandMidiTests` +1 → 686 en verde.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

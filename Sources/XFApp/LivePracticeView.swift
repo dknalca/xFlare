@@ -96,8 +96,17 @@ public struct LivePracticeView: View {
     @State private var cueA: Double?
     @State private var cueB: Double?
     // F.16: Cues de la INSTRUMENTAL cargada (del editor). Saltables por MIDI
-    // («Cue instr. 1»…4) o por los botones de la zona inferior.
+    // («Cue instr. 1»…4, «Cue anterior/siguiente») o por los botones de la zona
+    // inferior.
     @State private var instrCues: [InstrumentalEdit.Cue] = []
+    // F.22: regiones de loop del editor + índice de la activa (`nil` = base
+    // entera). «Loop anterior/siguiente/saltar» las recorren y las aplican en
+    // caliente al motor. `instrDownbeatSec` es el desfase (s) con el que se rotó
+    // el fichero para poner el "1" al principio: hace falta para situar cues y
+    // loops sobre la tira, que muestra la pista YA rotada.
+    @State private var instrLoops: [InstrumentalEdit.LoopRegion] = []
+    @State private var activeLoopIdx: Int?
+    @State private var instrDownbeatSec: Double = 0
     // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
     @State private var videoProgress: Double = 0
@@ -295,6 +304,8 @@ public struct LivePracticeView: View {
                         instrumentalWave: instrWave,
                         instrumentalLoopTicks: instrLoopTicks,
                         instrumentalHeadFraction: { engine?.instrumentalProgress ?? -1 },
+                        instrumentalCues: cueFractions,
+                        instrumentalLoopRegion: activeLoopFraction,
                         sampleWave: sampleWave,
                         // en "tu turno" del call & response el fantasma se atenua
                         ghostDimmed: s.crPhase == .respond,
@@ -856,23 +867,54 @@ public struct LivePracticeView: View {
                 }
             }
 
-            if !instrCues.isEmpty {
-                // Cues del editor: saltar a una parte (también por MIDI «Cue instr. N»).
-                HStack(spacing: 5) {
-                    Text("Cues").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
-                    ForEach(Array(instrCues.prefix(4).enumerated()), id: \.offset) { idx, c in
-                        Button { jumpInstrCue(idx) } label: {
-                            Text(c.name).font(XFFont.body(9)).lineLimit(1)
-                                .padding(.horizontal, 6).padding(.vertical, 3)
-                                .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surface))
-                                .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
-                                .foregroundColor(XFColor.text)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    Spacer(minLength: 0)
+            if !instrCues.isEmpty { instrCueNavRow }
+            if !instrLoops.isEmpty { instrLoopNavRow }
+        }
+    }
+
+    /// Cues del editor: saltar a una parte concreta. Los 4 primeros como botón
+    /// con su nombre (también MIDI «Cue instr. N»); ◀ / ▶ saltan al cue anterior
+    /// / siguiente relativo al cabezal (MIDI «Cue anterior/siguiente»).
+    private var instrCueNavRow: some View {
+        HStack(spacing: 5) {
+            Text("Cues").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+            chip("chevron.left", icon: true) { jumpCueRelative(-1) }
+            ForEach(Array(instrCues.prefix(4).enumerated()), id: \.offset) { idx, c in
+                Button { jumpInstrCue(idx) } label: {
+                    Text(c.name).font(XFFont.body(9)).lineLimit(1)
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(RoundedRectangle(cornerRadius: 4).fill(XFColor.surface))
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
+                        .foregroundColor(XFColor.text)
                 }
+                .buttonStyle(.plain)
             }
+            chip("chevron.right", icon: true) { jumpCueRelative(1) }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// Regiones de loop del editor: ◀ / ▶ recorren las regiones en círculo y la
+    /// activan; el botón central salta al inicio de la activa (o activa la
+    /// primera). Todo mapeable a MIDI («Loop anterior/siguiente/saltar»).
+    private var instrLoopNavRow: some View {
+        HStack(spacing: 5) {
+            Text("Loops").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+            chip("chevron.left", icon: true) { cycleLoop(-1) }
+            Button { jumpToActiveLoop() } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "repeat").font(.system(size: 9))
+                    Text(activeLoopName ?? "sin activar").font(XFFont.body(9)).lineLimit(1)
+                }
+                .padding(.horizontal, 6).padding(.vertical, 3)
+                .frame(maxWidth: .infinity)
+                .background(RoundedRectangle(cornerRadius: 4)
+                    .fill(activeLoopIdx == nil ? XFColor.surface : XFColor.accent.opacity(0.18)))
+                .overlay(RoundedRectangle(cornerRadius: 4).stroke(XFColor.stroke, lineWidth: 1))
+                .foregroundColor(activeLoopIdx == nil ? XFColor.textMuted : XFColor.accent)
+            }
+            .buttonStyle(.plain)
+            chip("chevron.right", icon: true) { cycleLoop(1) }
         }
     }
 
@@ -1280,6 +1322,12 @@ public struct LivePracticeView: View {
         case .trigger(.instrCue2): jumpInstrCue(1)
         case .trigger(.instrCue3): jumpInstrCue(2)
         case .trigger(.instrCue4): jumpInstrCue(3)
+        case .trigger(.instrCuePrev): jumpCueRelative(-1)
+        case .trigger(.instrCueNext): jumpCueRelative(1)
+
+        case .trigger(.loopJump): jumpToActiveLoop()
+        case .trigger(.loopPrev): cycleLoop(-1)
+        case .trigger(.loopNext): cycleLoop(1)
         }
     }
 
@@ -1298,13 +1346,119 @@ public struct LivePracticeView: View {
     /// y el metrónomo se re-cuadran ahí, como "reiniciar la base" pero desde el
     /// cue. Sin cues para esta instrumental o índice fuera de rango: nada.
     private func jumpInstrCue(_ i: Int) {
-        guard instrCues.indices.contains(i), instrFileSeconds > 0.01, let e = engine else { return }
-        let f = min(1, max(0, instrCues[i].atSeconds / instrFileSeconds))
+        guard instrCues.indices.contains(i) else { return }
+        seekBase(toSeconds: instrCues[i].atSeconds)
+    }
+
+    /// Salta la base a `seconds` del fichero (coords ORIGINALES, sin rotar) y
+    /// re-cuadra rejilla + metrónomo ahí (ese punto pasa a ser el "1"). Base
+    /// compartida de «Cue instr. N», «Cue anterior/siguiente» y «Saltar al loop».
+    private func seekBase(toSeconds seconds: Double) {
+        guard instrFileSeconds > 0.01, let e = engine else { return }
+        let f = min(1, max(0, seconds / instrFileSeconds))
         e.seekInstrumental(fraction: f)
         session.resyncClock()
         setGridShift(0)
         e.seek(tick: 0)
         e.setTransport(bpm: session.bpm, ppq: 480, playing: !session.frozen)
+    }
+
+    /// Segundo del fichero donde está ahora el cabezal de la base (coords
+    /// originales, sin rotar). `instrumentalProgress` es 0…1 del bucle, que en el
+    /// caso normal (pista editada / con tempo) cubre el fichero entero.
+    private var baseHeadSeconds: Double {
+        let p = engine?.instrumentalProgress ?? 0
+        return max(0, p) * instrFileSeconds
+    }
+
+    /// «Cue instrumental anterior/siguiente»: salta al cue más cercano por
+    /// delante (`dir > 0`) o por detrás (`dir < 0`) de donde está la base ahora,
+    /// dando la vuelta al llegar al extremo. Sin cues: nada.
+    private func jumpCueRelative(_ dir: Int) {
+        guard let t = InstrumentalNav.relativeCue(cues: instrCues.map { $0.atSeconds },
+                                                  hereSeconds: baseHeadSeconds, dir: dir)
+        else { return }
+        seekBase(toSeconds: t)
+    }
+
+    // MARK: - F.22: regiones de loop del editor (navegación + pintado)
+
+    /// Duración en segundos de una vuelta de la tira de la instrumental, según el
+    /// BPM y los ticks de bucle actuales. Sirve para situar cues y loops sobre la
+    /// tira, que muestra la pista YA rotada al "1".
+    private var stripLoopSeconds: Double {
+        let bps = max(0.1, session.bpm / 60.0)
+        return instrLoopTicks / (bps * Double(scratch.ppq))
+    }
+
+    /// Fracción 0…1 de la tira (pista rotada) donde cae `t` segundos del fichero
+    /// original.
+    private func loopFraction(ofSeconds t: Double) -> Double {
+        let L = stripLoopSeconds
+        guard L > 0.01 else { return 0 }
+        var f = (t - instrDownbeatSec).truncatingRemainder(dividingBy: L)
+        if f < 0 { f += L }
+        return f / L
+    }
+
+    /// Cues como fracción 0…1 de la tira, para pintarlos en `PracticeScene`.
+    private var cueFractions: [Double] { instrCues.map { loopFraction(ofSeconds: $0.atSeconds) } }
+
+    /// Región de loop activa como par de fracciones 0…1 de la tira. `nil` si no
+    /// hay loop activo o si la región cruza el "1" (mismo límite que el audio, v1).
+    private var activeLoopFraction: (start: Double, end: Double)? {
+        guard let i = activeLoopIdx, instrLoops.indices.contains(i) else { return nil }
+        let s = loopFraction(ofSeconds: instrLoops[i].startSeconds)
+        let e = loopFraction(ofSeconds: instrLoops[i].endSeconds)
+        return s < e ? (s, e) : nil
+    }
+
+    /// Nombre de la región de loop activa (para la fila de la zona inferior).
+    private var activeLoopName: String? {
+        guard let i = activeLoopIdx, instrLoops.indices.contains(i) else { return nil }
+        return instrLoops[i].name
+    }
+
+    /// Aplica al motor la región de loop `i` (o la quita si `i == nil`) y deja el
+    /// cabezal en su inicio, re-cuadrando la rejilla ahí. Se usa al recorrer las
+    /// regiones con «Loop anterior/siguiente».
+    private func applyLoopRegion(_ i: Int?) {
+        guard let e = engine else { return }
+        activeLoopIdx = i
+        guard let i = i, instrLoops.indices.contains(i), instrFileSeconds > 0.01 else {
+            e.setInstrumentalLoopRegion(start: -1, end: 0)   // base entera
+            return
+        }
+        let lr = instrLoops[i]
+        // región -> fracciones 0…1 de la pista ROTADA (mismo cálculo que
+        // `loadInstrumental`). Si cruza el "1" se ignora la región (v1).
+        let dur = instrFileSeconds
+        let s = ((lr.startSeconds - instrDownbeatSec).truncatingRemainder(dividingBy: dur) + dur)
+            .truncatingRemainder(dividingBy: dur)
+        let en = ((lr.endSeconds - instrDownbeatSec).truncatingRemainder(dividingBy: dur) + dur)
+            .truncatingRemainder(dividingBy: dur)
+        if s < en {
+            e.setInstrumentalLoopRegion(start: s / dur, end: en / dur)
+        } else {
+            e.setInstrumentalLoopRegion(start: -1, end: 0)
+        }
+        seekBase(toSeconds: lr.startSeconds)
+    }
+
+    /// «Saltar al loop»: si no hay loop activo, activa el primero; si lo hay,
+    /// vuelve a poner el cabezal en su inicio.
+    private func jumpToActiveLoop() {
+        guard !instrLoops.isEmpty else { return }
+        applyLoopRegion(activeLoopIdx ?? 0)
+    }
+
+    /// «Loop anterior/siguiente»: recorre en círculo las regiones del editor y
+    /// activa la que toca (la aplica al motor y salta a su inicio). Sin regiones:
+    /// nada.
+    private func cycleLoop(_ dir: Int) {
+        guard let next = InstrumentalNav.cycledLoopIndex(
+            current: activeLoopIdx, count: instrLoops.count, dir: dir) else { return }
+        applyLoopRegion(next)
     }
 
     /// EQ Lo/Mid/Hi del sample de scratch (dB). Cada mando 0 = plano; el motor no
@@ -1510,6 +1664,9 @@ public struct LivePracticeView: View {
             // región de loop activa del editor (F.16), en fracciones 0…1 de la
             // pista YA ROTADA al "1". `nil` = base entera.
             var loopRegionFrac: (start: Double, end: Double)? = nil
+            // desfase (s) con el que se rotó el fichero para poner el "1" al
+            // principio (F.22). La tira y el pintado de cues/loops lo necesitan.
+            var rotSec = 0.0
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
                 fileSeconds = Double(pcm.count) / sr
@@ -1523,6 +1680,7 @@ public struct LivePracticeView: View {
                     bpm = edit.bpm ?? (a?.bpm ?? AudioAsset.instrumentalNativeBPM)
                     let downbeatSec = edit.downbeatSeconds
                         ?? (a.map { Double($0.phaseFrames) / sr } ?? 0)
+                    rotSec = downbeatSec
                     let phi = ((Int(downbeatSec * sr) % pcm.count) + pcm.count) % pcm.count
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = fileSeconds * (bpm / 60.0) * Double(ppq)
@@ -1540,6 +1698,7 @@ public struct LivePracticeView: View {
                     // usuario): rejilla al BPM detectado y alineada al "1".
                     bpm = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
+                    rotSec = Double(phi) / sr
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = fileSeconds * (a.bpm / 60.0) * Double(ppq)
                 } else if url != nil {
@@ -1557,6 +1716,7 @@ public struct LivePracticeView: View {
                     // de `beats` negras.
                     bpm = a.bpm
                     let phi = ((a.phaseFrames % pcm.count) + pcm.count) % pcm.count
+                    rotSec = Double(phi) / sr
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = Double(a.beats) * Double(ppq)
                 } else {
@@ -1583,6 +1743,13 @@ public struct LivePracticeView: View {
                 instrLoopBars = userLoopBars
                 instrFileSeconds = fileSeconds
                 instrCues = edit?.cues ?? []          // F.16: cues saltables (MIDI / botones)
+                // F.22: regiones de loop + activa + desfase de rotación, para
+                // recorrerlas por MIDI/botones y pintarlas sobre la tira.
+                instrLoops = edit?.loops ?? []
+                activeLoopIdx = edit?.activeLoopID.flatMap { id in
+                    edit?.loops.firstIndex { $0.id == id }
+                }
+                instrDownbeatSec = rotSec
                 // cargada: la zona inferior se minimiza a la fila compacta.
                 withAnimation(.easeInOut(duration: 0.12)) { instrExpanded = false }
                 // la sesion necesita la longitud del bucle para cuadrar las

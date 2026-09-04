@@ -175,6 +175,14 @@ sale mal, todo lo demas miente.
 - Un **sample más largo que ~2 s** se recorta a esa ventana
   (`AudioAsset.scratchMaxSeconds`): el recorrido del plato mapea a una fracción
   del sample entero, así que sin el tope un fichero largo "se iría todo".
+- **Cues y loops de la instrumental editada (ADR-069)** — si la base trae un
+  `InstrumentalEdit` con cues / regiones de loop, se **pintan sobre la tira**:
+  cada cue como línea vertical amarilla, la región de loop activa como banda de
+  acento con los bordes marcados (se repiten en cada vuelta del bucle). La zona
+  inferior gana una fila **Cues** (◀ / los 4 primeros con su nombre / ▶) y una
+  fila **Loops** (◀ / nombre de la activa, pulsar = saltar a su inicio / ▶). Los
+  ◀/▶ y "saltar" son además comandos MIDI (`Cue instrumental anterior/siguiente`,
+  `Saltar al loop`, `Loop anterior`, `Loop siguiente`), categoría *instrumental*.
 
 ### 3.4 Resultados — el diagnostico
 
@@ -262,13 +270,17 @@ En la práctica, el selector de instrumental es un **menú** que lista las
 instrumentales ya analizadas de la librería (además de la base por defecto y
 "Cargar otra…"); elegir una de la lista la carga al instante desde el caché.
 
-**Editor de samples (ADR-068).** El botón de ajustes de cada fila de la pestaña
-Samples abre `SampleEditorView`: onda con zoom y una **ventana de recorte** con
-dos asas arrastrables (inicio / fin). Se elige **dónde empieza** la parte útil y
-**cuánto dura** (la duración se limita a `AudioAsset.scratchMaxSeconds` para que
-el scratch responda bien). "Escuchar el recorte" lo reproduce en bucle. Se
-guarda en `~/Library/Application Support/xFlare/sample-edits.json`; la práctica
-lo usa en vez del punto cero automático.
+**Editor de samples (ADR-068, ampliado ADR-069).** El botón de ajustes de cada
+fila de la pestaña Samples abre `SampleEditorView`: onda con zoom y una **ventana
+de recorte** con dos asas arrastrables (inicio / fin). Se elige **dónde empieza**
+la parte útil y **cuánto dura** (la duración se limita a
+`AudioAsset.scratchMaxSeconds` para que el scratch responda bien). "Escuchar el
+recorte" lo reproduce en bucle. Los **transitorios** del sample se detectan solos
+(`TransientDetector`) y se dibujan como marcas amarillas; los botones "inicio ◀ /
+al más cercano / ▶" ponen el inicio sobre un ataque y el `◀/▶` de Inicio (5 ms) o
+el arrastre del asa lo afinan. Se guarda en
+`~/Library/Application Support/xFlare/sample-edits.json`; la práctica lo usa en
+vez del punto cero automático.
 
 **Editor de instrumental (ADR-067).** El botón de ajustes de cada fila de
 Instrumentales abre `InstrumentalEditorView`: onda grande con rejilla de compases
