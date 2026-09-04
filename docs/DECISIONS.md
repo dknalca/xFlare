@@ -2741,8 +2741,10 @@ manteniendo el orden de lecturas:
   `#2C343E` (antes `#080A0D`), borde del cap **claro** `#EAFBF7`@0.55 (antes
   `#06201B`), surco del cap verde **medio** `#0F6F62` (antes `#06231E`), sombra
   del cap 0.28→0.20. Marcas y labios de la ranura, un punto más claros.
-- `XFWordmark.mark`: el surco del fader pasa de `XFColor.bg` (casi negro) a
-  `XFColor.text` (claro) — "un corte de luz en la tapa".
+- `XFWordmark.mark`: **rediseñado como miniatura del icono** (placa + riel +
+  tapa fantasma + tapa viva con borde claro + surco de agarre verde medio
+  `#0F6F62`). Antes era una silueta plana con un corte que, en pantalla, seguía
+  leyéndose como una mancha verde; ahora tiene el mismo lenguaje que el icono.
 
 **Alternativas descartadas.** Un logo distinto (el motivo —cap de crossfader en
 planta— se mantiene, solo cambia la paleta). Poner el logo sobre un chip claro

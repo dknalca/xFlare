@@ -3,10 +3,10 @@
 import SwiftUI
 import XFDesign
 
-/// El logotipo de xFlare: la marca (una **tapa de crossfader** de mesa de
-/// batalla, con su silueta de reloj de arena y el surco del fader) + el texto
-/// "xFlare". Sin ficheros: todo `Shape` + `Text`, así funciona en cualquier
-/// build sin recursos. Mismo motivo que el icono de la app (`icon/xflare.svg`).
+/// El logotipo de xFlare: la marca (una **miniatura del icono de la app** — la
+/// placa con el riel del crossfader y las dos tapas, viva y fantasma) + el
+/// texto "xFlare". Sin ficheros: todo `Shape` + `Text`, así funciona en
+/// cualquier build sin recursos. Mismo motivo que `icon/xflare.svg`.
 ///
 /// Se usa en la barra de navegación (todas las pantallas de menú) y en la barra
 /// superior de la práctica.
@@ -23,7 +23,7 @@ public struct XFWordmark: View {
     }
 
     public var body: some View {
-        HStack(spacing: size * 0.36) {
+        HStack(spacing: size * 0.26) {
             mark
 
             if showText {
@@ -37,24 +37,60 @@ public struct XFWordmark: View {
         .accessibilityLabel("xFlare")
     }
 
-    /// La tapa del crossfader: silueta de acento + surco del fader + un brillo
-    /// tenue arriba. Las partes que antes iban en un tono **oscuro** (el surco,
-    /// que usaba el color de fondo casi negro) ahora van en **claro**: sobre el
-    /// tema oscuro de la app la marca se leía como una mancha verde sin detalle.
+    /// La marca es una **miniatura del icono de la app** (`icon/xflare.svg`): la
+    /// placa, el riel del crossfader, la tapa fantasma (el objetivo) y la tapa
+    /// viva de acento con su **borde claro** y su **surco de agarre verde
+    /// medio**. Antes era una silueta plana con un corte que sobre el tema
+    /// oscuro se leía como una mancha verde sin detalle. Todo `Shape`: sin
+    /// recursos.
     private var mark: some View {
-        let w = size * 0.62, h = size * 1.16
+        let s = size
+        let plate = s * 1.18
+        let corner = s * 0.30
+        let capW = s * 0.54, capH = s * 1.00
+        let capX = s * 0.15            // la tapa viva, un poco a la derecha
+        let ghostX = -s * 0.22
+        let stroke = max(0.75, s * 0.028)
+
         return ZStack {
-            FaderCapMark().fill(XFColor.accent)
-            // surco del fader (indicador de posición): CLARO, como un corte de
-            // luz en la tapa. Antes era `XFColor.bg` y desaparecía.
-            Capsule().fill(XFColor.text)
-                .frame(width: w * 0.66, height: max(1.5, h * 0.12))
-            // brillo superior, muy sutil
-            Capsule().fill(Color.white.opacity(0.28))
-                .frame(width: w * 0.46, height: max(1, h * 0.05))
-                .offset(y: -h * 0.31)
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(XFColor.surfaceRaised)
+
+            ZStack {
+                // riel del crossfader
+                Capsule().fill(XFColor.surface)
+                    .overlay(Capsule().stroke(XFColor.stroke, lineWidth: max(0.5, s * 0.02)))
+                    .frame(width: s * 1.02, height: s * 0.24)
+
+                // tapa fantasma (el objetivo), detrás
+                FaderCapMark().fill(XFColor.textMuted.opacity(0.28))
+                    .frame(width: capW, height: capH)
+                    .offset(x: ghostX)
+
+                // tapa viva: acento + borde CLARO (separa la tapa del fondo,
+                // como el icono)
+                FaderCapMark().fill(XFColor.accent)
+                    .overlay(FaderCapMark().stroke(Color.white.opacity(0.7),
+                                                   lineWidth: max(1, s * 0.03)))
+                    .frame(width: capW, height: capH)
+                    .offset(x: capX)
+
+                // surco de agarre: verde MEDIO (antes casi negro / de lado a lado)
+                Capsule().fill(Color(hex: 0x0F6F62))
+                    .frame(width: capW * 0.72, height: max(2, s * 0.10))
+                    .offset(x: capX)
+
+                // brillo superior de la tapa
+                Capsule().fill(Color.white.opacity(0.38))
+                    .frame(width: capW * 0.46, height: max(1, s * 0.045))
+                    .offset(x: capX, y: -capH * 0.32)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .stroke(XFColor.stroke, lineWidth: stroke)
         }
-        .frame(width: w, height: h)
+        .frame(width: plate, height: plate)
         .compositingGroup()
     }
 }
