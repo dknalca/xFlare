@@ -23,6 +23,8 @@ struct MediaLibraryView: View {
     var onSampleSlotsChanged: ([String]) -> Void = { _ in }
     /// Abrir el editor de una instrumental (tempo/rejilla, cues, loops).
     var onEditInstrumental: (String) -> Void = { _ in }
+    /// Abrir el editor de un sample (inicio + duración).
+    var onEditSample: (String) -> Void = { _ in }
 
     private static let audioExts: Set<String> = ["wav", "aif", "aiff", "caf", "mp3", "m4a", "aac"]
 
@@ -62,11 +64,12 @@ struct MediaLibraryView: View {
                     ForEach(0..<4, id: \.self) { i in slotRow(i) }
                 }
 
-                DropList(hint: "Samples de scratch. Se eligen en el menú «Sample» del "
-                            + "panel «Mezcla» de la práctica.",
+                DropList(hint: "Samples de scratch. El botón de ajustes de cada uno "
+                            + "abre el editor (elegir inicio y duración).",
                          items: samples, cap: 12, showAnalysis: false,
                          analysisCache: analysisCache, sampleRate: sampleRate,
-                         audioExts: Self.audioExts, onChange: onSamplesChanged)
+                         audioExts: Self.audioExts, onChange: onSamplesChanged,
+                         onEdit: onEditSample)
                     .frame(minHeight: 240)
             }
             .frame(maxWidth: 560, alignment: .leading)
@@ -193,11 +196,12 @@ private struct DropList: View {
                 .font(XFFont.body(9))
             }
             Spacer(minLength: 0)
-            if showAnalysis, exists, let onEdit {
+            if exists, let onEdit {
                 Button { onEdit(path) } label: {
                     Image(systemName: "slider.horizontal.below.rectangle").foregroundColor(XFColor.accent)
                 }
-                .buttonStyle(.plain).help("Editar tempo, rejilla, cues y loops")
+                .buttonStyle(.plain)
+                .help(showAnalysis ? "Editar tempo, rejilla, cues y loops" : "Editar inicio y duración")
             }
             Button { onChange(items.filter { $0 != path }); analysisCache.forget(path) } label: {
                 Image(systemName: "xmark.circle.fill").foregroundColor(XFColor.textMuted)

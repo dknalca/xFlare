@@ -128,6 +128,23 @@ public final class EngineHandle {
         instrumentalNativeBPM = nativeBPM
     }
 
+    /// Audición: carga `pcm` en el reproductor de la BASE y lo deja **en bucle a
+    /// velocidad natural** (para oír el recorte de un sample en su editor). Pisa
+    /// la base que hubiera; la práctica la recarga al volver a entrar.
+    public func previewLoop(_ pcm: [Float]) {
+        guard !pcm.isEmpty else { return }
+        _ = startOutput()
+        loadInstrumental(pcm, nativeBPM: 120)
+        setInstrumentalNativeBPM(120)
+        setInstrumentalGain(0.9)
+        setMasterGain(0.9)
+        setScratchGain(0)
+        metronomeEnabled = false
+        setInstrumentalLoopRegion(start: 0, end: 1)
+        setTransport(bpm: 120, ppq: 480, playing: true)
+    }
+    public func stopPreview() { setTransport(bpm: 120, ppq: 480, playing: false) }
+
     /// Acota el bucle de la base a la fracción `start…end` (0…1) del fichero: la
     /// base repite SOLO ese trozo (loops infinitos del editor de instrumental).
     /// `start < 0` o rango vacío / invertido → base entera.

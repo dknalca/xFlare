@@ -97,7 +97,8 @@ public struct AppRootView: View {
                 onInstrumentalsChanged: { model.settings.instrumentalLibrary = $0 },
                 onSamplesChanged: { model.settings.sampleLibrary = $0 },
                 onSampleSlotsChanged: { model.settings.sampleSlots = $0 },
-                onEditInstrumental: { model.openInstrumentalEditor(path: $0) })
+                onEditInstrumental: { model.openInstrumentalEditor(path: $0) },
+                onEditSample: { model.openSampleEditor(path: $0) })
 
         case .instrumentalEditor(let path):
             InstrumentalEditorView(
@@ -107,6 +108,14 @@ public struct AppRootView: View {
                 cachedAnalysis: { model.analysisCache.result(for: path, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
                 initialEdit: model.instrumentalEdits.edit(for: path),
                 onSave: { model.instrumentalEdits.set($0, for: path) },
+                onExit: { model.openMediaLibrary() })
+
+        case .sampleEditor(let path):
+            SampleEditorView(
+                path: path,
+                engine: model.engine,
+                initialEdit: model.sampleEdits.edit(for: path),
+                onSave: { model.sampleEdits.set($0, for: path) },
                 onExit: { model.openMediaLibrary() })
 
         case .exerciseDetail(let scratchId):
@@ -186,6 +195,7 @@ public struct AppRootView: View {
                     onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                     cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
                     instrumentalEdit: { model.instrumentalEdits.edit(for: $0) },
+                    sampleEdit: { model.sampleEdits.edit(for: $0) },
                     instrumentalLibrary: model.settings.instrumentalLibrary,
                     sampleSlots: model.settings.sampleSlots,
                     onSampleSlotsChanged: { model.settings.sampleSlots = $0 },
@@ -252,6 +262,7 @@ public struct AppRootView: View {
                 onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                 cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
                     instrumentalEdit: { model.instrumentalEdits.edit(for: $0) },
+                    sampleEdit: { model.sampleEdits.edit(for: $0) },
                 instrumentalLibrary: model.settings.instrumentalLibrary,
                 sampleSlots: model.settings.sampleSlots,
                 onSampleSlotsChanged: { model.settings.sampleSlots = $0 },

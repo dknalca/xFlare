@@ -28,6 +28,8 @@ public final class AppModel: ObservableObject {
         case mediaLibrary
         /// Editor de una instrumental de la librería: tempo/rejilla, cues, loops.
         case instrumentalEditor(path: String)
+        /// Editor de un sample de la librería: inicio + duración.
+        case sampleEditor(path: String)
         case progress(exerciseId: String, variantId: String)
         case myTable
         case settings
@@ -60,6 +62,8 @@ public final class AppModel: ObservableObject {
     public let analysisCache = InstrumentalAnalysisCache()
     /// Ajustes del editor de instrumental (tempo/rejilla, cues, loops) por fichero.
     public let instrumentalEdits = InstrumentalEditStore()
+    /// Recorte del editor de samples (inicio + duración) por fichero.
+    public let sampleEdits = SampleEditStore()
     @Published public var activeProfileId: String? {
         didSet { rebuildMidiCommandMap() }
     }
@@ -245,6 +249,7 @@ public final class AppModel: ObservableObject {
     public func openLibrary()      { refreshLibrary(); screen = .library }   // "Trucos"
     public func openMediaLibrary() { screen = .mediaLibrary }
     public func openInstrumentalEditor(path: String) { screen = .instrumentalEditor(path: path) }
+    public func openSampleEditor(path: String) { screen = .sampleEditor(path: path) }
     public func openMyTable()      { screen = .myTable }
     public func openSettings()    { screen = .settings }
     public func openFreeMode()    { screen = .freeMode }

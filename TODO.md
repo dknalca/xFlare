@@ -821,6 +821,23 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         `DragGesture` de prioridad alta que mueve `atSeconds` (mapeado por la
         ventana visible / zoom); al soltar se re-ordenan.
       - 669 en verde.
+- [x] **F.21** Editor de samples: elegir inicio y duración (ADR-068)
+      - "Los samples para que funcionen bien deben tener un máximo de tiempo. En
+        el editor se debe poder escoger el inicio y que se ajuste el tiempo del
+        sample a usar."
+      - `SampleEdit` (puro, `Codable`: `startSeconds` + `lengthSeconds` acotado a
+        `AudioAsset.scratchMaxSeconds`, mín. 50 ms; `frameRange(...)`) +
+        `SampleEditStore` (`sample-edits.json`, por ruta) + `AppModel.sampleEdits`.
+      - `SampleEditorView` (`Screen.sampleEditor`, botón de ajustes en cada fila
+        de la pestaña Samples): onda con zoom (`renderWindow`), ventana de
+        recorte con dos asas arrastrables (inicio/fin, arrastrar el interior
+        mueve toda la ventana), `◀/▶` de inicio y duración, "usar todo", y
+        **"Escuchar el recorte"** en bucle (`EngineHandle.previewLoop` con el
+        reproductor de la base a velocidad natural).
+      - En la práctica, `loadScratchSample` usa `pcm[SampleEdit.frameRange]` si
+        lo hay, si no `SampleTrim` (F.3). `LivePracticeView` gana `sampleEdit`;
+        `MediaLibraryView` gana `onEditSample`.
+      - Tests: `SampleEditTests` (4). 673 en verde.
 
 ---
 

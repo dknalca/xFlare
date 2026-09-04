@@ -168,6 +168,9 @@ public struct LivePracticeView: View {
     /// Ajuste del editor de instrumental para una ruta (tempo/rejilla, loop
     /// activo). `nil` = usar la detección automática.
     private let instrumentalEdit: (String) -> InstrumentalEdit?
+    /// Recorte del editor de samples (inicio + duración) para una ruta. `nil` =
+    /// punto cero automático (`SampleTrim`, F.3).
+    private let sampleEdit: (String) -> SampleEdit?
     /// Instrumentales de la Librería (para el menú «Base»); ya pre-analizadas.
     private let instrumentalLibrary: [String]
     /// 4 slots de sample (`""` = vacío) que los comandos MIDI «Sample 1»…«Sample
@@ -211,6 +214,7 @@ public struct LivePracticeView: View {
                 onSampleLibraryChanged: @escaping ([String]) -> Void = { _ in },
                 cachedAnalysis: @escaping (String) -> TempoAnalyzer.Result? = { _ in nil },
                 instrumentalEdit: @escaping (String) -> InstrumentalEdit? = { _ in nil },
+                sampleEdit: @escaping (String) -> SampleEdit? = { _ in nil },
                 instrumentalLibrary: [String] = [],
                 sampleSlots: [String] = [],
                 onSampleSlotsChanged: @escaping ([String]) -> Void = { _ in },
@@ -241,6 +245,7 @@ public struct LivePracticeView: View {
         self.onSampleLibraryChanged = onSampleLibraryChanged
         self.cachedAnalysis = cachedAnalysis
         self.instrumentalEdit = instrumentalEdit
+        self.sampleEdit = sampleEdit
         self.instrumentalLibrary = instrumentalLibrary
         self.sampleSlots = sampleSlots
         self.onSampleSlotsChanged = onSampleSlotsChanged
@@ -1408,14 +1413,20 @@ public struct LivePracticeView: View {
         let sr = engine.sampleRateHz
         sampleName = url?.deletingPathExtension().lastPathComponent ?? "Ahh"
         let hint = url.flatMap { TempoAnalyzer.bpmHint(fromFilename: $0.lastPathComponent) }
+        // Recorte del editor de samples (F.20), capturado en el hilo principal.
+        let edit: SampleEdit? = url.flatMap { sampleEdit($0.path) }
         DispatchQueue.global(qos: .userInitiated).async {
             let raw = url.flatMap { AudioAsset.loadMono($0, sampleRate: sr) }
                 ?? AudioAsset.loadMono(AudioAsset.scratchRelPath, from: content)
-            // Recorta al punto cero (F.3) y, además, a la ventana máxima de
-            // scratch: un fichero largo mapearía minutos de audio al recorrido
-            // del plato ("se va todo"). Así cualquier sample suena como el `Ahh`.
-            let pcm = raw.map {
-                AudioAsset.capScratch(SampleTrim.trimmed($0, sampleRate: sr).pcm, sampleRate: sr)
+            // Si el usuario editó el sample (inicio + duración), se usa ese
+            // tramo tal cual. Si no, se recorta al punto cero (F.3). En ambos
+            // casos se acota a la ventana máxima de scratch (un fichero largo
+            // mapearía minutos de audio al recorrido del plato — "se va todo").
+            let pcm: [Float]? = raw.map { r in
+                if let edit = edit, let rr = edit.frameRange(frameCount: r.count, sampleRate: sr) {
+                    return AudioAsset.capScratch(Array(r[rr]), sampleRate: sr)
+                }
+                return AudioAsset.capScratch(SampleTrim.trimmed(r, sampleRate: sr).pcm, sampleRate: sr)
             }
             let wave = pcm.map {
                 WaveformColored.build($0, sampleRate: sr, buckets: min($0.count / 48, 200_000))

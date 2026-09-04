@@ -262,6 +262,14 @@ En la práctica, el selector de instrumental es un **menú** que lista las
 instrumentales ya analizadas de la librería (además de la base por defecto y
 "Cargar otra…"); elegir una de la lista la carga al instante desde el caché.
 
+**Editor de samples (ADR-068).** El botón de ajustes de cada fila de la pestaña
+Samples abre `SampleEditorView`: onda con zoom y una **ventana de recorte** con
+dos asas arrastrables (inicio / fin). Se elige **dónde empieza** la parte útil y
+**cuánto dura** (la duración se limita a `AudioAsset.scratchMaxSeconds` para que
+el scratch responda bien). "Escuchar el recorte" lo reproduce en bucle. Se
+guarda en `~/Library/Application Support/xFlare/sample-edits.json`; la práctica
+lo usa en vez del punto cero automático.
+
 **Editor de instrumental (ADR-067).** El botón de ajustes de cada fila de
 Instrumentales abre `InstrumentalEditorView`: onda grande con rejilla de compases
 (números arriba), transporte real (play/pausa, pinchar la onda para saltar),

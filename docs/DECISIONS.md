@@ -2606,6 +2606,51 @@ el "1".
 
 ---
 
+## ADR-068 — Editor de samples: elegir inicio y duración (feedback 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** El autor pidió, como el editor de instrumental (ADR-067), un
+**editor de samples**: "para que funcionen bien deben tener un máximo de tiempo;
+se debe poder escoger el inicio y que se ajuste el tiempo del sample a usar".
+Hasta ahora el sample se recortaba solo con `SampleTrim` (punto cero por RMS,
+F.3) + `AudioAsset.capScratch` (tope de 2 s).
+
+**Decisión.**
+1. **Datos** — `SampleEdit` (puro, `Codable`): `startSeconds` + `lengthSeconds`,
+   con `lengthSeconds` **acotado a `AudioAsset.scratchMaxSeconds`** (2 s) y
+   mínimo 50 ms. `frameRange(frameCount:sampleRate:)` da el rango en frames ya
+   acotado al fichero. `SampleEditStore` (`ObservableObject`, JSON en
+   `~/Library/Application Support/xFlare/sample-edits.json`, por ruta).
+   `AppModel.sampleEdits`.
+2. **Editor** — `SampleEditorView` (`Screen.sampleEditor(path:)`, botón de
+   ajustes en cada fila de la pestaña Samples de la Librería). Onda con zoom
+   (mismo patrón que el editor de instrumental: `renderWindow` redibuja solo el
+   tramo visible). Una **ventana de recorte** con dos asas arrastrables (inicio /
+   fin); arrastrar el interior mueve toda la ventana. Fuera de la ventana la
+   onda va oscurecida. Botones `◀/▶` para el inicio y la duración, "usar todo",
+   y **"Escuchar el recorte"** — lo reproduce en bucle usando el reproductor de
+   la BASE (`EngineHandle.previewLoop` a 120 BPM nativo = velocidad natural).
+3. **En la práctica** — `loadScratchSample` mira si hay `SampleEdit` para la
+   ruta: si lo hay, usa `pcm[frameRange]` tal cual (más `capScratch`); si no,
+   `SampleTrim` como antes.
+
+**Alternativas descartadas.** Editar sobre el reproductor de scratch (solo suena
+con velocidad; la audición lineal necesita el de la base). Guardar el recorte
+como un fichero nuevo (xFlare no escribe los ficheros del usuario; el `SampleEdit`
+es un puntero + rango). Meterlo en el mismo store que los `InstrumentalEdit`
+(conceptos distintos, fichero aparte más claro).
+
+**Consecuencias.** `SampleEdit` / `SampleEditStore` / `SampleEditorView` nuevos
+en XFApp. `EngineHandle` gana `previewLoop` / `stopPreview` (reutilizan el
+reproductor de la base; la práctica lo recarga al volver a entrar).
+`LivePracticeView` gana `sampleEdit` (cableado en `AppRootView`). `MediaLibraryView`
+gana `onEditSample` y el botón de editar aparece también en las filas de sample.
+**Pendiente (v2):** ganancia / fade del recorte; forma de onda del sample con el
+punto cero marcado.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
