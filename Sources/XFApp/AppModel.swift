@@ -156,7 +156,7 @@ public final class AppModel: ObservableObject {
             // Ajustes: se guardan en un plist local (UserDefaults); ningun dato
             // sale de la maquina. El buffer de audio se fija aqui, al crear el
             // motor (cambiarlo requiere reiniciar).
-            let settings = loadSettings()
+            let settings = recoverInstrumentalLibraryIfNeeded(loadSettings())
             let model = AppModel(catalog: catalog, db: db,
                                  engine: EngineHandle(maxFrames: settings.bufferFrames),
                                  profiles: profiles, settings: settings, content: content)
@@ -204,6 +204,31 @@ public final class AppModel: ObservableObject {
     static func persist(_ s: AppSettings) {
         SettingsStore.save(s)                      // atómico, en cada cambio
         settingsDefaults?.set(s.raw, forKey: "settings")   // espejo, compatibilidad
+    }
+
+    /// Recuperación **una sola vez**: un bug de `@State` en Ajustes podía pisar
+    /// `AppModel.settings` con una copia vieja y **vaciar la librería de
+    /// instrumentales**. Los ficheros que se llegaron a analizar siguen en
+    /// `instrumental-analysis.json`; si aún existen en disco y no están en la
+    /// lista, se re-añaden. `libraryRecovered` evita repetirlo (y resucitar los
+    /// que el usuario borró a propósito).
+    static func recoverInstrumentalLibraryIfNeeded(_ s: AppSettings) -> AppSettings {
+        guard settingsDefaults?.bool(forKey: "libraryRecovered") != true else { return s }
+        settingsDefaults?.set(true, forKey: "libraryRecovered")
+
+        let cache = InstrumentalAnalysisCache()          // carga su JSON al init
+        let fm = FileManager.default
+        let analyzed = cache.entries.keys.filter { fm.fileExists(atPath: $0) }
+        guard !analyzed.isEmpty else { return s }
+
+        var merged = s.instrumentalLibrary
+        for p in analyzed where !merged.contains(p) { merged.append(p) }
+        guard merged.count != s.instrumentalLibrary.count else { return s }
+
+        var out = s
+        out.instrumentalLibrary = merged
+        persist(out)
+        return out
     }
 
     static func defaultDatabaseURL() -> URL {

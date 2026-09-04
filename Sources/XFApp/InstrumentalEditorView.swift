@@ -45,6 +45,12 @@ struct InstrumentalEditorView: View {
     @State private var tap = TapTempo()
     @State private var seeded = false
 
+    // zoom de la onda: `zoom` 1 = toda la pista; mayor = ampliado. `viewStart` es
+    // el borde izquierdo visible, en fracción 0…1 del fichero.
+    @State private var zoom: Double = 1
+    @State private var viewStart: Double = 0
+    @State private var panAnchor: Double? = nil
+
     private let sr = 48_000.0
     private let clock = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
 
@@ -53,6 +59,30 @@ struct InstrumentalEditorView: View {
     }
     private var headSeconds: Double { headFraction * max(0.001, durationSeconds) }
     private var barSeconds: Double { Double(beatsPerBar) * 60.0 / max(20, bpm) }
+
+    /// Fracción del fichero visible (1/zoom).
+    private var visibleFrac: Double { 1.0 / max(1, zoom) }
+    /// X (px) de un instante `t` (s) dentro de la ventana visible de ancho `w`.
+    private func x(_ t: Double, _ w: CGFloat) -> CGFloat {
+        guard durationSeconds > 0 else { return 0 }
+        return CGFloat((t / durationSeconds - viewStart) / visibleFrac) * w
+    }
+    /// Instante (s) en la posición `px` de la ventana visible de ancho `w`.
+    private func timeAt(px: CGFloat, _ w: CGFloat) -> Double {
+        (viewStart + Double(px / max(1, w)) * visibleFrac) * durationSeconds
+    }
+    private func clampView() {
+        viewStart = min(max(0, viewStart), max(0, 1 - visibleFrac))
+    }
+    private func setZoom(_ z: Double) {
+        let old = zoom
+        zoom = min(64, max(1, z))
+        // mantener el cabezal (o el centro) en el mismo sitio al ampliar
+        let focus = min(max(headFraction, viewStart), viewStart + visibleFrac)
+        _ = old
+        viewStart = focus - visibleFrac / 2
+        clampView()
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -77,6 +107,13 @@ struct InstrumentalEditorView: View {
         .onReceive(clock) { _ in
             guard playing, let p = engine?.instrumentalProgress, p >= 0 else { return }
             headFraction = p
+            // con zoom, la ventana sigue al cabezal si se sale por un borde.
+            if zoom > 1 {
+                if p < viewStart + visibleFrac * 0.08 || p > viewStart + visibleFrac * 0.92 {
+                    viewStart = p - visibleFrac / 2
+                    clampView()
+                }
+            }
         }
     }
 
@@ -95,22 +132,24 @@ struct InstrumentalEditorView: View {
 
     private struct BeatMark: Identifiable { let k: Int; let x: CGFloat; let isBar: Bool; let bar: Int; var id: Int { k } }
 
-    /// Líneas de la rejilla visibles: una por negra, marcando las de compás.
+    /// Líneas de la rejilla dentro de la ventana visible: una por negra, marcando
+    /// las de compás. Solo se emiten las que caen en pantalla (zoom).
     private func beatMarks(width w: CGFloat) -> [BeatMark] {
         guard bpm > 20, durationSeconds > 0 else { return [] }
         let beat = 60.0 / bpm
+        let tMin = viewStart * durationSeconds
+        let tMax = (viewStart + visibleFrac) * durationSeconds
         var out: [BeatMark] = []
-        var k = Int((-downbeat / beat).rounded(.up))
+        var k = max(0, Int(((tMin - downbeat) / beat).rounded(.down)))
         while true {
             let t = downbeat + Double(k) * beat
-            if t > durationSeconds { break }
-            if t >= 0 {
+            if t > tMax || t > durationSeconds { break }
+            if t >= tMin {
                 let isBar = ((k % beatsPerBar) + beatsPerBar) % beatsPerBar == 0
-                out.append(BeatMark(k: k, x: CGFloat(t / durationSeconds) * w,
-                                    isBar: isBar, bar: k / beatsPerBar + 1))
+                out.append(BeatMark(k: k, x: x(t, w), isBar: isBar, bar: k / beatsPerBar + 1))
             }
             k += 1
-            if out.count > 4_000 { break }   // guarda por si el BPM es absurdo
+            if out.count > 2_000 { break }
         }
         return out
     }
@@ -124,15 +163,18 @@ struct InstrumentalEditorView: View {
                 RoundedRectangle(cornerRadius: XFRadius.control).fill(XFColor.surface)
 
                 if let img = waveImage {
+                    // la imagen entera mide `w * zoom`; se desplaza a la izquierda
+                    // según `viewStart` para enseñar solo la ventana visible.
                     Image(nsImage: img).resizable()
-                        .frame(width: w, height: h - 16).offset(y: 8)
+                        .frame(width: w * CGFloat(zoom), height: h - 16)
+                        .offset(x: -CGFloat(viewStart) * w * CGFloat(zoom), y: 8)
                         .opacity(0.9)
                 }
 
                 // regiones de loop (sombreadas; la activa en acento)
                 ForEach(loops) { r in
-                    let x0 = CGFloat(r.startSeconds / durationSeconds) * w
-                    let x1 = CGFloat(r.endSeconds / durationSeconds) * w
+                    let x0 = x(r.startSeconds, w)
+                    let x1 = x(r.endSeconds, w)
                     Rectangle()
                         .fill((r.id == activeLoopID ? XFColor.accent : XFColor.textMuted)
                             .opacity(r.id == activeLoopID ? 0.20 : 0.10))
@@ -154,27 +196,39 @@ struct InstrumentalEditorView: View {
 
                 // cues
                 ForEach(cues) { c in
-                    let x = CGFloat(c.atSeconds / durationSeconds) * w
                     VStack(spacing: 1) {
                         Text(c.name).font(XFFont.mono(8)).foregroundColor(Color(hex: 0xF5C542))
                             .fixedSize()
                         Rectangle().fill(Color(hex: 0xF5C542)).frame(width: 1.5)
                     }
                     .frame(height: h, alignment: .top)
-                    .offset(x: x - 1)
+                    .offset(x: x(c.atSeconds, w) - 1)
                 }
 
                 // cabezal
                 Rectangle().fill(XFColor.accent).frame(width: 2, height: h)
-                    .offset(x: CGFloat(headFraction) * w - 1)
+                    .offset(x: x(headSeconds, w) - 1)
             }
             .clipShape(RoundedRectangle(cornerRadius: XFRadius.control))
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onEnded { g in
-                let f = min(1, max(0, g.location.x / w))
-                headFraction = f
-                engine?.seekInstrumental(fraction: f)
-            })
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { g in
+                    guard zoom > 1 else { return }
+                    if panAnchor == nil { panAnchor = viewStart }
+                    let dxFrac = Double(-g.translation.width / max(1, w)) * visibleFrac
+                    viewStart = (panAnchor ?? viewStart) + dxFrac
+                    clampView()
+                }
+                .onEnded { g in
+                    defer { panAnchor = nil }
+                    // sin apenas movimiento = pinchar para saltar
+                    if abs(g.translation.width) < 4 {
+                        let t = timeAt(px: g.location.x, w)
+                        let f = min(1, max(0, t / max(0.001, durationSeconds)))
+                        headFraction = f
+                        engine?.seekInstrumental(fraction: f)
+                    }
+                })
         }
     }
 
@@ -201,6 +255,14 @@ struct InstrumentalEditorView: View {
             Text(timeLabel(headSeconds) + " / " + timeLabel(durationSeconds))
                 .font(XFFont.mono(11)).foregroundColor(XFColor.textMuted)
             Spacer()
+            // zoom de la onda
+            HStack(spacing: 4) {
+                Image(systemName: "magnifyingglass").font(.system(size: 10)).foregroundColor(XFColor.textMuted)
+                chip("−") { setZoom(zoom / 2) }
+                Text(zoom <= 1 ? "todo" : "\(Int(zoom))×")
+                    .font(XFFont.mono(10)).foregroundColor(XFColor.textMuted).frame(minWidth: 30)
+                chip("+") { setZoom(zoom * 2) }
+            }
             Button("Volver al inicio") { seek(0) }.buttonStyle(.plain)
                 .font(XFFont.body(11)).foregroundColor(XFColor.accent)
         }
@@ -303,6 +365,15 @@ struct InstrumentalEditorView: View {
                 Button { removeLoop(r.wrappedValue.id) } label: { Image(systemName: "trash") }
                     .buttonStyle(.plain).foregroundColor(XFColor.textMuted)
             }
+            HStack(spacing: 6) {
+                Text("duración").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+                chip("÷2") { scaleLoop(r, by: 0.5) }
+                chip("×2") { scaleLoop(r, by: 2) }
+                let dur = r.wrappedValue.endSeconds - r.wrappedValue.startSeconds
+                Text(String(format: "%.2f s · %.1f comp.", dur, dur / max(0.001, barSeconds)))
+                    .font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
+                Spacer()
+            }
             HStack(spacing: 4) {
                 HStack(spacing: 4) {
                     Text("inicio").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
@@ -363,13 +434,16 @@ struct InstrumentalEditorView: View {
 
     private func startEngine() {
         guard let engine = engine, !pcm.isEmpty else { return }
+        // Arranca la salida de audio si aún no está (si venías de una práctica ya
+        // suena y esto es no-op). Sin esto, abrir el editor "en frío" no oía nada.
+        _ = engine.startOutput()
         engine.loadInstrumental(pcm, nativeBPM: bpm)
         engine.setInstrumentalNativeBPM(bpm)
         engine.setMasterGain(0.9)
         engine.setInstrumentalGain(0.85)
         engine.setScratchGain(0)
-        engine.setTransport(bpm: bpm, ppq: 480, playing: false)
         engine.metronomeEnabled = false
+        engine.setTransport(bpm: bpm, ppq: 480, playing: playing)
         reapplyLoop()
     }
 
@@ -411,6 +485,16 @@ struct InstrumentalEditorView: View {
     private func nudge(_ r: Binding<InstrumentalEdit.LoopRegion>, startBy d: Double = 0, endBy e: Double = 0) {
         r.wrappedValue.startSeconds += d
         r.wrappedValue.endSeconds += e
+        clampLoop(r)
+        reapplyLoop()
+    }
+
+    /// Multiplica la duración de la región por `factor` (×2 / ÷2), dejando el
+    /// inicio fijo. Se recorta al fichero.
+    private func scaleLoop(_ r: Binding<InstrumentalEdit.LoopRegion>, by factor: Double) {
+        let a = r.wrappedValue.startSeconds
+        let len = max(0.05, (r.wrappedValue.endSeconds - a) * factor)
+        r.wrappedValue.endSeconds = a + len
         clampLoop(r)
         reapplyLoop()
     }

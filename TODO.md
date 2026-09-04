@@ -775,6 +775,26 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         placa de fondo era casi negra (#171B22→#0A0C0F) y sobre un escritorio
         oscuro solo flotaba el cap verde. Ahora #2C333E→#141920 + borde tenue;
         cap fantasma y marcas un poco más visibles.
+- [x] **F.18** Fixes del editor + regresión de persistencia (ADR-063 corr., ADR-067 iter.)
+      - Feedback del autor (2026-09-04):
+      - **REGRESIÓN: la librería de instrumentales se vació.** `SettingsView`
+        guardaba TODO el `AppSettings` en un `@State` sembrado una vez; en una
+        visita posterior estaba viejo y el primer cambio lo subía entero,
+        pisando `instrumentalLibrary`. Arreglo: re-sembrar el `@State` desde la
+        copia entrante (`.onChange(of:)` + `.onAppear`). +
+        `AppModel.recoverInstrumentalLibraryIfNeeded` (una vez, con flag
+        `libraryRecovered`): recupera las instrumentales que se llegaron a
+        analizar y siguen en disco.
+      - **El Play del editor no sonaba** en frío: `startEngine` no arrancaba la
+        salida — ahora `engine.startOutput()` (idempotente).
+      - **Zoom de la onda** en el editor: `zoom` 1…64×, botones −/+, pan con
+        arrastre (con zoom) y toque = saltar; la ventana sigue al cabezal al
+        reproducir. Rejilla/cues/regiones/cabezal por la ventana visible.
+      - **Regiones de loop con ÷2 / ×2**: `scaleLoop` dobla/mitad la duración
+        (inicio fijo); la fila muestra "N s · M compases".
+      - **Colores del logo** (`icon/xflare.svg`): pasada para que se distingan
+        placa / ranura / marcas / cap fantasma / cap vivo / surco / brillo.
+      - 667 en verde.
 
 ---
 

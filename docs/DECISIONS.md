@@ -2337,6 +2337,18 @@ copiable-editable a ojo, y añade dependencia de GRDB al arranque de ajustes).
 máquinas. Escritura atómica: nunca queda a medias. `SettingsStore` se prueba
 sin hardware (ida y vuelta + que sea JSON legible). No toca el hilo de audio.
 
+> **Corrección (2026-09-04).** El fichero funcionaba, pero `SettingsView`
+> guardaba **todo** el `AppSettings` en un `@State` sembrado una sola vez. En una
+> visita posterior a Ajustes ese `@State` estaba viejo (si mientras tanto otra
+> pantalla había tocado `AppModel.settings` — p. ej. añadir instrumentales a la
+> Librería) y el **primer** cambio en Ajustes lo subía entero con `onChange`,
+> **pisando la librería de instrumentales** (se vaciaba). Arreglo: `SettingsView`
+> re-siembra el `@State` desde la copia entrante (`.onChange(of:)` + `.onAppear`).
+> Además `AppModel.recoverInstrumentalLibraryIfNeeded` recupera **una sola vez**
+> las instrumentales que se llegaron a analizar (`instrumental-analysis.json`) y
+> siguen en disco pero cayeron de la lista, con un flag `libraryRecovered` para
+> no repetirlo ni resucitar borrados.
+
 ---
 
 ## ADR-064 — Reorganización de la pantalla de práctica + BPM con decimal + tope del sample + números de rejilla (feedback 2026-09-03)
@@ -2550,6 +2562,18 @@ cambia (68→74 tests, los espectrales igual). `InstrumentalEdit` /
 **Pendiente (v2):** los puntos Cue en la propia práctica (botones de salto);
 re-aplicar la región de loop tras ÷2/×2/reiniciar la base; regiones que crucen
 el "1".
+
+> **Iteración (2026-09-04).** Feedback del autor sobre el editor:
+> - **Play no sonaba** al abrir el editor "en frío" (sin venir de una práctica):
+>   `startEngine` no arrancaba la salida de audio. Ahora llama a
+>   `engine.startOutput()` (idempotente: si ya suena, no-op).
+> - **Zoom de la onda**: `zoom` (1…64×) + `viewStart`; botones `−`/`+`, y con
+>   zoom un arrastre horizontal hace *pan* y un toque salta. La ventana sigue al
+>   cabezal al reproducir. Rejilla, cues, regiones y cabezal se mapean por la
+>   ventana visible.
+> - **Regiones de loop con ÷2 / ×2**: `scaleLoop` dobla/mitad la duración
+>   dejando el inicio fijo, recortado al fichero; la fila muestra
+>   "N s · M compases".
 
 ---
 

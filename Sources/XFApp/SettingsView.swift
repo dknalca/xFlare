@@ -13,6 +13,11 @@ import XFCapture
 public struct SettingsView: View {
 
     @State private var settings: AppSettings
+    /// La copia que llega de `AppModel` en cada render. Si cambia por fuera
+    /// (p. ej. añadiste instrumentales en la Librería) hay que **re-sembrar** el
+    /// `@State`: si no, una visita posterior a Ajustes lo tiene viejo y el
+    /// primer cambio pisa lo nuevo (borró la librería de instrumentales).
+    private let incoming: AppSettings
     private let onChange: (AppSettings) -> Void
     /// Asignaciones MIDI que trae el perfil activo (sección `[transport]`),
     /// `comando -> "note:1:36"`. Se muestran como valor por defecto; el usuario
@@ -26,6 +31,7 @@ public struct SettingsView: View {
                 learn: MidiLearnModel = MidiLearnModel(),
                 onChange: @escaping (AppSettings) -> Void = { _ in }) {
         _settings = State(initialValue: settings)
+        self.incoming = settings
         self.profileBindings = profileBindings
         self.learn = learn
         self.onChange = onChange
@@ -39,7 +45,16 @@ public struct SettingsView: View {
         }
         .padding(.top, XFSpacing.xs)
         .background(XFColor.bg)
+        // si `AppModel.settings` cambió por fuera mientras esta vista vivía
+        // (otra pantalla tocó la librería, los slots…), re-sembramos para no
+        // pisar esos cambios con una copia vieja.
+        .onChange(of: incoming) { new in
+            if new != settings { settings = new }
+        }
         .onAppear {
+            // arrancar SIEMPRE de la copia buena de `AppModel` (no de un `@State`
+            // que pudo quedarse viejo desde una visita anterior).
+            if settings != incoming { settings = incoming }
             // el aprendizaje escribe en ESTA copia de `settings` (la que ve la
             // UI) y la sube con `onChange`. Si solo escribiera en `AppModel`, el
             // `@State` local se quedaría viejo y el cuadro no se actualizaría.
