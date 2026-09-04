@@ -128,6 +128,20 @@ public final class EngineHandle {
         instrumentalNativeBPM = nativeBPM
     }
 
+    /// Acota el bucle de la base a la fracción `start…end` (0…1) del fichero: la
+    /// base repite SOLO ese trozo (loops infinitos del editor de instrumental).
+    /// `start < 0` o rango vacío / invertido → base entera.
+    public func setInstrumentalLoopRegion(start: Double, end: Double) {
+        let n = instrumentalFrameCount
+        guard n >= 2, start >= 0, end > start, end <= 1.0 else {
+            xf_engine_set_instrumental_loop_region(engine, -1, 0)   // entera
+            return
+        }
+        let a = Int64((start * Double(n)).rounded(.down))
+        let b = Int64((end * Double(n)).rounded(.up))
+        xf_engine_set_instrumental_loop_region(engine, a, b)
+    }
+
     public func replayInstrumental(nativeBPM: Double) {
         guard let buf = currentInstrumental, instrumentalFrameCount >= 2, nativeBPM > 0 else { return }
         xf_engine_load_instrumental(engine, buf.baseAddress, Int64(instrumentalFrameCount), nativeBPM)

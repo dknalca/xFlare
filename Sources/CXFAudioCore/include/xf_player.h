@@ -71,6 +71,14 @@ double xf_player_velocity(const xf_player *p);
  * bases instrumentales en bucle. Por defecto 0 (se satura, como el plato). */
 void xf_player_set_loop(xf_player *p, bool loop);
 
+/* NO RT-SAFE: acota el bucle a la region `[start, end)` en frames (solo tiene
+ * efecto con `loop` activo). El cabezal envuelve dentro de esa parte y la
+ * lectura sinc tambien, asi que el bucle de una PARTE de la base es igual de
+ * continuo que el del sample entero. `start < 0`, `end > frames` o menos de 2
+ * frames de region -> se usa el sample entero (0..frames). El cambio se aplica
+ * en el siguiente bloque de render. */
+void xf_player_set_loop_region(xf_player *p, int64_t start, int64_t end);
+
 /* NO RT-SAFE: puerta por velocidad. Si `gate_velocity > 0`, la amplitud de
  * salida escala con `min(1, |v| / gate_velocity)`: el disco casi parado casi no
  * suena (como un vinilo de verdad), y desaparece el zumbido de DC del cabezal

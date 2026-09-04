@@ -100,6 +100,77 @@ final class XFPlayerLoopTests: XCTestCase {
         }
     }
 
+    // MARK: - region de bucle (editor de instrumental: loops de una parte)
+
+    func testRegionDeBucleMantieneElCabezalDentroDeLaParte() {
+        let src = sine(1000, frames: 48_000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_loop(p, true)
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_loop_region(p, 10_000, 14_000)   // 4000 frames
+            xf_player_set_playhead(p, 10_000)
+
+            _ = render(p, nframes: 40_000, v: 1.0)          // 10 vueltas a la región
+            let head = xf_player_playhead(p)
+            XCTAssertGreaterThanOrEqual(head, 10_000)
+            XCTAssertLessThan(head, 14_000, "el cabezal nunca sale de [10000, 14000)")
+        }
+    }
+
+    func testRegionDeBucleSigueSonandoSinCortes() {
+        let src = sine(1000, frames: 48_000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_loop(p, true)
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_loop_region(p, 5_000, 9_000)
+            xf_player_set_playhead(p, 5_000)
+
+            let out = render(p, nframes: 20_000, v: 1.0)     // 5 vueltas
+            // el bucle de la parte es tan continuo como el del sample entero:
+            // el RMS del último tramo sigue siendo el de un seno a 0.5 de amplitud
+            XCTAssertEqual(rms(out[(out.count - 3_000)...]), 0.5 / 2.0.squareRoot(), accuracy: 0.03)
+        }
+    }
+
+    func testRegionInvalidaVuelveAlSampleEntero() {
+        let src = sine(1000, frames: 10_000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_loop(p, true)
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_loop_region(p, 8_000, 9_000)
+            xf_player_set_loop_region(p, -1, 0)             // limpiar -> entero
+            xf_player_set_playhead(p, 0)
+
+            let out = render(p, nframes: src.count, v: 1.0)  // una vuelta entera
+            XCTAssertEqual(xf_player_playhead(p), 0, accuracy: 1.0)
+            XCTAssertEqual(rms(out[out.startIndex..<out.endIndex]),
+                           rms(src[src.startIndex..<src.endIndex]), accuracy: 0.02)
+        }
+    }
+
+    func testCambiarLaRegionConElCabezalFueraLoReencaja() {
+        let src = sine(1000, frames: 48_000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_loop(p, true)
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_playhead(p, 40_000)               // lejos de la nueva región
+            xf_player_set_loop_region(p, 1_000, 3_000)
+
+            _ = render(p, nframes: 512, v: 1.0)             // un bloque
+            let head = xf_player_playhead(p)
+            XCTAssertGreaterThanOrEqual(head, 1_000)
+            XCTAssertLessThan(head, 3_000, "el wrap del render mete el cabezal en la región")
+        }
+    }
+
     func testUnaVueltaEnteraReproduceElSampleCompleto() {
         // a v=1 y sin glide, `frames` muestras ≈ el sample entero
         let src = sine(1000, frames: 4_800)

@@ -254,6 +254,15 @@ void xf_engine_set_instrumental_native_bpm(xf_engine *e, double native_bpm) {
     atomic_store(&e->instr_ratio, atomic_load(&e->bpm) / native_bpm);
 }
 
+void xf_engine_set_instrumental_loop_region(xf_engine *e, int64_t start, int64_t end) {
+    if (!e) return;
+    /* mismo patron que _set_scratch_glide_ms: se carga el player actual (atomic)
+     * y se llama a su setter NO-RT; una lectura rasgada en el RT la sanea
+     * `xf_player_render`. `start < 0` o region invalida -> sample entero. */
+    xf_player *ip = atomic_load(&e->instrumental);
+    if (ip) xf_player_set_loop_region(ip, start < 0 ? 0 : start, end);
+}
+
 void xf_engine_seek_tick(xf_engine *e, double tick) {
     if (!e) return;
     e->tick = tick;

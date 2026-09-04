@@ -70,6 +70,12 @@ void xf_engine_set_instrumental_gain(xf_engine *e, float gain);
  * hay base cargada. */
 void xf_engine_set_instrumental_native_bpm(xf_engine *e, double native_bpm);
 
+/* Acota el bucle de la base a la region `[start, end)` en frames: la base
+ * repite SOLO esa parte (loops infinitos de un trozo, editor de instrumental).
+ * `start < 0`, `end` fuera de rango o menos de 2 frames -> base entera. No hace
+ * nada si no hay base. Se aplica en el siguiente bloque. NO RT-SAFE. */
+void xf_engine_set_instrumental_loop_region(xf_engine *e, int64_t start, int64_t end);
+
 /* Coloca el reloj musical en `tick` (p. ej. el inicio de la cuenta atras, que es
  * negativo). Resincroniza el metronomo. */
 void xf_engine_seek_tick(xf_engine *e, double tick);

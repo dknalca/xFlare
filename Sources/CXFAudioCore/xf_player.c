@@ -38,6 +38,12 @@ struct xf_player {
     double velocity;          /* ya suavizada */
     double glide_coef;        /* [0,1] por frame; 1.0 = sin suavizado */
     int    loop;              /* 0 = satura en los extremos; 1 = da la vuelta */
+    /* Con loop activo, el cabezal envuelve dentro de [loop_start, loop_end) en
+     * vez de [0, frames). Por defecto 0..frames (= sample entero). Lo escribe el
+     * hilo normal (`xf_player_set_loop_region`); una lectura rasgada del par en
+     * el RT se auto-corrige en el siguiente bloque (el wrap re-encaja). */
+    int64_t loop_start;
+    int64_t loop_end;
     double speed_gate;        /* >0: amplitud ~ min(1, |v|/speed_gate). 0 = off */
 
     /* ancla de posicion (ADR-042): NO es el driver del cabezal (lo es la
@@ -111,6 +117,8 @@ xf_player *xf_player_create(const float *sample, int64_t frames, unsigned int sa
     p->sample      = sample;
     p->frames      = frames;
     p->sample_rate = sample_rate;
+    p->loop_start  = 0;
+    p->loop_end    = frames;
     p->playhead    = 0.0;
     p->velocity    = 0.0;
     p->seek_active = 0;
@@ -145,6 +153,23 @@ double xf_player_playhead(const xf_player *p) { return p ? p->playhead : 0.0; }
 double xf_player_velocity(const xf_player *p) { return p ? p->velocity : 0.0; }
 
 void xf_player_set_loop(xf_player *p, bool loop) { if (p) p->loop = loop ? 1 : 0; }
+
+/* NO RT-SAFE recomendado: acota el bucle a [start, end) frames. `start<0`,
+ * `end>frames`, o menos de 2 frames de region -> se usa el sample entero. Solo
+ * tiene efecto con loop activo. El cabezal NO se toca aqui: si queda fuera de la
+ * region nueva, el wrap del render lo mete dentro en el siguiente bloque. */
+void xf_player_set_loop_region(xf_player *p, int64_t start, int64_t end) {
+    if (!p) return;
+    if (start < 0 || end > p->frames || end - start < 2) {
+        start = 0;
+        end   = p->frames;
+    }
+    /* El RT lee estos dos int64 sin candado; una combinacion rasgada la sanea
+     * `xf_player_render` (acota `[rlo, rhi)` a `[0, frames)`), asi que el orden
+     * de escritura solo afecta a que bloque ve el cambio, no a la seguridad. */
+    p->loop_end   = end;
+    p->loop_start = start;
+}
 
 void xf_player_set_speed_gate(xf_player *p, double gate_velocity) {
     if (p) p->speed_gate = gate_velocity > 0.0 ? gate_velocity : 0.0;
@@ -183,6 +208,18 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
     const float *src   = p->sample;
     const int64_t last = p->frames - 1;
     const double  coef = p->glide_coef;
+
+    /* Region de bucle, leida UNA vez por bloque (un `set_loop_region` a mitad no
+     * tiene efecto hasta el siguiente bloque). Se SANEA aqui: aunque el hilo
+     * normal escriba los dos int64 sin candado y el RT lea una combinacion
+     * rasgada, `[rlo, rhi)` queda siempre dentro de `[0, frames)` -> nunca hay
+     * acceso fuera de rango. Sin loop: la region es el sample entero. */
+    const int do_loop = p->loop;
+    int64_t rlo = do_loop ? p->loop_start : 0;
+    int64_t rhi = do_loop ? p->loop_end   : p->frames;   /* exclusivo */
+    if (rlo < 0 || rlo >= p->frames) rlo = 0;
+    if (rhi > p->frames || rhi <= rlo + 1) rhi = p->frames;
+    const int64_t rspan = rhi - rlo;   /* >= 1, y [rlo, rhi) dentro de [0, frames) */
 
     for (int n = 0; n < nframes; n++) {
         /* 1) velocidad libre: se desliza hacia el objetivo de Swift. Se mantiene
@@ -248,16 +285,21 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
              *    van tap a tap. */
             const int64_t base = i - (XF_PLAYER_HALF - 1);   /* primer tap */
             float acc = 0.0f;
-            if (base >= 0 && base + (XF_PLAYER_TAPS - 1) <= last) {
+            /* camino rapido: la ventana de 32 taps cae entera dentro de la
+             * region (con loop) o del sample (sin loop). Para el caso normal
+             * (region = sample entero) es la misma comprobacion de antes. */
+            if (base >= rlo && base + (XF_PLAYER_TAPS - 1) < rhi) {
                 const float *s0 = src + base;
                 for (int t = 0; t < XF_PLAYER_TAPS; t++) acc += s0[t] * k[t];
             } else {
                 for (int t = 0; t < XF_PLAYER_TAPS; t++) {
                     int64_t si = base + t;
                     float s;
-                    if (p->loop) {
-                        si %= p->frames;
-                        if (si < 0) si += p->frames;   /* siempre en [0, frames) */
+                    if (do_loop) {
+                        /* envuelve DENTRO de la region -> el bucle de la parte
+                         * es igual de continuo que el del sample entero. */
+                        si = rlo + ((si - rlo) % rspan);
+                        if (si < rlo) si += rspan;
                         s = src[si];
                     } else {
                         s = (si >= 0 && si <= last) ? src[si] : 0.0f;
@@ -269,16 +311,20 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
         }
 
         /* 6) avanza el cabezal: se satura a los extremos (el plato no se sale
-         *    del sample) o da la vuelta si esta en bucle. */
+         *    del sample) o da la vuelta dentro de la region si esta en bucle. */
         p->playhead += v;
-        if (p->loop) {
-            /* wrap sin `fmod`: |v| es <<< frames (el ratio de la base esta
-             * acotado), asi que ajustar con un par de sumas/restas da el mismo
-             * resultado que fmod y ahorra una llamada a libm por MUESTRA en la
-             * base instrumental. El `while` cuesta 0 iteraciones en regimen. */
-            double fr = (double)p->frames;
-            while (p->playhead >= fr)  p->playhead -= fr;
-            while (p->playhead <  0.0) p->playhead += fr;
+        if (do_loop) {
+            const double a = (double)rlo, b = (double)rhi;
+            /* si el cabezal quedo MUY fuera (region recien reducida), acercalo
+             * de un salto con un unico fmod; en regimen no se entra aqui. */
+            if (p->playhead >= b + rspan || p->playhead < a - rspan) {
+                double rel = fmod(p->playhead - a, (double)rspan);
+                if (rel < 0.0) rel += (double)rspan;
+                p->playhead = a + rel;
+            }
+            /* ajuste fino sin `fmod`: |v| <<< rspan, 0-1 vueltas en regimen. */
+            while (p->playhead >= b) p->playhead -= (double)rspan;
+            while (p->playhead <  a) p->playhead += (double)rspan;
         } else {
             if (p->playhead < 0.0) p->playhead = 0.0;
             if (p->playhead > (double)last) p->playhead = (double)last;

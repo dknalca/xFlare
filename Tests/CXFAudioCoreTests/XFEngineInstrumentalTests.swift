@@ -232,6 +232,42 @@ final class XFEngineInstrumentalTests: XCTestCase {
         XCTAssertGreaterThan(goertzel(onlyBase, hz: 1000), goertzel(onlyBase, hz: 300) * 3)
     }
 
+    func testRegionDeBucleDeLaBase() {
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        // 1 s: primera mitad a 1 kHz, segunda a 300 Hz. Un loop de la 1ª mitad
+        // debe sonar SOLO a 1 kHz.
+        var v = sine(1000, frames: 24_000)
+        v += sine(300, frames: 24_000)
+        let loop = stable(v)
+        defer { loop.deallocate() }
+
+        xf_engine_load_instrumental(e, loop.baseAddress, Int64(loop.count), 120)
+        xf_engine_set_master_gain(e, 1)
+        xf_engine_set_transport(e, 120, 480, true)
+
+        // región = primera mitad [0, 24000)
+        xf_engine_set_instrumental_loop_region(e, 0, 24_000)
+        _ = render(e, blocks: 40)                         // varias vueltas a la región
+        let part = render(e, blocks: 80)
+        XCTAssertGreaterThan(goertzel(part, hz: 1000), goertzel(part, hz: 300) * 5,
+                             "el loop de la parte no toca la 2ª mitad (300 Hz)")
+
+        // limpiar -> vuelve a sonar la base entera (aparece el 300 Hz)
+        xf_engine_set_instrumental_loop_region(e, -1, 0)
+        _ = render(e, blocks: 40)
+        let whole = render(e, blocks: 200)
+        XCTAssertGreaterThan(goertzel(whole, hz: 300), goertzel(part, hz: 300) * 3,
+                             "sin región, la 2ª mitad vuelve a sonar")
+    }
+
+    func testRegionSinBaseNoRevienta() {
+        let e = engine()
+        defer { xf_engine_destroy(e) }
+        xf_engine_set_instrumental_loop_region(e, 100, 200)   // no hay base
+        _ = render(e, blocks: 5)
+    }
+
     func testSwapSonandoNoRevienta() {
         let e = engine()
         defer { xf_engine_destroy(e) }
