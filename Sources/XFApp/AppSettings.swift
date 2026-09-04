@@ -57,6 +57,20 @@ public struct AppSettings: Equatable, Sendable {
     /// Lado mayor del vídeo exportado, en píxeles (F.4).
     public var videoLongSide: Int
 
+    /// UID del dispositivo de SALIDA elegido (`AudioDeviceList.Device.uid`).
+    /// `""` = el de salida por defecto del sistema.
+    public var outputDeviceUID: String
+    /// Primer canal (1-based) del PAR estéreo de salida a usar dentro de ese
+    /// dispositivo — p. ej. `3` = canales 3 y 4. `1` = por defecto (los dos
+    /// primeros). En una interfaz multicanal (Rane 72: 10 salidas) el 1 casi
+    /// nunca es el que hace falta.
+    public var outputChannel: Int
+    /// Igual que `outputDeviceUID` pero para la ENTRADA (captura de timecode
+    /// cuando exista B4.2). `""` = el de entrada por defecto.
+    public var inputDeviceUID: String
+    /// Igual que `outputChannel` pero para la entrada.
+    public var inputChannel: Int
+
     // MARK: - Debug: "tacto" del plato (ventana Ajustes › Debug)
     /// Suavizado (ms) de la velocidad del plato de scratch. Menos = más seco y el
     /// audio sigue mejor al gesto; más = más suave pero con retardo. Def. 3.
@@ -89,7 +103,9 @@ public struct AppSettings: Equatable, Sendable {
                 sampleLibrary: [String] = [], videoFps: Int = 30, videoLongSide: Int = 1600,
                 platterGlideMs: Double = 3.0, platterSpeedGate: Double = 0.04,
                 platterFriction: Double = 1.8, trackpadSensitivity: Double = 1.0,
-                instrumentalLibrary: [String] = [], sampleSlots: [String] = []) {
+                instrumentalLibrary: [String] = [], sampleSlots: [String] = [],
+                outputDeviceUID: String = "", outputChannel: Int = 1,
+                inputDeviceUID: String = "", inputChannel: Int = 1) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -116,6 +132,10 @@ public struct AppSettings: Equatable, Sendable {
         self.platterSpeedGate    = min(0.4,  max(0.0, platterSpeedGate))
         self.platterFriction     = min(6.0,  max(0.3, platterFriction))
         self.trackpadSensitivity = min(2.0,  max(0.2, trackpadSensitivity))
+        self.outputDeviceUID = outputDeviceUID
+        self.outputChannel = max(1, outputChannel)
+        self.inputDeviceUID = inputDeviceUID
+        self.inputChannel = max(1, inputChannel)
     }
 
     // MARK: - clave/valor
@@ -141,6 +161,10 @@ public struct AppSettings: Equatable, Sendable {
         static let platterSpeedGate = "debug.platterSpeedGate"
         static let platterFriction = "debug.platterFriction"
         static let trackpadSensitivity = "debug.trackpadSensitivity"
+        static let outputDeviceUID = "audio.outputDeviceUID"
+        static let outputChannel = "audio.outputChannel"
+        static let inputDeviceUID = "audio.inputDeviceUID"
+        static let inputChannel = "audio.inputChannel"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -182,7 +206,11 @@ public struct AppSettings: Equatable, Sendable {
             platterFriction: dbl(Key.platterFriction, d.platterFriction),
             trackpadSensitivity: dbl(Key.trackpadSensitivity, d.trackpadSensitivity),
             instrumentalLibrary: (raw[Key.instrumentalLibrary] ?? "").split(separator: "\n").map(String.init),
-            sampleSlots: (raw[Key.sampleSlots] ?? "").components(separatedBy: "\n"))
+            sampleSlots: (raw[Key.sampleSlots] ?? "").components(separatedBy: "\n"),
+            outputDeviceUID: raw[Key.outputDeviceUID] ?? d.outputDeviceUID,
+            outputChannel: int(Key.outputChannel, d.outputChannel),
+            inputDeviceUID: raw[Key.inputDeviceUID] ?? d.inputDeviceUID,
+            inputChannel: int(Key.inputChannel, d.inputChannel))
     }
 
     public var raw: [String: String] {
@@ -207,6 +235,10 @@ public struct AppSettings: Equatable, Sendable {
             Key.platterSpeedGate: String(platterSpeedGate),
             Key.platterFriction: String(platterFriction),
             Key.trackpadSensitivity: String(trackpadSensitivity),
+            Key.outputDeviceUID: outputDeviceUID,
+            Key.outputChannel: String(outputChannel),
+            Key.inputDeviceUID: inputDeviceUID,
+            Key.inputChannel: String(inputChannel),
         ]
     }
 }

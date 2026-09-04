@@ -26,6 +26,15 @@ public struct SettingsView: View {
     /// "MIDI Learn": escucha CoreMIDI mientras Ajustes está abierto.
     @ObservedObject private var learn: MidiLearnModel
 
+    /// Dispositivos de audio del sistema y las parejas estéreo del elegido
+    /// en cada lado, para los selectores de Hardware (sección "como en
+    /// Ableton": elegir dispositivo Y canal, no solo el dispositivo). Se
+    /// consultan una vez al abrir la pantalla y cuando cambia el dispositivo
+    /// elegido — no en cada redibujado (`CoreAudio` no es gratis).
+    @State private var devices: [AudioDeviceList.Device] = []
+    @State private var outputPairs: [AudioDeviceList.ChannelPair] = []
+    @State private var inputPairs: [AudioDeviceList.ChannelPair] = []
+
     public init(settings: AppSettings,
                 profileBindings: [String: String] = [:],
                 learn: MidiLearnModel = MidiLearnModel(),
@@ -63,10 +72,43 @@ public struct SettingsView: View {
                 onChange(settings)
             }
             learn.start()
+            refreshDevices()
         }
         .onDisappear {
             learn.onLearn = nil
             learn.stop()
+        }
+        .onChange(of: settings.outputDeviceUID) { _ in refreshOutputPairs() }
+        .onChange(of: settings.inputDeviceUID) { _ in refreshInputPairs() }
+    }
+
+    // MARK: - dispositivos de audio (Hardware)
+
+    private func refreshDevices() {
+        devices = AudioDeviceList.all()
+        refreshOutputPairs()
+        refreshInputPairs()
+    }
+
+    private func refreshOutputPairs() {
+        guard let d = devices.first(where: { $0.uid == settings.outputDeviceUID }) else {
+            outputPairs = []; return
+        }
+        outputPairs = AudioDeviceList.outputChannelPairs(for: d)
+        if !outputPairs.contains(where: { $0.first == settings.outputChannel }), let first = outputPairs.first {
+            settings.outputChannel = first.first
+            onChange(settings)
+        }
+    }
+
+    private func refreshInputPairs() {
+        guard let d = devices.first(where: { $0.uid == settings.inputDeviceUID }) else {
+            inputPairs = []; return
+        }
+        inputPairs = AudioDeviceList.inputChannelPairs(for: d)
+        if !inputPairs.contains(where: { $0.first == settings.inputChannel }), let first = inputPairs.first {
+            settings.inputChannel = first.first
+            onChange(settings)
         }
     }
 
@@ -96,6 +138,49 @@ public struct SettingsView: View {
                         .frame(width: 90)
                     }
                     note("Si oyes crujidos, sube el buffer. Cambia al reiniciar la app.")
+
+                    Divider().background(XFColor.stroke)
+
+                    row("Salida") {
+                        Picker("", selection: bind(\.outputDeviceUID)) {
+                            Text("Por defecto del sistema").tag("")
+                            ForEach(devices.filter { $0.outputChannels > 0 }) { d in
+                                Text(d.name).tag(d.uid)
+                            }
+                        }
+                        .labelsHidden().frame(width: 240)
+                    }
+                    if outputPairs.count > 1 {
+                        row("Canal de salida") {
+                            Picker("", selection: bind(\.outputChannel)) {
+                                ForEach(outputPairs) { p in Text(p.label).tag(p.first) }
+                            }
+                            .labelsHidden().frame(width: 240)
+                        }
+                    }
+
+                    row("Entrada (timecode)") {
+                        Picker("", selection: bind(\.inputDeviceUID)) {
+                            Text("Por defecto del sistema").tag("")
+                            ForEach(devices.filter { $0.inputChannels > 0 }) { d in
+                                Text(d.name).tag(d.uid)
+                            }
+                        }
+                        .labelsHidden().frame(width: 240)
+                    }
+                    if inputPairs.count > 1 {
+                        row("Canal de entrada") {
+                            Picker("", selection: bind(\.inputChannel)) {
+                                ForEach(inputPairs) { p in Text(p.label).tag(p.first) }
+                            }
+                            .labelsHidden().frame(width: 240)
+                        }
+                    }
+                    note("En una interfaz multicanal (p. ej. una mesa de batalla) el canal 1 "
+                         + "casi nunca es el que lleva la señal que hace falta — elige la pareja "
+                         + "correcta aquí en vez de a ciegas. La entrada todavía no captura de "
+                         + "verdad (falta B4.2); esto deja el canal listo para cuando exista. "
+                         + "Cambia al reiniciar la práctica.")
                 }
 
                 section("Sesión") {

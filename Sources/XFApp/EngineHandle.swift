@@ -245,22 +245,42 @@ public final class EngineHandle {
 
     // MARK: - host CoreAudio
 
-    /// Arranca la AudioUnit sobre `deviceUID` (nil = salida por defecto).
-    /// Devuelve `true` si arranco.
-    public func start(deviceUID: String? = nil) -> Bool {
-        if let deviceUID {
-            return deviceUID.withCString { xf_engine_start(engine, $0) == 0 }
+    /// Dispositivo/canal preferidos, que pone `AppModel` desde `AppSettings`
+    /// (paso 1 del asistente / Ajustes › Hardware). `nil`/`0` = por defecto
+    /// (dispositivo de sistema, canales 1-2) — el comportamiento de antes de
+    /// que existiera esto. `start()`/`startOutput()` sin argumentos los usan
+    /// solos; pasar `deviceUID`/`channel` explícito a esas llamadas los pisa
+    /// (por ejemplo, para una prueba puntual desde el asistente de calibración).
+    public var preferredOutputDeviceUID: String?
+    public var preferredOutputChannel: Int?
+    public var preferredInputDeviceUID: String?
+    public var preferredInputChannel: Int?
+
+    /// Arranca la AudioUnit sobre `deviceUID` (nil = el preferido de Ajustes,
+    /// o el de sistema si tampoco hay). `inputChannel`/`outputChannel`
+    /// (1-based, nil = el preferido) eligen el PAR estéreo dentro del
+    /// dispositivo — ver `AudioDeviceList.ChannelPair`. Devuelve `true` si
+    /// arrancó.
+    public func start(deviceUID: String? = nil, inputChannel: Int? = nil, outputChannel: Int? = nil) -> Bool {
+        let uid = deviceUID ?? preferredInputDeviceUID
+        let inCh = Int32(inputChannel ?? preferredInputChannel ?? 0)
+        let outCh = Int32(outputChannel ?? preferredOutputChannel ?? 0)
+        if let uid, !uid.isEmpty {
+            return uid.withCString { xf_engine_start(engine, $0, inCh, outCh) == 0 }
         }
-        return xf_engine_start(engine, nil) == 0
+        return xf_engine_start(engine, nil, inCh, outCh) == 0
     }
 
     /// Arranca **solo salida** (sin capturar la entrada): para practicar con la
     /// mesa desconectada. Suena el scratch + la base + el metronomo.
-    public func startOutput(deviceUID: String? = nil) -> Bool {
-        if let deviceUID {
-            return deviceUID.withCString { xf_engine_start_output(engine, $0) == 0 }
+    /// `deviceUID`/`outputChannel`: ver `start(deviceUID:inputChannel:outputChannel:)`.
+    public func startOutput(deviceUID: String? = nil, outputChannel: Int? = nil) -> Bool {
+        let uid = deviceUID ?? preferredOutputDeviceUID
+        let ch = Int32(outputChannel ?? preferredOutputChannel ?? 0)
+        if let uid, !uid.isEmpty {
+            return uid.withCString { xf_engine_start_output(engine, $0, ch) == 0 }
         }
-        return xf_engine_start_output(engine, nil) == 0
+        return xf_engine_start_output(engine, nil, ch) == 0
     }
 
     public func stop() { xf_engine_stop(engine) }

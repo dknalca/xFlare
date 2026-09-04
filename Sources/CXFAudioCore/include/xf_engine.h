@@ -193,13 +193,23 @@ void xf_engine_render(xf_engine *e,
 
 /* NO RT-SAFE: abre la AudioUnit HAL sobre el dispositivo `device_uid` (NULL =
  * el de salida por defecto), fija `max_frames` como buffer, arranca. Devuelve 0
- * si todo OK, o un OSStatus/-1 si falla. */
-int xf_engine_start(xf_engine *e, const char *device_uid);
+ * si todo OK, o un OSStatus/-1 si falla.
+ *
+ * `input_channel`/`output_channel`: primer canal (1-based) del PAR estereo a
+ * usar de cada lado del dispositivo -- p. ej. 3 = canales 3 y 4. `<= 0` =
+ * por defecto, canal 1 (el comportamiento de antes de que existiera esto).
+ * En una interfaz multicanal (Rane 72: 14 in / 10 out) el canal 1 casi nunca
+ * es el que lleva la senal que hace falta; sin esto el motor cogia siempre
+ * los dos primeros a ciegas. Aplica `kAudioOutputUnitProperty_ChannelMap`
+ * al arrancar (no en el callback RT: es preparacion del dispositivo, corre
+ * una vez en el hilo que llama a esta funcion). */
+int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel);
 
 /* NO RT-SAFE: como `xf_engine_start` pero **solo salida** (sin capturar la
  * entrada del dispositivo). Para practicar con la mesa desconectada: suena el
- * scratch y la base, y el ring de entrada queda en silencio. Devuelve 0 / -1. */
-int xf_engine_start_output(xf_engine *e, const char *device_uid);
+ * scratch y la base, y el ring de entrada queda en silencio. Devuelve 0 / -1.
+ * `output_channel`: ver `xf_engine_start`. */
+int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel);
 
 /* NO RT-SAFE: para y cierra la AudioUnit. */
 void xf_engine_stop(xf_engine *e);

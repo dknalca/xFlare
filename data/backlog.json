@@ -1457,6 +1457,14 @@
           "acceptance": "'haz ocho babies al metronomo'; la app mide velocidad de pico, brusquedad de inversiones, duracion tipica de trazo y regularidad, y PROPONE glide/puerta/friccion/sensibilidad, comparables en A/B (F.53)",
           "status": "todo",
           "note": "Convierte la pestana de tacto de una caja de sliders a ciegas en una medida. Encaja con el asistente de calibracion que ya existe: es un paso mas. Necesita F.53. Coste ~medio."
+        },
+        {
+          "id": "F.60",
+          "title": "Elegir la pareja de canales dentro de un dispositivo, como Ableton",
+          "module": "CXFAudioCore + XFApp",
+          "acceptance": "el motor y Ajustes permiten elegir el par estereo (no solo el dispositivo) de entrada y salida",
+          "status": "done",
+          "note": "Hecho (2026-09-04), motivado por B5.5/B1.2: con la Rane 72 real (14 in/10 out) el canal 1 casi nunca era el que hacia falta. xf_engine_start/xf_engine_start_output ganan input_channel/output_channel (kAudioOutputUnitProperty_ChannelMap al arrancar, no en el callback RT). AudioDeviceList gana ChannelPair/stereoPairs/pairLabel (funde nombres Left/Right). AppSettings guarda outputDeviceUID/outputChannel/inputDeviceUID/inputChannel. EngineHandle.preferred* + AppModel.applyAudioDevicePreferences sincroniza. SettingsView > Hardware tiene los selectores. 15 tests nuevos. Pendiente: el asistente de calibracion sigue con el picker viejo (es un stub sin motor real, B4.2)."
         }
       ]
     }

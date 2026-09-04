@@ -1092,6 +1092,47 @@ en manos de gente.*
 - [ ] **F.59** Tacto/UI: calibración del gesto (la app propone tus ajustes) `XFApp`
       - "Haz ocho babies al metrónomo": mide tu gesto y propone glide/puerta/
         fricción/sensibilidad, comparables en A/B (F.53).
+- [x] **F.60** Elegir la PAREJA de canales dentro de un dispositivo, como Ableton `CXFAudioCore` `XFApp`
+      - Motivado directamente por B5.5/B1.2 (2026-09-04): con la Rane 72 real
+        (14 in / 10 out) el canal 1 casi nunca era el que hacía falta — hubo
+        que barrer los 7 pares posibles a mano. El motor (`xf_engine.c`) y el
+        asistente de calibración siempre cogían los dos primeros de cada
+        lado, sin forma de elegir.
+      - Hecho (2026-09-04):
+        · `CXFAudioCore`: `xf_engine_start`/`xf_engine_start_output` ganan
+          `input_channel`/`output_channel` (1-based, `<= 0` = por defecto).
+          Aplican `kAudioOutputUnitProperty_ChannelMap` al arrancar (NO en el
+          callback RT — es preparación del dispositivo, una vez). Los dos
+          mapas tienen semántica y tamaño DISTINTOS (no es simétrico):
+          entrada = tamaño 2 (canales de la app), `chanMap[app] = dispositivo`;
+          salida = tamaño = canales del DISPOSITIVO, `chanMap[dispositivo] = app`
+          (`-1` = silencio ahí). Mismo patrón ya validado hoy en
+          `spike/b5-timecode/tcprobe.c --ch`.
+        · `AudioDeviceList` (XFApp): `ChannelPair` + `stereoPairs`/
+          `outputChannelPairs`/`inputChannelPairs` + `channelName` (consulta
+          `kAudioObjectPropertyElementName` por canal) + `pairLabel` (funde
+          "Analog 1 Left"/"Analog 1 Right" → "1-2 · Analog 1"; sin nombres o
+          si no encajan, solo el rango "3-4"). `pairLabel` es `internal` a
+          propósito para testearla directo, sin hardware.
+        · `AppSettings`: `outputDeviceUID`/`outputChannel`/`inputDeviceUID`/
+          `inputChannel` (persistidos, mismo patrón clave/valor que el resto).
+        · `EngineHandle`: `preferredOutputDeviceUID`/`preferredOutputChannel`/
+          `preferredInput*` — `start()`/`startOutput()` sin argumentos los
+          usan solos; un argumento explícito los pisa. `AppModel` los
+          sincroniza desde `settings` al construir y en cada cambio
+          (`applyAudioDevicePreferences`).
+        · `SettingsView` › Hardware: selector de dispositivo de
+          Salida/Entrada + selector de PAREJA estéreo debajo (solo si el
+          dispositivo tiene más de un par), con los nombres reales cuando la
+          mesa los da. Nota honesta: la entrada todavía no captura de verdad
+          (falta B4.2), esto deja el canal listo para cuando exista.
+      - 15 tests nuevos (5 `AudioDeviceLatencyTests` de F.48 + 5 `AudioDeviceListTests`
+        de parejas + los de compilación). Cambia el canal en Ajustes,
+        aplica al reiniciar la práctica (como el buffer).
+      - Pendiente, no bloquea: el paso 1 del asistente de calibración sigue
+        con el picker de dispositivo antiguo, sin parejas — es un stub sin
+        motor real detrás (B4.2) y duplicar ahí el selector es prematuro
+        hasta que el asistente haga algo de verdad.
 
 ---
 

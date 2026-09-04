@@ -573,6 +573,28 @@ static AudioDeviceID xf_engine_default_output_device(void) {
     return dev;
 }
 
+/* Numero de canales de un lado (entrada/salida) de `dev`: suma de
+ * `mNumberChannels` de cada `AudioBuffer` en `kAudioDevicePropertyStreamConfiguration`
+ * para ese scope. Mismo calculo que `device_channels` en
+ * spike/b5-timecode/tcprobe.c y `AudioDeviceList.channelCount` (Swift) --
+ * hace falta para no pedir un `--ch`/canal fuera de rango al montar el
+ * `ChannelMap`. */
+static UInt32 xf_engine_device_channel_count(AudioDeviceID dev, AudioObjectPropertyScope scope) {
+    AudioObjectPropertyAddress addr = {
+        kAudioDevicePropertyStreamConfiguration, scope, kAudioObjectPropertyElementMain
+    };
+    UInt32 size = 0;
+    if (AudioObjectGetPropertyDataSize(dev, &addr, 0, NULL, &size) != noErr || size == 0) return 0;
+    AudioBufferList *abl = (AudioBufferList *)malloc(size);
+    if (!abl) return 0;
+    UInt32 total = 0;
+    if (AudioObjectGetPropertyData(dev, &addr, 0, NULL, &size, abl) == noErr) {
+        for (UInt32 i = 0; i < abl->mNumberBuffers; i++) total += abl->mBuffers[i].mNumberChannels;
+    }
+    free(abl);
+    return total;
+}
+
 static AudioDeviceID xf_engine_device_by_uid(const char *uid) {
     if (!uid) return xf_engine_default_output_device();
     CFStringRef cf = CFStringCreateWithCString(NULL, uid, kCFStringEncodingUTF8);
@@ -588,7 +610,8 @@ static AudioDeviceID xf_engine_device_by_uid(const char *uid) {
     return dev != kAudioObjectUnknown ? dev : xf_engine_default_output_device();
 }
 
-static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_input) {
+static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_input,
+                                 int input_channel, int output_channel) {
     if (!e || e->au) return -1;
     e->capture_input = with_input ? 1 : 0;
 
@@ -653,6 +676,40 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
     AudioUnitSetProperty(unit, kAudioUnitProperty_StreamFormat,
                          kAudioUnitScope_Input, 0, &fmt, sizeof(fmt));
 
+    /* ChannelMap: sin esto, la AudioUnit coge por defecto los canales 1-2 de
+     * cada lado del dispositivo. En una interfaz multicanal (Rane 72: 14 in /
+     * 10 out) casi nunca es el par correcto (B5.5/B1.2, 2026-09-04: el
+     * timecode real estaba en "Analog 1", no en el canal que la mesa llama
+     * "Deck 1"; hay que poder elegir). Los dos mapas tienen semantica y
+     * tamano DISTINTOS -- no es simetrico:
+     *   - Entrada (Scope Input, elemento 1): tamano = canales de la app (2).
+     *     chanMap[canal de la app] = que canal del DISPOSITIVO lo alimenta.
+     *   - Salida (Scope Output, elemento 0): tamano = canales del
+     *     DISPOSITIVO. chanMap[canal del dispositivo] = que canal de la app
+     *     lo alimenta (-1 = silencio en ese canal del dispositivo). */
+    if (with_input && input_channel > 0) {
+        UInt32 inCount = xf_engine_device_channel_count(dev, kAudioObjectPropertyScopeInput);
+        if ((UInt32)input_channel + 1 <= inCount) {
+            SInt32 inMap[2] = { input_channel - 1, input_channel };
+            AudioUnitSetProperty(unit, kAudioOutputUnitProperty_ChannelMap,
+                                 kAudioUnitScope_Input, 1, inMap, sizeof(inMap));
+        }
+    }
+    if (output_channel > 0) {
+        UInt32 outCount = xf_engine_device_channel_count(dev, kAudioObjectPropertyScopeOutput);
+        if ((UInt32)output_channel + 1 <= outCount && outCount > 0) {
+            SInt32 *outMap = (SInt32 *)malloc(sizeof(SInt32) * outCount);
+            if (outMap) {
+                for (UInt32 i = 0; i < outCount; i++) outMap[i] = -1;
+                outMap[output_channel - 1] = 0;   /* L de la app -> este canal del dispositivo */
+                if (output_channel < (int)outCount) outMap[output_channel] = 1;  /* R */
+                AudioUnitSetProperty(unit, kAudioOutputUnitProperty_ChannelMap,
+                                     kAudioUnitScope_Output, 0, outMap, sizeof(SInt32) * outCount);
+                free(outMap);
+            }
+        }
+    }
+
     UInt32 slice = e->max_frames;
     AudioUnitSetProperty(unit, kAudioUnitProperty_MaximumFramesPerSlice,
                          kAudioUnitScope_Global, 0, &slice, sizeof(slice));
@@ -696,12 +753,12 @@ static int xf_engine_start_impl(xf_engine *e, const char *device_uid, int with_i
     return 0;
 }
 
-int xf_engine_start(xf_engine *e, const char *device_uid) {
-    return xf_engine_start_impl(e, device_uid, 1);
+int xf_engine_start(xf_engine *e, const char *device_uid, int input_channel, int output_channel) {
+    return xf_engine_start_impl(e, device_uid, 1, input_channel, output_channel);
 }
 
-int xf_engine_start_output(xf_engine *e, const char *device_uid) {
-    return xf_engine_start_impl(e, device_uid, 0);
+int xf_engine_start_output(xf_engine *e, const char *device_uid, int output_channel) {
+    return xf_engine_start_impl(e, device_uid, 0, 0, output_channel);
 }
 
 void xf_engine_stop(xf_engine *e) {

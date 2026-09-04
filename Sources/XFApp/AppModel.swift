@@ -52,10 +52,22 @@ public final class AppModel: ObservableObject {
         didSet {
             Self.persist(settings)
             rebuildMidiCommandMap()
+            applyAudioDevicePreferences()
             // pre-analiza las instrumentales nuevas para que carguen al instante.
             analysisCache.analyzeAll(settings.instrumentalLibrary,
                                      sampleRate: engine?.sampleRateHz ?? 48_000)
         }
+    }
+
+    /// Vuelca el dispositivo/canal elegidos en Ajustes › Hardware al motor
+    /// (`EngineHandle.preferred*`). Solo los guarda para el PRÓXIMO
+    /// `start()`/`startOutput()` — igual que el buffer, cambiar el
+    /// dispositivo o el canal no reinicia el motor en caliente.
+    private func applyAudioDevicePreferences() {
+        engine?.preferredOutputDeviceUID = settings.outputDeviceUID.isEmpty ? nil : settings.outputDeviceUID
+        engine?.preferredOutputChannel = settings.outputChannel
+        engine?.preferredInputDeviceUID = settings.inputDeviceUID.isEmpty ? nil : settings.inputDeviceUID
+        engine?.preferredInputChannel = settings.inputChannel
     }
 
     /// Caché de análisis de tempo de las instrumentales de la librería (fase 2).
@@ -103,6 +115,8 @@ public final class AppModel: ObservableObject {
         // `midiLearn.onLearn` lo cablea `SettingsView` mientras está en pantalla
         // (tiene que actualizar SU copia de los ajustes, no solo la de aquí).
         rebuildMidiCommandMap()
+        // el `didSet` de `settings` no salta en la asignación inicial de arriba.
+        applyAudioDevicePreferences()
     }
 
     // MARK: - MIDI de comandos
