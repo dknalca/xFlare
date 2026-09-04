@@ -136,9 +136,9 @@
           "id": "B1.7",
           "title": "Verificar driver de audio de la mesa en Monterey",
           "module": "-",
-          "status": "todo",
+          "status": "done",
           "acceptance": "la Rane 72 (MK1) enumera sus canales USB en Monterey",
-          "note": "bloqueada por hardware. Herramienta lista: spike/b1-latency/passthrough --list enumera cada dispositivo con canales in/out, sample rate y buffer. Basta enchufar la mesa y comprobar que aparece con sus canales USB."
+          "note": "Hecho 2026-09-04. spike/b1-latency/passthrough --list con la Rane 72 conectada por USB: 'Rane Seventy-Two Audio  14 in  10 out  48000 Hz  buf 512'. Duplex confirmado (in>0 y out>0) y ya a 48000 Hz -- no hace falta tocar Audio MIDI Setup. Driver de Monterey OK. Siguiente: Paso 2 de docs/HW_BRINGUP.md (B1.1/B1.6, passthrough 5 min a 64 frames)."
         }
       ]
     },

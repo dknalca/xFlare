@@ -68,7 +68,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 - [~] **B1.1** Prototipo desechable: CoreAudio passthrough a 64 frames `CXFAudioCore`
       - Criterio: suena sin cortes 5 min
-      - Estado: spike escrito en `spike/b1-latency/` (fuera de Package.swift, desechable). `passthrough.c` + `build.sh`, compila universal (x86_64+arm64). Una sola AudioUnit HAL dúplex sobre el mismo dispositivo, passthrough dentro del callback sin ring buffer (el ring buffer es B4). Cuenta overloads (listener `kAudioDeviceProcessorOverload`), render errors y jitter entre callbacks; imprime PASS/FAIL. Smoke test OK en `Built-in Output`: fija 64 frames, 0 overloads, gap 1,2–1,7 ms. **Falta la corrida real de 5 min con la Rane 72** (esta máquina no tiene dispositivo dúplex): `./passthrough --in-out "Rane" --frames 64 --seconds 300`, y anotar el resultado en `docs/TIMECODE.md` §4.1.
+      - Estado: spike escrito en `spike/b1-latency/` (fuera de Package.swift, desechable). `passthrough.c` + `build.sh`, compila universal (x86_64+arm64). Una sola AudioUnit HAL dúplex sobre el mismo dispositivo, passthrough dentro del callback sin ring buffer (el ring buffer es B4). Cuenta overloads (listener `kAudioDeviceProcessorOverload`), render errors y jitter entre callbacks; imprime PASS/FAIL. Smoke test OK en `Built-in Output`: fija 64 frames, 0 overloads, gap 1,2–1,7 ms.
+      - **(2026-09-04) Rane 72 conectada por USB** — enumera dúplex (14 in / 10 out, 48 kHz, ver B1.7). **Falta la corrida real de 5 min**: `./passthrough --in-out "Seventy-Two" --frames 64 --seconds 300`, y anotar el resultado en `docs/TIMECODE.md` §4.1. Necesita a alguien escuchando los 5 min (limpio o con cortes).
 - [~] **B1.2** Medir round-trip real por loopback en TU hardware `CXFAudioCore`
       - Criterio: numero medido y anotado en docs/TIMECODE.md
       - Estado: herramienta escrita: `tools/measure_latency.py` (+ `tools/requirements.txt` con numpy/sounddevice). Reproduce un chirp corto por la salida y graba la entrada a la vez (`sd.playrec`), saca el desfase por correlacion cruzada via FFT (solo numpy), repite N veces e imprime min/mediana/media/max + jitter + veredicto frente a la puerta de 10 ms + linea lista para pegar en `docs/TIMECODE.md` §4.2. `--list`, `--device`, `--fs`, `--frames`, `--reps`. Sintaxis verificada. **Falta correrlo**: necesita el venv de `tools/` y un loopback fisico (cable salida→entrada, o el retorno USB del master).
@@ -84,9 +85,17 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [~] **B1.6** Buffer adaptativo 64 -> 128 frames al detectar overloads (ADR-024) `CXFAudioCore`
       - Criterio: el Intel de 2015 aguanta 5 min sin cortes
       - Estado: logica escrita en el spike B1.1: flag `--adaptive`. Cuando se acumulan ≥3 overloads, el hilo main (no el RT) para la unit, sube el buffer del dispositivo a 128, reinicia contadores y arranca de nuevo; lo registra y el resumen distingue "PASS" de "PASS CON RESERVA" (solo aguanta a 128). **Falta la corrida real de 5 min en el Intel de 2015.**
-- [ ] **B1.7** Verificar driver de audio de la mesa en Monterey
+- [x] **B1.7** Verificar driver de audio de la mesa en Monterey
       - Criterio: la Rane 72 (MK1) enumera sus canales USB en Monterey
-      - Estado: bloqueada por hardware. Herramienta lista: `spike/b1-latency/passthrough --list` (y el de pilot) enumeran cada dispositivo con sus canales in/out, sample rate y buffer. Basta enchufar la mesa y mirar que la Rane 72 aparece con sus canales USB.
+      - **Hecho (2026-09-04):** `spike/b1-latency/passthrough --list` con la
+        Rane 72 conectada por USB:
+        ```
+        Rane Seventy-Two Audio   14 in  10 out  48000 Hz  buf 512
+        ```
+        **Dúplex confirmado** (in>0 y out>0) y ya a **48 000 Hz** — no hace
+        falta tocar Audio MIDI Setup (paso 1 del runbook). Driver de Monterey
+        OK. Siguiente: Paso 2 de `docs/HW_BRINGUP.md` (B1.1/B1.6 — passthrough
+        5 min a 64 frames), que necesita a alguien escuchando.
 
 
 ---
