@@ -866,8 +866,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         activa (`applyLoopRegion(0)` / `applyLoopRegion(nil)`).
       - **Aviso al cargar otra base**: se mutea la actual y sale un cartel
         "Cargando N…"; `instrLoadGen` descarta la carga si ya empezó otra.
-      - **Logo (ADR-070)**: subidas de tono las partes casi negras del icono y
-        del wordmark (se fundían con el tema oscuro).
+      - **Logo (ADR-070)**: subidas de tono las partes casi negras del icono;
+        `XFWordmark` rediseñado como miniatura del icono (se fundían con el
+        tema oscuro).
+      - **Rail del sample alineado con el teal**: la onda del rail iba en
+        `0…hh` y su inicio quedaba pegado al borde inferior, con un hueco
+        hasta la traza en reposo. Ahora usa el mismo mapeo que `traceY`
+        (`railY(fraction:)`): f=0 cae exacto en el reposo del teal. El sprite
+        va en un crop; la aguja no se recorta.
 
 ---
 

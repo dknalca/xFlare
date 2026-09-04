@@ -202,6 +202,13 @@ final class PracticeScene: SKScene {
     private var sampleSprite: SKSpriteNode?
     private let railAxis = SKShapeNode()
     private let sampleMarker = SKShapeNode()
+    // el sprite del sample va DENTRO de un crop clipado al alto de la autopista:
+    // ahora su extensión vertical se alinea con la traza (mismo `traceY`), y con
+    // amplitud > 2/3 el final del sample cae por encima de `hh` — el crop evita
+    // que asome sobre la tira de la instrumental. La AGUJA no se recorta (sigue
+    // al teal aunque se salga por arriba).
+    private let sampleCrop = SKCropNode()
+    private let sampleCropMask = SKSpriteNode(color: .white, size: CGSize(width: 1, height: 1))
 
     // MARK: - paleta (identica a HighwayScene / WaveformScene)
 
@@ -277,6 +284,9 @@ final class PracticeScene: SKScene {
             highwayContainer.addChild(n)
         }
         railContainer.addChild(railAxis)
+        sampleCrop.maskNode = sampleCropMask
+        sampleCrop.zPosition = -1
+        railContainer.addChild(sampleCrop)
         railContainer.addChild(sampleMarker)
 
         fpsLabel.fontSize = 10
@@ -323,7 +333,7 @@ final class PracticeScene: SKScene {
         // la imagen se renderiza horizontal (x = tiempo) y se gira 90º: el
         // inicio del sample queda abajo y el final arriba.
         s.zRotation = .pi / 2
-        railContainer.addChild(s)
+        sampleCrop.addChild(s)
         sampleSprite = s
     }
 
@@ -353,9 +363,13 @@ final class PracticeScene: SKScene {
 
         stripBG.path = CGPath(rect: CGRect(x: railWidth, y: hh, width: hw, height: stripHeight),
                               transform: nil)
-        // el rail = el sample ENTERO, toda la franja de la autopista (0…hh). El
-        // movimiento, dentro, llega solo hasta `amplitude` (por defecto 2/3).
+        // columna del rail: fondo a toda la franja (0…hh). La ONDA del sample,
+        // dentro, se alinea con la traza teal (ver `renderRail` / `railY`).
         railBG.path = CGPath(rect: CGRect(x: 0, y: 0, width: railWidth, height: hh), transform: nil)
+        // crop del sprite del sample: la columna del rail entera.
+        sampleCropMask.anchorPoint = CGPoint(x: 0, y: 0)
+        sampleCropMask.position = .zero
+        sampleCropMask.size = CGSize(width: railWidth, height: hh)
 
         // eje del rail: forma fija salvo al redimensionar (aquí, no cada frame)
         let ax = CGMutablePath()
@@ -859,15 +873,20 @@ final class PracticeScene: SKScene {
     // MARK: - rail del sample
 
     private func renderRail(_ frame: HighwayFrame?) {
-        // el rail = el SAMPLE ENTERO, toda la franja de la autopista (0…hh). El
-        // eje y la marca tienen forma FIJA (se crean en `layoutContainers`); aquí
-        // solo se mueve la aguja en Y y se recoloca el sprite si cambió de tamaño.
         let hh = highwayHeight
 
         if let s = sampleSprite {
-            let target = CGSize(width: hh, height: railWidth)
+            // La onda del rail comparte eje vertical con la traza teal: la
+            // fracción `f` del sample cae donde `traceY` sitúa el plato para esa
+            // fracción. Así el INICIO del sample (f=0) queda exactamente en la
+            // posición de reposo del teal. Antes el sprite llenaba 0…hh y el
+            // inicio quedaba pegado al borde inferior → hueco hasta el teal.
+            let y0 = railY(fraction: 0)
+            let y1 = railY(fraction: 1)
+            let lenY = max(1, y1 - y0)
+            let target = CGSize(width: lenY, height: railWidth)   // width = eje del tiempo (girado 90º)
             if s.size != target { s.size = target }
-            let pos = CGPoint(x: railWidth / 2, y: hh / 2)
+            let pos = CGPoint(x: railWidth / 2, y: (y0 + y1) / 2)
             if s.position != pos { s.position = pos }
         }
 
@@ -876,6 +895,20 @@ final class PracticeScene: SKScene {
         // pasa del final del sample. Si aun no hay traza, la del fantasma.
         let y = min(size.height, max(-4, railMarkerY(frame, fallback: hh / 2)))
         sampleMarker.position = CGPoint(x: 0, y: y)
+    }
+
+    /// Y en el rail para la fracción `f` (0…1) del sample, con el MISMO mapeo
+    /// que la traza (`traceY`): el pico del patrón cae en
+    /// `scratchPatternTopFraction` (2/3) del sample, así que la fracción `f`
+    /// corresponde al plato en `positionRange.lo + f · (1/topFraction) · span`.
+    /// f=0 → borde inferior de la banda (reposo del teal); f=1 → final del
+    /// sample (con amplitud 2/3, el borde superior de la banda).
+    private func railY(fraction f: CGFloat) -> CGFloat {
+        guard let layout else { return geometry.curveBand.bottom }
+        let lo = layout.positionRange.lowerBound
+        let span = layout.positionRange.upperBound - lo
+        let invTop = 1.0 / AudioAsset.scratchPatternTopFraction
+        return traceY(lo + Double(f) * invTop * span)
     }
 
     private func railMarkerY(_ frame: HighwayFrame?, fallback: CGFloat) -> CGFloat {
