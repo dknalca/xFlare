@@ -2856,6 +2856,24 @@ frames**: si el Intel de 2015 crepita, subir en Ajustes › Audio. Tests:
 verde. El resto del cuaderno del tacto (F.02, F.05–F.10, I.01–I.10) queda en
 FUTURIBLES.
 
+> **Iteración — F.44, modelo de posición (mismo día).** El trackpad deja de
+> usar el modelo de **impulso** (`scrollBy`: `velocity += Δx·ganancia`, un
+> volante que acumula momento) y pasa a **control de posición**: mientras tienes
+> los dedos en el cristal, `velocity = Δx/Δt · scrubGain · sensibilidad` — la
+> velocidad del plato ES la de tu mano. `PlatterInputView` distingue "mano
+> puesta" (`event.phase` .began/.changed/.stationary → `onScrub(puntos/s)`) de
+> "mano fuera" (.ended/.cancelled → `onScrubEnd`), sacando la velocidad del
+> `Δ event.timestamp` entre eventos (acotado a [1/240, 1/30] s). `PracticeSession`
+> gana `scrub(pointsPerSecond:)` / `endScrub()` / `scrubbing` (+ auto-soltado a
+> los 80 ms sin eventos, por si no llega el `.ended`) y `coastPlatter(step:)`
+> que **no aplica fricción mientras `scrubbing`**. Consecuencia clave: parar la
+> mano **sin levantarla** (`Δx≈0`) para el plato **en seco** — como sujetar el
+> vinilo —, algo que el modelo de impulso no podía. La rueda de ratón (sin
+> `phase`) sigue con `scrollBy` (impulso). `scrubGain` (0,02) y `coulombFriction`
+> (3,0) son `public var` con default sensato; la "Sensibilidad trackpad" y la
+> "Fricción" de Ajustes › Debug ya los modulan (sliders propios: follow-up).
+> Tests: `PracticeSessionTests` +4 → 698 en verde.
+
 ---
 
 ## Plantilla para nuevas entradas

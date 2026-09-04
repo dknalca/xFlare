@@ -478,6 +478,53 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertGreaterThan(abs(s.platterPosition - p0), 1e-6, "el scroll vuelve a mover el plato")
     }
 
+    // MARK: - F.44: scrub (control de posición del trackpad)
+
+    func testElScrubImponeLaVelocidadYNoLaAcumula() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.scrub(pointsPerSecond: 120)
+        let v1 = s.platterVelocity
+        XCTAssertGreaterThan(v1, 0, "el scrub fija una velocidad hacia adelante")
+        s.scrub(pointsPerSecond: 120)             // mismo gesto otra vez
+        XCTAssertEqual(s.platterVelocity, v1, accuracy: 1e-9,
+                       "impone, no acumula (a diferencia de scrollBy)")
+        s.scrollBy(120)
+        XCTAssertGreaterThan(s.platterVelocity, v1, "scrollBy (rueda) sí acumula")
+    }
+
+    func testMientrasScrubeasElPlatoNoFrena() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.scrub(pointsPerSecond: 60)
+        let v = s.platterVelocity
+        // varios fotogramas sin nuevo evento (el bucle de test corre en µs, muy
+        // por debajo del auto-soltado de 80 ms): la velocidad se mantiene.
+        for _ in 0..<5 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.platterVelocity, v, accuracy: 1e-9, "sujeta la velocidad de la mano")
+
+        // parar la mano SIN levantarla -> el plato se para en seco
+        s.scrub(pointsPerSecond: 0)
+        s.advance(by: 1.0 / 60.0)
+        XCTAssertEqual(s.platterVelocity, 0, "scrub(0) = sujetar el vinilo quieto")
+    }
+
+    func testAlSoltarElScrubVuelveLaFriccion() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.scrub(pointsPerSecond: 60)
+        s.endScrub()
+        let v0 = s.platterVelocity
+        for _ in 0..<30 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertLessThan(s.platterVelocity, v0, "sin dedos, la fricción frena")
+        for _ in 0..<120 { s.advance(by: 1.0 / 60.0) }
+        XCTAssertEqual(s.platterVelocity, 0, "y acaba parando del todo")
+    }
+
+    func testElScrubSeIgnoraSiLaMaquinaLlevaElDisco() throws {
+        let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
+        s.setAssist(.fader)                       // la máquina mueve el disco
+        s.scrub(pointsPerSecond: 200)
+        XCTAssertEqual(s.platterVelocity, 0, "en 'solo fader' el scrub no entra")
+    }
+
     // MARK: - F.08: rozamiento seco (Coulomb)
 
     func testElRozamientoSecoParaElPlatoEnFirme() throws {

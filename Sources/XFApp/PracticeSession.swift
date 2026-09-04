@@ -156,6 +156,12 @@ public final class PracticeSession: ObservableObject {
     private(set) var platterPosition: Double
     /// Velocidad del disco, unidades de posicion por segundo.
     private(set) var platterVelocity: Double = 0
+    /// F.44 — `true` mientras tienes los dedos en el trackpad y estas
+    /// "sujetando el disco": la velocidad del plato ES la de tu mano (`scrub`),
+    /// no un impulso acumulado, y `advance` NO le aplica friccion mientras dure.
+    /// Se suelta con `endScrub()` o solo si dejan de llegar eventos (~80 ms).
+    private var scrubbing = false
+    private var lastScrubAt: CFTimeInterval = 0
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -201,8 +207,14 @@ public final class PracticeSession: ObservableObject {
     /// Ganancia del scroll del trackpad: puntos de scroll -> unidades/s. El
     /// recorrido del plato es ~1,5x el span del patron; un gesto normal tiene
     /// que poder cubrirlo entero (hasta el final del sample) en las dos
-    /// direcciones. Subido de 0.26 a 0.40.
+    /// direcciones. Subido de 0.26 a 0.40. (Solo lo usa `scrollBy` — la rueda de
+    /// ratón —; el trackpad va por `scrub`.)
     private let scrollGain = 0.40
+    /// F.44 — ganancia del `scrub` del trackpad: velocidad de la mano (puntos/s)
+    /// -> velocidad del plato (unidades/s). Un gesto de scratch (~200-500
+    /// puntos/s) da ~4-10 unidades/s: recorre el patrón en una fracción de
+    /// segundo, como un scratch. `var` para afinarlo desde Ajustes › Debug.
+    public var scrubGain = 0.02
     /// Impulso de una pulsacion de A / D, en unidades/s.
     private let keyImpulse = 2.2
 
@@ -260,6 +272,7 @@ public final class PracticeSession: ObservableObject {
         self.posHi = range.lowerBound + patternSpan * 2.5
         self.platterPosition = range.lowerBound
         self.platterVelocity = 0
+        self.scrubbing = false
         self.traceBuffer.removeAll(keepingCapacity: true)
         onAdvance?(0, 0, currentTick)
     }
@@ -297,14 +310,16 @@ public final class PracticeSession: ObservableObject {
         let step = min(0.05, max(0, dt))   // acota saltos si el hilo se atasca
         guard step > 0 else { return }
 
+        // F.44 — si dejan de llegar eventos de `scrub` (~80 ms) la mano se ha
+        // levantado sin avisar (o hubo un salto de estado): vuelve la fisica de
+        // inercia + friccion desde la ultima velocidad de la mano.
+        if scrubbing, CACurrentMediaTime() - lastScrubAt > 0.08 { scrubbing = false }
+
         // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
         // plato sigue con su fisica y se sigue empujando el motor de audio ->
         // puedes scratchear el sample sobre la imagen quieta, sin dibujar.
         if frozen {
-            decayPlatterVelocity(step: step)
-            platterPosition += platterVelocity * step
-            if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
-            if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+            coastPlatter(step: step)
             recordFrame()
             onAdvance?(normalizedVelocity, normalizedPosition, currentTick)
             return
@@ -332,6 +347,7 @@ public final class PracticeSession: ObservableObject {
             crPhaseStart = currentTick
             if crPhase == .respond {
                 platterVelocity = 0        // empiezas con el plato quieto
+                scrubbing = false
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
@@ -364,10 +380,7 @@ public final class PracticeSession: ObservableObject {
                 platterVelocity = (g - platterPosition) / step
                 platterPosition = g
             } else {
-                decayPlatterVelocity(step: step)
-                platterPosition += platterVelocity * step
-                if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
-                if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+                coastPlatter(step: step)
             }
 
             // --- FADER ---
@@ -414,6 +427,16 @@ public final class PracticeSession: ObservableObject {
         else { platterVelocity = 0 }
     }
 
+    /// Física del plato al girar libre: frena por fricción (F.08) **salvo
+    /// mientras haces `scrub`** — con los dedos en el trackpad la velocidad la
+    /// sujeta tu mano (F.44) — luego integra la posición y aplica los topes.
+    private func coastPlatter(step: Double) {
+        if !scrubbing { decayPlatterVelocity(step: step) }
+        platterPosition += platterVelocity * step
+        if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
+        if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
+    }
+
     // MARK: - lo que lee la autopista (cada fotograma, hilo principal)
 
     private var cachedTick: Double = 0
@@ -450,6 +473,7 @@ public final class PracticeSession: ObservableObject {
         } else {
             crPhase = .off
             platterVelocity = 0
+            scrubbing = false
         }
     }
 
@@ -500,12 +524,30 @@ public final class PracticeSession: ObservableObject {
 
     // MARK: - entrada
 
-    /// Scroll horizontal del trackpad. `deltaX` en puntos (signo: + = adelante).
-    /// Se ignora si el disco lo lleva la máquina (`listen` o modo "solo fader").
+    /// Scroll de **rueda de ratón** (sin `phase`): modelo de impulso — cada
+    /// evento AÑADE momento. `deltaX` en puntos (+ = adelante). El trackpad usa
+    /// `scrub` (control de posición). Se ignora si el disco lo lleva la máquina.
     public func scrollBy(_ deltaX: Double) {
         guard !machineDrivesDisc else { return }
         platterVelocity += deltaX * scrollGain * scrollSensitivity
     }
+
+    /// F.44 — control de **posición**: mientras tienes los dedos en el trackpad,
+    /// la velocidad del plato ES la de tu mano. `pointsPerSecond` = velocidad
+    /// del gesto (la calcula la vista de `Δx/Δt`); se escala con la misma
+    /// ganancia y sensibilidad que `scrollBy`. Si paras la mano sin levantarla
+    /// (`pointsPerSecond == 0`) el plato se para EN SECO — como sujetar el
+    /// vinilo. Se ignora si el disco lo lleva la máquina.
+    public func scrub(pointsPerSecond p: Double) {
+        guard !machineDrivesDisc else { return }
+        platterVelocity = p * scrubGain * scrollSensitivity
+        scrubbing = true
+        lastScrubAt = CACurrentMediaTime()
+    }
+
+    /// Dedos fuera del trackpad: vuelve la inercia + fricción desde la última
+    /// velocidad de la mano.
+    public func endScrub() { scrubbing = false }
 
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).
     public func nudge(forward: Bool) {
@@ -711,6 +753,7 @@ public final class PracticeSession: ObservableObject {
     public func jumpToCue() {
         platterPosition = posLo
         platterVelocity = 0
+        scrubbing = false
         onAdvance?(0, 0, currentTick)
     }
 
@@ -722,6 +765,7 @@ public final class PracticeSession: ObservableObject {
         let rel = clamped / AudioAsset.scratchPatternTopFraction
         platterPosition = min(posHi, max(posLo, posLo + rel * patternSpan))
         platterVelocity = 0
+        scrubbing = false
         onAdvance?(0, clamped, currentTick)
     }
 
@@ -740,6 +784,7 @@ public final class PracticeSession: ObservableObject {
         cachedTickAt = -1
         traceBuffer.removeAll()
         platterVelocity = 0
+        scrubbing = false
         platterPosition = posLo
         if crPhase != .off { crPhase = .listen }
     }

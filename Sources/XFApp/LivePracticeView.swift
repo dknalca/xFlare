@@ -326,6 +326,11 @@ public struct LivePracticeView: View {
                             s.scrollBy(dx)
                             pushPlatterVelocity()   // F.01: al motor YA, no en el próximo tick
                         },
+                        onScrub: { v in            // F.44: trackpad = control de posición
+                            s.scrub(pointsPerSecond: v)
+                            pushPlatterVelocity()
+                        },
+                        onScrubEnd: { s.endScrub() },
                         onNudge: { fwd in
                             s.nudge(forward: fwd)
                             pushPlatterVelocity()

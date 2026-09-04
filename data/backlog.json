@@ -1335,8 +1335,8 @@
           "title": "Tacto: modelo de posicion en vez de impulso",
           "module": "XFApp",
           "acceptance": "con los dedos en el trackpad la velocidad del plato ES la de la mano (velocidad = dx/dt, sin acumular); al soltar (event.phase .ended) empieza la friccion",
-          "status": "todo",
-          "note": "scrollBy hace velocity += delta*ganancia: cada gesto ANADE momento a un volante. Una mano sobre un vinilo impone posicion, no anade momento. Usar event.phase como 'mano puesta/levantada'. Explica por que hubo que subir scrollGain 0,26->0,40 y bajar la friccion 2,5->1,8. Hacerlo cuando la latencia (F.43) ya este baja, para poder juzgarlo. Coste ~medio."
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-072 iter.). El trackpad pasa de modelo de IMPULSO (scrollBy: velocity += Dx*ganancia) a control de POSICION: PracticeSession.scrub(pointsPerSecond:) fija velocity = Dx/Dt * scrubGain * scrollSensitivity. PlatterInputView distingue mano puesta (event.phase .began/.changed/.stationary -> onScrub(puntos/s), sacando Dx/Dt de event.timestamp acotado a [1/240,1/30] s) de mano fuera (.ended/.cancelled -> onScrubEnd). PracticeSession gana scrub/endScrub/scrubbing (+ auto-soltado 80 ms) y coastPlatter(step:) que NO aplica friccion mientras scrubbing. Clave: parar la mano SIN levantarla (Dx~0) para el plato en seco, como sujetar el vinilo. La rueda de raton (sin phase) sigue con scrollBy (impulso). scrubGain=0.02 y coulombFriction=3.0 son public var con default sensato; Sensibilidad trackpad y Friccion de Ajustes>Debug ya los modulan. Tests: PracticeSessionTests +4. 698 en verde."
         },
         {
           "id": "F.45",

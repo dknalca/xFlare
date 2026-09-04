@@ -18,7 +18,12 @@ import AppKit
 /// - `Esc`      : salir
 struct PlatterInputView: NSViewRepresentable {
 
-    var onScroll: (Double) -> Void
+    var onScroll: (Double) -> Void       // rueda de ratón: impulso (puntos)
+    /// F.44 — trackpad con los dedos puestos: velocidad de la mano en **puntos/s**
+    /// (la vista la calcula de Δx/Δt). Control de posición, no de impulso.
+    var onScrub: (Double) -> Void = { _ in }
+    /// F.44 — dedos fuera del trackpad: vuelve la inercia + fricción.
+    var onScrubEnd: () -> Void = {}
     var onNudge: (Bool) -> Void          // true = adelante
     var onFaderClosed: (Bool) -> Void
     var onFreeze: () -> Void
@@ -47,6 +52,10 @@ struct PlatterInputView: NSViewRepresentable {
         @available(*, unavailable)
         required init?(coder: NSCoder) { nil }
 
+        /// F.44 — `timestamp` del último evento de scrub del trackpad, para sacar
+        /// la velocidad de la mano de `Δx/Δt`. `0` = no hay gesto en curso.
+        private var lastScrubStamp: TimeInterval = 0
+
         override var acceptsFirstResponder: Bool { true }
         override func becomeFirstResponder() -> Bool { true }
 
@@ -67,8 +76,30 @@ struct PlatterInputView: NSViewRepresentable {
             // se escapa hacia delante justo cuando quieres pararlo.
             if event.momentumPhase != [] { return }
 
-            // trackpad: deltas precisos; raton de rueda: paso grande escalado
-            let dx: CGFloat = event.hasPreciseScrollingDeltas
+            // F.44 — control de POSICION mientras los dedos estan en el trackpad.
+            // `phase` distingue "mano puesta" (.began/.changed/.stationary) de
+            // "mano fuera" (.ended/.cancelled). La velocidad del plato pasa a ser
+            // la de la mano (`Δx/Δt`), no un impulso acumulado: si paras la mano
+            // sin levantarla, el plato se para en seco.
+            if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
+                lastScrubStamp = 0
+                owner.onScrubEnd()
+                return
+            }
+            if event.phase.contains(.began) || event.phase.contains(.changed)
+                || event.phase.contains(.stationary) {
+                let stamp = event.timestamp
+                let dt = lastScrubStamp > 0 ? stamp - lastScrubStamp : 1.0 / 120.0
+                lastScrubStamp = stamp
+                // acota `dt` a [1/240, 1/30] s: un hueco largo entre eventos no
+                // debe traducirse en una velocidad ridiculamente pequena o enorme.
+                let d = min(1.0 / 30.0, max(1.0 / 240.0, dt))
+                owner.onScrub(Double(event.scrollingDeltaX) / d)   // puntos/s
+                return
+            }
+
+            // raton de RUEDA (sin `phase`): impulso clasico, paso grande escalado.
+            let dx = event.hasPreciseScrollingDeltas
                 ? event.scrollingDeltaX
                 : event.deltaX * 8
             if dx != 0 { owner.onScroll(Double(dx)) }

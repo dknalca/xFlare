@@ -975,10 +975,16 @@ en manos de gente.*
       - **F.08** `PracticeSession.decayPlatterVelocity` añade rozamiento seco de
         Coulomb (`coulombFriction`): el plato para **en firme**, no se arrastra.
       - Tests: `PracticeSessionTests` +1. 694 en verde.
-- [ ] **F.44** Tacto: modelo de posición en vez de impulso `XFApp`
-      - Con los dedos en el trackpad, `velocidad = dx/dt` (no acumular momento);
-        al soltar (`event.phase .ended`), fricción. Hacerlo cuando la latencia ya
-        esté baja, para poder juzgarlo.
+- [x] **F.44** Tacto: modelo de posición en vez de impulso `XFApp` (ADR-072 iter.)
+      - El trackpad pasa de impulso (`scrollBy`) a **control de posición**:
+        `PracticeSession.scrub(pointsPerSecond:)` fija `velocity = Δx/Δt ·
+        scrubGain · sensibilidad`. `PlatterInputView` distingue mano puesta
+        (`event.phase` .began/.changed/.stationary → `onScrub`, saca Δx/Δt de
+        `event.timestamp`) de mano fuera (.ended/.cancelled → `onScrubEnd`).
+      - `coastPlatter` no aplica fricción mientras `scrubbing` (+ auto-soltado a
+        los 80 ms). **Parar la mano sin levantarla → el plato se para en seco**,
+        como sujetar el vinilo. La rueda de ratón sigue con `scrollBy`.
+      - Tests: `PracticeSessionTests` +4. 698 en verde.
 - [ ] **F.45** Tacto: más cubos de ratio de resampling, techo > 8× `CXFAudioCore`
       - `XF_PLAYER_RATIOS` de 7 a ~24 log-espaciados hasta 16×. Coste RT cero,
         ~1,5 MB de tabla. Quita el escalón de brillo y el aliasing del scribble.
