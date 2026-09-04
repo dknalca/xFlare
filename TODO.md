@@ -723,6 +723,20 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - `xf_player_render` (RT): la vuelta del bucle de la base cambia `fmod` por
         sumas/restas (`|v|` <<< `frames`; resultado idéntico), una llamada a libm
         menos por muestra.
+- [x] **F.15** `XFTestKit`: fuentes falsas + señales sintéticas centralizadas (ADR-066)
+      - El módulo existía desde B0.1 con solo `Golden` y un marcador. Ahora
+        recoge lo reutilizable de test que no es de un módulo concreto:
+      - **`Signals`** — `sine` / `silence` / `quadratureTimecode` (deterministas;
+        misma fórmula que ya usaban los tests de timecode, hasta ahora duplicada
+        *verbatim* en `CXFTimecodeTests` y `XFCaptureTests`).
+      - **`FakeMotionSource` / `FakeFaderSource`** — implementaciones de mentira
+        de los protocolos de `XFCapture` (script o valor fijo, conteo de
+        `start()`/`stop()`, `startError`).
+      - **`RepoFiles`** — `root()` / `url(_:)` / `data(_:)` / `text(_:)` subiendo
+        desde `#filePath` hasta `Package.swift`.
+      - `Golden` estrena tests propios. `XFTestKitTests` nuevo (18). 656 en verde.
+      - Los `*Fixtures` de los módulos sellados **no** se migran (tests inmutables);
+        los nuevos tests y el trabajo pendiente de B6.7 / B8.5 ya usan esto.
 
 ---
 

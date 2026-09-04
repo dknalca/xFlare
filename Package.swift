@@ -90,10 +90,12 @@ let package = Package(
                           exclude: ["README.md"]),
 
         // ---------- utilidades de test ----------
-        .target(name: "XFTestKit",        dependencies: ["XFCapture", "XFNotation"],
+        .target(name: "XFTestKit",        dependencies: ["XFCapture", "XFNotation", "XFPrimitives"],
+                                          exclude: ["README.md"],
                                           resources: [.copy("Fixtures")]),
 
         // ---------- tests: uno por modulo ----------
+        .testTarget(name: "XFTestKitTests",     dependencies: ["XFTestKit", "XFCapture", "XFPrimitives"]),
         .testTarget(name: "CXFAudioCoreTests",  dependencies: ["CXFAudioCore"]),
         .testTarget(name: "XFPrimitivesTests",  dependencies: ["XFPrimitives"]),
         .testTarget(name: "CXFTimecodeTests",   dependencies: ["CXFTimecode", "XFTestKit"]),

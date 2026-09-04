@@ -1097,6 +1097,14 @@
           "acceptance": "el bucle a 60 fps y el sondeo a 20 Hz hacen menos trabajo; mismo comportamiento, 638 tests igual",
           "status": "done",
           "note": "Cerrado 2026-09-04 (ADR-065). Sin cambio de comportamiento. PracticeScene: SKLabelNode.text/isHidden solo se escriben si cambian (cambiar texto re-tesela el glifo); gridLines/gridLabels rellenan buffers reservados (0 malloc/frame); renderUserTrace trocea la traza en runs sin arrays intermedios (move/addLine sobre indices). PracticeSession: traceBuffer.reserveCapacity(512) + poda con removeFirst(k) en vez del predicado de removeAll(where:). ClipMeterView (nuevo): pico de salida + correccion de deriva del metronomo salen de LivePracticeView a su propia vista con su timer, el body grande no se re-evalua 20x/s salvo grabando. xf_player_render RT: fmod de la vuelta del bucle -> sumas/restas (|v| <<< frames), una llamada a libm menos por muestra. Tests: PracticeSceneTests exercita ahora tramos .miss."
+        },
+        {
+          "id": "F.15",
+          "title": "XFTestKit: fuentes falsas + senales sinteticas centralizadas",
+          "module": "XFTestKit",
+          "acceptance": "los tests que consumen captura no necesitan hardware ni duplicar el generador de timecode; Golden con tests propios",
+          "status": "done",
+          "note": "Cerrado 2026-09-04 (ADR-066). El modulo existia desde B0.1 con solo Golden + un marcador. Anadido: Signals (sine/silence/quadratureTimecode deterministas), FakeMotionSource/FakeFaderSource (implementaciones de mentira de los protocolos de XFCapture: script o valor fijo, conteo de start/stop, startError), RepoFiles (root/url/data/text subiendo desde #filePath hasta Package.swift). Golden estrena tests. XFTestKit gana dependencia de XFPrimitives + target XFTestKitTests (18). scaffoldingVersion sigue en 0 (smoke test de XFEngineTests, sellado). Los *Fixtures de modulos sellados no se migran (tests inmutables). 656 en verde."
         }
       ]
     }

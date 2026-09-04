@@ -66,7 +66,7 @@ modulo mas abajo, o el diseno esta mal.
 | `XFDesign` | Swift | Tokens de diseno y componentes SwiftUI reutilizables | — | logica de negocio |
 | `XFRender` | Swift | Escena SpriteKit: autopista, scope, fantasma. Dibuja un ViewModel y ya | XFDesign, XFNotation | leer hardware o BD |
 | `XFApp` | Swift | Pantallas SwiftUI, navegacion, ciclo de vida | todos | logica que deba testearse |
-| `XFTestKit` | Swift | Fixtures, fuentes falsas, helpers de golden tests | XFCapture, XFNotation | entrar en el binario final |
+| `XFTestKit` | Swift | Fixtures, fuentes falsas (`Fake*Source`), señales sintéticas (`Signals`), helpers de golden (`Golden`) y de repo (`RepoFiles`) | XFCapture, XFNotation, XFPrimitives | entrar en el binario final |
 
 ## 3. Los contratos de frontera
 

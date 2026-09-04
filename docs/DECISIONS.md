@@ -2452,6 +2452,48 @@ hardware (B4.5/B4.6), que son las que dirían cuánto se ha ganado de verdad.
 
 ---
 
+## ADR-066 — `XFTestKit` deja de ser andamiaje: fuentes falsas + señales sintéticas centralizadas
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** `XFTestKit` existía desde B0.1 pero solo tenía `Golden` (comparación
+de goldens, ADR-028) y un marcador de andamiaje. Su descripción prometía
+"fixtures, fuentes falsas, helpers de golden" y no estaban. Mientras tanto cada
+target de test se inventaba lo suyo: el generador de **timecode de cuadratura
+sintético** está duplicado *verbatim* en `CXFTimecodeTests` y `XFCaptureTests`, y
+el truco de `#filePath` → raíz del repo se reescribe en `AnalysisFixtures`,
+`RenderFixtures`, `XFNFixtures`… con un número fijo de `deletingLastPathComponent`.
+
+**Decisión.** `XFTestKit` recoge lo reutilizable de test que no es específico de
+un módulo:
+- **`Signals`** — `sine` / `silence` (PCM mono float) y `quadratureTimecode`
+  (estéreo int16; `carrierHz` = velocidad, `secondaryPhaseDeg` = sentido), con la
+  misma fórmula que ya usaban los tests de timecode.
+- **`FakeMotionSource` / `FakeFaderSource`** — implementaciones de mentira de los
+  protocolos de `XFCapture` (modo *script* o *valor fijo*, conteo de
+  `start()`/`stop()`, `startError`).
+- **`RepoFiles`** — `root()` / `url(_:)` / `data(_:)` / `text(_:)`; sube desde el
+  `#filePath` del que llama (expandido en el sitio de la llamada) hasta encontrar
+  `Package.swift`, en vez de contar carpetas.
+- **`Golden`** se queda como estaba y estrena tests propios.
+
+`XFTestKit` gana dependencia de `XFPrimitives` y un target `XFTestKitTests` (18).
+`scaffoldingVersion` **no se toca** (sigue en 0): lo asegura un smoke test de
+`XFEngineTests`, módulo sellado.
+
+**Alternativas descartadas.** Migrar ya `AnalysisFixtures` / `RenderFixtures` /
+`XFNFixtures` a `RepoFiles` — la mayoría son tests de módulos **sellados** y sus
+tests son inmutables; los nuevos tests (y el trabajo pendiente de `B6.7` / `B8.5`,
+que necesita fuentes falsas y `.xfsession`) ya lo usan, y los viejos se pueden
+migrar cuando toque abrir esos targets por otra razón. Un paquete de test
+aparte (los helpers son pequeños y encajan en el módulo que ya existe).
+
+**Consecuencias.** Los tests futuros que consuman captura no vuelven a necesitar
+hardware ni a duplicar el generador de timecode. `XFTestKit` no es sellable (no
+entra en el binario); su "estado" en `MODULE_STATUS.md` es **UTIL**.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
