@@ -155,33 +155,42 @@ escribir nada más**. Marca B1.3. Bloque B1 cerrado → se pueden borrar los
 
 ---
 
-### Paso 6 — B5.5 · sellar `CXFTimecode` con vinilo real
-
-El wrapper `xf_timecoder` (B5.2–B5.4) ya está y pasa sus tests con **señal
-sintética**. Falta el vinilo de verdad.
+### Paso 6 — B5.5 · sellar `CXFTimecode` con vinilo real (HECHO 2026-09-04)
 
 ```sh
 spike/b5-timecode/build.sh
 spike/b5-timecode/tcprobe --list
-spike/b5-timecode/tcprobe --in-out "Seventy-Two" --seconds 60 --def serato_2a
+spike/b5-timecode/tcprobe --in-out "Seventy-Two" --seconds 60 --def serato_2a --ch N
 ```
 
-Con el plato + vinilo de timecode sobre la Rane, deck enrutado a la entrada:
+**El canal no era el que asumía el perfil.** `timecode.deck1.ch = 3,4` no
+enganchaba, ni ningún otro de los 7 pares posibles (se barrieron todos:
+1-2 hasta 13-14) — el medidor de la mesa sí se movía con el plato, así que la
+señal llegaba pero no dábamos con el canal USB. Se resolvió preguntándole a la
+propia Rane 72 el nombre de cada canal por CoreAudio
+(`kAudioObjectPropertyElementName`, no hay flag para esto en `tcprobe`, es una
+consulta CoreAudio aparte) — reportó `1-2 Analog 1` `3-4 Analog 2` `5-6 Mix`
+`7-8 Deck 1` `9-10 Deck 2` `11-12 Session In` `13-14 Mic 1/2`. Contraintuitivo:
+el canal literalmente etiquetado **"Deck 1" (7-8) no llevaba la señal real**
+(un pico aislado de confianza, probablemente falso enganche); la señal real
+estaba en **"Analog 1" (1-2)**, confirmado también en Ableton Live. Si esto le
+pasa a otra mesa: `tcprobe --ch N` (nuevo) deja probar cualquier par sin
+recompilar; no te fíes del nombre que reporta el driver, compara contra el
+medidor físico de la mesa.
 
-- **Enganche / escala:** a 33⅓ estable, `vel` media ≈ **1.00** (a 45 rpm ≈ 1.35).
+Con el canal correcto (`--ch 1` en la Rane 72):
+
+- **Enganche / escala:** a 33⅓ estable, `vel` media ≈ **1.00** (a 45 rpm ≈ 1.35)
+  → confirmado, media 0.9999.
 - **Dirección / scratch:** al invertir el sentido, `vel` cambia de signo y `dir`
-  pasa a `REV`. `--reverse` (hamster) invierte el signo.
+  pasa a `REV`. `--reverse` (hamster) invierte el signo → confirmado.
 - **Dropout:** levanta la aguja → `conf` cae a ~0 y `vel` decae a 0 **sin
-  colgarse**; al bajarla, re-engancha.
-- `drops` debe ser 0; `render_err` 0.
+  colgarse** → confirmado (decae suave en ~1,5 s, `position` se congela).
+- `drops` debe ser 0; `render_err` 0 → confirmado en las tres corridas.
 
-El spike `spike/b5-timecode/` (`tcprobe`) hace justo esto: abre la entrada,
-convierte a int16, la pasa por `xf_timecoder` y muestra vel/pos/conf/dir en
-vivo. Compila a 2026-09-02.
-
-**Anota:** resultados en `docs/TIMECODE.md` (§3, que hoy dice "pendiente" y ya
-no lo está para B5.2–B5.4). `make seal M=CXFTimecode`, `README.md` del módulo,
-`docs/MODULE_STATUS.md` → SEALED. Marca B5.5.
+Resultados completos en `docs/TIMECODE.md` §3. `profiles/rane-seventy-two.conf`
+corregido. `make seal M=CXFTimecode` hecho, `README.md` del módulo y
+`docs/MODULE_STATUS.md` → SEALED. B5.5 marcada en `TODO.md`.
 
 ---
 

@@ -52,10 +52,43 @@ xwax. `create(def_name, sample_rate)` / `submit(pcm16 estéreo)` / `velocity()`
 recortado, o 1.0 si xwax engancha el bitstream. 7 tests con **señal de
 cuadratura sintética** (validan el modo relativo contra el contrato de xwax).
 
-**Pendiente (B5.5, necesita hardware):** pasar un **vinilo de timecode real** y
-comprobar enganche, escala de velocidad (33⅓ → ~1.0, 45 → ~1.35), dirección y
-recuperación de dropout con la aguja de verdad. Procedimiento en
-`docs/HW_BRINGUP.md` paso 6. Hasta entonces el módulo no se sella.
+**Hecho (B5.5, 2026-09-04, hardware real):** validado con la Rane 72 + vinilo
+Serato CV02 real (plato girando de verdad, no señal sintética), usando
+`spike/b5-timecode/tcprobe --def serato_2a`. Antes hubo que encontrar el canal
+correcto: el perfil asumía `timecode.deck1.ch = 3,4` sin verificar, y ni ese
+par ni ningún otro de los 7 posibles (barridos 1-2 hasta 13-14) enganchaban —
+el medidor de la propia mesa sí se movía, así que la señal llegaba a la Rane
+pero no dábamos con el canal USB correcto. Se resolvió consultando los
+**nombres de canal que la propia Rane 72 reporta por CoreAudio**
+(`kAudioObjectPropertyElementName`): `1-2 Analog 1` `3-4 Analog 2` `5-6 Mix`
+`7-8 Deck 1` `9-10 Deck 2` `11-12 Session In` `13-14 Mic 1/Mic 2`. Contra toda
+lógica, el canal etiquetado **"Deck 1" (7-8) NO lleva la señal real** del
+deck 1 (solo dio un pico aislado de confianza, probablemente un falso
+enganche); la señal real está en **"Analog 1" (canales 1-2)**, confirmado
+también de forma independiente abriendo el dispositivo en Ableton Live. Con el
+canal correcto:
+- **Enganche + escala:** 60 s a 33⅓ estable → `vel` media **0.9999**
+  (min 0.9967, max 1.0033), `conf` sostenida 0.92–1.00 todo el minuto,
+  `engancho bitstream: SI`.
+- **Dirección:** al scratchear, `vel` cambia de signo en cada pasada
+  (hasta ±1.8-2.0 en movimientos rápidos) y `dir` pasa a `REV` en
+  sincronía, sin perder confianza (se mantuvo en 1.00 durante todo el
+  scratch).
+- **Dropout:** al levantar la aguja, `conf` decae suavemente
+  1.00 → 0.61 → 0.26 → 0.11 → 0.05 → 0.02 → 0.01 → 0.00 en ~1,5 s y `vel`
+  cae a 0; `position` se queda congelada (no deriva ni se corrompe)
+  **sin colgarse**. No se capturó el re-enganche al bajar la aguja de nuevo
+  dentro de la ventana de la prueba (se acabó el tiempo), pero el
+  comportamiento hasta ahí es exactamente el esperado.
+- `drops` = 0, `render_err` = 0 en las tres corridas (60 s + 60 s + 30 s).
+
+**Corrección de perfil:** `profiles/rane-seventy-two.conf` →
+`timecode.deck1.ch = 1,2` (confirmado). `deck2.ch` sigue **sin verificar**
+(no se probó el segundo plato), pero por el mismo patrón ("Analog N" ≠ la
+etiqueta "Deck N") la hipótesis de partida para cuando se pruebe es
+`3,4` ("Analog 2"), no `5,6` como decía antes.
+
+Módulo **SEALED** (`make seal M=CXFTimecode`).
 
 ## 4. Latencia y estabilidad del stream (bloque B1)
 

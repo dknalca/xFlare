@@ -1,6 +1,6 @@
 # CXFTimecode
 
-**Capa 0 · C · depende de CXFAudioCore · WIP (falta validar con vinilo real)**
+**Capa 0 · C · depende de CXFAudioCore · SEALED (2026-09-04)**
 
 Leer el vinilo de timecode. xwax vendorizado **intacto** + un wrapper propio en
 **modo relativo** (ADR-004/005): sólo velocidad y dirección, nunca posición
@@ -58,9 +58,22 @@ void   xf_timecoder_reset_position(xf_timecoder *);
 
 7 tests.
 
-## Pendiente (bloquea B5.5 / sellado)
+- **B5.5** validado con vinilo Serato CV02 **real** sobre la Rane 72
+  (`spike/b5-timecode/tcprobe`, no señal sintética): 60 s a 33⅓ estable → `vel`
+  media 0.9999 (min 0.9967, max 1.0033), `conf` sostenida 0.92–1.00, enganche
+  de bitstream. Dirección: el scratch invierte el signo de `vel` en sincronía
+  con `dir`, sin perder confianza. Dropout: al levantar la aguja, `conf` decae
+  suavemente a 0 en ~1,5 s y `vel` cae a 0, `position` se congela sin
+  corromperse ni colgar el proceso. `drops` = 0, `render_err` = 0 en las tres
+  corridas. Detalle completo, incluida la búsqueda del canal correcto (el
+  perfil asumía uno equivocado), en `docs/TIMECODE.md` §3.
 
-Los tests usan **señales sintéticas** de cuadratura, que validan el modo relativo
-contra el contrato de xwax. Antes de congelar el módulo hay que pasar **un vinilo
-de timecode real** (Serato / Traktor) por un interface de audio y comprobar
-enganche, escala de velocidad y recuperación de dropout con la aguja de verdad.
+## Nota para quien reutilice el spike en otro sitio
+
+El vinilo real llegó por el canal de entrada **"Analog 1"** de la Rane 72, no
+por el canal que la propia mesa etiqueta **"Deck 1"** en CoreAudio — esa
+etiqueta resultó no llevar la señal real (solo daba un pico aislado de
+confianza). Si otra mesa se comporta igual, no confíes en el nombre de canal
+que reporta el driver: compara contra el medidor de la mesa y prueba varios
+pares. `spike/b5-timecode/tcprobe --ch N` deja elegir qué par probar sin
+recompilar.

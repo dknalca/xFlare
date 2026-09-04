@@ -221,19 +221,23 @@ static OSStatus input_cb(void *ref, AudioUnitRenderActionFlags *flags,
 
 /* ------------------------------------------------------------------ */
 static void usage(const char *p) {
-    printf("uso: %s [--list] [--in-out <substr>] [--seconds N] [--def NOMBRE] [--reverse] [--hz N]\n", p);
+    printf("uso: %s [--list] [--in-out <substr>] [--seconds N] [--def NOMBRE] [--reverse] [--hz N] [--ch N]\n", p);
     printf("  --list            enumera dispositivos y sale\n");
     printf("  --in-out <substr> dispositivo cuya ENTRADA lleva el timecode\n");
     printf("  --seconds N       duracion (por defecto 60)\n");
     printf("  --def NOMBRE      definicion de timecode: serato_2a (def.), serato_cd, traktor_a, mixvibes_v2...\n");
     printf("  --reverse         hamster: invierte el sentido\n");
     printf("  --hz N            lineas por segundo en pantalla (por defecto 10)\n");
+    printf("  --ch N            primer canal de ENTRADA del dispositivo a leer (1-based, por defecto 1;\n");
+    printf("                    lee N y N+1 en estereo). Util cuando no sabes en que par de canales\n");
+    printf("                    llega el deck -- prueba 1, luego 3, etc. (profiles/*.conf lo declara\n");
+    printf("                    sin verificar, ver docs/DEVICE_PROFILES.md).\n");
 }
 
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IOLBF, 0);
     const char *pick = NULL, *defname = "serato_2a";
-    int seconds = 60, hz = 10;
+    int seconds = 60, hz = 10, firstChannel = 1;
     bool reverse = false;
 
     for (int i = 1; i < argc; i++) {
@@ -243,9 +247,11 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--def") && i + 1 < argc) defname = argv[++i];
         else if (!strcmp(argv[i], "--reverse")) reverse = true;
         else if (!strcmp(argv[i], "--hz") && i + 1 < argc) hz = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "--ch") && i + 1 < argc) firstChannel = atoi(argv[++i]);
         else { usage(argv[0]); return strcmp(argv[i], "--help") == 0 ? 0 : 2; }
     }
     if (hz < 1) hz = 1; if (hz > 100) hz = 100;
+    if (firstChannel < 1) firstChannel = 1;
 
     /* --- dispositivo --- */
     AudioDeviceID dev = 0;
@@ -273,6 +279,11 @@ int main(int argc, char **argv) {
     double sr = device_sample_rate(dev);
     printf("\n  dispositivo: \"%s\"   canales de entrada=%u   sr=%.0f Hz\n", dname, ci, sr);
     if (ci < 2) { fprintf(stderr, "  necesita >= 2 canales de entrada (timecode es estereo en cuadratura).\n"); return 1; }
+    if ((UInt32)firstChannel + 1 > ci) {
+        fprintf(stderr, "  --ch %d pide los canales %d y %d, pero el dispositivo solo tiene %u de entrada.\n",
+                firstChannel, firstChannel, firstChannel + 1, ci);
+        return 1;
+    }
     if (sr <= 0) sr = 48000.0;
 
     /* --- wrapper de timecode --- */
@@ -314,6 +325,17 @@ int main(int argc, char **argv) {
     fmt.mBytesPerPacket   = 4;
     CHECK(AudioUnitSetProperty(g_unit, kAudioUnitProperty_StreamFormat,
           kAudioUnitScope_Output, 1, &fmt, sizeof(fmt)), "StreamFormat entrada");
+
+    /* Sin esto, la HAL AudioUnit coge por defecto los canales 1-2 del
+     * dispositivo. La mesa tiene 14 de entrada (varios decks + retornos) y
+     * el perfil (profiles/rane-seventy-two.conf) declara el par del deck 1
+     * SIN VERIFICAR contra hardware real -- --ch deja elegir el par a leer
+     * en vez de adivinar. Va DESPUES del StreamFormat: el tamano del array
+     * tiene que casar con los 2 canales que acabamos de pedir. */
+    printf("  leyendo canales de entrada %d y %d (--ch para cambiar)\n", firstChannel, firstChannel + 1);
+    SInt32 chanMap[2] = { firstChannel - 1, firstChannel };   /* 0-based */
+    CHECK(AudioUnitSetProperty(g_unit, kAudioOutputUnitProperty_ChannelMap,
+          kAudioUnitScope_Input, 1, chanMap, sizeof(chanMap)), "ChannelMap entrada");
 
     CHECK(AudioUnitSetProperty(g_unit, kAudioUnitProperty_MaximumFramesPerSlice,
           kAudioUnitScope_Global, 0, &g_max_frames, sizeof(g_max_frames)), "MaxFramesPerSlice");

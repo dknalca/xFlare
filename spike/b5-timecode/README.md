@@ -35,6 +35,12 @@ de control), se la pasa a `xf_timecoder` y enseña en vivo lo que decodifica.
   `traktor_a`, `mixvibes_v2`… (las que trae xwax). Usa la del vinilo que tengas.
 - `--reverse` — hamster: invierte el sentido.
 - `--hz N` — líneas por segundo en pantalla (10 por defecto).
+- `--ch N` — primer canal de ENTRADA a leer (1-based; lee N y N+1 en estéreo).
+  Por defecto 1 (canales 1-2). La Rane 72 tiene 14 canales de entrada (varios
+  decks + retornos) y `profiles/rane-seventy-two.conf` declara el par del
+  deck 1 **sin verificar** (`timecode.deck1.ch = 3,4`, una suposición). Si con
+  `--ch 1` no engancha, prueba `--ch 3`, `--ch 5`, etc. hasta encontrar el par
+  correcto, y anota el que funcione en el perfil.
 
 **Permiso de micrófono:** la primera vez macOS lo pide **para la Terminal**. Si
 no lo concedes, `callbacks` se queda en 0 y el resumen te lo dice.
