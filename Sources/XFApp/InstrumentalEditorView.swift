@@ -52,6 +52,8 @@ struct InstrumentalEditorView: View {
     @State private var zoom: Double = 1
     @State private var viewStart: Double = 0
     @State private var panAnchor: Double? = nil
+    /// Cue que se está arrastrando y su `atSeconds` al empezar el arrastre.
+    @State private var cueDrag: (id: UUID, start: Double)? = nil
 
     private let sr = 48_000.0
     private let clock = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
@@ -194,15 +196,29 @@ struct InstrumentalEditorView: View {
                     }
                 }
 
-                // cues
-                ForEach(cues) { c in
-                    VStack(spacing: 1) {
-                        Text(c.name).font(XFFont.mono(8)).foregroundColor(Color(hex: 0xF5C542))
-                            .fixedSize()
-                        Rectangle().fill(Color(hex: 0xF5C542)).frame(width: 1.5)
-                    }
-                    .frame(height: h, alignment: .top)
-                    .offset(x: x(c.atSeconds, w) - 1)
+                // cues: la LÍNEA cae exactamente en `atSeconds`; la etiqueta va a
+                // su derecha. Se arrastran con el ratón (zona de agarre ancha).
+                ForEach($cues) { $c in
+                    let cx = x(c.atSeconds, w)
+                    Rectangle().fill(Color(hex: 0xF5C542)).frame(width: 1.5, height: h)
+                        .offset(x: cx - 0.75)
+                    Text(c.name).font(XFFont.mono(8)).foregroundColor(Color(hex: 0xF5C542))
+                        .fixedSize().padding(.horizontal, 2)
+                        .background(RoundedRectangle(cornerRadius: 2).fill(XFColor.bg.opacity(0.7)))
+                        .offset(x: cx + 3, y: 2)
+                    // agarre para arrastrar
+                    Rectangle().fill(Color.white.opacity(0.001)).frame(width: 16, height: h)
+                        .offset(x: cx - 8)
+                        .highPriorityGesture(DragGesture(minimumDistance: 1)
+                            .onChanged { g in
+                                if cueDrag?.id != c.id { cueDrag = (c.id, c.atSeconds) }
+                                let d = Double(g.translation.width / max(1, w)) * visibleFrac * durationSeconds
+                                $c.wrappedValue.atSeconds = min(durationSeconds, max(0, (cueDrag?.start ?? c.atSeconds) + d))
+                            }
+                            .onEnded { _ in
+                                cueDrag = nil
+                                cues.sort { $0.atSeconds < $1.atSeconds }
+                            })
                 }
 
                 // cabezal
@@ -293,7 +309,7 @@ struct InstrumentalEditorView: View {
                 Divider().frame(height: 18)
                 chip("◀") { downbeat = max(0, downbeat - 0.01) }
                 chip("▶") { downbeat += 0.01 }
-                Button("fijar el 1 aquí") { downbeat = headSeconds.truncatingRemainder(dividingBy: max(0.001, barSeconds)) }
+                Button("fijar el 1 aquí") { downbeat = exactHeadSeconds.truncatingRemainder(dividingBy: max(0.001, barSeconds)) }
                     .buttonStyle(.plain).font(XFFont.body(10)).foregroundColor(XFColor.accent)
             }
             HStack(spacing: XFSpacing.sm) {
@@ -381,13 +397,13 @@ struct InstrumentalEditorView: View {
                     Text("inicio").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
                     chip("◀") { nudge(r, startBy: -0.1) }
                     chip("▶") { nudge(r, startBy: 0.1) }
-                    chip("↦") { r.wrappedValue.startSeconds = headSeconds; clampLoop(r); reapplyLoop() }
+                    chip("↦") { r.wrappedValue.startSeconds = exactHeadSeconds; clampLoop(r); reapplyLoop() }
                     Text(timeLabel(r.wrappedValue.startSeconds)).font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
                 }
                 Spacer()
                 HStack(spacing: 4) {
                     Text(timeLabel(r.wrappedValue.endSeconds)).font(XFFont.mono(9)).foregroundColor(XFColor.textMuted)
-                    chip("↤") { r.wrappedValue.endSeconds = headSeconds; clampLoop(r); reapplyLoop() }
+                    chip("↤") { r.wrappedValue.endSeconds = exactHeadSeconds; clampLoop(r); reapplyLoop() }
                     chip("◀") { nudge(r, endBy: -0.1) }
                     chip("▶") { nudge(r, endBy: 0.1) }
                     Text("fin").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
@@ -481,14 +497,25 @@ struct InstrumentalEditorView: View {
         engine?.seekInstrumental(fraction: f)
     }
 
+    /// Instante EXACTO del cabezal ahora mismo: si suena, se lee directo del
+    /// motor (block-accurate) en vez del `headFraction` que va a 30 Hz y va
+    /// medio frame por detrás — así el cue cae justo en la línea de play.
+    private var exactHeadSeconds: Double {
+        if playing, let p = engine?.instrumentalProgress, p >= 0 {
+            return p * durationSeconds
+        }
+        return headSeconds
+    }
+
     private func addCue() {
-        let n = cues.count + 1
-        cues.append(.init(name: "Cue \(n)", atSeconds: headSeconds))
+        let at = exactHeadSeconds
+        headFraction = at / max(0.001, durationSeconds)   // clava la línea ahí
+        cues.append(.init(name: "Cue \(cues.count + 1)", atSeconds: at))
         cues.sort { $0.atSeconds < $1.atSeconds }
     }
 
     private func addLoop() {
-        let start = headSeconds
+        let start = exactHeadSeconds
         let end = min(durationSeconds, start + 4 * barSeconds)
         let r = InstrumentalEdit.LoopRegion(name: "Loop \(loops.count + 1)",
                                             startSeconds: start, endSeconds: end)

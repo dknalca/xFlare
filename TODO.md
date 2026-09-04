@@ -810,6 +810,17 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         (global / sample / instrumental); `SettingsView.midiTab` con cabecera por
         grupo.
       - Tests: `PracticeCommandMidiTests` +2. 669 en verde.
+- [x] **F.20** Editor: cue exacto en el cabezal + cues arrastrables
+      - Feedback del autor (2026-09-04):
+      - La **línea** del marcador de cue iba centrada bajo su etiqueta (VStack) →
+        se veía descuadrada. Ahora la línea se pinta en la X exacta de
+        `atSeconds` y la etiqueta va a su derecha.
+      - `addCue`/`addLoop` usan `exactHeadSeconds` (posición del cabezal leída
+        directa del motor, no el `headFraction` a 30 Hz).
+      - Cada cue se **arrastra con el ratón**: zona de agarre de 16 px con un
+        `DragGesture` de prioridad alta que mueve `atSeconds` (mapeado por la
+        ventana visible / zoom); al soltar se re-ordenan.
+      - 669 en verde.
 
 ---
 

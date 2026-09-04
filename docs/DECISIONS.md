@@ -2592,6 +2592,17 @@ el "1".
 > - **Ajustes › MIDI por categorías**: `PracticeCommand.Category`
 >   (`global` / `sample` / `instrumental`); `SettingsView.midiTab` pinta cada
 >   grupo con su cabecera en vez de una lista plana.
+>
+> **Iteración 3 (2026-09-04).**
+> - **El cue caía descentrado**: la línea del marcador iba centrada bajo su
+>   etiqueta (VStack). Ahora la **línea** se pinta en la X exacta de `atSeconds`
+>   y la etiqueta va a su derecha.
+> - **Cue exacto al añadir**: `addCue`/`addLoop` usan `exactHeadSeconds` (posición
+>   del cabezal leída **directa del motor**, no el `headFraction` a 30 Hz que va
+>   medio frame por detrás).
+> - **Cues arrastrables**: cada cue tiene una zona de agarre de 16 px con un
+>   `DragGesture` de prioridad alta que mueve su `atSeconds` (mapeado por la
+>   ventana visible / zoom); al soltar se re-ordenan.
 
 ---
 
