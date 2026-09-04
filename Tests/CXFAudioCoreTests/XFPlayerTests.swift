@@ -20,11 +20,22 @@ final class XFPlayerTests: XCTestCase {
         return (0..<n).map { amp * Float(sin(w * Double($0))) }
     }
 
-    /// Renderiza `nframes` a velocidad constante `v`.
+    /// Renderiza `nframes` a velocidad constante `v` (F.46: `xf_player_render`
+    /// toma inicio/fin de rampa; velocidad constante = mismo valor en los dos).
     private func render(_ p: OpaquePointer, nframes: Int, v: Double) -> [Float] {
         var out = [Float](repeating: 0, count: nframes)
         out.withUnsafeMutableBufferPointer {
-            xf_player_render(p, $0.baseAddress, Int32(nframes), v)
+            xf_player_render(p, $0.baseAddress, Int32(nframes), v, v)
+        }
+        return out
+    }
+
+    /// Renderiza `nframes` con la velocidad OBJETIVO en rampa lineal de
+    /// `vStart` a `vEnd` a lo largo del bloque (F.46).
+    private func renderRamp(_ p: OpaquePointer, nframes: Int, vStart: Double, vEnd: Double) -> [Float] {
+        var out = [Float](repeating: 0, count: nframes)
+        out.withUnsafeMutableBufferPointer {
+            xf_player_render(p, $0.baseAddress, Int32(nframes), vStart, vEnd)
         }
         return out
     }
@@ -144,6 +155,57 @@ final class XFPlayerTests: XCTestCase {
             xf_player_set_glide_ms(p, 0)
             let out = Array(render(p, nframes: 8192, v: 12.0)[256...])
             XCTAssertLessThan(goertzel(out, hz: 12_000), 0.01, "sin alias en 12 kHz")
+        }
+    }
+
+    // MARK: - rampa de velocidad dentro del bloque (F.46)
+
+    func testLaVelocidadObjetivoVaEnRampaNoEnEscalon() {
+        // Con glide=0 la velocidad REAL sigue exactamente a la OBJETIVO en
+        // cada muestra (sin suavizado): asi el avance del cabezal mide
+        // directamente que objetivo vio cada muestra.
+        //   - constante a V todo el bloque -> avanza V * nframes
+        //   - rampa de 0 a V             -> avanza ~V * nframes / 2 (media de
+        //     una progresion aritmetica 0..V)
+        let src = [Float](repeating: 0, count: 200_000)   // silencio: solo importa el cabezal
+        let nframes = 1000
+        let v = 10.0
+
+        let constant = src.withUnsafeBufferPointer { buf -> Double in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            _ = render(p, nframes: nframes, v: v)
+            return xf_player_playhead(p)
+        }
+        let ramped = src.withUnsafeBufferPointer { buf -> Double in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            _ = renderRamp(p, nframes: nframes, vStart: 0, vEnd: v)
+            return xf_player_playhead(p)
+        }
+
+        XCTAssertEqual(constant, v * Double(nframes), accuracy: 1.0,
+                       "velocidad constante: el cabezal avanza v*nframes, como antes")
+        XCTAssertEqual(ramped, v * Double(nframes) / 2.0, accuracy: 1.0,
+                       "rampa 0->v: el cabezal avanza la MEDIA de la rampa, no v*nframes")
+        XCTAssertLessThan(ramped, constant * 0.6,
+                          "la rampa no le plantea al player un escalon a v desde la muestra 0")
+    }
+
+    func testVelocidadConstanteEnLaRampaEsIgualQueAntes() {
+        // start == end (F.44/F.01 ya mandan velocidad estable la mayor parte
+        // del tiempo entre gestos): la rampa colapsa al comportamiento viejo.
+        let src = sine(1000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            let a = renderRamp(p, nframes: 4096, vStart: 1.0, vEnd: 1.0)
+            let body = Array(a[64...])
+            let ref = Array(src[64..<(64 + body.count)])
+            XCTAssertEqual(rms(body), rms(ref), accuracy: 0.01)
         }
     }
 

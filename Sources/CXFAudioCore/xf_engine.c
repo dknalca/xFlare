@@ -40,6 +40,11 @@ struct xf_engine {
 
     /* control desde Swift (atomico) */
     _Atomic double  target_velocity;
+    /* F.46 — el `target_velocity` del bloque ANTERIOR (solo lo toca el hilo
+     * RT): con el se arma la rampa lineal del bloque actual
+     * (`prev_target_velocity` -> `target_velocity`) que se le pasa a
+     * `xf_player_render`, en vez de plantarle un escalon constante. */
+    double          prev_target_velocity;
     _Atomic double  bpm;
     _Atomic int     playing;      /* 0/1 */
     _Atomic double  master_gain;  /* guardado como double para simplificar */
@@ -129,6 +134,7 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     atomic_store(&e->instr_ratio, 1.0);
     atomic_store(&e->instr_gain, 0.5);
     atomic_store(&e->target_velocity, 0.0);
+    e->prev_target_velocity = 0.0;
     atomic_store(&e->bpm, 120.0);
     atomic_store(&e->playing, 0);
     atomic_store(&e->master_gain, 1.0);
@@ -408,7 +414,14 @@ void xf_engine_render(xf_engine *e,
          * (barrido "laser" al perseguir los escalones de 60 Hz del objetivo).
          * `< 0` suelta el ancla. */
         xf_player_set_target_playhead(p, atomic_load(&e->scratch_target));
-        xf_player_render(p, e->mono, nframes, vel);
+        /* F.46 — rampa de `prev_target_velocity` (lo que se le paso al bloque
+         * ANTERIOR) a `vel` (lo que Swift pide AHORA): el player ya no ve un
+         * escalon de golpe en cada frontera de bloque, sino un objetivo que se
+         * mueve solo dentro del bloque. Con F.01/F.44 Swift ya empuja `vel` a
+         * ritmo de evento (no de bloque), asi que esta rampa interpola entre
+         * valores que de verdad representan el gesto, no un valor viejo. */
+        xf_player_render(p, e->mono, nframes, e->prev_target_velocity, vel);
+        e->prev_target_velocity = vel;
     } else {
         memset(e->mono, 0, (size_t)nframes * sizeof(float));
     }
@@ -438,7 +451,10 @@ void xf_engine_render(xf_engine *e,
     if (ip && playing) {
         const double iratio = atomic_load(&e->instr_ratio);
         const float  igain  = (float)atomic_load(&e->instr_gain);
-        xf_player_render(ip, e->mono2, nframes, iratio);
+        /* la base NO scratchea: su ratio de tempo-lock cambia poco a poco, no
+         * de gesto en gesto, asi que no le hace falta la rampa de F.46 (start
+         * == end = velocidad constante para el bloque, como antes). */
+        xf_player_render(ip, e->mono2, nframes, iratio, iratio);
         for (int n = 0; n < nframes; n++) e->mono[n] += e->mono2[n] * igain;
     }
 

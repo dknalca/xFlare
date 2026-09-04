@@ -992,9 +992,17 @@ en manos de gente.*
         que se pasaba de 8×. Coste RT igual (misma búsqueda acotada); la tabla
         (~1,5 MB) se calcula una vez al crear el player.
       - Test: `testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x` (v=12). 699 en verde.
-- [ ] **F.46** Tacto: rampa de velocidad dentro del bloque de audio `CXFAudioCore`
-      - Interpolar `target_velocity` del bloque anterior al actual en vez de
-        perseguir un escalón con un one-pole. El glide puede bajar sin meter clicks.
+- [x] **F.46** Tacto: rampa de velocidad dentro del bloque de audio `CXFAudioCore` (ADR-072 iter.)
+      - `xf_player_render` pasa de una velocidad objetivo CONSTANTE por bloque a
+        `(target_velocity_start, target_velocity_end)` interpolados en **rampa
+        lineal** muestra a muestra (`start == end` = igual que antes). Con
+        buffers grandes ya no hay un escalón que perseguir en cada frontera.
+      - `xf_engine` guarda `prev_target_velocity` (solo hilo RT) y arma la rampa
+        en el reproductor de scratch; la base instrumental sigue a velocidad
+        constante (no scratchea). Con F.01/F.44 el objetivo ya llega a ritmo de
+        evento, así que la rampa interpola valores que representan la mano.
+      - Coste RT: cero (un `double` más por muestra).
+      - Tests: `XFPlayerTests` +2. 701 en verde.
 - [ ] **F.47** Tacto: puerta de velocidad con forma, no con rampa `CXFAudioCore`
       - Coseno alzado + umbral 0,12→0,04 + bloqueador de DC aguas abajo. Cada
         inversión de sentido cruza la puerta hoy y deja una muesca con esquinas.

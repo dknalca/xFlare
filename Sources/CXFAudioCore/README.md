@@ -53,7 +53,8 @@ typedef struct xf_player xf_player;   /* opaco */
 
 xf_player *xf_player_create(const float *sample, int64_t frames, unsigned int sr); /* NO RT-SAFE */
 void   xf_player_destroy(xf_player *p);                                            /* NO RT-SAFE */
-void   xf_player_render(xf_player *p, float *out, int nframes, double target_v);   /* RT-SAFE */
+void   xf_player_render(xf_player *p, float *out, int nframes,
+                        double target_v_start, double target_v_end);              /* RT-SAFE, rampa lineal (F.46) */
 double xf_player_playhead(const xf_player *p);                                     /* RT-SAFE */
 void   xf_player_set_playhead(xf_player *p, double frame);
 void   xf_player_set_target_playhead(xf_player *p, double frame);                  /* RT-SAFE — ancla/trim (ADR-042) */

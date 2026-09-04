@@ -41,12 +41,18 @@ xf_player *xf_player_create(const float *sample, int64_t frames, unsigned int sa
 /* NO RT-SAFE: libera. */
 void xf_player_destroy(xf_player *p);
 
-/* RT-SAFE: escribe `nframes` muestras **mono** en `out` leyendo el sample a
- * `target_velocity` (1.0 = normal, 0 = parado, negativo = hacia atras). La
- * velocidad real se desliza hacia `target_velocity` con la constante de
- * `xf_player_set_glide_ms` para no meter clicks al cambiarla de golpe. El cabezal
- * se satura a los extremos del sample (no hace loop). */
-void xf_player_render(xf_player *p, float *out, int nframes, double target_velocity);
+/* RT-SAFE: escribe `nframes` muestras **mono** en `out` leyendo el sample.
+ * (1.0 = normal, 0 = parado, negativo = hacia atras). La velocidad OBJETIVO no
+ * es constante dentro del bloque: va de `target_velocity_start` (primera
+ * muestra) a `target_velocity_end` (ultima) en RAMPA LINEAL (F.46) — asi un
+ * bloque grande (varios ms) no le impone al player un escalon que perseguir,
+ * sino un objetivo que ya se mueve solo. Para velocidad constante, pasa el
+ * mismo valor en los dos (`start == end`). La velocidad REAL se sigue
+ * deslizando hacia ese objetivo (ya movil) con la constante de
+ * `xf_player_set_glide_ms`, para no meter clicks. El cabezal se satura a los
+ * extremos del sample (no hace loop). */
+void xf_player_render(xf_player *p, float *out, int nframes,
+                      double target_velocity_start, double target_velocity_end);
 
 /* RT-SAFE: posicion actual del cabezal, en frames fraccionarios. */
 double xf_player_playhead(const xf_player *p);

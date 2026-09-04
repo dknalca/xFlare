@@ -2891,6 +2891,35 @@ FUTURIBLES.
 > `testAliasingSuprimidoPorEncimaDelTechoAntiguoDe8x` (v=12, fuera del rango
 > viejo) → 699 en verde.
 
+> **Iteración — F.46, rampa de velocidad dentro del bloque (mismo día).**
+> `xf_player_render` dejaba tomar una velocidad OBJETIVO **constante para todo
+> el bloque**: con buffers grandes (128 frames = 2,7 ms, pero hasta 2048 =
+> 42 ms si el usuario lo sube en Ajustes) el player veía un **escalón** en cada
+> frontera de bloque y el one-pole del glide lo perseguía con su curva
+> característica cada vez — un patrón que se repite cada bloque, distinto de
+> una mano moviéndose con continuidad.
+>
+> Ahora `xf_player_render(p, out, nframes, target_velocity_start,
+> target_velocity_end)` interpola el objetivo **linealmente muestra a
+> muestra** dentro del bloque (`target_step = (end - start) / (nframes - 1)`);
+> con `start == end` (velocidad estable) es exactamente el comportamiento de
+> antes. `xf_engine` guarda `prev_target_velocity` (`double`, sin atómico —
+> solo lo toca el hilo RT, como `tick`) y arma la rampa
+> `prev_target_velocity → target_velocity` en cada bloque del reproductor de
+> **scratch**; la base instrumental sigue con velocidad constante
+> (`iratio, iratio`) porque su ratio de tempo-lock no scratchea, cambia poco a
+> poco por su cuenta. Con F.01/F.44, `target_velocity` ya se actualiza a ritmo
+> de evento del gesto (no de bloque), así que la rampa interpola entre valores
+> que de verdad representan la mano, no un valor viejo re-mandado.
+>
+> Coste RT: **cero** — un `double` más por muestra (`target_velocity +=
+> target_step`), mismo bucle. Sin cambios de comportamiento cuando la
+> velocidad no cambia entre bloques (el caso normal en reposo). Tests:
+> `testLaVelocidadObjetivoVaEnRampaNoEnEscalon` (con `glide_ms=0`, el avance
+> del cabezal en una rampa 0→V mide la mitad que a velocidad constante V — la
+> media de una progresión aritmética) y
+> `testVelocidadConstanteEnLaRampaEsIgualQueAntes` → 701 en verde.
+
 ---
 
 ## Plantilla para nuevas entradas

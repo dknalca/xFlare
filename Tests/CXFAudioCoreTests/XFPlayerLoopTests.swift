@@ -13,10 +13,12 @@ final class XFPlayerLoopTests: XCTestCase {
         return (0..<frames).map { amp * Float(sin(w * Double($0))) }
     }
 
+    /// Velocidad CONSTANTE (F.46: `xf_player_render` ahora toma inicio/fin de
+    /// rampa; para estos tests da igual, se pasa el mismo valor en los dos).
     private func render(_ p: OpaquePointer, nframes: Int, v: Double) -> [Float] {
         var out = [Float](repeating: 0, count: nframes)
         out.withUnsafeMutableBufferPointer {
-            xf_player_render(p, $0.baseAddress, Int32(nframes), v)
+            xf_player_render(p, $0.baseAddress, Int32(nframes), v, v)
         }
         return out
     }

@@ -219,12 +219,26 @@ static inline int xf_player_ratio_index(double r) {
 }
 
 /* RT-SAFE */
-void xf_player_render(xf_player *p, float *out, int nframes, double target_velocity) {
+void xf_player_render(xf_player *p, float *out, int nframes,
+                      double target_velocity_start, double target_velocity_end) {
     if (!p || !out || nframes <= 0) return;
 
     const float *src   = p->sample;
     const int64_t last = p->frames - 1;
     const double  coef = p->glide_coef;
+
+    /* F.46 — el objetivo va en RAMPA LINEAL de `_start` (muestra 0) a `_end`
+     * (ultima muestra) en vez de ser constante todo el bloque: con un bloque
+     * grande (varios ms, p.ej. a 512 o 1024 frames) el player ya no persigue
+     * un escalon que salta de golpe en cada frontera de bloque, sino un
+     * objetivo que se mueve solo, muestra a muestra. `target_step` es el
+     * incremento por muestra; con `nframes == 1` no hay paso (usa `_start`).
+     * Velocidad constante: pasa el mismo valor en `_start` y `_end`, y
+     * `target_step` sale 0 -> identico al comportamiento de antes. */
+    const double target_step = nframes > 1
+        ? (target_velocity_end - target_velocity_start) / (double)(nframes - 1)
+        : 0.0;
+    double target_velocity = target_velocity_start;
 
     /* Region de bucle, leida UNA vez por bloque (un `set_loop_region` a mitad no
      * tiene efecto hasta el siguiente bloque). Se SANEA aqui: aunque el hilo
@@ -239,9 +253,10 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
     const int64_t rspan = rhi - rlo;   /* >= 1, y [rlo, rhi) dentro de [0, frames) */
 
     for (int n = 0; n < nframes; n++) {
-        /* 1) velocidad libre: se desliza hacia el objetivo de Swift. Se mantiene
-         *    al dia aunque haya ancla de posicion, para que SOLTAR el ancla no
-         *    meta un salto de velocidad. */
+        /* 1) velocidad libre: se desliza hacia el objetivo (que ya se mueve
+         *    solo dentro del bloque, paso 7 / F.46), no hacia un escalon fijo.
+         *    Se mantiene al dia aunque haya ancla de posicion, para que SOLTAR
+         *    el ancla no meta un salto de velocidad. */
         p->velocity += (target_velocity - p->velocity) * coef;
         /* flush a cero: el one-pole nunca llega a 0 del todo y una velocidad
          *    denormal dispara el modo denormal de la FPU (~100x mas lento en
@@ -346,5 +361,9 @@ void xf_player_render(xf_player *p, float *out, int nframes, double target_veloc
             if (p->playhead < 0.0) p->playhead = 0.0;
             if (p->playhead > (double)last) p->playhead = (double)last;
         }
+
+        /* 7) avanza el objetivo un paso de la rampa (F.46), para la muestra
+         *    siguiente. Al final del bloque `target_velocity == _end` exacto. */
+        target_velocity += target_step;
     }
 }
