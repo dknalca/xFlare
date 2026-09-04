@@ -1169,6 +1169,158 @@
           "acceptance": "hay tres modos (las dos / solo mano / solo fader); en 'solo mano' la maquina corta el fader clavado al patron y tu mueves el disco; en 'solo fader' al reves; es independiente del 'repite conmigo'; mapeable a MIDI",
           "status": "done",
           "note": "Cerrado 2026-09-04 (ADR-071). Asi se ensena un flare: separando las manos. PracticeSession.AssistMode (both / hand / fader). La maquina lleva la capa que sueltas, muestreada de la misma curva del patron que la escucha (ghostPosition / ghostFaderOpen en advance). Ortogonal al call & response: machineDrivesDisc / machineDrivesFader = crPhase == .listen || (assist correspondiente); en 'listen' la maquina lleva las dos pase lo que pase. setFaderClosed (input) se ignora si la maquina lleva el fader; rutas internas por applyFaderClosed privado. scrollBy / nudge se ignoran si la maquina lleva el disco (misma guarda que ya tenia la escucha). setAssist resetea la capa cedida (velocidad a 0, fader abierto). UI: seccion 'Manos' en el rail derecho de la practica (RightSection.hands, tambien en Freestyle), tres botones; insignia ambar en la barra superior mientras el modo no es both; comando MIDI assist_cycle (categoria global, recorre los tres) cableado en handleCommand. Casi toda la fontaneria ya estaba: el fantasma del call & response ya movia las dos capas. Tests: PracticeSessionTests +7, PracticeCommandMidiTests +1. 693 en verde."
+        },
+        {
+          "id": "F.24",
+          "title": "Cinturon de clicks: micro-timing en vivo bajo la autopista",
+          "module": "XFApp",
+          "acceptance": "una tira fina bajo la autopista compara tus cierres de fader con los del patron; segmento cuya altura es el desfase en ms, verde dentro de tolerancia / ambar fuera",
+          "status": "todo",
+          "note": "Se puede YA, sin esperar a B4.2: los clicks objetivo salen de PositionSampler.faderState y los tuyos de las transiciones de PracticeSession.faderClosed. Tipo puro LiveClickBelt + vista con Timer propio (como ClipMeterView). Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~medio."
+        },
+        {
+          "id": "F.25",
+          "title": "El fantasma puede ser tu mejor toma (o una importada)",
+          "module": "XFApp + XFPersistence (lectura)",
+          "acceptance": "selector de fuente del fantasma: patron ideal / tu mejor toma 3 estrellas / toma importada; es una referencia, no una marca que batir (anti-gamificacion)",
+          "status": "todo",
+          "note": "loadPlayback ya reproduce un .xfsession; la escena ya pinta dos capas. Falta un modo ghostSource .curve en PracticeScene y persistir el blob de la mejor toma (fichero suelto en App Support = sin ADR; columna en XFPersistence = con ADR). Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~medio."
+        },
+        {
+          "id": "F.26",
+          "title": "Zoom en la autopista",
+          "module": "XFApp",
+          "acceptance": "Cmd+/Cmd-/pellizco escalan HighwayGeometry.pixelsPerBeat; la rejilla adapta lo que etiqueta (negra -> corchea -> semicorchea) segun el zoom; no toca reloj ni audio",
+          "status": "todo",
+          "note": "pixelsPerBeat es un public var que ya se fija desde fuera (XFRender no se toca). gridLines/gridLabels ya reciben ppq: se les anade subdivTicks. Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~una tarde larga."
+        },
+        {
+          "id": "F.27",
+          "title": "El scope Lissajous, cableado",
+          "module": "XFApp",
+          "acceptance": "ScopeView aparece en el rail derecho de la practica y grande en 'Mi mesa', alimentado por un buffer de ScopeReading (de session.onAdvance sin mesa; del xf_timecoder con mesa)",
+          "status": "todo",
+          "note": "ScopeLayout + ScopeScene + ScopeView estan TERMINADOS y SELLADOS en XFRender desde septiembre y no se usan en ninguna pantalla. Es instanciarlos. Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~una tarde."
+        },
+        {
+          "id": "F.28",
+          "title": "Histograma polar del compas (pantalla de resultados)",
+          "module": "XFApp",
+          "acceptance": "un circulo = un compas; cada click un punto en su angulo (fase dentro del compas), radio = desviacion ms; lectura automatica 'tiendes a descuadrar el tiempo N'",
+          "status": "todo",
+          "note": "El dato ya esta en Report.clickOffsets (targetTick + offsetMs). Tipo puro BarPhaseHistogram + vista CoreGraphics/SKScene (macOS 11 no tiene Canvas). Va debajo de la grafica lineal de desfases, que se queda (responden a preguntas distintas). Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~medio."
+        },
+        {
+          "id": "F.29",
+          "title": "Paleta de comandos (Cmd+K)",
+          "module": "XFApp",
+          "acceptance": "Cmd+K abre un overlay: escribes 'flare' y saltas al truco, 'buffer' y al ajuste, el nombre de una instrumental y se carga; recorrible entero con teclado",
+          "status": "todo",
+          "note": "macOS 11 no tiene .searchable pero no hace falta: ZStack overlay + NSEvent.addLocalMonitorForEvents + filtro por subsecuencia sobre las listas de AppModel. CommandPaletteModel testeable. Sin dependencias nuevas. Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~medio."
+        },
+        {
+          "id": "F.30",
+          "title": "'Como se toca esto', animado (ficha del truco)",
+          "module": "XFApp + data/ (schema)",
+          "acceptance": "en la ficha de cada truco, un reproductor que ejecuta el patron al 25-50% con avisos sincronizados ('aqui sueltas', 'el giro empieza antes que el corte'); campo coaching:[{atTick,text}] en el JSON del truco",
+          "status": "todo",
+          "note": "Reutiliza PracticeScene en modo demo (fantasma on, traza off, reloj propio lento). Convierte docs/NOTATION.md (que solo lee quien programa) en algo que se ve. El mismo player sirve para onboarding. Plan detallado en el artefacto de specs de interfaz (problema en el codigo real, pasos, aceptacion, pruebas). Todo en XFApp, ningun modulo sellado. Coste ~medio."
+        },
+        {
+          "id": "F.31",
+          "title": "Freestyle -> patron",
+          "module": "XFApp + XFNotation (lectura)",
+          "acceptance": "un boton en Freestyle convierte la ultima linea grabada en un patron practicable: cuantiza extremos de la curva y bordes del fader a la rejilla, genera el XFN y lo mete en la libreria con nombre",
+          "status": "todo",
+          "note": "Cierra el circulo crear<->entrenar. Ya hay el .xfsession con movimiento+fader y XFNotation.compose; falta el cuantizador. Coste ~alto."
+        },
+        {
+          "id": "F.32",
+          "title": "Doctor de senal: chequeo pre-vuelo de 5 s",
+          "module": "XFApp + CXFTimecode",
+          "acceptance": "antes de una sesion: forma del Lissajous, SNR, tasa de dropout del bitstream, deriva del cut-in; veredicto en cristiano ('la aguja del plato B esta sucia', 'tu fader tiene 4 ms de zona muerta', 'el canal derecho llega 3 dB flojo')",
+          "status": "todo",
+          "note": "Convierte docs/HW_BRINGUP.md (runbook de un solo dia) en funcion permanente. Evita la peor experiencia: una sesion entera puntuando mal por pelusa en la aguja. Necesita mesa. Coste ~medio."
+        },
+        {
+          "id": "F.33",
+          "title": "Calibracion automatica del cut-in point",
+          "module": "XFApp + XFCapture",
+          "acceptance": "moviendo el fader despacio con un tono piloto, audio_return mide donde empieza y deja de sonar; de ahi el cut-in y la forma de la curva, guardados en la tabla de calibracion por dispositivo",
+          "status": "todo",
+          "note": "La tabla de calibracion por dispositivo YA existe en XFPersistence (sellado, con migracion): es rellenarla con un dato medido en vez de uno declarado en el .conf. Sin esto cada mesa (y cada curva) puntua distinto sin que el usuario lo sepa. Necesita mesa. Coste ~medio."
+        },
+        {
+          "id": "F.34",
+          "title": "Salida multicanal: el metronomo al cue, la musica al master",
+          "module": "CXFAudioCore",
+          "acceptance": "canales 1-2 al master, 3-4 al cue (o dispositivo agregado); el metronomo va SOLO al cue y no aparece en la mezcla ni en el video exportado",
+          "status": "todo",
+          "note": "Como trabaja un DJ: el clic en el auricular, no en la mezcla. Hoy el metronomo suena encima de la instrumental para todos, incluida la grabacion y el .mp4. Arregla el video exportado gratis. Coste ~alto."
+        },
+        {
+          "id": "F.35",
+          "title": "Packs .xfpack",
+          "module": "XFApp",
+          "acceptance": "un paquete con instrumental + samples + patrones + los *-edits.json que los acompanan (rejilla/cues/loops/recortes); se comparte por AirDrop o USB y se importa entero",
+          "status": "todo",
+          "note": "Comunidad sin servidor (principio de soberania: 'funciona en un avion'). Resuelve el copyright de samples: distribuyes formato + rutinas, no contenido. Coste ~medio."
+        },
+        {
+          "id": "F.36",
+          "title": "Reloj MIDI, de entrada y de salida",
+          "module": "XFCapture + CXFAudioCore",
+          "acceptance": "la rejilla de xFlare puede seguir a un reloj MIDI externo (SP-404, Ableton, caja de ritmos) o mandarlo; practicas sobre tu beat en marcha sin cargar fichero",
+          "status": "todo",
+          "note": "Cero dependencias nuevas: CoreMIDI ya esta y los timestamps comparten dominio de reloj con CoreAudio (la parte dificil, ya resuelta por diseno). Convierte xFlare en ciudadano del setup. Coste ~medio."
+        },
+        {
+          "id": "F.37",
+          "title": "Un solo reloj",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "PracticeSession deja de integrar tiempo: lee el tick del motor 1x/frame; se elimina el Timer de pared y xf_engine_set_metronome_drift",
+          "status": "todo",
+          "note": "Hoy hay dos relojes (e->tick del cristal de audio para el metronomo, PracticeSession.currentTick timer de pared para la rejilla) con una correccion de deriva continua 20x/s. La alternativa mata una clase entera de bugs de fase ('no se por que el clic se ha ido un pelin'). ADR de calado + frontera C<->Swift. La simplificacion estructural mas grande que le queda al proyecto. Coste ~alto."
+        },
+        {
+          "id": "F.38",
+          "title": "El fantasma no cambia de forma: solo se desplaza",
+          "module": "XFApp",
+          "acceptance": "la curva del fantasma se construye una vez (2 periodos, para cubrir la ventana visible) y cada frame solo se mueve en X, en vez de reconstruir la geometria 60x/s",
+          "status": "todo",
+          "note": "El patron es periodico: su trazo es constante. Mismo truco ya aplicado a las lineas de rejilla y las marcas de click en la pasada de optimizacion (ADR-065), llevado a lo caro de verdad. Presupuesto de frame que se libera en el MacBook 2015. Coste ~una tarde."
+        },
+        {
+          "id": "F.39",
+          "title": "Dejar de rotar el PCM de la instrumental",
+          "module": "XFApp + CXFAudioCore",
+          "acceptance": "loadInstrumental no hace Array(pcm[phi...])+Array(pcm[..<phi]); el desfase del '1' se pone en el reproductor (xf_player_set_playhead / loop_start); instrDownbeatSec y loopFraction desaparecen",
+          "status": "todo",
+          "note": "Hoy se copia el fichero entero en cada carga (~57 MB en una pista de 5 min) y toda la aritmetica posterior necesita instrDownbeatSec para deshacer la rotacion (pintado de la tira, saltos de cue, regiones de loop). Ahorra la copia, la carga va al doble, menos codigo. La deuda ya muerde: instrDownbeatSec nacio en F.22. Coste ~medio."
+        },
+        {
+          "id": "F.40",
+          "title": "Piramide de picos en disco (el .asd de xFlare)",
+          "module": "XFApp",
+          "acceptance": "al analizar una instrumental por primera vez se calcula UNA piramide multi-resolucion de picos (min/max por bloque, niveles a la mitad) junto a instrumental-analysis.json; cualquier zoom del editor es instantaneo y no vuelve a tocar el PCM",
+          "status": "todo",
+          "note": "Hoy la onda se recalcula al cargar y otra vez al hacer zoom en un editor (por eso el zoom necesito un renderGen para descartar renders obsoletos: tratar el sintoma). Es lo que hacen Ableton y Serato. Coste ~medio."
+        },
+        {
+          "id": "F.41",
+          "title": "SIMD en la convolucion + denormales apagadas de raiz",
+          "module": "CXFAudioCore",
+          "acceptance": "los 32 taps del sinc son 8 simd_float4 con multiplicacion-y-suma fusionada; FTZ/DAZ se activan una vez al arrancar el hilo de audio (MXCSR en Intel, FPCR en Apple Silicon) en vez de aplanar la velocidad denormal a mano",
+          "status": "todo",
+          "note": "simd/simd.h de Apple compila igual en x86_64 y arm64: no se tocan intrinsecos SSE, ADR-028 contento. FTZ/DAZ deja de ser un parche en el sitio donde aparecio el problema y pasa a ser propiedad del hilo: aqui no hay denormales. Coste ~medio."
+        },
+        {
+          "id": "F.42",
+          "title": "Puntuar lo que se OYE: cut-in point + restar la latencia",
+          "module": "XFAnalysis + XFProfiles (lectura)",
+          "acceptance": "el evento de click que se empareja es el cruce del cut-in point (no la posicion mecanica del fader); el Report resta la latencia round-trip medida en B1",
+          "status": "todo",
+          "note": "El click audible ocurre donde el fader cruza el umbral en que empieza a pasar sonido, no donde llega el dedo. Y se oye ~10 ms despues de lo que se hace: sin restar la latencia medida todos salen 'tarde' por igual y el diagnostico da consejos falsos con confianza. La unica de las 20 que, si falta, hace falso el resto del producto. Mejor pensada y escrita ANTES de la primera sesion con hardware. Coste ~medio."
         }
       ]
     }

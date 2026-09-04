@@ -890,6 +890,77 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         movía las dos capas.
       - Tests: `PracticeSessionTests` +7, `PracticeCommandMidiTests` +1. 693 en verde.
 
+### FUT — del cuaderno de 20 ideas (2026-09-04)
+
+*Cada una es una sugerencia razonada; el plan detallado de F.24–F.30 está en
+el artefacto de specs de interfaz. Nada de esto se toca hasta que la v1 esté
+en manos de gente.*
+
+- [ ] **F.24** Cinturón de clicks: micro-timing en vivo bajo la autopista `XFApp`
+      - Se puede YA (sin B4.2): clicks objetivo de `PositionSampler.faderState`,
+        los tuyos de las transiciones de `PracticeSession.faderClosed`. Tipo puro
+        `LiveClickBelt` + vista con `Timer` propio (como `ClipMeterView`).
+- [ ] **F.25** El fantasma puede ser tu mejor toma (o una importada) `XFApp` + `XFPersistence` (lect.)
+      - Referencia, no marca que batir (anti-gamificación). `loadPlayback` ya
+        reproduce un `.xfsession`; falta un `ghostSource .curve` en
+        `PracticeScene` y persistir el blob de la mejor toma (fichero suelto = sin ADR).
+- [ ] **F.26** Zoom en la autopista `XFApp`
+      - `⌘±`/pellizco escalan `HighwayGeometry.pixelsPerBeat` (XFRender no se
+        toca); `gridLines`/`gridLabels` ganan `subdivTicks` para la rejilla adaptativa.
+- [ ] **F.27** El scope Lissajous, cableado `XFApp`
+      - `ScopeLayout`/`ScopeScene`/`ScopeView` están **sellados y sin usar** en
+        XFRender desde septiembre. Es instanciarlos en la práctica y en "Mi mesa".
+- [ ] **F.28** Histograma polar del compás (pantalla de resultados) `XFApp`
+      - Ángulo = fase dentro del compás, radio = desvío ms. El dato ya está en
+        `Report.clickOffsets` (`targetTick` + `offsetMs`). Vista CoreGraphics/SKScene.
+- [ ] **F.29** Paleta de comandos (⌘K) `XFApp`
+      - Overlay `ZStack` + `NSEvent.addLocalMonitorForEvents` + filtro por
+        subsecuencia sobre las listas de `AppModel`. Sin dependencias nuevas.
+- [ ] **F.30** "Cómo se toca esto", animado (ficha del truco) `XFApp` + `data/`
+      - Reutiliza `PracticeScene` en modo demo lento; campo `coaching:[{atTick,text}]`
+        en el JSON del truco. Convierte `docs/NOTATION.md` en algo que se ve.
+- [ ] **F.31** Freestyle → patrón `XFApp` + `XFNotation` (lect.)
+      - Cuantiza extremos de la curva y bordes del fader a la rejilla, genera el
+        XFN, lo mete en la librería. Cierra el círculo crear↔entrenar.
+- [ ] **F.32** Doctor de señal: chequeo pre-vuelo de 5 s `XFApp` + `CXFTimecode`
+      - Lissajous, SNR, dropout del bitstream, deriva del cut-in; veredicto en
+        cristiano. Convierte `docs/HW_BRINGUP.md` en función permanente. Necesita mesa.
+- [ ] **F.33** Calibración automática del cut-in point `XFApp` + `XFCapture`
+      - El `audio_return` mide dónde empieza a sonar el fader con un tono piloto.
+        La tabla de calibración por dispositivo YA existe en `XFPersistence`. Necesita mesa.
+- [ ] **F.34** Salida multicanal: el metrónomo al cue, la música al máster `CXFAudioCore`
+      - Canales 1-2 máster, 3-4 cue. El clic deja de aparecer en la mezcla y en
+        el vídeo exportado. Arregla el vídeo gratis.
+- [ ] **F.35** Packs `.xfpack` `XFApp`
+      - Instrumental + samples + patrones + los `*-edits.json`. Se comparte por
+        AirDrop/USB. Comunidad sin servidor; resuelve el copyright de samples.
+- [ ] **F.36** Reloj MIDI, de entrada y de salida `XFCapture` + `CXFAudioCore`
+      - Seguir o mandar un reloj MIDI externo. Cero dependencias nuevas: CoreMIDI
+        ya está y comparte dominio de reloj con CoreAudio.
+- [ ] **F.37** Un solo reloj `XFApp` + `CXFAudioCore`
+      - `PracticeSession` deja de integrar tiempo: lee el tick del motor 1×/frame.
+        Se muere el `Timer` de pared y `setMetronomeDrift`. ADR de calado. La
+        simplificación estructural más grande que le queda al proyecto.
+- [ ] **F.38** El fantasma no cambia de forma: solo se desplaza `XFApp`
+      - Construir la curva una vez (2 periodos) y mover el nodo en X. Mismo truco
+        de ADR-065 llevado a lo caro. Presupuesto de frame en el MacBook 2015.
+- [ ] **F.39** Dejar de rotar el PCM de la instrumental `XFApp` + `CXFAudioCore`
+      - Poner el desfase del "1" en el reproductor (`xf_player_set_playhead` /
+        `loop_start`) en vez de copiar el fichero entero (~57 MB) en cada carga.
+        `instrDownbeatSec` y `loopFraction` desaparecen. La deuda ya muerde (F.22).
+- [ ] **F.40** Pirámide de picos en disco (el `.asd` de xFlare) `XFApp`
+      - Multi-resolución de picos calculada una vez, junto a
+        `instrumental-analysis.json`. Zoom del editor instantáneo, sin re-tocar
+        el PCM. Es lo que hacen Ableton y Serato.
+- [ ] **F.41** SIMD en la convolución + denormales apagadas de raíz `CXFAudioCore`
+      - 32 taps = 8 `simd_float4` con FMA (`simd/simd.h` compila igual en las dos
+        arquitecturas). FTZ/DAZ una vez al arrancar el hilo, no un parche por caso.
+- [ ] **F.42** Puntuar lo que se OYE: cut-in point + restar la latencia `XFAnalysis` + `XFProfiles` (lect.)
+      - El click audible es el cruce del cut-in, no la posición del dedo; y hay
+        que restar la latencia medida en B1 o todos salen "tarde" por igual. La
+        única que, si falta, hace falso el resto del producto. Escribirla ANTES
+        de la primera sesión con hardware.
+
 ---
 
 ## Reglas de uso
