@@ -180,9 +180,16 @@ sale mal, todo lo demas miente.
   cada cue como línea vertical amarilla, la región de loop activa como banda de
   acento con los bordes marcados (se repiten en cada vuelta del bucle). La zona
   inferior gana una fila **Cues** (◀ / los 4 primeros con su nombre / ▶) y una
-  fila **Loops** (◀ / nombre de la activa, pulsar = saltar a su inicio / ▶). Los
-  ◀/▶ y "saltar" son además comandos MIDI (`Cue instrumental anterior/siguiente`,
-  `Saltar al loop`, `Loop anterior`, `Loop siguiente`), categoría *instrumental*.
+  fila **Loops** (interruptor on/off · ◀ / nombre de la activa, pulsar = saltar
+  a su inicio / ▶). El **interruptor de loop** aparece también en la fila
+  compacta de la base para tenerlo a mano sin desplegar; si el editor dejó una
+  región activa, arranca **encendido** y la base repite ese trozo. Los ◀/▶,
+  "saltar" y el on/off son además comandos MIDI (`Cue instrumental
+  anterior/siguiente`, `Saltar al loop`, `Loop anterior`, `Loop siguiente`),
+  categoría *instrumental*.
+- **Cargar otra base a mitad de sesión** — se corta (mutea) la que sonaba y sale
+  un cartel "Cargando N…" mientras decodifica (una pista larga tarda; antes no
+  había ninguna señal de que estuviera haciendo algo).
 
 ### 3.4 Resultados — el diagnostico
 

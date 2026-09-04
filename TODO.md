@@ -857,6 +857,17 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
         `InstrumentalNav` (testeada).
       - Tests: `TransientDetectorTests` (5), `InstrumentalNavTests` (7),
         `PracticeCommandMidiTests` +1. 686 en verde.
+      - Iteración (mismo día):
+      - **El loop no sonaba**: la región solo se aplicaba al motor en la rama
+        "instrumental editada". Ahora se aplica tras el cascade en cualquier
+        rama y `seekInstrumental` deja la base dentro del loop (inicio = "1").
+      - **Interruptor de loop** (`loopToggle`) en la fila "Loops" y en la fila
+        compacta de la base; arranca encendido si el editor dejó una región
+        activa (`applyLoopRegion(0)` / `applyLoopRegion(nil)`).
+      - **Aviso al cargar otra base**: se mutea la actual y sale un cartel
+        "Cargando N…"; `instrLoadGen` descarta la carga si ya empezó otra.
+      - **Logo (ADR-070)**: subidas de tono las partes casi negras del icono y
+        del wordmark (se fundían con el tema oscuro).
 
 ---
 

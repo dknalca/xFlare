@@ -2703,6 +2703,55 @@ una región de loop que cruce el "1" se ignora al pintarla y al aplicarla (igual
 que ya hacía el audio). Tests: `TransientDetectorTests` (5), `InstrumentalNavTests`
 (7), `PracticeCommandMidiTests` +1 → 686 en verde.
 
+> **Iteración (2026-09-04, mismo día).**
+> - **El loop no sonaba.** La región solo se aplicaba al motor en la rama
+>   "instrumental editada" (`edit.bpm != nil || edit.downbeatSeconds != nil`).
+>   Si el usuario solo había marcado un loop, `loadInstrumental` caía en la rama
+>   de detección y **no** llamaba a `setInstrumentalLoopRegion`: se veía la zona
+>   sombreada pero la base sonaba entera. Ahora la región activa del `edit` se
+>   aplica **tras el cascade de ramas**, en cualquiera, y además
+>   `seekInstrumental` deja la base **dentro** del loop (su inicio = el "1").
+> - **Interruptor de loop** en la práctica (ejercicio y Freestyle): `loopToggle`
+>   en la fila "Loops" del panel y —para tenerlo a mano sin desplegar— en la
+>   fila compacta de la base. On = repite la región; off = base entera
+>   (`applyLoopRegion(0)` / `applyLoopRegion(nil)`). Si el editor dejó una
+>   región activa, arranca **encendido**.
+> - **Aviso al cargar otra base.** `loadInstrumental` no-inicial: se **mutea**
+>   la base actual (`setInstrumentalGain(0)`) y sale un cartel "Cargando N…"
+>   hasta que la nueva está lista (una pista larga tarda ~1-2 s decodificando y
+>   antes no había ninguna señal). `instrLoadGen` descarta una carga si ya
+>   empezó otra posterior.
+
+---
+
+## ADR-070 — Logo: subir de tono las partes oscuras (feedback 2026-09-04)
+
+**Fecha:** 2026-09-04 · **Estado:** aceptada
+
+**Contexto.** Sobre el tema oscuro de la app (y del icono en el Dock/Finder en
+modo oscuro), las zonas casi negras del logo —parte baja de la placa
+(`#10141A`), la ranura del fader (`#080A0D`), el borde y el surco del cap
+(`#06201B` / `#06231E`)— se fundían con el fondo: se veía una mancha verde sin
+canto ni detalle. Feedback repetido del autor ("cambiando de color las partes
+oscuras").
+
+**Decisión.** Recolorar todo lo que iba casi negro a **tonos medios / claros**,
+manteniendo el orden de lecturas:
+- `icon/xflare.svg`: placa `#3B4551→#262E38` (antes `#333C49→#10141A`), ranura
+  `#2C343E` (antes `#080A0D`), borde del cap **claro** `#EAFBF7`@0.55 (antes
+  `#06201B`), surco del cap verde **medio** `#0F6F62` (antes `#06231E`), sombra
+  del cap 0.28→0.20. Marcas y labios de la ranura, un punto más claros.
+- `XFWordmark.mark`: el surco del fader pasa de `XFColor.bg` (casi negro) a
+  `XFColor.text` (claro) — "un corte de luz en la tapa".
+
+**Alternativas descartadas.** Un logo distinto (el motivo —cap de crossfader en
+planta— se mantiene, solo cambia la paleta). Poner el logo sobre un chip claro
+en la barra (parche, no arregla el icono del sistema).
+
+**Consecuencias.** Solo activos de diseño: `icon/xflare.svg` (+ `xflare.icns` /
+PNGs regenerados con `sh icon/build-icns.sh`) y `Sources/XFApp/XFWordmark.swift`.
+Sin código nuevo, sin tests.
+
 ---
 
 ## Plantilla para nuevas entradas

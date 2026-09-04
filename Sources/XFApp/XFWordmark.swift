@@ -38,18 +38,21 @@ public struct XFWordmark: View {
     }
 
     /// La tapa del crossfader: silueta de acento + surco del fader + un brillo
-    /// tenue arriba. Sin sombra difusa (ensuciaba sobre fondos claros).
+    /// tenue arriba. Las partes que antes iban en un tono **oscuro** (el surco,
+    /// que usaba el color de fondo casi negro) ahora van en **claro**: sobre el
+    /// tema oscuro de la app la marca se leía como una mancha verde sin detalle.
     private var mark: some View {
         let w = size * 0.62, h = size * 1.16
         return ZStack {
             FaderCapMark().fill(XFColor.accent)
-            // surco del fader (indicador de posición), como en el icono
-            Capsule().fill(XFColor.bg)
-                .frame(width: w * 0.66, height: max(1.5, h * 0.11))
-            // brillo superior
-            Capsule().fill(Color.white.opacity(0.30))
-                .frame(width: w * 0.5, height: max(1, h * 0.055))
-                .offset(y: -h * 0.30)
+            // surco del fader (indicador de posición): CLARO, como un corte de
+            // luz en la tapa. Antes era `XFColor.bg` y desaparecía.
+            Capsule().fill(XFColor.text)
+                .frame(width: w * 0.66, height: max(1.5, h * 0.12))
+            // brillo superior, muy sutil
+            Capsule().fill(Color.white.opacity(0.28))
+                .frame(width: w * 0.46, height: max(1, h * 0.05))
+                .offset(y: -h * 0.31)
         }
         .frame(width: w, height: h)
         .compositingGroup()

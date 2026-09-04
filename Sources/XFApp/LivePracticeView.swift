@@ -107,6 +107,10 @@ public struct LivePracticeView: View {
     @State private var instrLoops: [InstrumentalEdit.LoopRegion] = []
     @State private var activeLoopIdx: Int?
     @State private var instrDownbeatSec: Double = 0
+    // F.22: cargando una instrumental nueva a mitad de sesión — se corta la base
+    // actual y se enseña un aviso mientras decodifica (una pista larga tarda).
+    @State private var loadingInstrumental = false
+    @State private var instrLoadGen = 0
     // F.4: exportación de vídeo en curso y su progreso (0…1).
     @State private var exportingVideo = false
     @State private var videoProgress: Double = 0
@@ -407,8 +411,30 @@ public struct LivePracticeView: View {
         if loading {
             LoadingView(quote: quote).zIndex(1)
         }
+
+        // F.22: aviso de carga de otra instrumental a mitad de sesión (la base
+        // anterior ya está muteada). Cartel pequeño, no tapa la práctica.
+        if loadingInstrumental {
+            VStack {
+                Spacer()
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Cargando \(instrName)…").font(XFFont.bodyMedium(12))
+                }
+                .padding(.horizontal, XFSpacing.md).padding(.vertical, XFSpacing.sm)
+                .background(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                    .fill(XFColor.surfaceRaised))
+                .overlay(RoundedRectangle(cornerRadius: XFRadius.control, style: .continuous)
+                    .stroke(XFColor.stroke, lineWidth: XFStroke.hairline))
+                .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+                Spacer().frame(height: 90)   // por encima de la barra inferior
+            }
+            .transition(.opacity)
+            .zIndex(2)
+        }
         }
         .animation(.easeOut(duration: 0.25), value: loading)
+        .animation(.easeOut(duration: 0.15), value: loadingInstrumental)
     }
 
     /// Calentamiento: pasa al siguiente ejercicio (cambia el patrón en caliente)
@@ -799,6 +825,8 @@ public struct LivePracticeView: View {
                 chip("chevron.right", icon: true) { shiftGrid(by: -gridStep) }
                 chip("TAP") { if let bpm = tap.tap() { setInstrumentalBPM(bpm) } }
                 bpmField
+                // loop del editor: interruptor a mano incluso sin desplegar el panel
+                if !instrLoops.isEmpty { loopToggle }
             }
         }
     }
@@ -894,12 +922,14 @@ public struct LivePracticeView: View {
         }
     }
 
-    /// Regiones de loop del editor: ◀ / ▶ recorren las regiones en círculo y la
-    /// activan; el botón central salta al inicio de la activa (o activa la
-    /// primera). Todo mapeable a MIDI («Loop anterior/siguiente/saltar»).
+    /// Regiones de loop del editor: el interruptor activa / desactiva el bucle;
+    /// ◀ / ▶ recorren las regiones en círculo y la activan; el botón central
+    /// salta al inicio de la activa. Todo mapeable a MIDI («Saltar al
+    /// loop», «Loop anterior/siguiente»).
     private var instrLoopNavRow: some View {
         HStack(spacing: 5) {
             Text("Loops").font(XFFont.body(9)).foregroundColor(XFColor.textMuted)
+            loopToggle
             chip("chevron.left", icon: true) { cycleLoop(-1) }
             Button { jumpToActiveLoop() } label: {
                 HStack(spacing: 4) {
@@ -916,6 +946,31 @@ public struct LivePracticeView: View {
             .buttonStyle(.plain)
             chip("chevron.right", icon: true) { cycleLoop(1) }
         }
+    }
+
+    /// Interruptor de loop (encendido = repite la región activa; apagado = base
+    /// entera). Al encender, activa la primera región y se mete en ella. Se
+    /// enciende solo si el editor dejó una región activa.
+    private var loopToggle: some View {
+        let on = activeLoopIdx != nil
+        return Button { toggleLoopActive() } label: {
+            Image(systemName: on ? "repeat.circle.fill" : "repeat")
+                .font(.system(size: 12, weight: .bold))
+                .frame(width: 30, height: 22)
+                .background(RoundedRectangle(cornerRadius: 5)
+                    .fill(on ? XFColor.accent.opacity(0.20) : XFColor.surface))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(XFColor.stroke, lineWidth: 1))
+                .foregroundColor(on ? XFColor.accent : XFColor.textMuted)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .fixedSize()
+        .help(on ? "Desactivar el loop" : "Activar el loop")
+    }
+
+    /// Enciende / apaga el bucle de la región de loop del editor.
+    private func toggleLoopActive() {
+        applyLoopRegion(activeLoopIdx == nil ? 0 : nil)
     }
 
     private func baseRow(name: String, sub: String?, _ action: @escaping () -> Void) -> some View {
@@ -1639,6 +1694,14 @@ public struct LivePracticeView: View {
         let beatsPerBar = geometry.beatsPerBar
         let name = url?.lastPathComponent ?? AudioAsset.instrumentalRelPath
         instrName = url?.deletingPathExtension().lastPathComponent ?? "080bpm_beat"
+        // F.22: contador de carga (una carga posterior invalida a la anterior) +
+        // aviso "cargando…". En el arranque no: ya está la pantalla de carga.
+        instrLoadGen &+= 1
+        let gen = instrLoadGen
+        if !initial {
+            engine.setInstrumentalGain(0)          // corta la base que sonaba
+            withAnimation(.easeOut(duration: 0.12)) { loadingInstrumental = true }
+        }
         // análisis ya hecho (librería, fase 2): se captura AQUÍ, en el hilo
         // principal, y se pasa al bloque de fondo — así no se re-analiza.
         let cached: TempoAnalyzer.Result? = url.flatMap { cachedAnalysis($0.path) }
@@ -1661,11 +1724,9 @@ public struct LivePracticeView: View {
             // detección normal — BPM + fase del "1" — como la base del asset.
             var userLoopBars: Int? = nil
             var fileSeconds = 0.0
-            // región de loop activa del editor (F.16), en fracciones 0…1 de la
-            // pista YA ROTADA al "1". `nil` = base entera.
-            var loopRegionFrac: (start: Double, end: Double)? = nil
             // desfase (s) con el que se rotó el fichero para poner el "1" al
-            // principio (F.22). La tira y el pintado de cues/loops lo necesitan.
+            // principio (F.22). La tira, el pintado de cues/loops y la región de
+            // loop lo necesitan.
             var rotSec = 0.0
             let hint = TempoAnalyzer.bpmHint(fromFilename: name)
             if let pcm = raw {
@@ -1684,15 +1745,6 @@ public struct LivePracticeView: View {
                     let phi = ((Int(downbeatSec * sr) % pcm.count) + pcm.count) % pcm.count
                     pcmOut = phi == 0 ? pcm : Array(pcm[phi...]) + Array(pcm[..<phi])
                     loopTicks = fileSeconds * (bpm / 60.0) * Double(ppq)
-                    // región de loop activa -> a coords ROTADAS (t - downbeat mod dur).
-                    if let lr = edit.activeLoop, fileSeconds > 0 {
-                        let s = ((lr.startSeconds - downbeatSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
-                            .truncatingRemainder(dividingBy: fileSeconds)
-                        let e = ((lr.endSeconds - downbeatSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
-                            .truncatingRemainder(dividingBy: fileSeconds)
-                        if s < e { loopRegionFrac = (s / fileSeconds, e / fileSeconds) }
-                        // si la región cruza el "1" (s >= e) se ignora en v1.
-                    }
                 } else if let a = a, !a.isShortLoop {
                     // pista larga con tempo detectado (asset o fichero del
                     // usuario): rejilla al BPM detectado y alineada al "1".
@@ -1731,25 +1783,48 @@ public struct LivePracticeView: View {
             } ?? WaveformColored.Data(levels: [], colors: [])
 
             DispatchQueue.main.async {
-                if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
-                // región de loop del editor (F.16): la base repite solo ese trozo.
-                if let lr = loopRegionFrac {
-                    engine.setInstrumentalLoopRegion(start: lr.start, end: lr.end)
-                } else {
-                    engine.setInstrumentalLoopRegion(start: -1, end: 0)
+                // una carga posterior ya empezó: esta quedó obsoleta.
+                guard gen == instrLoadGen else { return }
+                if !initial {
+                    withAnimation(.easeOut(duration: 0.15)) { loadingInstrumental = false }
                 }
+                if let pcmOut { engine.loadInstrumental(pcmOut, nativeBPM: bpm) }
+                if !initial { engine.setInstrumentalGain(Float(instruVol)) }   // vuelve a sonar
+
                 instrWave = wave
                 instrLoopTicks = loopTicks
                 instrLoopBars = userLoopBars
                 instrFileSeconds = fileSeconds
                 instrCues = edit?.cues ?? []          // F.16: cues saltables (MIDI / botones)
-                // F.22: regiones de loop + activa + desfase de rotación, para
-                // recorrerlas por MIDI/botones y pintarlas sobre la tira.
+                // F.22: regiones de loop + desfase de rotación (para recorrerlas
+                // por MIDI/botones y pintarlas sobre la tira).
                 instrLoops = edit?.loops ?? []
-                activeLoopIdx = edit?.activeLoopID.flatMap { id in
+                instrDownbeatSec = rotSec
+                // ¿el editor dejó una región ACTIVA? -> se aplica al motor en
+                // CUALQUIER rama (aunque el edit solo tenga loops, sin BPM/"1")
+                // y la base arranca dentro del loop. Antes solo se aplicaba en
+                // la rama "instrumental editada": el usuario veía la zona
+                // sombreada pero la base no hacía el bucle.
+                let activeIdx = edit?.activeLoopID.flatMap { id in
                     edit?.loops.firstIndex { $0.id == id }
                 }
-                instrDownbeatSec = rotSec
+                activeLoopIdx = activeIdx
+                if let i = activeIdx, edit != nil, i < (edit!.loops.count), fileSeconds > 0 {
+                    let lr = edit!.loops[i]
+                    let s = ((lr.startSeconds - rotSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
+                        .truncatingRemainder(dividingBy: fileSeconds)
+                    let e = ((lr.endSeconds - rotSec).truncatingRemainder(dividingBy: fileSeconds) + fileSeconds)
+                        .truncatingRemainder(dividingBy: fileSeconds)
+                    if s < e {
+                        engine.setInstrumentalLoopRegion(start: s / fileSeconds, end: e / fileSeconds)
+                        engine.seekInstrumental(fraction: s / fileSeconds)   // "1" = inicio del loop
+                    } else {
+                        engine.setInstrumentalLoopRegion(start: -1, end: 0)  // cruza el "1": se ignora (v1)
+                        activeLoopIdx = nil
+                    }
+                } else {
+                    engine.setInstrumentalLoopRegion(start: -1, end: 0)
+                }
                 // cargada: la zona inferior se minimiza a la fila compacta.
                 withAnimation(.easeInOut(duration: 0.12)) { instrExpanded = false }
                 // la sesion necesita la longitud del bucle para cuadrar las

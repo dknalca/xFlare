@@ -5,34 +5,38 @@
     (#34E1C4, "tu fader" en docs/UI_DESIGN.md); detras, translucido, el cap
     fantasma = el objetivo. Fuente editable: este .svg; el .icns con build-icns.sh.
 
-    Colores calibrados para que los DETALLES se distingan bien:
-      placa (mid gris azulado) < ranura (casi negra, con borde) < marcas (gris
+    Rediseño (2026-09-04): las partes que antes iban CASI NEGRAS (parte baja de
+    la placa, ranura, borde y surco del cap) se han subido a tonos medios /
+    claros. Sobre el tema oscuro de la app el icono perdia toda la mitad
+    inferior y el cap se veia como una mancha verde sin canto ni detalle.
+    Orden de lecturas de claro a oscuro:
+      placa (gris azulado medio) < ranura (gris de superficie) < marcas (gris
       claro) < cap fantasma (gris con contorno) < cap vivo (verde con borde
-      oscuro + brillo + surco de agarre).
+      CLARO + brillo + surco medio).
   -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#333C49"/>
-      <stop offset="1" stop-color="#10141A"/>
+      <stop offset="0" stop-color="#3B4551"/>
+      <stop offset="1" stop-color="#262E38"/>
     </linearGradient>
     <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0"   stop-color="#7BF3E1"/>
       <stop offset="0.5" stop-color="#34E1C4"/>
-      <stop offset="1"   stop-color="#189683"/>
+      <stop offset="1"   stop-color="#1FB6A0"/>
     </linearGradient>
   </defs>
 
-  <!-- placa: mid gris con borde claro para que el canto se lea sobre cualquier fondo -->
+  <!-- placa: gris azulado medio con borde claro para que el canto se lea sobre cualquier fondo -->
   <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"
-        stroke="#5C6674" stroke-opacity="0.7" stroke-width="6"/>
+        stroke="#6B7683" stroke-opacity="0.8" stroke-width="6"/>
 
-  <!-- ranura del crossfader: mucho mas oscura que la placa + borde -->
+  <!-- ranura del crossfader: gris de superficie (antes casi negra) + borde claro -->
   <rect x="182" y="466" width="660" height="92" rx="46"
-        fill="#080A0D" stroke="#3B4550" stroke-width="6"/>
+        fill="#2C343E" stroke="#5A6673" stroke-width="6"/>
   <!-- linea de brillo en el labio superior de la ranura -->
-  <rect x="206" y="474" width="612" height="6" rx="3" fill="#4A5560" fill-opacity="0.5"/>
+  <rect x="206" y="474" width="612" height="6" rx="3" fill="#7C8894" fill-opacity="0.55"/>
   <!-- marcas de posicion (centro y cuartos): gris claro, visibles -->
-  <g fill="#66727F">
+  <g fill="#8B97A4">
     <rect x="348" y="490" width="6" height="44" rx="3"/>
     <rect x="509" y="484" width="6" height="56" rx="3"/>
     <rect x="670" y="490" width="6" height="44" rx="3"/>
@@ -42,22 +46,22 @@
   <path transform="translate(-210,0)"
         d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
            L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
-        fill="#9BA8B5" fill-opacity="0.30"
-        stroke="#9BA8B5" stroke-opacity="0.45" stroke-width="4"/>
+        fill="#A7B3BF" fill-opacity="0.32"
+        stroke="#A7B3BF" stroke-opacity="0.5" stroke-width="4"/>
 
-  <!-- sombra del cap vivo -->
-  <path transform="translate(0,16)"
+  <!-- sombra del cap vivo: mas suave (antes 0.28) -->
+  <path transform="translate(0,14)"
         d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
            L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
-        fill="#000000" fill-opacity="0.28"/>
+        fill="#000000" fill-opacity="0.20"/>
 
-  <!-- cap vivo: verde con borde oscuro nitido para separarlo de la placa -->
+  <!-- cap vivo: verde con borde CLARO (antes casi negro) para separarlo de la placa -->
   <path d="M512 300 L672 300 Q714 300 714 342 Q674 512 714 682 Q714 724 672 724
            L512 724 Q470 724 470 682 Q510 512 470 342 Q470 300 512 300 Z"
-        fill="url(#cap)" stroke="#06201B" stroke-opacity="0.7" stroke-width="5"/>
-  <!-- surco de agarre / indicador: verde MUY oscuro, se lee como hendidura -->
-  <rect x="486" y="502" width="212" height="20" rx="10" fill="#06231E" fill-opacity="0.85"/>
+        fill="url(#cap)" stroke="#EAFBF7" stroke-opacity="0.55" stroke-width="5"/>
+  <!-- surco de agarre / indicador: verde MEDIO (antes verde muy oscuro) -->
+  <rect x="486" y="502" width="212" height="20" rx="10" fill="#0F6F62" fill-opacity="0.9"/>
   <!-- brillo superior del cap -->
-  <rect x="502" y="320" width="180" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.38"/>
-  <rect x="502" y="344" width="140" height="7"  rx="3.5" fill="#FFFFFF" fill-opacity="0.16"/>
+  <rect x="502" y="320" width="180" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.40"/>
+  <rect x="502" y="344" width="140" height="7"  rx="3.5" fill="#FFFFFF" fill-opacity="0.18"/>
 </svg>
