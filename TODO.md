@@ -2046,6 +2046,17 @@ en manos de gente.*
         verde, 809 tests.
       - Pendiente: el autor confirma en la Rane 72 que los tres síntomas
         desaparecen con la secuencia Práctica → Calibración → Práctica.
+      - **Optimización el mismo día:** el autor pidió revisar y optimizar
+        antes de probar. `startTimecodeCapture` limpiaba una captura a
+        medias con `teardownTimecodeCapture()` completo (deja el motor
+        reabierto en modo "solo salida") para tirarlo dos líneas después
+        al reabrirlo YA en modo captura — dos ciclos completos de
+        `AudioComponentInstanceDispose`+crear `AudioUnit` (caro, un blip
+        de audio cada uno) en vez de uno. Separado en
+        `teardownTimecodeSource()` (decoder/timer/dueño, sin tocar el
+        motor) y `teardownTimecodeCapture()` (+ dejar el motor en
+        solo-salida, para cuando nadie lo reconfigura después). make
+        verify en verde, 809 tests (sin cambio de conteo).
 
 ---
 

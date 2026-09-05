@@ -20,27 +20,44 @@ exactamente donde falla tu mano y tu fader.
 
 ## Estado
 
-**Preview jugable sin mesa.** Ya funciona: navegacion completa, **Trucos** (matriz
-de scratches en tarjetas con su grafico TTM), practica en vivo con audio (scratch
-por trackpad/teclado + base instrumental + metronomo), Freestyle, grabar una
-linea y exportarla a `.xfsession` o a **video** (con audio, con la proporcion de
-la ventana), calentamiento adaptativo, "Mi mesa" (perfiles), **Libreria** de
-medios con **editores** por fichero: instrumentales (tempo/rejilla, puntos Cue,
-regiones de loop infinito) y samples (elegir inicio y duracion, con **deteccion
-de transitorios** para colocar el arranque). Los cues y loops de la instrumental
+**Ya funciona con la mesa real (Rane Seventy-Two MK1).** El timecode de vinilo
+se captura de verdad por USB (`xwax` vendorizado), el crossfader llega por MIDI
+real (CC del MAG FOUR), y el asistente de **Calibracion** (Audio / Timecode /
+Fader) guia la puesta a punto contra hardware real: enumera dispositivos y
+pares estereo de CoreAudio de verdad, scope circular en vivo, aprendizaje
+automatico del CC del fader, y un panel de diagnostico de deriva ("sticker
+drift": posicion integrada vs. posicion absoluta del bitstream, % enganchado,
+frames perdidos). El perfil `rane-seventy-two.conf` esta **verificado** contra
+el aparato fisico y es la mesa por defecto. Sigue en marcha el ajuste fino de
+la fusion de sensores (posicion absoluta + integrada) para que el punto de
+inicio del sample no se separe de la onda en scratches largos — ver
+`docs/TIMECODE_DRIFT.md` para el estado exacto de cada fase.
+
+Tambien funciona sin mesa (practica por trackpad/teclado), para desarrollar o
+practicar sin el hardware delante: navegacion completa, **Trucos** (matriz de
+scratches en tarjetas con su grafico TTM), practica en vivo con audio (base
+instrumental + metronomo), Freestyle, grabar una linea y exportarla a
+`.xfsession` o a **video** (con audio, con la proporcion de la ventana),
+calentamiento adaptativo, "Mi mesa" (perfiles), **Libreria** de medios con
+**editores** por fichero: instrumentales (tempo/rejilla, puntos Cue, regiones
+de loop infinito) y samples (elegir inicio y duracion, con **deteccion de
+transitorios** para colocar el arranque). Los cues y loops de la instrumental
 se **ven en la practica** sobre la tira de la onda y se recorren con botones
 anterior/siguiente. 4 slots de sample asignables a botones MIDI. Ajustes con
 reasignacion de comandos por MIDI, agrupados por categoria (global / sample /
-instrumental) — incluye saltar al cue/loop anterior y siguiente. **Descomposicion
-mano / fader**: practica el disco solo, el corte solo, o las dos — la maquina
-lleva la capa que sueltas, clavada al patron. El render de la autopista va a
-**60 fps estables** en el MacBook Pro Intel de 2015 (medido). Ajustes y librerías
-se guardan en ficheros de texto copiables
+instrumental) — incluye saltar al cue/loop anterior y siguiente, y un boton
+para invertir de golpe que par de canales lleva el scratch y cual la
+instrumental (para quien pincha con la mano en el plato derecho).
+**Descomposicion mano / fader**: practica el disco solo, el corte solo, o las
+dos — la maquina lleva la capa que sueltas, clavada al patron. El render de la
+autopista va a **60 fps estables** en el MacBook Pro Intel de 2015 (medido).
+Ajustes y librerias se guardan en ficheros de texto copiables
 (`~/Library/Application Support/xFlare/*.json`).
 
-**Falta para la v1:** la puerta de latencia de audio y el timecode reales — todo
-lo que necesita la Rane 72 delante (bloques B1/B4/B5/B6/B8 de `TODO.md`). Sin
-mesa, la practica va con raton/teclado.
+**Falta para la v1:** cerrar del todo el ajuste de deriva del timecode real
+(Fase 3/4 de `docs/TIMECODE_DRIFT.md`: servo de audio afinado de oido, y un
+test de regresion con una grabacion real de vinilo) y la puerta formal de
+latencia de audio (bloque B1 de `TODO.md`).
 
 ### Probarlo
 
@@ -70,8 +87,9 @@ copyright, `CLAUDE.md` §12); carga los tuyos desde Ajustes / "Cargar sample…"
 |---|---|
 | `CLAUDE.md` | Instrucciones permanentes para Claude Code. Leer primero. |
 | `PLAN.md` | Plan estrategico: definicion del MVP (v1), hoja de ruta de iteraciones, criterios de aceptacion y riesgos. |
-| `docs/DECISIONS.md` | **Todos los ADR (001 a 058).** Decisiones de arquitectura. |
+| `docs/DECISIONS.md` | **Todos los ADR (001 a 089).** Decisiones de arquitectura. |
 | `docs/TIMECODE.md` | Notas del decoder: xwax 1.10 vendorizado, warnings, latencia. |
+| `docs/TIMECODE_DRIFT.md` | Plan y estado del ajuste de deriva ("sticker drift") contra hardware real. |
 | `docs/NOTATION.md` | XFN: como se representa y dibuja un scratch. |
 | `docs/CURRICULUM.md` | El gym: niveles, sesiones, scoring, diagnostico. |
 | `docs/MATRIX_MAPPING.md` | Relacion con la Periodic Matrix + reglas legales. |

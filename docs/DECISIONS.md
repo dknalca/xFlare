@@ -4083,6 +4083,19 @@ estado consistente sin importar en qué orden lleguen las llamadas de las
 dos pantallas. Pendiente confirmar en la Rane 72 que los tres síntomas
 desaparecen con la secuencia Práctica → Calibración → Práctica.
 
+**Addendum (mismo día) — quitar un ciclo de motor de más.** Revisando el
+propio arreglo antes de pedir otra prueba en la mesa: `startTimecodeCapture`
+limpiaba una captura a medias llamando a `teardownTimecodeCapture()`
+completo, que deja el motor reabierto en modo "solo salida" — dos líneas
+después, `startTimecodeCapture` lo tira a la basura para reabrirlo YA en
+modo captura. Eran dos ciclos completos de `AudioComponentInstanceDispose`
++ crear una `AudioUnit` nueva (caro, y cada uno un blip de audio) cuando
+con uno basta. Se separó en `teardownTimecodeSource()` (cierra el decoder/
+timer/dueño, sin tocar el motor) y `teardownTimecodeCapture()` (lo de
+arriba + dejar el motor en solo-salida, para cuando de verdad nadie va a
+reconfigurarlo después). `startTimecodeCapture` usa la primera al heredar
+una captura a medias.
+
 ---
 
 ## Plantilla para nuevas entradas

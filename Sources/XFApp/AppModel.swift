@@ -275,9 +275,16 @@ public final class AppModel: ObservableObject {
     /// como sonido doblado, la instrumental desajustada de la rejilla, e
     /// incluso una dirección de giro mal detectada a mitad de scratch —
     /// los tres son síntomas de dos motores/decoders corriendo a la vez.
+    ///
+    /// La limpieza usa `teardownTimecodeSource()` (NO `teardownTimecodeCapture()`):
+    /// esta última deja el motor reabierto en modo "solo salida", que aquí
+    /// se tiraría a la basura dos líneas después al reabrirlo YA en modo
+    /// captura — eran dos ciclos completos de `AudioComponentInstanceDispose`
+    /// + recrear la `AudioUnit` (caro, y un blip de audio de más) cuando con
+    /// uno basta.
     public func startTimecodeCapture(owner: TimecodeCaptureOwner) {
         guard let engine else { return }
-        if timecodeSource != nil { teardownTimecodeCapture() }
+        if timecodeSource != nil { teardownTimecodeSource() }
         timecodeCaptureOwner = owner
         engine.stop()
         // deviceUID/canal salen de `EngineHandle.preferred*` (F.60), que
@@ -401,16 +408,16 @@ public final class AppModel: ObservableObject {
         requested == current
     }
 
-    /// El cierre de verdad, compartido por `startTimecodeCapture` (para
-    /// limpiar una captura a medias antes de abrir la suya) y
-    /// `stopTimecodeCapture` (cuando quien pide parar es de verdad quien la
-    /// abrió). Siempre deja el motor en modo "solo salida", listo para
-    /// practicar.
-    private func teardownTimecodeCapture() {
-        // F.77 — `.sync` en la MISMA cola del timer: si `drainTimecode()`
-        // está en vuelo, esto espera a que termine antes de seguir (la cola
-        // es serial); después de este cancel, ninguna llamada más puede
-        // empezar. Solo entonces es seguro tocar `timecodeSource` desde aquí.
+    /// Cierra el decoder (`timecodeSource`/`timecodeDrainTimer`/dueño/scope)
+    /// SIN tocar el motor de audio — para cuando quien limpia va a
+    /// reconfigurar el motor él mismo un instante después
+    /// (`startTimecodeCapture`, al heredar una captura a medias).
+    ///
+    /// F.77 — `.sync` en la MISMA cola del timer: si `drainTimecode()` está
+    /// en vuelo, esto espera a que termine antes de seguir (la cola es
+    /// serial); después de este cancel, ninguna llamada más puede empezar.
+    /// Solo entonces es seguro tocar `timecodeSource` desde aquí.
+    private func teardownTimecodeSource() {
         timecodeDrainQueue.sync {
             timecodeDrainTimer?.cancel()
             timecodeDrainTimer = nil
@@ -419,6 +426,14 @@ public final class AppModel: ObservableObject {
         timecodeSource = nil
         timecodeCaptureOwner = nil
         scopeReadings = []
+    }
+
+    /// El cierre completo: `teardownTimecodeSource()` + dejar el motor en
+    /// modo "solo salida", listo para practicar. Lo usa `stopTimecodeCapture`
+    /// (nadie va a reconfigurar el motor después, así que sí hace falta
+    /// dejarlo en un estado utilizable).
+    private func teardownTimecodeCapture() {
+        teardownTimecodeSource()
         guard let engine else { return }
         engine.stop()
         _ = engine.startOutput()
