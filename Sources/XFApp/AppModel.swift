@@ -143,7 +143,21 @@ public final class AppModel: ObservableObject {
     /// potencial sin que uno pise al otro.
     public let motionSampleEvents = PassthroughSubject<MotionSample, Never>()
     private var timecodeSource: TimecodeMotionSource?
-    private var timecodeTimer: Timer?
+    /// F.77 (ADR-081) — antes esto era un `Timer` en `RunLoop.main`: el
+    /// consumidor del ring de entrada competía con el redibujado de
+    /// SwiftUI/SpriteKit por el hilo principal, y perdía. Medido en la Rane
+    /// 72 real (F.76): **977 frames perdidos solo girando el disco, sin
+    /// scratchear** — el hilo principal no daba abasto ni en reposo. Ahora
+    /// el drenaje corre en su propia cola serial, a 100 Hz (10 ms) en vez de
+    /// 30 Hz — con ~85 ms de capacidad en el ring (32 bloques de 128 frames
+    /// a 48 kHz), eso deja de sobra margen frente al jitter de una cola
+    /// dedicada (mucho más fiable que competir con la UI). Solo esta cola
+    /// toca `timecodeSource`/`timecodeDrainTimer`; `stopTimecodeCapture()`
+    /// cancela el timer con `.sync` en la MISMA cola antes de soltar nada,
+    /// así ninguna llamada a `drainTimecode()` puede quedar en vuelo cuando
+    /// se limpia el estado.
+    private let timecodeDrainQueue = DispatchQueue(label: "xflare.timecode.drain", qos: .userInitiated)
+    private var timecodeDrainTimer: DispatchSourceTimer?
 
     // MARK: - diagnóstico de deriva ("sticker drift", F.76, ADR-080)
 
@@ -209,8 +223,9 @@ public final class AppModel: ObservableObject {
     /// Arranca la captura de entrada de verdad para leer el vinilo de timecode
     /// en vivo: para el motor (que hasta ahora solo corría "solo salida", B4.2),
     /// lo reabre con la entrada activada (canal de `AppSettings`, F.60) y drena
-    /// el PCM capturado ~30×/s hacia un `TimecodeMotionSource` propio (el mismo
-    /// wrapper de `xf_timecoder` que ya validó B5.5 con vinilo real). Para la
+    /// el PCM capturado hacia un `TimecodeMotionSource` propio (el mismo
+    /// wrapper de `xf_timecoder` que ya validó B5.5 con vinilo real), ahora en
+    /// `timecodeDrainQueue` (F.77) en vez del hilo principal. Para la
     /// pantalla de Calibración (`AppRootView`); no toca nada si `engine` es
     /// `nil` (tests sin motor).
     public func startTimecodeCapture() {
@@ -237,14 +252,31 @@ public final class AppModel: ObservableObject {
         timecodeTotalTicks = 0
         timecodeDriftAnchor = nil
 
-        let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
-            self?.pollTimecode()
-        }
-        RunLoop.main.add(t, forMode: .common)
-        timecodeTimer = t
+        // F.77 (ADR-081) — 100 Hz (10 ms), no 30 Hz: con ~85 ms de capacidad
+        // en el ring (32 bloques de 128 frames a 48 kHz), deja de sobra
+        // margen frente al jitter de una cola dedicada. `timecodeSource` ya
+        // quedó escrito arriba, en este mismo hilo (main), ANTES de que el
+        // timer pueda disparar por primera vez: GCD garantiza que ese
+        // escritura ya es visible en `timecodeDrainQueue` cuando llegue el
+        // primer evento (happens-before de `resume()`).
+        let timer = DispatchSource.makeTimerSource(queue: timecodeDrainQueue)
+        timer.schedule(deadline: .now(), repeating: .milliseconds(10))
+        timer.setEventHandler { [weak self] in self?.drainTimecode() }
+        timer.resume()
+        timecodeDrainTimer = timer
     }
 
-    private func pollTimecode() {
+    /// Corre en `timecodeDrainQueue` (F.77), NUNCA en el hilo principal: es
+    /// la parte que tiene que ir fina de verdad (drenar el ring antes de que
+    /// se llene, ~85 ms de margen). Lo único que toca del estado de
+    /// `AppModel` son `engine` (`let`, inmutable, seguro desde cualquier
+    /// hilo) y `timecodeSource` (solo se reasigna en el hilo principal, y
+    /// `stopTimecodeCapture()` cancela este timer con `.sync` en esta MISMA
+    /// cola antes de tocarlo, así que aquí nunca hay una carrera). El
+    /// resultado se manda a `applyTimecodeSample` en el hilo principal —
+    /// ahí es donde de verdad hace falta estar (todo lo que sigue es
+    /// `@Published`).
+    private func drainTimecode() {
         guard let engine, let source = timecodeSource else { return }
         let pcm = engine.drainInput()
         guard pcm.count >= 2 else { return }
@@ -253,9 +285,23 @@ public final class AppModel: ObservableObject {
             source.submit(pcm: base, frames: pcm.count / 2, hostTime: HostClock.now())
         }
         guard let sample = source.latest() else { return }
+        let lock = source.absoluteLock
+        DispatchQueue.main.async { [weak self] in
+            self?.applyTimecodeSample(sample, lock: lock)
+        }
+    }
+
+    /// Siempre en el hilo principal (llamado desde `drainTimecode`, en
+    /// `timecodeDrainQueue`, vía `DispatchQueue.main.async`): toda la
+    /// mutación de `@Published` del diagnóstico de timecode vive aquí, sin
+    /// cambios de comportamiento respecto a antes de F.77 — solo cambia
+    /// QUIÉN llama y desde qué hilo.
+    private func applyTimecodeSample(_ sample: MotionSample,
+                                     lock: (positionSeconds: Double, ageSeconds: Double)?) {
         scopeReadings.append(ScopeReading(position: sample.position, velocity: sample.velocity,
                                           confidence: Double(sample.confidence)))
-        // ~8s de rastro a 30 Hz; el scope solo dibuja el tramo reciente.
+        // ~8s de rastro a 30 Hz de antes; a 100 Hz de sondeo se poda más a
+        // menudo pero la ventana visible del scope no cambia.
         if scopeReadings.count > 240 { scopeReadings.removeFirst(scopeReadings.count - 240) }
 
         // F.76 (ADR-080): comparar la posición integrada contra la absoluta
@@ -264,7 +310,7 @@ public final class AppModel: ObservableObject {
         // (no se pone a 0: eso escondería la deriva real detrás de un
         // "sin dato" que parece "sin problema").
         timecodeTotalTicks += 1
-        if let lock = source.absoluteLock {
+        if let lock {
             timecodeLockedTicks += 1
             let (drift, anchor) = Self.timecodeDrift(integratedNow: sample.position,
                                                      absoluteNow: lock.positionSeconds,
@@ -282,8 +328,14 @@ public final class AppModel: ObservableObject {
     /// Para la captura y deja el motor en modo "solo salida" otra vez, listo
     /// para practicar. Idempotente.
     public func stopTimecodeCapture() {
-        timecodeTimer?.invalidate()
-        timecodeTimer = nil
+        // F.77 — `.sync` en la MISMA cola del timer: si `drainTimecode()`
+        // está en vuelo, esto espera a que termine antes de seguir (la cola
+        // es serial); después de este cancel, ninguna llamada más puede
+        // empezar. Solo entonces es seguro tocar `timecodeSource` desde aquí.
+        timecodeDrainQueue.sync {
+            timecodeDrainTimer?.cancel()
+            timecodeDrainTimer = nil
+        }
         timecodeSource?.stop()
         timecodeSource = nil
         scopeReadings = []

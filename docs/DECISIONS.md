@@ -3519,6 +3519,65 @@ un test que reproduce el bug exacto (misma posición absoluta enorme, cero
 separación real desde el ancla → el resultado tiene que ser ~0, no
 "−136567"), sin depender de hardware.
 
+## ADR-081 — El ring de entrada del timecode se drena en su propia cola, no en el hilo principal
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Con el medidor de F.76/ADR-080 ya midiendo bien (corregido el
+mismo día — ver el addendum de ADR-080), el autor probó en la Rane 72 real:
+
+- Solo girando el disco, sin scratchear: **deriva −95,7 ms, 99 % enganchado,
+  977 frames perdidos.**
+- Tras unos scratches: **deriva −3170,7 ms, 60 % enganchado, 1433 frames
+  perdidos.**
+
+977 frames perdidos **girando el disco sin más** es la pista decisiva:
+`pollTimecode()` drenaba el ring de entrada desde un `Timer` en
+`RunLoop.main` — compitiendo por el hilo principal con el redibujado de
+SwiftUI/SpriteKit — a 30 Hz, con un ring de solo ~85 ms de capacidad (32
+bloques de 128 frames a 48 kHz). Si el hilo principal se retrasa más de esa
+ventana (nada raro con una `ScopeView` y el nuevo panel de diagnóstico
+redibujándose), el productor RT (`xf_engine_render`) escribe en un ring ya
+lleno y esos frames de vinilo real se pierden **para siempre** — nunca
+llegan a `xf_timecoder_submit`. Como `xf_timecoder_position()` es una
+integral de la velocidad, cada frame perdido es movimiento que la integral
+JAMÁS ve: se queda corta frente a la posición absoluta (que no depende de
+haber visto cada frame, solo de la última lectura fiable del bitstream) —
+de ahí la deriva **negativa y creciente**. Esto explica de forma directa el
+síntoma original del autor ("el sonido empieza cada vez en un lugar
+distinto"): no hace falta ni un solo scratch para que aparezca, basta con
+que el hilo principal tenga algo más que hacer.
+
+**Decisión.** `AppModel.drainTimecode()` (antes `pollTimecode()`) se mueve a
+una cola serial dedicada (`timecodeDrainQueue`, QoS `.userInitiated`), con
+un `DispatchSourceTimer` a **100 Hz** (10 ms) en vez de 30 Hz — con ~85 ms
+de margen en el ring, deja de sobra colchón frente al jitter de una cola
+que ya no compite con la UI. Lo único que sigue en el hilo principal es
+`applyTimecodeSample(_:lock:)`, que reúne TODA la mutación de `@Published`
+(sin cambios de comportamiento respecto a antes) — se llama vía
+`DispatchQueue.main.async` desde la cola de drenaje. `stopTimecodeCapture()`
+cancela el timer con `.sync` en la MISMA cola antes de tocar
+`timecodeSource`: al ser una cola serial, eso garantiza que ninguna llamada
+a `drainTimecode()` queda en vuelo cuando se limpia el estado — sin eso,
+parar la captura mientras el timer dispara sería una carrera de datos real.
+
+**Alternativas descartadas.** Solo agrandar el ring (más margen, mismo
+30 Hz en el hilo principal) — se descarta como arreglo único: no ataca la
+causa (el consumidor sigue compitiendo por el mismo hilo que la UI), solo
+la esconde bajando la probabilidad; con suficiente carga de UI seguiría
+perdiendo. Bajar la prioridad de la cola a `.utility`/`.background` — se
+descarta: el drenaje protege datos de un dispositivo RT en vivo, quiere
+`.userInitiated` para competir bien contra el resto del sistema, no ser de
+los primeros en ceder CPU.
+
+**Consecuencias.** El drenaje deja de depender de que la UI esté libre.
+Pendiente confirmar en la Rane 72 real cuánto bajan "Frames perdidos" y si
+eso por sí solo explica la mayor parte de la deriva medida, o si además
+hace falta atacar el sesgo del propio filtro de pitch de xwax durante
+aceleraciones rápidas (diagnóstico B de `docs/TIMECODE_DRIFT.md`) — sin
+tocar el código vendorizado, eso requeriría Fase 2 (fusión con la posición
+absoluta) en vez de solo cerrar esta fuga.
+
 ---
 
 ## Plantilla para nuevas entradas

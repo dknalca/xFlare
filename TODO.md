@@ -1735,6 +1735,44 @@ en manos de gente.*
         → el resultado tiene que dar ~0). `make verify` en verde, 787
         tests.
 
+- [x] **F.77** El ring de entrada del timecode se drena fuera del hilo principal (primer arreglo de Fase 1) `XFApp`
+      - Con el medidor de F.76 ya arreglado, el autor probó en la Rane 72
+        real: solo girando el disco, sin scratchear — **deriva −95,7 ms,
+        99 % enganchado, 977 frames perdidos**. Tras unos scratches —
+        **deriva −3170,7 ms, 60 % enganchado, 1433 frames perdidos**.
+      - Diagnóstico: 977 frames perdidos SIN SCRATCHEAR SIQUIERA es la
+        pista decisiva — el `Timer` de `pollTimecode()` en `RunLoop.main`
+        (30 Hz) competía con el redibujado de SwiftUI/SpriteKit por el
+        hilo principal y perdía; con solo ~85 ms de capacidad en el ring
+        (32 bloques de 128 frames a 48 kHz), cualquier retraso de la UI
+        más largo que eso pierde frames de vinilo real PARA SIEMPRE —
+        nunca llegan a `xf_timecoder_submit`. Cada frame perdido es
+        movimiento que la integral de `xf_timecoder_position()` jamás ve:
+        se queda corta frente a la posición absoluta, de ahí la deriva
+        negativa y creciente. Explica el síntoma original sin que haga
+        falta ni un scratch.
+      - Hecho (2026-09-05, ADR-081): `drainTimecode()` (antes
+        `pollTimecode()`) pasa a `timecodeDrainQueue` (cola serial
+        dedicada, QoS `.userInitiated`) con un `DispatchSourceTimer` a
+        100 Hz (10 ms, antes 30 Hz) — con ~85 ms de margen en el ring,
+        deja de sobra colchón frente al jitter de una cola que ya no
+        compite con la UI. Solo `applyTimecodeSample(_:lock:)` sigue en
+        el hilo principal (toda la mutación `@Published`, sin cambios de
+        comportamiento), vía `DispatchQueue.main.async`.
+        `stopTimecodeCapture()` cancela el timer con `.sync` en la MISMA
+        cola antes de tocar `timecodeSource` — sin eso, parar la captura
+        mientras el timer dispara sería una carrera de datos real.
+      - Sin test nuevo (el comportamiento real necesita CoreAudio con un
+        dispositivo delante, como el resto de este fichero) — `make
+        verify` en verde, 787 tests (sin cambio de conteo).
+      - Pendiente: el autor vuelve a probar en la Rane 72 y trae los
+        números nuevos de "Frames perdidos"/"Deriva". Si bajan mucho,
+        confirma que esta era la fuga dominante; si queda deriva de
+        fondo, el siguiente sospechoso es el sesgo del filtro de pitch de
+        xwax durante aceleraciones (diagnóstico B de
+        `docs/TIMECODE_DRIFT.md`), que solo se cierra con la Fase 2
+        (fusión con la posición absoluta).
+
 ---
 
 ## Reglas de uso
