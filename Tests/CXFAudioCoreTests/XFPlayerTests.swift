@@ -346,6 +346,45 @@ final class XFPlayerTests: XCTestCase {
         }
     }
 
+    // MARK: - silencio infinito antes del principio (F.70, ADR-076)
+
+    /// Con timecode real el vinilo puede seguir girando hacia atras mas alla
+    /// del principio del sample: antes el cabezal se clavaba a 0 (perdiendo
+    /// cuanto habia girado de mas); ahora sigue negativo y la salida es
+    /// silencio, no un chasquido ni el ultimo frame repetido.
+    func testCabezalNoSeSaturaAlPrincipioYSaleSilencio() {
+        let src = sine(1000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_playhead(p, 100)
+            let out = render(p, nframes: 300, v: -1.0)   // cruza 0 a mitad de bloque
+            XCTAssertLessThan(xf_player_playhead(p), 0,
+                              "mas alla del principio el cabezal sigue negativo, no se clava a 0")
+            XCTAssertEqual(out.last!, 0.0, "una vez en la zona anterior al sample, silencio")
+        }
+    }
+
+    /// La razon de no saturar: si vas 150 frames "de mas" hacia atras y luego
+    /// recorres esos mismos 150 frames hacia delante, el cabezal debe volver
+    /// EXACTAMENTE a donde estaba -- ese es el "mantener la referencia" con el
+    /// vinilo real. Con el clamp viejo el cabezal se habria quedado pegado a 0
+    /// todo el tramo negativo y habria arrancado a sonar demasiado pronto.
+    func testTrasIrseAntesDelPrincipioVuelveAlMismoFrame() {
+        let src = sine(1000)
+        src.withUnsafeBufferPointer { buf in
+            let p = xf_player_create(buf.baseAddress, Int64(src.count), 48_000)!
+            defer { xf_player_destroy(p) }
+            xf_player_set_glide_ms(p, 0)
+            xf_player_set_playhead(p, 50)
+            _ = render(p, nframes: 200, v: -1.0)    // 50 -> -150
+            XCTAssertEqual(xf_player_playhead(p), -150, accuracy: 1e-6)
+            _ = render(p, nframes: 200, v: 1.0)     // -150 -> 50, el mismo recorrido de vuelta
+            XCTAssertEqual(xf_player_playhead(p), 50, accuracy: 1e-6)
+        }
+    }
+
     // MARK: - sin clicks
 
     func testSinDiscontinuidadEntreBloques() {

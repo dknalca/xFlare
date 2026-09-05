@@ -21,6 +21,13 @@ public struct CalibrationWizardView: View {
     private let onStartFaderLearn: () -> Void
     private let onFinishFaderLearn: () -> Void
     private let onFinish: (DeviceCalibration) -> Void
+    /// F.71 (ADR-076 iter.) — re-enumera CoreAudio a mano sin salir del
+    /// asistente. La lista solo se refresca al ENTRAR en Calibración
+    /// (`AppRootView`); si el driver de la mesa tiene un hipo justo tras un
+    /// replug de USB mientras ya estabas dentro del paso 1, te quedas con la
+    /// foto vieja (p. ej. menos pares de salida de los que hay de verdad) sin
+    /// ningún cambio de pantalla que la refresque sola.
+    private let onRefreshDevices: () -> Void
 
     public init(model: CalibrationWizardModel,
                 inputDevices: [AudioDeviceList.Device] = [],
@@ -28,6 +35,7 @@ public struct CalibrationWizardView: View {
                 scopeReadings: @escaping () -> [ScopeReading] = { [] },
                 onStartFaderLearn: @escaping () -> Void = {},
                 onFinishFaderLearn: @escaping () -> Void = {},
+                onRefreshDevices: @escaping () -> Void = {},
                 onFinish: @escaping (DeviceCalibration) -> Void = { _ in }) {
         self.model = model
         self.inputDevices = inputDevices
@@ -35,6 +43,7 @@ public struct CalibrationWizardView: View {
         self.scopeReadings = scopeReadings
         self.onStartFaderLearn = onStartFaderLearn
         self.onFinishFaderLearn = onFinishFaderLearn
+        self.onRefreshDevices = onRefreshDevices
         self.onFinish = onFinish
     }
 
@@ -89,7 +98,8 @@ public struct CalibrationWizardView: View {
     @ViewBuilder private var currentStep: some View {
         switch model.step {
         case .audio:
-            AudioCalibrationStep(model: model, inputDevices: inputDevices, outputDevices: outputDevices)
+            AudioCalibrationStep(model: model, inputDevices: inputDevices, outputDevices: outputDevices,
+                                 onRefreshDevices: onRefreshDevices)
         case .timecode:
             TimecodeCalibrationStep(model: model, scopeReadings: scopeReadings)
         case .fader:

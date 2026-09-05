@@ -1537,6 +1537,22 @@
           "acceptance": "se puede volver a 0 el contador de cortes sin perder el ajuste de cutIn/histeresis",
           "status": "done",
           "note": "Hecho (2026-09-05). Motivado por el autor: quiere poder repetir los diez cortes con otro ajuste de cutIn/histeresis sin salir del paso. CalibrationWizardModel.resetFaderCuts() vuelve cutsDetected a 0 SIN tocar faderCutIn/faderHysteresis. Boton junto al contador, solo visible con cutsDetected > 0. Test: testReiniciarCortesVuelveA0SinTocarLosSliders. make verify en verde."
+        },
+        {
+          "id": "F.70",
+          "title": "El plato para en firme con el timecode real; silencio (no clamp) antes del principio del sample",
+          "module": "CXFAudioCore + XFApp",
+          "acceptance": "al parar el vinilo real el plato se para sin decaimiento sintetico; al scratchear hacia atras del principio del sample la posicion no se clava a 0 (silencio, referencia preservada)",
+          "status": "done",
+          "note": "Hecho (2026-09-05, ADR-076). Reportado por el autor tras probar con la Rane 72 real: (1) al parar el vinilo, la traza (\"el teal\") seguia moviendose un rato mas -- debia moverse EXCLUSIVAMENTE con el timecode; (2) al scratchear hacia atras del principio del sample, la posicion se clavaba en 0 en vez de un silencio infinito -- sin eso hay deriva y se pierde la referencia con el vinilo real. PracticeSession separa timecodeDriving/lastTimecodeAt de scrubbing/lastScrubAt (F.44) -- al cortarse la senal real (>80 ms) el plato para EN FIRME, sin la friccion sintetica de F.08 (esa la conserva el trackpad, sensacion humana de plato de juguete). El tope de abajo de coastPlatter pasa de posLo a posLoFloor = posLo - patternSpan*2.5 (mismo margen que posHi hacia delante): ningun scratch real lo alcanza, solo frena el martilleo sintetico de scrollBy (rueda del raton), que acumula impulso sin limite. En el motor RT, xf_player.c deja de saturar el cabezal por abajo (sin bucle) -- la convolucion ya devolvia silencio fuera de [0, last] (rama de los bordes); solo hacia falta floor() de verdad para el cabezal negativo (antes truncaba, asumiendo siempre >= 0; con x >= 0 sigue truncando, camino rapido intacto). Tests: 2 en XFPlayerTests (cabezal negativo + vuelta exacta al mismo frame) + 2 en PracticeSessionTests (parada en firme + preserva la referencia). make verify en verde, 766 tests. Pendiente: confirmar con los oidos en la Rane 72 real."
+        },
+        {
+          "id": "F.71",
+          "title": "Boton Refrescar dispositivos en el paso Audio del asistente",
+          "module": "XFApp",
+          "acceptance": "se puede re-enumerar CoreAudio desde dentro del asistente sin salir y volver a entrar en Calibracion",
+          "status": "done",
+          "note": "Hecho (2026-09-05). Encontrado investigando el bug del picker de instrumental \"desaparecido\": la lista de CoreAudio del asistente solo se refresca al ENTRAR en Calibracion (AppRootView.onChange(of: model.screen)); si el driver de la mesa tiene un hipo justo tras un replug de USB mientras ya estabas dentro del paso 1 (visto arreglando F.67 con la Rane 72: el aprendizaje MIDI dejo de responder hasta un replug), te quedas con la foto vieja -- p. ej. menos pares de salida de los que hay de verdad -- sin ningun cambio de pantalla que la refresque sola. Boton que re-enumera AudioDeviceList.all() y vuelve a aplicar la seleccion, sin salir del asistente."
         }
       ]
     }

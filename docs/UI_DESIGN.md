@@ -83,7 +83,11 @@ esto sale mal, todo lo demas miente.
    1"…). Si el dispositivo de salida tiene más de un par, también deja elegir
    el **canal de la instrumental** (F.68, ADR-075): "Combinado" (con el
    scratch, de siempre) o un par distinto — dos tiras de mezclador separadas.
-   Muestra el buffer.
+   Muestra el buffer. Botón **"Refrescar dispositivos"** (F.71): re-enumera
+   CoreAudio sin salir del asistente — la lista normal solo se refresca al
+   ENTRAR en esta pantalla, así que un hipo del driver justo tras un replug de
+   USB mientras ya estás dentro se quedaba con la foto vieja hasta salir y
+   volver a entrar.
 2. **Timecode** — "gira el plato despacio". Scope circular en vivo, indicador de
    calidad de senal y deteccion automatica de direccion y hamster.
 3. **Fader** — "haz diez cortes". Botón **"Aprender MIDI del fader"**: mueve el

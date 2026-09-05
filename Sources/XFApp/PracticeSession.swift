@@ -81,6 +81,14 @@ public final class PracticeSession: ObservableObject {
     /// libertad de movimiento ni al mapeo de audio.
     private var posLo: Double
     private var posHi: Double
+    /// F.70 (ADR-076) — margen de "silencio infinito" hacia atrás, tan
+    /// generoso como el de `posHi` hacia adelante (misma proporción). Un
+    /// scratch real jamás lo alcanza: solo actúa de red de seguridad frente al
+    /// martilleo sintético de la rueda del ratón (`scrollBy`), que ACUMULA
+    /// impulso sin límite (a diferencia de `scrub`/`pushRealVelocity`, que
+    /// imponen la velocidad real directamente y nunca podrían llegar tan
+    /// lejos). Ver `coastPlatter`.
+    private var posLoFloor: Double
     /// Span propio del patron (pico bajo -> pico alto), en unidades de posicion.
     private var patternSpan: Double
     /// Cuanta historia de traza guardamos, en ticks (~8 negras).
@@ -162,6 +170,15 @@ public final class PracticeSession: ObservableObject {
     /// Se suelta con `endScrub()` o solo si dejan de llegar eventos (~80 ms).
     private var scrubbing = false
     private var lastScrubAt: CFTimeInterval = 0
+    /// F.70 — separado de `scrubbing`: mientras el vinilo de timecode real
+    /// manda velocidad (`pushRealVelocity`), el plato se mueve EXCLUSIVAMENTE
+    /// con esa señal, sin física sintética de por medio (ni mientras llega, ni
+    /// al dejar de llegar). Si se reutilizara `scrubbing`/la fricción de
+    /// `scrub()` (pensada para el trackpad), al parar el vinilo de verdad el
+    /// "teal" seguía decelerando solo un rato más — dejaba de ser fiel a la
+    /// señal real, que es justo lo que no puede pasar aquí.
+    private var timecodeDriving = false
+    private var lastTimecodeAt: CFTimeInterval = 0
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -250,6 +267,7 @@ public final class PracticeSession: ObservableObject {
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
         self.posHi = range.lowerBound + patternSpan * 2.5
+        self.posLoFloor = range.lowerBound - patternSpan * 2.5
         // Arranca en `posLo` = posicion 0 del sample.
         self.platterPosition = range.lowerBound
         self.bpm = min(220, max(40, bpm))
@@ -270,9 +288,11 @@ public final class PracticeSession: ObservableObject {
         self.patternSpan = max(1e-6, range.upperBound - range.lowerBound)
         self.posLo = range.lowerBound
         self.posHi = range.lowerBound + patternSpan * 2.5
+        self.posLoFloor = range.lowerBound - patternSpan * 2.5
         self.platterPosition = range.lowerBound
         self.platterVelocity = 0
         self.scrubbing = false
+        self.timecodeDriving = false
         self.traceBuffer.removeAll(keepingCapacity: true)
         onAdvance?(0, 0, currentTick)
     }
@@ -314,6 +334,15 @@ public final class PracticeSession: ObservableObject {
         // levantado sin avisar (o hubo un salto de estado): vuelve la fisica de
         // inercia + friccion desde la ultima velocidad de la mano.
         if scrubbing, CACurrentMediaTime() - lastScrubAt > 0.08 { scrubbing = false }
+        // F.70 — el mismo watchdog pero SIN física de por medio: si el vinilo
+        // real deja de mandar velocidad (aguja levantada, o simplemente
+        // paraste el plato con la mano — la confianza del timecode cae a la
+        // vez que la velocidad, F.65), el plato se para EN FIRME. Nada de
+        // fricción sintética: "el teal" solo se mueve con la señal real.
+        if timecodeDriving, CACurrentMediaTime() - lastTimecodeAt > 0.08 {
+            timecodeDriving = false
+            platterVelocity = 0
+        }
 
         // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
         // plato sigue con su fisica y se sigue empujando el motor de audio ->
@@ -348,6 +377,7 @@ public final class PracticeSession: ObservableObject {
             if crPhase == .respond {
                 platterVelocity = 0        // empiezas con el plato quieto
                 scrubbing = false
+                timecodeDriving = false
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
@@ -429,11 +459,23 @@ public final class PracticeSession: ObservableObject {
 
     /// Física del plato al girar libre: frena por fricción (F.08) **salvo
     /// mientras haces `scrub`** — con los dedos en el trackpad la velocidad la
-    /// sujeta tu mano (F.44) — luego integra la posición y aplica los topes.
+    /// sujeta tu mano (F.44) — **o mientras manda el timecode real** (F.70) —
+    /// luego integra la posición y aplica los topes.
+    ///
+    /// F.70 (ADR-076): el tope de ABAJO ya NO clava la posición a `posLo` (el
+    /// principio del sample) — la clava mucho más atrás, en `posLoFloor`. Con
+    /// el vinilo real el plato puede seguir girando hacia atrás más allá del
+    /// principio (el motor ya sabe devolver silencio ahí, `xf_player.c`); si
+    /// aquí lo clavábamos justo en `posLo`, ese giro de más se perdía y al
+    /// volver hacia delante el sample sonaba antes de tiempo — la "deriva" que
+    /// perdía la referencia con el vinilo real. `posLoFloor` es tan generoso
+    /// (mismo margen que `posHi` hacia adelante) que ningún scratch real lo
+    /// alcanza nunca; solo frena el martilleo sintético de la rueda del ratón,
+    /// que sí podría acumular velocidad sin límite.
     private func coastPlatter(step: Double) {
-        if !scrubbing { decayPlatterVelocity(step: step) }
+        if !scrubbing && !timecodeDriving { decayPlatterVelocity(step: step) }
         platterPosition += platterVelocity * step
-        if platterPosition < posLo { platterPosition = posLo; platterVelocity = 0 }
+        if platterPosition < posLoFloor { platterPosition = posLoFloor; platterVelocity = 0 }
         if platterPosition > posHi { platterPosition = posHi; platterVelocity = 0 }
     }
 
@@ -474,6 +516,7 @@ public final class PracticeSession: ObservableObject {
             crPhase = .off
             platterVelocity = 0
             scrubbing = false
+            timecodeDriving = false
         }
     }
 
@@ -561,16 +604,20 @@ public final class PracticeSession: ObservableObject {
     /// propósito, ver la cabecera del fichero) — deshace la conversión de
     /// `normalizedVelocity` para que, tras volver a pasar por ella en
     /// `onAdvance` (`LivePracticeView`), el ratio real llegue **intacto** a
-    /// `engine.setVelocity`. Reutiliza `scrubbing`/`lastScrubAt` de `scrub()`:
-    /// si el vinilo deja de mandar muestras más de 80 ms (aguja levantada,
-    /// dropout — B5.5 ya lo valida a nivel de señal), la fricción sintética
-    /// retoma sola en vez de quedarse con la última velocidad congelada.
+    /// `engine.setVelocity`. Usa su propio `timecodeDriving`/`lastTimecodeAt`
+    /// (F.70) — NO `scrubbing`: ese es el de `scrub()` (trackpad), pensado
+    /// para que al soltar los dedos vuelva la física de inercia + fricción: la
+    /// sensación humana de un plato de juguete. Aquí no hay tal cosa — el
+    /// plato "es" el vinilo real, así que si el vinilo deja de mandar
+    /// muestras más de 80 ms (aguja levantada, dropout — B5.5 ya lo valida a
+    /// nivel de señal, o simplemente lo paraste con la mano) el plato se para
+    /// EN FIRME, sin decaimiento sintético de por medio.
     public func pushRealVelocity(_ ratio: Double, sampleDurationSeconds: Double) {
         guard !machineDrivesDisc, sampleDurationSeconds > 0 else { return }
         let normVel = ratio / sampleDurationSeconds
         platterVelocity = normVel * patternSpan / AudioAsset.scratchPatternTopFraction
-        scrubbing = true
-        lastScrubAt = CACurrentMediaTime()
+        timecodeDriving = true
+        lastTimecodeAt = CACurrentMediaTime()
     }
 
     /// Pulsacion de tecla de plato. `forward` = hacia adelante (D); si no, atras (A).
@@ -778,6 +825,7 @@ public final class PracticeSession: ObservableObject {
         platterPosition = posLo
         platterVelocity = 0
         scrubbing = false
+        timecodeDriving = false
         onAdvance?(0, 0, currentTick)
     }
 
@@ -790,6 +838,7 @@ public final class PracticeSession: ObservableObject {
         platterPosition = min(posHi, max(posLo, posLo + rel * patternSpan))
         platterVelocity = 0
         scrubbing = false
+        timecodeDriving = false
         onAdvance?(0, clamped, currentTick)
     }
 
@@ -809,6 +858,7 @@ public final class PracticeSession: ObservableObject {
         traceBuffer.removeAll()
         platterVelocity = 0
         scrubbing = false
+        timecodeDriving = false
         platterPosition = posLo
         if crPhase != .off { crPhase = .listen }
     }

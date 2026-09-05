@@ -313,12 +313,27 @@ void xf_player_render(xf_player *p, float *out, int nframes,
         } else {
             int ri = xf_player_ratio_index(av);
 
-            /* 4) parte entera y fase fraccionaria. `x` siempre es >= 0 (no-bucle
-             *    saturado a [0, last]; bucle con fmod a [0, frames)), asi que
-             *    truncar == floor y nos ahorramos la llamada a libm. */
+            /* 4) parte entera y fase fraccionaria. Con bucle, o sin bucle
+             *    dentro del sample, `x` siempre es >= 0, asi que truncar ==
+             *    floor y nos ahorramos la llamada a libm (camino normal, el
+             *    99% de las muestras). F.70 (ADR-076): sin bucle el cabezal
+             *    YA NO se satura a 0 por abajo -- puede quedar en "silencio
+             *    infinito" antes del sample (ver el comentario junto al
+             *    saturado de abajo) -- asi que ahi SI hace falta `floor()` de
+             *    verdad: truncar hacia cero en negativo da la fase al reves
+             *    (p.ej. x=-2.3 truncaria a i=-2, f=-0.3) y esa fase negativa
+             *    indexaria la tabla de kernels fuera de rango. */
             double x = p->playhead;
-            int64_t i = (int64_t)x;
-            double  f = x - (double)i;
+            int64_t i;
+            double  f;
+            if (x >= 0.0) {
+                i = (int64_t)x;
+                f = x - (double)i;
+            } else {
+                double fl = floor(x);
+                i = (int64_t)fl;
+                f = x - fl;
+            }
             int ph = (int)(f * (double)XF_PLAYER_PHASES + 0.5);
             if (ph >= XF_PLAYER_PHASES) ph = XF_PLAYER_PHASES - 1;
 
@@ -377,8 +392,16 @@ void xf_player_render(xf_player *p, float *out, int nframes,
             out[n] = y;
         }
 
-        /* 6) avanza el cabezal: se satura a los extremos (el plato no se sale
-         *    del sample) o da la vuelta dentro de la region si esta en bucle. */
+        /* 6) avanza el cabezal: se satura ARRIBA (el plato no se sale del final
+         *    del sample) o da la vuelta dentro de la region si esta en bucle.
+         *    Sin bucle, ABAJO ya NO se satura a 0 (F.70, ADR-076): con timecode
+         *    real el vinilo puede seguir girando hacia atras mas alla del
+         *    principio del sample -- si aqui lo clavabamos a 0, ese giro de mas
+         *    se perdia, y al volver hacia delante el sample sonaba de golpe en
+         *    vez de tras el mismo recorrido de silencio que costo alejarse (la
+         *    "referencia" del plato respecto al vinilo real). Dejarlo negativo
+         *    (el paso 5, arriba, ya devuelve silencio fuera de [0, last]) hace
+         *    que el hueco de vuelta sea exactamente el que se abrio. */
         p->playhead += v;
         if (do_loop) {
             const double a = (double)rlo, b = (double)rhi;
@@ -393,7 +416,6 @@ void xf_player_render(xf_player *p, float *out, int nframes,
             while (p->playhead >= b) p->playhead -= (double)rspan;
             while (p->playhead <  a) p->playhead += (double)rspan;
         } else {
-            if (p->playhead < 0.0) p->playhead = 0.0;
             if (p->playhead > (double)last) p->playhead = (double)last;
         }
 

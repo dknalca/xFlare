@@ -562,6 +562,45 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.platterVelocity, 0)
     }
 
+    /// F.70 — a diferencia de soltar el trackpad (`testAlSoltarElScrubVuelveLaFriccion`,
+    /// donde SÍ vuelve la física), si el vinilo real deja de mandar velocidad
+    /// (aguja levantada, o lo paraste con la mano) el plato se para EN FIRME:
+    /// "el teal" solo se mueve con la señal real, sin decaimiento sintético de
+    /// por medio que lo deje deslizando un rato más.
+    func testPushRealVelocitySeParaEnFirmeSiDejaDeLlegarSenal() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        XCTAssertNotEqual(s.platterVelocity, 0)
+        Thread.sleep(forTimeInterval: 0.12)   // > 80 ms sin nueva muestra real
+        s.advance(by: 1.0 / 60.0)
+        XCTAssertEqual(s.platterVelocity, 0,
+                       "sin señal real, parada en firme -- nada de fricción sintética")
+    }
+
+    /// F.70 (ADR-076) — si el vinilo real retrocede más allá del principio del
+    /// sample, la posición YA NO se clava ahí (antes lo hacía, y de paso ponía
+    /// la velocidad a 0): sigue integrando el giro real de más, en "silencio"
+    /// (`normalizedPosition` ya está acotado a 0 aparte). El mismo recorrido
+    /// de vuelta debe llegar EXACTAMENTE al punto de partida — es la
+    /// "referencia" con el vinilo real que se perdía con el clamp viejo.
+    func testPushRealVelocityHaciaAtrasPreservaLaReferenciaAlPrincipio() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        let start = s.platterPosition
+        for _ in 0..<10 {
+            s.pushRealVelocity(-1.0, sampleDurationSeconds: 2.0)
+            s.advance(by: 1.0 / 60.0)
+        }
+        XCTAssertLessThan(s.platterPosition, start,
+                          "el vinilo puede seguir girando hacia atrás del principio, no se clava")
+        XCTAssertEqual(s.normalizedPosition, 0, "no hay sample que sonar ahí: silencio")
+        for _ in 0..<10 {
+            s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+            s.advance(by: 1.0 / 60.0)
+        }
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9,
+                       "el mismo recorrido de vuelta llega EXACTO al punto de partida, sin deriva")
+    }
+
     func testElScrubSeIgnoraSiLaMaquinaLlevaElDisco() throws {
         let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
         s.setAssist(.fader)                       // la máquina mueve el disco

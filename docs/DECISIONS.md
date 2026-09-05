@@ -3146,6 +3146,79 @@ por cerrado. Pendiente, no cerrado aquí: el asistente de calibración (paso
 Audio) solo elige el canal de ENTRADA/salida del scratch, no el de la
 instrumental — esa elección vive solo en Ajustes › Hardware por ahora.
 
+## ADR-076 — El plato para en firme con el timecode real; silencio (no clamp) antes del principio del sample
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Con la Rane 72 ya conectada de verdad (F.65: `pushRealVelocity`
+lleva la velocidad del vinilo real al plato de `PracticeSession`), aparecieron
+dos fallos al usar timecode real en vez de ratón/trackpad:
+
+1. Al parar el vinilo físicamente, "el teal" (la traza dibujada) seguía
+   moviéndose un rato más en vez de pararse con el vinilo. Causa:
+   `pushRealVelocity` reutilizaba `scrubbing`/`lastScrubAt` de `scrub()`
+   (F.44, trackpad) — al dejar de llegar muestras reales (aguja levantada, o
+   confianza del timecode cayendo a la vez que la velocidad al parar el
+   plato), el watchdog de 80 ms soltaba `scrubbing` y volvía la física
+   sintética de inercia + fricción (F.08), pensada para que un plato de
+   ratón se sienta bien al soltarlo — no para el vinilo real, donde no debe
+   haber NINGÚN movimiento que no venga de la señal.
+2. Al scratchear hacia atrás más allá del principio del sample, el autor
+   pedía que el recorrido siguiera en "silencio infinito" en vez de clavarse
+   en `posLo` (posición 0) — si no, el vinilo real seguía girando hacia
+   atrás mientras el plato de la app se quedaba clavado, y al volver hacia
+   delante el sample sonaba antes de tiempo: se perdía la referencia entre
+   cuánto había girado el vinilo de verdad y dónde decía la app que estaba
+   ("stick drift"). El mismo clamp-a-0 existía por duplicado en el motor RT
+   (`xf_player.c`: `if (p->playhead < 0.0) p->playhead = 0.0;`) — el cabezal
+   de audio tiene el mismo problema de raíz, independiente de la traza
+   visual.
+
+**Decisión.**
+- `PracticeSession` separa `timecodeDriving`/`lastTimecodeAt` de
+  `scrubbing`/`lastScrubAt`: mientras hay señal real, ni una ni otra tocan la
+  física; al cortarse la señal (>80 ms sin muestra), `timecodeDriving` se
+  suelta y la velocidad se pone a **0 en firme**, sin pasar por
+  `decayPlatterVelocity`. El trackpad (`scrub`) conserva su comportamiento de
+  siempre (F.44/F.08): ahí SÍ vuelve la fricción al soltar, es la sensación
+  humana de un plato de juguete.
+- El tope de abajo de `coastPlatter` deja de ser `posLo` (principio del
+  sample) y pasa a `posLoFloor = posLo - patternSpan · 2.5` — el mismo margen
+  generoso que ya tenía `posHi` hacia delante. Ningún scratch real lo
+  alcanza nunca; existe solo como red de seguridad frente al martilleo
+  sintético de la rueda del ratón (`scrollBy`), que ACUMULA impulso sin
+  límite (a diferencia de `scrub`/`pushRealVelocity`, que imponen la
+  velocidad real directamente).
+- `xf_player.c` (motor RT, `xf_player_render`): sin bucle, el cabezal ya NO
+  se satura por abajo — solo por arriba (fin del sample, sin cambios). La
+  convolución YA devolvía silencio para índices fuera de `[0, last]` (rama
+  lenta de los bordes); lo único que hacía falta era dejar que el cabezal
+  pudiera ser negativo de verdad. Esto rompía la optimización de "truncar ==
+  floor" (comentario original: "el cabezal siempre es >= 0"), así que la
+  parte entera/fase fraccionaria ahora usa `floor()` de verdad cuando el
+  cabezal es negativo (con `x >= 0` sigue truncando, camino rápido intacto).
+
+**Alternativas descartadas.** Añadir una región "pre-roll" explícita de
+silencio de longitud fija en el motor (p. ej. anteponer N frames de ceros al
+sample) — más estado que mantener y un límite arbitrario donde el usuario
+pedía "infinito"; dejar el cabezal negativo y que la convolución ya
+existente devuelva silencio no cuesta nada nuevo. Aplicar la misma
+"parada en firme" también a `scrub()` (trackpad) — se descarta: el usuario
+explícitamente distingue el trato ("el teal debe moverse EXCLUSIVAMENTE con
+el timecode"), y el trackpad sigue siendo la vía de desarrollo sin mesa
+(CLAUDE.md §5, "hardware real primero"), donde la fricción al soltar es
+justo lo que hace que se sienta como un plato y no como un cursor.
+
+**Consecuencias.** El "teal" y el audio del scratch ahora son fieles al
+timecode real: paran cuando para el vinilo, no antes ni un instante después.
+Scratchear hacia atrás del principio del sample ya no pierde la
+sincronización con el vinilo real. `xf_player_playhead()` puede devolver
+negativo ahora (antes solo `[0, frames)`); el único consumidor actual es un
+test (`EngineHandleTests`), ningún código de producción lo usaba para nada
+que asumiera no-negatividad. Sin verificar todavía "con los oídos" en la
+Rane 72 con un scratch real hacia atrás del principio — pendiente de
+confirmación del autor.
+
 ---
 
 ## Plantilla para nuevas entradas

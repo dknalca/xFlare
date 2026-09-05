@@ -14,10 +14,19 @@ struct AudioCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
     let inputDevices: [AudioDeviceList.Device]
     let outputDevices: [AudioDeviceList.Device]
+    /// F.71 — re-enumera CoreAudio sin salir del asistente (por si el driver
+    /// de la mesa tuvo un hipo justo tras un replug de USB mientras ya
+    /// estabas dentro de este paso).
+    let onRefreshDevices: () -> Void
 
     var body: some View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
+                HStack {
+                    Spacer()
+                    Button("Refrescar dispositivos") { onRefreshDevices() }
+                        .xfButton(.bordered)
+                }
                 devicePicker("Entrada (timecode)", devices: inputDevices,
                              selection: $model.inputDeviceName)
                 if let inDevice = inputDevices.first(where: { $0.name == model.inputDeviceName }) {

@@ -156,6 +156,19 @@ public struct AppRootView: View {
         .onChange(of: calibrationModel.instrumentalOutputChannelFirst) { _ in applyCalibrationSelection() }
     }
 
+    /// F.71 — botón "Refrescar dispositivos" del paso 1: re-enumera CoreAudio
+    /// a mano. La lista normal solo se refresca al ENTRAR en Calibración (más
+    /// abajo, `.onChange(of: model.screen)`); si el driver de la mesa tiene un
+    /// hipo justo tras un replug de USB mientras ya estabas dentro del
+    /// asistente (p. ej. reporta menos pares de salida de los que hay de
+    /// verdad — visto con la Rane 72 al arreglar el "Aprender MIDI" con un
+    /// replug), te quedas con esa foto vieja sin ningún cambio de pantalla
+    /// que la refresque sola.
+    private func refreshCalibrationDevices() {
+        calibrationDevices = AudioDeviceList.all()
+        applyCalibrationSelection()
+    }
+
     /// Traslada la selección de dispositivo/canal del paso 1 a `AppSettings`
     /// — de donde de verdad lee el motor (`applyAudioDevicePreferences`) — y
     /// relanza la captura de timecode si ya estaba activa (paso 2), para que
@@ -432,6 +445,7 @@ public struct AppRootView: View {
                 scopeReadings: { model.scopeReadings },
                 onStartFaderLearn: startFaderLearn,
                 onFinishFaderLearn: finishFaderLearn,
+                onRefreshDevices: refreshCalibrationDevices,
                 onFinish: { cal in
                     try? model.db.saveCalibration(cal)
                     model.goHome()

@@ -1526,6 +1526,39 @@ en manos de gente.*
       - Tests: `testReiniciarCortesVuelveA0SinTocarLosSliders`. `make
         verify` en verde.
 
+- [x] **F.70** El plato para en firme con el timecode real; silencio (no clamp) antes del principio del sample `CXFAudioCore` `XFApp`
+      - Reportado por el autor tras probar con la Rane 72 real: (1) al parar
+        el vinilo, "el teal" seguía moviéndose un rato más — debía moverse
+        EXCLUSIVAMENTE con el timecode; (2) al scratchear hacia atrás del
+        principio del sample, la posición se clavaba en 0 en vez de un
+        "silencio infinito" — sin eso hay deriva y se pierde la referencia
+        con el vinilo real.
+      - Hecho (2026-09-05, ADR-076): `PracticeSession` separa
+        `timecodeDriving`/`lastTimecodeAt` de `scrubbing`/`lastScrubAt`
+        (F.44) — al cortarse la señal real (>80 ms) el plato para EN FIRME,
+        sin la fricción sintética de F.08 (esa la conserva el trackpad). El
+        tope de abajo de `coastPlatter` pasa de `posLo` a
+        `posLoFloor = posLo - patternSpan·2.5` (mismo margen que `posHi`):
+        ningún scratch real lo alcanza, solo frena el martilleo sintético de
+        `scrollBy`. En el motor RT, `xf_player.c` deja de saturar el cabezal
+        por abajo (sin bucle); la convolución ya devolvía silencio fuera de
+        `[0, last]`, solo hacía falta un `floor()` de verdad para el cabezal
+        negativo (antes truncaba, asumiendo que siempre era >= 0).
+      - Tests: 2 en `XFPlayerTests` (cabezal negativo + vuelta exacta al
+        mismo frame) + 2 en `PracticeSessionTests` (parada en firme +
+        preserva la referencia). `make verify` en verde, 766 tests.
+      - Pendiente: confirmar "con los oídos" en la Rane 72 real.
+
+- [x] **F.71** Botón "Refrescar dispositivos" en el paso Audio del asistente `XFApp`
+      - Encontrado investigando el bug del picker de instrumental
+        "desaparecido": la lista de CoreAudio del asistente solo se
+        refresca al ENTRAR en Calibración; si el driver de la mesa tiene un
+        hipo justo tras un replug de USB mientras ya estabas dentro, te
+        quedas con la foto vieja (menos pares de salida de los que hay de
+        verdad) sin ningún cambio de pantalla que la refresque sola.
+      - Hecho (2026-09-05): botón que re-enumera `AudioDeviceList.all()` y
+        vuelve a aplicar la selección, sin salir del asistente.
+
 ---
 
 ## Reglas de uso
