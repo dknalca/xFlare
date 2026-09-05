@@ -34,6 +34,12 @@ struct AudioCalibrationStep: View {
                     if pairs.count > 1 {
                         channelPicker("Canal de salida", pairs: pairs,
                                      selection: $model.outputChannelFirst)
+                        // F.68 (ADR-075): mismo dispositivo, un PAR distinto
+                        // para la base — dos tiras de mezclador separadas en
+                        // vez de una mezcla combinada. Necesita al menos dos
+                        // pares para tener sentido (si no, no hay "distinto"
+                        // que elegir).
+                        instrumentalChannelPicker(pairs: pairs)
                     }
                 }
                 HStack {
@@ -64,6 +70,22 @@ struct AudioCalibrationStep: View {
             Picker("", selection: selection) {
                 Text("— elige —").tag(String?.none)
                 ForEach(devices) { d in Text(d.name).tag(String?.some(d.name)) }
+            }
+            .labelsHidden()
+        }
+    }
+
+    /// F.68 (ADR-075): a diferencia de `channelPicker` (siempre un par real),
+    /// aquí `nil` es una opción explícita — "Combinado" (con el scratch), el
+    /// comportamiento de siempre — así que necesita su propio picker con esa
+    /// opción de más.
+    private func instrumentalChannelPicker(pairs: [AudioDeviceList.ChannelPair]) -> some View {
+        HStack {
+            Text("Canal de la instrumental").foregroundColor(XFColor.textMuted)
+                .frame(width: 160, alignment: .leading)
+            Picker("", selection: $model.instrumentalOutputChannelFirst) {
+                Text("Combinado (con el scratch)").tag(Int?.none)
+                ForEach(pairs) { p in Text(p.label).tag(Int?.some(p.first)) }
             }
             .labelsHidden()
         }

@@ -80,7 +80,10 @@ esto sale mal, todo lo demas miente.
 1. **Audio** — elegir interfaz, salida y el **par estéreo** dentro de cada una
    (como el selector de audio de Ableton Live: la Rane 72 expone 14 canales de
    entrada / 6 de salida, agrupados en parejas — "1-2 · Analog 1", "7-8 · Deck
-   1"…). Muestra el buffer.
+   1"…). Si el dispositivo de salida tiene más de un par, también deja elegir
+   el **canal de la instrumental** (F.68, ADR-075): "Combinado" (con el
+   scratch, de siempre) o un par distinto — dos tiras de mezclador separadas.
+   Muestra el buffer.
 2. **Timecode** — "gira el plato despacio". Scope circular en vivo, indicador de
    calidad de senal y deteccion automatica de direccion y hamster.
 3. **Fader** — "haz diez cortes". Botón **"Aprender MIDI del fader"**: mueve el
@@ -144,7 +147,11 @@ elegir el **par estéreo** (mismo `AudioDeviceList.stereoPairs` que usa Ajustes
 › Hardware) para entrada y salida cuando el dispositivo tiene más de uno, y
 cualquier cambio aquí se vuelca de verdad a `AppSettings` y reinicia la
 captura del scope si ya estaba activo — un solo dispositivo/canal, el mismo
-en Ajustes y en lo que arranca el motor.
+en Ajustes y en lo que arranca el motor. **Mismo día (F.68):** también deja
+elegir el par de la **instrumental** si el dispositivo de salida tiene más de
+uno — "Combinado" es un estado explícito distinto de "sin elegir": si el
+dispositivo cambia y el par guardado ya no existe, cae a Combinado, no al
+primer par (saltar a otro par sin pedirlo sería peor sorpresa).
 
 ### 3.2 Home — el mapa
 

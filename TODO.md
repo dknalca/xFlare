@@ -1499,9 +1499,15 @@ en manos de gente.*
         nuevo en Ajustes › Hardware ("Canal de la instrumental") junto al de
         salida existente.
       - **Pendiente, no cerrado aquí:** no verificado por hardware con los
-        oídos (RT-safe, no se puede probar sin escuchar la mesa real). El
-        paso Audio del asistente de calibración no elige el canal de la
-        instrumental — vive solo en Ajustes por ahora.
+        oídos (RT-safe, no se puede probar sin escuchar la mesa real).
+      - **Paso Audio del asistente (2026-09-05, mismo día):** el selector de
+        "Canal de la instrumental" también aparece en el paso 1 del
+        asistente (antes solo en Ajustes), con "Combinado" como opción
+        explícita — a diferencia del canal de entrada/salida (que cae al
+        primer par si el guardado ya no es válido), aquí si el par elegido
+        deja de existir en el dispositivo actual cae a `nil` (combinado),
+        no al primer par: saltar a otro par sin pedirlo sería peor sorpresa
+        que volver al comportamiento de siempre.
       - Tests: `XFEngineSplitOutputTests` (nuevo, 4: aísla scratch/base,
         metrónomo con la base en separado, cae a combinado si falta un
         puntero, combinado sigue igual que antes) + 3 en `AppSettingsTests`

@@ -93,6 +93,12 @@ public struct AppRootView: View {
                                                            in: calibrationDevices) {
                     calibrationModel.inputDeviceName = inp.name
                 }
+                // F.68: precarga el canal de la instrumental si Ajustes ya
+                // tenía uno guardado (0 = combinado se queda en `nil`).
+                if calibrationModel.instrumentalOutputChannelFirst == nil,
+                   model.settings.instrumentalOutputChannel > 0 {
+                    calibrationModel.instrumentalOutputChannelFirst = model.settings.instrumentalOutputChannel
+                }
                 // el scope del paso 3 (Timecode) necesita el motor capturando
                 // entrada de verdad — para lo que sonara en otra pantalla y
                 // reabre el motor con captura (F.60/F.61 dejaron el motor
@@ -147,6 +153,7 @@ public struct AppRootView: View {
         .onChange(of: calibrationModel.outputDeviceName) { _ in applyCalibrationSelection() }
         .onChange(of: calibrationModel.inputChannelFirst) { _ in applyCalibrationSelection() }
         .onChange(of: calibrationModel.outputChannelFirst) { _ in applyCalibrationSelection() }
+        .onChange(of: calibrationModel.instrumentalOutputChannelFirst) { _ in applyCalibrationSelection() }
     }
 
     /// Traslada la selección de dispositivo/canal del paso 1 a `AppSettings`
@@ -169,6 +176,25 @@ public struct AppRootView: View {
         calibrationModel.outputChannelFirst = outFirst
         if model.settings.outputDeviceUID != outDevice.uid { model.settings.outputDeviceUID = outDevice.uid; changed = true }
         if let outFirst, model.settings.outputChannel != outFirst { model.settings.outputChannel = outFirst; changed = true }
+
+        // F.68 (ADR-075): canal de la BASE INSTRUMENTAL, si es distinto al
+        // del scratch. A diferencia de `outFirst`/`inFirst`, aquí `nil` es un
+        // estado válido por sí mismo ("Combinado") — si el par elegido ya no
+        // existe en el dispositivo actual (p. ej. se cambió a uno con menos
+        // canales) cae a `nil` (combinado, siempre seguro), NO al primer par
+        // — saltar a otro par sin que el usuario lo pida sería peor sorpresa
+        // que simplemente volver al comportamiento de siempre.
+        let instrFirst = calibrationModel.instrumentalOutputChannelFirst.flatMap { c in
+            outPairs.contains(where: { $0.first == c }) ? c : nil
+        }
+        if calibrationModel.instrumentalOutputChannelFirst != instrFirst {
+            calibrationModel.instrumentalOutputChannelFirst = instrFirst
+            changed = true
+        }
+        if model.settings.instrumentalOutputChannel != (instrFirst ?? 0) {
+            model.settings.instrumentalOutputChannel = instrFirst ?? 0
+            changed = true
+        }
 
         if let inDevice = calibrationDevices.first(where: {
             $0.name == calibrationModel.inputDeviceName && $0.inputChannels > 0

@@ -29,6 +29,13 @@ public final class CalibrationWizardModel: ObservableObject {
     @Published public var inputChannelFirst: Int?
     /// Igual que `inputChannelFirst` pero de SALIDA.
     @Published public var outputChannelFirst: Int?
+    /// Par estéreo de salida de la BASE INSTRUMENTAL (+ metrónomo), si es
+    /// DISTINTO de `outputChannelFirst` (F.68, ADR-075): dos tiras de
+    /// mezclador separadas para scratch y base, en vez de un único par
+    /// combinado. `nil` = combinado (mismo par que el scratch) — el
+    /// comportamiento de siempre. Mismo campo que `AppSettings.
+    /// instrumentalOutputChannel`, aquí solo para el paso 1 del asistente.
+    @Published public var instrumentalOutputChannelFirst: Int?
     @Published public var bufferFrames: Int = 64
 
     // MARK: paso 2 · timecode
