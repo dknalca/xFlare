@@ -10,7 +10,10 @@ public struct AppSettings: Equatable, Sendable {
 
     /// Tamaños de buffer de audio que se ofrecen (frames @ 48 kHz). Rango amplio
     /// a propósito: sirve para aislar si el buffer es la causa de un crepiteo.
-    public static let bufferOptions = [64, 128, 256, 512, 1024, 2048]
+    /// 32 (0,67 ms) es más agresivo que el suelo documentado en `CLAUDE.md`
+    /// (64 frames) — se ofrece para quien quiera apurar la latencia en la
+    /// máquina de referencia, sabiendo que puede no aguantar sin overloads.
+    public static let bufferOptions = [32, 64, 128, 256, 512, 1024, 2048]
     /// Buffer de arranque: 128 frames (2,7 ms). El compromiso seguro del Intel
     /// de 2015 (ADR-024); recorta ~16 ms frente a 512 (F.04).
     public static let defaultBufferFrames = 128

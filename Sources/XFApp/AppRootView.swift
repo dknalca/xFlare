@@ -200,10 +200,21 @@ public struct AppRootView: View {
         // Precarga el paso Fader con lo que ya se guardó para ESTA mesa, una
         // sola vez por `deviceKey` resuelto (no en cada cambio de canal, o
         // pisaría un ajuste en curso).
+        // F.80 — primera vez que se calibra ESTA mesa de verdad (sin
+        // DeviceCalibration guardada todavía): si tiene más de un par de
+        // salida, la instrumental arranca en un par DISTINTO al del scratch
+        // en vez de "Combinado". Pedido explícito del autor ("la salida de
+        // la instrumental debe ser diferente siempre a la del scratch") —
+        // atado a "sin calibración guardada" para no pisar nunca una
+        // elección explícita de una sesión anterior (aunque esa elección
+        // haya sido "Combinado" a propósito).
+        var firstTimeForThisDevice = false
         if calibrationLoadedDeviceKey != outDevice.uid {
             calibrationLoadedDeviceKey = outDevice.uid
             if let saved = try? model.db.calibration(deviceKey: outDevice.uid) {
                 calibrationModel.applyLoaded(saved)
+            } else {
+                firstTimeForThisDevice = true
             }
         }
         let outPairs = AudioDeviceList.outputChannelPairs(for: outDevice)
@@ -216,6 +227,12 @@ public struct AppRootView: View {
         calibrationModel.outputChannelFirst = outFirst
         if model.settings.outputDeviceUID != outDevice.uid { model.settings.outputDeviceUID = outDevice.uid; changed = true }
         if let outFirst, model.settings.outputChannel != outFirst { model.settings.outputChannel = outFirst; changed = true }
+
+        if firstTimeForThisDevice, calibrationModel.instrumentalOutputChannelFirst == nil,
+           outPairs.count > 1, let outFirst,
+           let differentPair = outPairs.first(where: { $0.first != outFirst }) {
+            calibrationModel.instrumentalOutputChannelFirst = differentPair.first
+        }
 
         // F.68 (ADR-075): canal de la BASE INSTRUMENTAL, si es distinto al
         // del scratch. A diferencia de `outFirst`/`inFirst`, aquí `nil` es un
@@ -289,6 +306,9 @@ public struct AppRootView: View {
               let value = config.value(fromCC: Int(data2)) else { return }
         let wasOpen = faderBinarizer?.isOpen ?? false
         let isOpen = faderBinarizer?.update(rawValue: value) ?? wasOpen
+        // F.80: el estado en vivo se dibuja con CADA mensaje (antes de la
+        // guarda de abajo, que solo sigue si hay un corte que puntuar).
+        calibrationModel.reportFaderState(isOpen: isOpen)
         guard isOpen != wasOpen else { return }
         calibrationModel.reportFaderCut(cutIn: calibrationModel.faderCutIn,
                                         hysteresis: calibrationModel.faderHysteresis)

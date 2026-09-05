@@ -53,14 +53,19 @@ struct AudioCalibrationStep: View {
                 }
                 HStack {
                     Text("Buffer").foregroundColor(XFColor.textMuted)
+                    // F.80: mismas opciones que Ajustes › Hardware (32…2048),
+                    // no solo 64/128 — para aislar un crepiteo hace falta
+                    // poder subir bastante más, y para apurar la latencia en
+                    // la máquina de referencia, poder bajar de 64 también.
                     Picker("", selection: $model.bufferFrames) {
-                        Text("64 frames").tag(64)
-                        Text("128 frames").tag(128)
+                        ForEach(AppSettings.bufferOptions, id: \.self) { n in
+                            Text("\(n) frames").tag(n)
+                        }
                     }
                     .labelsHidden()
                     .frame(width: 160)
                 }
-                Text("64 frames = 1,33 ms a 48 kHz. Sube a 128 si oyes cortes.")
+                Text("64 frames = 1,33 ms a 48 kHz. Sube si oyes cortes, baja para menos latencia.")
                     .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
                 if inputDevices.first(where: { $0.name == model.inputDeviceName })
                     .map({ AudioDeviceList.inputChannelPairs(for: $0).count > 1 }) == true {
@@ -202,6 +207,18 @@ struct FaderCalibrationStep: View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
                 faderLearnSection
+
+                // F.80: estado EN VIVO del fader (mismo lenguaje visual que
+                // "fader cerrado/abierto" de la práctica) — antes solo se
+                // veía el contador de cortes saltar en incrementos, sin nada
+                // que reaccionara al segundo con el movimiento real.
+                HStack(spacing: XFSpacing.xs) {
+                    Circle()
+                        .fill(model.faderIsOpen ? XFColor.accent : XFColor.textMuted)
+                        .frame(width: 8, height: 8)
+                    Text(model.faderIsOpen ? "fader abierto" : "fader cerrado")
+                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                }
 
                 HStack(spacing: XFSpacing.sm) {
                     Text("\(min(model.cutsDetected, model.faderCutsNeeded)) / \(model.faderCutsNeeded) cortes")

@@ -1835,6 +1835,33 @@ en manos de gente.*
         los 4 casos de la función pura. make verify en verde, 791 tests.
       - Pendiente: el autor confirma en la Rane 72 que el "raro"
         desaparece del todo.
+- [x] **F.80** Calibración: estado en vivo del fader, canal de la instrumental por defecto distinto, más buffer (ADR-084) `XFApp`
+      - El autor probó F.79 y pidió tres cosas: "Ahora no dibuja cuando el
+        crossfader corta. En calibracion el deck de la instrumental debe
+        seleccionar canal diferente al del sample. Da a elegir mas
+        opciones de buffer por arriba y por abajo."
+      - Hecho (2026-09-05, ADR-084):
+        1. `CalibrationWizardModel.faderIsOpen`/`reportFaderState(isOpen:)`
+           (nuevo) + círculo/texto "fader abierto/cerrado" en
+           `FaderCalibrationStep` — antes el paso solo mostraba el
+           contador de cortes, sin nada reaccionando al segundo al mover
+           el crossfader real.
+        2. `AppRootView.applyCalibrationSelection()`: la primera vez que
+           se calibra un dispositivo (sin `DeviceCalibration` guardada) y
+           tiene más de un par de salida, `instrumentalOutputChannelFirst`
+           arranca en un par DISTINTO al del scratch en vez de
+           "Combinado" — atado a "sin calibración guardada" para no pisar
+           nunca una elección explícita de una sesión anterior.
+        3. `AppSettings.bufferOptions` gana 32 (antes 64…2048);
+           `AudioCalibrationStep` deja su picker propio de 64/128 y usa la
+           misma lista completa que Ajustes › Hardware.
+      - Tests: `testFaderIsOpenArrancaAbiertoYSigueCadaMensajeAunqueNoSeaUnCorte`
+        (`CalibrationWizardTests`) + `testBufferDe32EsUnaOpcionValidaNoSeRecortaAlDefault`
+        (`AppSettingsTests`). El auto-anclaje del canal de la instrumental
+        (punto 2) vive en `AppRootView`, sin test — necesita SwiftUI +
+        CoreAudio real, como el resto del asistente. make verify en
+        verde, 793 tests.
+      - Pendiente: el autor confirma los tres en la Rane 72 real.
 
 ---
 

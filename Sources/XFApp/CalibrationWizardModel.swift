@@ -45,6 +45,13 @@ public final class CalibrationWizardModel: ObservableObject {
     @Published public var hamster: Bool = false
 
     // MARK: paso 3 · fader
+    /// F.80 — estado EN VIVO del fader real (abierto/cerrado), para dibujarlo
+    /// en el paso mientras se calibra. Antes de esto el paso solo mostraba
+    /// el contador de cortes, que salta en incrementos — sin nada que
+    /// reaccione al segundo con el movimiento del crossfader, el autor lo
+    /// reportó como "no dibuja cuando el crossfader corta". Arranca abierto
+    /// (mismo criterio que `PracticeSession.faderClosed = false` al inicio).
+    @Published public private(set) var faderIsOpen = true
     @Published public private(set) var cutsDetected: Int = 0
     @Published public var faderCutIn: Double = 0.5
     @Published public var faderHysteresis: Double = 0.08
@@ -95,6 +102,13 @@ public final class CalibrationWizardModel: ObservableObject {
         cutsDetected += 1
         faderCutIn = min(1, max(0, cutIn))
         faderHysteresis = max(0, hysteresis)
+    }
+
+    /// F.80 — estado en vivo del fader (llega con CADA mensaje MIDI del
+    /// crossfader, no solo cuando cambia): a diferencia de `reportFaderCut`
+    /// (un evento discreto, puntuable), esto es solo para dibujar.
+    public func reportFaderState(isOpen: Bool) {
+        if faderIsOpen != isOpen { faderIsOpen = isOpen }
     }
 
     /// Botón "Reiniciar cortes": vuelve a 0 sin tocar `faderCutIn`/

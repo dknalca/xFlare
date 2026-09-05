@@ -21,6 +21,15 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings(raw: s.raw), s)
     }
 
+    /// F.80: el autor pidió más opciones de buffer "por arriba y por abajo"
+    /// en el asistente de calibración -- el suelo baja a 32 (ya lo tenía
+    /// arriba, hasta 2048). init(raw:) no debe recortarlo al default.
+    func testBufferDe32EsUnaOpcionValidaNoSeRecortaAlDefault() {
+        var s = AppSettings.defaults
+        s.bufferFrames = 32
+        XCTAssertEqual(AppSettings(raw: s.raw).bufferFrames, 32)
+    }
+
     func testBibliotecaDeSamplesYAjustesDeVideo() {
         var s = AppSettings.defaults
         s.sampleLibrary = ["/a/uno.wav", "/b/dos.wav", "/a/uno.wav", ""]   // con duplicado y vacío

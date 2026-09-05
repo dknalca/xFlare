@@ -91,6 +91,21 @@ final class CalibrationWizardTests: XCTestCase {
         XCTAssertEqual(m.faderHysteresis, 0.1, accuracy: 1e-9)
     }
 
+    // MARK: - estado en vivo del fader (F.80)
+
+    func testFaderIsOpenArrancaAbiertoYSigueCadaMensajeAunqueNoSeaUnCorte() {
+        let m = CalibrationWizardModel()
+        XCTAssertTrue(m.faderIsOpen, "arranca abierto, igual que PracticeSession")
+        m.reportFaderState(isOpen: false)
+        XCTAssertFalse(m.faderIsOpen)
+        // repetir el mismo estado no es un corte -- reportFaderState no toca
+        // cutsDetected, solo lo que se dibuja.
+        m.reportFaderState(isOpen: false)
+        XCTAssertEqual(m.cutsDetected, 0)
+        m.reportFaderState(isOpen: true)
+        XCTAssertTrue(m.faderIsOpen)
+    }
+
     // MARK: - aprender MIDI del fader (F.67)
 
     func testAprenderArmaYElProgresoSeVeEnVivo() {

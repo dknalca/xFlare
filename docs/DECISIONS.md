@@ -3699,6 +3699,68 @@ el volumen/EQ del sample en vez del mute.
 
 ---
 
+## ADR-084 — Calibración: estado en vivo del fader, canal de la instrumental por defecto distinto, más opciones de buffer
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Tras probar F.79 en la Rane 72, el autor pidió tres cosas
+seguidas sobre el asistente de calibración: "Ahora no dibuja cuando el
+crossfader corta. En calibracion el deck de la instrumental debe
+seleccionar canal diferente al del sample. Da a elegir mas opciones de
+buffer por arriba y por abajo."
+
+1. El paso "Fader" del asistente (`FaderCalibrationStep`) solo mostraba un
+   CONTADOR de cortes ("N / 10 cortes"), que salta en incrementos — nunca
+   hubo un indicador que reaccionara al segundo con la posición real del
+   crossfader mientras se mueve. `AppRootView.handleCalibrationMidi`
+   calculaba `isOpen` en cada mensaje MIDI pero solo lo usaba para comparar
+   contra `wasOpen` y contar un corte; el valor en sí se tiraba.
+2. `instrumentalChannelPicker` (F.68/ADR-075) ya existe en el paso Audio,
+   pero para una mesa nunca calibrada antes arranca en "Combinado" (mismo
+   par que el scratch) — el usuario tiene que elegir el par distinto a
+   mano cada vez, sin que el asistente lo proponga.
+3. El paso Audio ofrecía solo 64/128 frames de buffer, mientras que Ajustes
+   › Hardware ya ofrecía 64…2048 (`AppSettings.bufferOptions`) — dos listas
+   distintas para el mismo ajuste, y ninguna bajaba de 64.
+
+**Decisión.**
+1. `CalibrationWizardModel.faderIsOpen` (nuevo, `@Published`, arranca en
+   `true`) + `reportFaderState(isOpen:)` (se llama con CADA mensaje MIDI,
+   no solo cuando cambia — a diferencia de `reportFaderCut`, que sigue
+   siendo el evento discreto que cuenta). `FaderCalibrationStep` dibuja un
+   círculo + texto "fader abierto/cerrado", mismo lenguaje visual que ya
+   usa `LivePracticeView` en la práctica real.
+2. `AppSettings.bufferOptions` gana `32` en el suelo (quedaba
+   `[32, 64, 128, 256, 512, 1024, 2048]`); `AudioCalibrationStep` deja de
+   tener su propio picker de 2 opciones y usa la misma lista completa que
+   Ajustes › Hardware.
+3. `AppRootView.applyCalibrationSelection()`: si esta es la PRIMERA vez que
+   se calibra este dispositivo (sin `DeviceCalibration` guardada, mismo
+   criterio que ya usaba `applyLoaded`) y el dispositivo de salida tiene
+   más de un par, `instrumentalOutputChannelFirst` arranca en el primer
+   par DISTINTO al del scratch en vez de `nil` ("Combinado"). Atado
+   deliberadamente a "sin calibración guardada" — nunca a "está en `nil`
+   ahora mismo" — para no pisar jamás una elección explícita (incluida
+   "Combinado" a propósito) de una sesión anterior de la MISMA mesa.
+
+**Alternativas descartadas.** Para (3): persistir un flag nuevo
+"instrumental elegido a mano" en `DeviceCalibration`/`AppSettings` para
+distinguir "nunca tocado" de "elegido Combinado a propósito" con toda
+precisión — se descarta por ahora: añade un campo a un schema persistido
+por un caso de borde (recalibrar la MISMA mesa sin haber completado nunca
+el paso Fader, pero sí habiendo elegido Combinado a mano) que no se ha
+reportado; atarlo a "sin `DeviceCalibration`" cubre el caso real (mesa
+nueva) sin tocar el schema.
+
+**Consecuencias.** El paso Fader ahora se ve reaccionar en vivo al mover el
+crossfader, no solo el contador. Una mesa nueva con más de un par de
+salida arranca con scratch e instrumental ya repartidos en decks
+distintos, sin paso manual. El buffer se puede afinar más fino (32,
+0,67 ms) o más ancho (2048) desde el propio asistente, no solo desde
+Ajustes. Pendiente confirmar los tres en la Rane 72 real.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
