@@ -2015,6 +2015,37 @@ en manos de gente.*
         puramente de agrupación, sin tests nuevos).
       - Pendiente: el autor confirma que se lee bien en la Rane 72/pantalla
         real.
+- [x] **F.87** La captura de timecode solo la para quien la abrió de últimas (ADR-089) `XFApp`
+      - Probando la secuencia Práctica → Calibración → Práctica en la Rane
+        72, el autor reportó tres síntomas seguidos: la instrumental
+        desajustada de la rejilla, el scratch "sonando doble", y de
+        repente la app detectando el vinilo al revés a mitad de scratch.
+      - Causa: `LivePracticeView` (`onAppear`/`onDisappear`) y
+        `AppRootView` (`onChange(of: model.screen)`) deciden CADA UNA por
+        su lado cuándo arrancar/parar la captura real, reaccionando cada
+        una a su propia transición de pantalla — SwiftUI no garantiza el
+        orden entre el `onDisappear` de la vista que se va y el `onChange`
+        de la pantalla que entra. Si se solapan, un `stopTimecodeCapture()`
+        tardío de quien perdió la carrera para la captura que la otra
+        ACABA de abrir — antes `startTimecodeCapture()` solo comprobaba
+        `timecodeSource == nil` y se rendía, dejando dos decoders leyendo
+        el mismo audio a la vez: de ahí el sonido doblado, la instrumental
+        desajustada, y la dirección mal detectada (dos decoders compitiendo
+        por el ring de entrada corrompen la lectura de fase de xwax).
+      - Hecho (2026-09-06, ADR-089): `startTimecodeCapture(owner:)`/
+        `stopTimecodeCapture(owner:)` ganan un `TimecodeCaptureOwner`
+        (`.practice`/`.calibration`). Arrancar es idempotente de verdad
+        (cierra cualquier captura previa antes de abrir la suya); parar
+        solo actúa si el `owner` coincide con quien la abrió de últimas
+        (`shouldActOnStopRequest`, función pura, testeada sin motor). Una
+        llamada tardía de quien perdió la carrera es un no-op seguro.
+      - Tests: 3 nuevos en `AppModelTimecodeCaptureTests`
+        (`testStopSoloActuaSiElOwnerCoincideConQuienAbrioLaCaptura`,
+        `testStopDeUnaPantallaQuePerdioLaCarreraEsUnNoOp`,
+        `testStopSinNadieQueLaAbrieraEsUnNoOpSeguro`). make verify en
+        verde, 809 tests.
+      - Pendiente: el autor confirma en la Rane 72 que los tres síntomas
+        desaparecen con la secuencia Práctica → Calibración → Práctica.
 
 ---
 

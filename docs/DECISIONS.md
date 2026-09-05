@@ -4027,6 +4027,64 @@ se lee bien.
 
 ---
 
+## ADR-089 — La captura de timecode solo la para quien la abrió de últimas
+
+**Fecha:** 2026-09-06 · **Estado:** aceptada
+
+**Contexto.** Probando en la Rane 72 la secuencia Práctica → Calibración →
+Práctica, el autor reportó tres síntomas en la misma sesión: la
+instrumental desajustada de la rejilla, el scratch "sonando doble", y de
+repente la app detectando el vinilo girando al revés a mitad de un
+scratch real. Investigando: **dos sitios distintos** deciden cuándo
+arrancar/parar la captura real de timecode — `LivePracticeView`
+(`onAppear`/`onDisappear`, para la práctica) y `AppRootView`
+(`onChange(of: model.screen)`, para el scope del paso Timecode del
+asistente) — cada uno reaccionando a SU PROPIA transición de pantalla, sin
+que SwiftUI garantice en qué orden se disparan el `onDisappear` de la
+vista que se va y el `onChange` de la pantalla que entra. Si se solapan
+(la pantalla nueva arranca su captura ANTES de que la vieja termine de
+parar la suya), un `stopTimecodeCapture()` tardío de la pantalla que ya
+perdió la carrera para la captura que la otra ACABA de abrir —
+`startTimecodeCapture()` antes solo comprobaba `guard timecodeSource ==
+nil` y se rendía si ya había algo, dejando el terreno libre para que dos
+decoders (o dos `xf_engine` abriéndose sin que el anterior terminara de
+cerrarse) leyeran el mismo audio de entrada a la vez: de ahí el sonido
+doblado (dos motores escribiendo a la salida), la instrumental desajustada
+(el reloj de sesión y el del motor arrancaron en momentos distintos), y la
+dirección mal detectada (dos decoders compitiendo por el mismo ring de
+entrada corrompen la lectura de fase que usa xwax para saber hacia dónde
+gira el disco).
+
+**Decisión.** `AppModel.startTimecodeCapture(owner:)`/
+`stopTimecodeCapture(owner:)` ganan un parámetro
+`TimecodeCaptureOwner` (`.practice` / `.calibration`). Arrancar es
+idempotente de verdad: si ya hay una captura corriendo (de cualquier
+dueño), se cierra primero en vez de rendirse, y el que arranca de últimas
+se queda como dueño (`timecodeCaptureOwner`). Parar solo actúa si
+`owner` coincide con el dueño actual (`shouldActOnStopRequest`, función
+pura, testeada sin motor real) — una llamada tardía de la pantalla que ya
+perdió la carrera es un no-op seguro, nunca cierra la captura de quien
+ganó. `LivePracticeView` pasa `.practice`; `AppRootView` pasa
+`.calibration` en sus dos sitios (entrar/salir de Calibración y
+`applyCalibrationSelection`).
+
+**Alternativas descartadas.** Centralizar TODA la decisión de
+arrancar/parar en un solo sitio (p. ej. mover la lógica de
+`LivePracticeView` a `AppRootView`) — resolvería la causa raíz (dos dueños)
+de forma más limpia, pero es un cambio de arquitectura mayor que tocar
+solo la regla de "quién manda"; se deja como posible trabajo futuro si el
+token de dueño no basta. Un simple `guard timecodeSource == nil` más
+estricto en `startTimecodeCapture` (rendirse siempre si ya hay algo) — se
+descarta: es lo que ya hacía y es precisamente la causa del bug (deja
+viva una captura a medias de la pantalla que perdió la carrera).
+
+**Consecuencias.** Arrancar o parar la captura ahora converge siempre a un
+estado consistente sin importar en qué orden lleguen las llamadas de las
+dos pantallas. Pendiente confirmar en la Rane 72 que los tres síntomas
+desaparecen con la secuencia Práctica → Calibración → Práctica.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

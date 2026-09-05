@@ -134,7 +134,7 @@ public struct AppRootView: View {
                 // SOLO al salir de Calibración habiendo capturado de verdad —
                 // si no, cualquier cambio de pantalla reiniciaría el motor.
                 model.onTimecodeSample = nil
-                model.stopTimecodeCapture()
+                model.stopTimecodeCapture(owner: .calibration)
                 capturingTimecode = false
                 model.onRawMidiMessage = nil
             } else {
@@ -265,8 +265,8 @@ public struct AppRootView: View {
         }
 
         guard changed, capturingTimecode else { return }
-        model.stopTimecodeCapture()
-        model.startTimecodeCapture()
+        model.stopTimecodeCapture(owner: .calibration)
+        model.startTimecodeCapture(owner: .calibration)
     }
 
     // MARK: - paso "Fader" del asistente (F.67)
@@ -543,8 +543,8 @@ public struct AppRootView: View {
                     commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                     captureRealTimecode: !model.settings.inputDeviceUID.isEmpty,
                     motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
-                    startRealCapture: { model.startTimecodeCapture() },
-                    stopRealCapture: { model.stopTimecodeCapture() },
+                    startRealCapture: { model.startTimecodeCapture(owner: .practice) },
+                    stopRealCapture: { model.stopTimecodeCapture(owner: .practice) },
                     hardwareCrossfader: model.hasHardwareCrossfader,
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
@@ -617,8 +617,8 @@ public struct AppRootView: View {
                 commandEvents: model.practiceCommandEvents.eraseToAnyPublisher(),
                 captureRealTimecode: !model.settings.inputDeviceUID.isEmpty,
                 motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
-                startRealCapture: { model.startTimecodeCapture() },
-                stopRealCapture: { model.stopTimecodeCapture() },
+                startRealCapture: { model.startTimecodeCapture(owner: .practice) },
+                stopRealCapture: { model.stopTimecodeCapture(owner: .practice) },
                 hardwareCrossfader: model.hasHardwareCrossfader,
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in

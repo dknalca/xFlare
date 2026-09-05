@@ -20,21 +20,21 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
 
     func testArrancarSinMotorNoRevientaYNoDejaLecturas() throws {
         let m = try modelSinMotor()
-        m.startTimecodeCapture()
+        m.startTimecodeCapture(owner: .practice)
         XCTAssertTrue(m.scopeReadings.isEmpty)
     }
 
     func testPararSinHaberArrancadoEsUnNoOpSeguro() throws {
         let m = try modelSinMotor()
-        m.stopTimecodeCapture()   // nunca se llamó a startTimecodeCapture()
+        m.stopTimecodeCapture(owner: .practice)   // nunca se llamó a startTimecodeCapture()
         XCTAssertTrue(m.scopeReadings.isEmpty)
     }
 
     func testArrancarYPararSinMotorVariasVecesNoRevienta() throws {
         let m = try modelSinMotor()
         for _ in 0..<3 {
-            m.startTimecodeCapture()
-            m.stopTimecodeCapture()
+            m.startTimecodeCapture(owner: .practice)
+            m.stopTimecodeCapture(owner: .practice)
         }
         XCTAssertTrue(m.scopeReadings.isEmpty)
     }
@@ -43,7 +43,7 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         let m = try modelSinMotor()
         var calls = 0
         m.onTimecodeSample = { _ in calls += 1 }
-        m.startTimecodeCapture()
+        m.startTimecodeCapture(owner: .practice)
         XCTAssertEqual(calls, 0, "sin motor no hay nada que capturar ni que avisar")
     }
 
@@ -55,7 +55,7 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         var calls = 0
         let c = m.motionSampleEvents.sink { _ in calls += 1 }
         defer { c.cancel() }
-        m.startTimecodeCapture()
+        m.startTimecodeCapture(owner: .practice)
         XCTAssertEqual(calls, 0, "sin motor no hay nada que capturar ni que publicar")
     }
 
@@ -68,9 +68,38 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         let m = try modelSinMotor()
         XCTAssertNil(m.timecodeDriftMs)
         XCTAssertEqual(m.timecodeLockedFraction, 0)
-        m.startTimecodeCapture()
+        m.startTimecodeCapture(owner: .practice)
         XCTAssertNil(m.timecodeDriftMs, "sin motor no hay lecturas que comparar")
         XCTAssertEqual(m.timecodeLockedFraction, 0)
+    }
+
+    // MARK: - F.87 (ADR-089): "quién manda" en la captura de timecode
+
+    /// El bug real en la Rane 72: `LivePracticeView` (`onDisappear`) y
+    /// `AppRootView` (`onChange(of: model.screen)`) reaccionan CADA UNA a su
+    /// propia transición de pantalla al entrar/salir de Calibración, sin que
+    /// SwiftUI garantice el orden. Sin esta regla, una llamada tardía de la
+    /// pantalla que ya perdió la carrera paraba la captura que la otra
+    /// ACABABA de abrir — sonido doblado, instrumental desajustada de la
+    /// rejilla, hasta una dirección de giro mal detectada a mitad de
+    /// scratch (dos decoders leyendo el mismo audio a la vez).
+    func testStopSoloActuaSiElOwnerCoincideConQuienAbrioLaCaptura() {
+        XCTAssertTrue(AppModel.shouldActOnStopRequest(owner: .practice, current: .practice))
+        XCTAssertTrue(AppModel.shouldActOnStopRequest(owner: .calibration, current: .calibration))
+    }
+
+    func testStopDeUnaPantallaQuePerdioLaCarreraEsUnNoOp() {
+        // AppRootView entró en Calibración y ya abrió su propia captura,
+        // pero el onDisappear (tardío) de la práctica vieja todavía llega:
+        // no debe tocar la captura de Calibración.
+        XCTAssertFalse(AppModel.shouldActOnStopRequest(owner: .practice, current: .calibration))
+        // Y al revés: Calibración cerrando algo que ya es de práctica.
+        XCTAssertFalse(AppModel.shouldActOnStopRequest(owner: .calibration, current: .practice))
+    }
+
+    func testStopSinNadieQueLaAbrieraEsUnNoOpSeguro() {
+        XCTAssertFalse(AppModel.shouldActOnStopRequest(owner: .practice, current: nil))
+        XCTAssertFalse(AppModel.shouldActOnStopRequest(owner: .calibration, current: nil))
     }
 
     // MARK: - F.76 (ADR-080): el cálculo puro de la deriva

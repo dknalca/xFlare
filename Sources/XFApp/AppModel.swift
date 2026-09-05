@@ -184,6 +184,17 @@ public final class AppModel: ObservableObject {
     /// se limpia el estado.
     private let timecodeDrainQueue = DispatchQueue(label: "xflare.timecode.drain", qos: .userInitiated)
     private var timecodeDrainTimer: DispatchSourceTimer?
+    /// F.87 (ADR-089) — quién abrió la captura actual: `LivePracticeView`
+    /// (práctica real) o `AppRootView` (paso Timecode del asistente). Las
+    /// dos pantallas reaccionan CADA UNA a su propia transición (la vista
+    /// que se va, en `onDisappear`; la pantalla nueva, en `onChange(of:
+    /// model.screen)`) sin que SwiftUI garantice en qué orden — si se
+    /// solapan, la vista vieja puede parar la captura que la pantalla
+    /// nueva ACABA de abrir. `stopTimecodeCapture(owner:)` solo actúa si
+    /// coincide con quien la abrió de últimas; una llamada tardía de una
+    /// pantalla que ya perdió la carrera no toca nada.
+    public enum TimecodeCaptureOwner: Equatable { case practice, calibration }
+    private var timecodeCaptureOwner: TimecodeCaptureOwner?
 
     // MARK: - diagnóstico de deriva ("sticker drift", F.76, ADR-080)
 
@@ -251,16 +262,28 @@ public final class AppModel: ObservableObject {
     /// lo reabre con la entrada activada (canal de `AppSettings`, F.60) y drena
     /// el PCM capturado hacia un `TimecodeMotionSource` propio (el mismo
     /// wrapper de `xf_timecoder` que ya validó B5.5 con vinilo real), ahora en
-    /// `timecodeDrainQueue` (F.77) en vez del hilo principal. Para la
-    /// pantalla de Calibración (`AppRootView`); no toca nada si `engine` es
-    /// `nil` (tests sin motor).
-    public func startTimecodeCapture() {
-        guard timecodeSource == nil, let engine else { return }
+    /// `timecodeDrainQueue` (F.77) en vez del hilo principal. Lo llaman
+    /// `LivePracticeView` (`owner: .practice`) y el paso Timecode del
+    /// asistente (`owner: .calibration`); no toca nada si `engine` es `nil`
+    /// (tests sin motor).
+    ///
+    /// F.87 (ADR-089) — idempotente de verdad: si YA hay una captura
+    /// corriendo (de la misma pantalla o de otra que se solapó en la
+    /// transición), la cierra primero en vez de rendirse. Antes esto se
+    /// resolvía con un simple `guard timecodeSource == nil` que dejaba
+    /// intacta cualquier captura a medias; con la Rane 72 real eso se vio
+    /// como sonido doblado, la instrumental desajustada de la rejilla, e
+    /// incluso una dirección de giro mal detectada a mitad de scratch —
+    /// los tres son síntomas de dos motores/decoders corriendo a la vez.
+    public func startTimecodeCapture(owner: TimecodeCaptureOwner) {
+        guard let engine else { return }
+        if timecodeSource != nil { teardownTimecodeCapture() }
+        timecodeCaptureOwner = owner
         engine.stop()
         // deviceUID/canal salen de `EngineHandle.preferred*` (F.60), que
         // `applyAudioDevicePreferences()` ya mantiene sincronizados con
         // `settings`; no hace falta repetirlos aquí.
-        guard engine.start() else { return }
+        guard engine.start() else { timecodeCaptureOwner = nil; return }
 
         let source = TimecodeMotionSource(config: .init(
             format: "serato_2a",   // única definición validada contra hardware real (B5.5)
@@ -268,6 +291,7 @@ public final class AppModel: ObservableObject {
         guard (try? source.start()) != nil else {
             engine.stop()
             _ = engine.startOutput()
+            timecodeCaptureOwner = nil
             return
         }
         timecodeSource = source
@@ -353,7 +377,36 @@ public final class AppModel: ObservableObject {
 
     /// Para la captura y deja el motor en modo "solo salida" otra vez, listo
     /// para practicar. Idempotente.
-    public func stopTimecodeCapture() {
+    ///
+    /// F.87 (ADR-089) — solo actúa si `owner` coincide con quien abrió la
+    /// captura de ÚLTIMAS (`timecodeCaptureOwner`). Con dos pantallas
+    /// (`LivePracticeView`/`AppRootView`) reaccionando cada una a su propia
+    /// transición de pantalla, sin que SwiftUI garantice el orden entre el
+    /// `onDisappear` de la que se va y el `onChange` de la que entra, una
+    /// llamada tardía de la pantalla que ya perdió la carrera pararía la
+    /// captura que la otra ACABA de abrir — de ahí el sonido doblado, la
+    /// instrumental desajustada de la rejilla y hasta una dirección de giro
+    /// mal detectada a mitad de scratch que se vieron en la Rane 72 real.
+    public func stopTimecodeCapture(owner: TimecodeCaptureOwner) {
+        guard Self.shouldActOnStopRequest(owner: owner, current: timecodeCaptureOwner) else { return }
+        teardownTimecodeCapture()
+    }
+
+    /// F.87 (ADR-089) — la regla de "quién manda", extraída pura para poder
+    /// testearla sin motor real (`AppModel` con `engine: nil` nunca llega a
+    /// fijar `timecodeCaptureOwner`, porque `startTimecodeCapture` corta
+    /// antes por falta de motor).
+    static func shouldActOnStopRequest(owner requested: TimecodeCaptureOwner,
+                                       current: TimecodeCaptureOwner?) -> Bool {
+        requested == current
+    }
+
+    /// El cierre de verdad, compartido por `startTimecodeCapture` (para
+    /// limpiar una captura a medias antes de abrir la suya) y
+    /// `stopTimecodeCapture` (cuando quien pide parar es de verdad quien la
+    /// abrió). Siempre deja el motor en modo "solo salida", listo para
+    /// practicar.
+    private func teardownTimecodeCapture() {
         // F.77 — `.sync` en la MISMA cola del timer: si `drainTimecode()`
         // está en vuelo, esto espera a que termine antes de seguir (la cola
         // es serial); después de este cancel, ninguna llamada más puede
@@ -364,6 +417,7 @@ public final class AppModel: ObservableObject {
         }
         timecodeSource?.stop()
         timecodeSource = nil
+        timecodeCaptureOwner = nil
         scopeReadings = []
         guard let engine else { return }
         engine.stop()
