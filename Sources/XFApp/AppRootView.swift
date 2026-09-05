@@ -491,8 +491,17 @@ public struct AppRootView: View {
                     scratch: scratch,
                     exerciseName: "Freestyle",
                     bpm: 90,
+                    // F.73 (ADR-076 iter.) — `curveInset` sube de 8 a 48: con
+                    // timecode real el plato puede seguir bajando de n=0
+                    // (silencio antes del principio, F.70), y con el margen
+                    // mínimo de antes ("pegado al borde") esa bajada
+                    // desaparecía por debajo casi al instante — no se veía
+                    // en la autopista, aunque el motor la siguiera bien. Más
+                    // hueco debajo de la onda del patrón la hace visible
+                    // antes de salirse. `laneHeight` NO se toca (es el alto
+                    // real del carril de fader, otra cosa).
                     geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
-                                              laneHeight: 8, curveInset: 8,
+                                              laneHeight: 8, curveInset: 48,
                                               patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
                     freestyle: true,
                     engine: model.engine,
@@ -550,10 +559,18 @@ public struct AppRootView: View {
                 bpm: ex?.startBpm ?? 90,
                 // `patternFill` = amplitud del movimiento; lo controla el slider
                 // "Amplitud" de la vista (por defecto 2/3: el pico del patron a
-                // 2/3 del sample). Margenes minimos para que el movimiento
-                // arranque casi pegado al borde inferior, como el rail del sample.
+                // 2/3 del sample).
+                // F.73 (ADR-076 iter.) — `curveInset` sube de 8 a 48: con
+                // timecode real el plato puede seguir bajando de n=0
+                // (silencio antes del principio, F.70), y con el margen
+                // mínimo de antes ("pegado al borde inferior") esa bajada
+                // desaparecía por debajo casi al instante, aunque el motor
+                // la siguiera bien — no se veía en la autopista. Más hueco
+                // debajo de la onda del patrón la hace visible antes de
+                // salirse. `laneHeight` NO se toca (alto real del carril de
+                // fader, otra cosa).
                 geometry: HighwayGeometry(size: CGSize(width: 1000, height: 380),
-                                          laneHeight: 8, curveInset: 8,
+                                          laneHeight: 8, curveInset: 48,
                                           patternFill: CGFloat(AudioAsset.scratchPatternTopFraction)),
                 engine: model.engine,
                 content: model.content,

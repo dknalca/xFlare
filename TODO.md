@@ -1595,6 +1595,23 @@ en manos de gente.*
         tests.
       - Pendiente: confirmar "con los oídos" en la Rane 72 real.
 
+- [x] **F.73** Más hueco debajo de la onda del patrón, para ver el scratch antes del principio del sample `XFApp`
+      - Reportado por el autor probando en la Rane 72: "cuando scratcheo el
+        principio del sample no se ve en la autopista" — `PracticeSession`
+        ya integraba posiciones negativas (F.70) y `traceY` ya las mapeaba
+        sin recortar (F.72), pero `curveInset: 8` (el margen entre la onda
+        del patrón y el borde de la autopista, en las dos llamadas a
+        `HighwayGeometry` de `AppRootView`) dejaba solo 16 puntos de hueco
+        real antes del recorte del `SKCropNode` — cualquier bajada, por
+        pequeña que fuera, desaparecía casi al instante.
+      - Hecho (2026-09-05): `curveInset` sube de 8 a 48 en los dos sitios
+        (práctica y Freestyle). `laneHeight` NO se toca (es el alto real del
+        carril de fader, otra cosa). Con el margen nuevo, un scratch real
+        hacia atrás del principio queda visible antes de salirse por abajo.
+      - Sin test dedicado (parámetro de layout, no lógica) — `make verify`
+        en verde, 774 tests (sin cambios de conteo).
+      - Pendiente: confirmar "con los ojos" en la Rane 72 real.
+
 ---
 
 ## Reglas de uso
