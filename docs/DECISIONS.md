@@ -3825,6 +3825,78 @@ asumido incluso en tramos cortos sin enganche.
 
 ---
 
+## ADR-086 — Puerta de plausibilidad antes de aplicar una corrección grande de posición absoluta
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Tras F.81, el autor preguntó algo que no se había planteado
+del todo: en modo relativo (el que usa xFlare) no existe el "salto de
+aguja" clásico de un DVS en modo absoluto (levantar la aguja y ponerla en
+otro punto del disco) — pero sí puede pasar que, tras un tramo largo sin
+enganche con el bitstream durante un scratch agresivo, la corrección de
+F.81 (que siempre ancla exacto a la posición absoluta al recuperar el
+enganche) produzca un salto grande y repentino en `platterPosition` de una
+sola vez. El autor preguntó explícitamente si xwax ya trae algo para
+gestionar esto, y si se podía copiar de Serato/Traktor/Mixxx.
+
+Revisando el código vendorizado (`Sources/CXFTimecode/vendor/xwax/
+timecoder.c`): xwax resetea su contador de validez (`valid_counter`) en
+**cada cambio de dirección** (línea ~527-530, `process_sample`), y
+`timecoder_get_position()` solo devuelve una posición si
+`valid_counter > VALID_BITS` (24 bits consecutivos que coincidan con la
+secuencia LFSR esperada). Como un scratch cambia de dirección
+constantemente, esto explica directamente el 49-57 % de enganche medido
+durante el scratch (F.78/F.81) — no es ruido, es el diseño de xwax. Con un
+gate de 24 bits exactos, un "falso enganche" con un valor erróneo es
+estadísticamente insignificante: el riesgo real no es una lectura
+*incorrecta*, es una lectura *ausente* con más frecuencia de la deseada
+durante scratches rápidos — xwax no tiene NADA más sofisticado que ese
+contador (sin métrica de calidad, sin límite de plausibilidad por
+velocidad, sin suavizado de resincronización). Serato y Traktor son
+cerrados (nada que copiar, solo conceptos públicos); Mixxx es libre pero
+copiar código exigiría antes verificar compatibilidad de licencia por
+fichero (el proyecto es GPL-3.0-only, ADR-030) y un ADR aparte — más
+simple y sin riesgo legal implementar nosotros mismos la técnica estándar.
+
+**Decisión.** Puerta de plausibilidad en `PracticeSession.pushRealMotion`:
+al recalcular `platterPosition` desde `absoluteToPlatterOffset` (F.81), se
+compara el hueco (`gap = target - platterPosition`) contra un umbral
+(`plausibleJumpThresholdSeconds = 0,1` segundos-nominales, generoso frente
+al hueco esperado entre dos muestras ENGANCHADAS consecutivas a la
+cadencia real de F.77, ~100 Hz). Hueco pequeño (el caso normal, enganche
+continuo o una pérdida breve) → se corrige entero, sin tocar el
+comportamiento ya validado de F.81/F.74. Hueco grande (tras perder el
+enganche un buen rato) → se cierra solo una FRACCIÓN por muestra
+(`driftCorrectionFraction = 0,25`, converge al ~95 % en unas 10 muestras,
+~100 ms a 100 Hz) en vez de teletransportar de golpe — sin xwax tener
+nada parecido, esto es puramente lógica nueva en Swift, fuera del hilo RT.
+El umbral se calcula en el propio dominio de segundos-nominales de
+`position`/`absolutePosition`, NO contra el reloj real (`CACurrentMediaTime`):
+así es determinista en tests y no depende de la cadencia real de muestreo.
+
+**Alternativas descartadas.** Bound por velocidad plausible del plato
+(p. ej. "máximo 8x pitch") en vez de por tamaño de hueco — se descarta:
+necesitaría el tiempo REAL transcurrido entre muestras (`CACurrentMediaTime`),
+lo que hace el comportamiento no determinista en tests (dos llamadas
+seguidas sin `Thread.sleep` tendrían un hueco de tiempo real casi cero,
+capando incluso correcciones legítimas pequeñas) y además acopla la
+lógica a la cadencia real de muestreo en vez de a los datos. Rechazar
+directamente un hueco "implausible" en vez de suavizarlo — se descarta:
+volvería al defecto de F.78 (el error queda sin corregir para siempre si
+el hueco real era legítimo, no un fallo).
+
+**Consecuencias.** Una corrección grande (tras un tramo largo sin
+enganche) ya no se ve como un salto de un solo fotograma — se suaviza en
+~100 ms. Una corrección normal (el caso común) no cambia de
+comportamiento. Los tests de F.81 que asumían corrección instantánea para
+CUALQUIER tamaño de hueco se actualizaron para comprobar convergencia en
+vez de exactitud inmediata cuando el hueco es grande a propósito.
+Pendiente confirmar en la Rane 72 si el suavizado hace el "sticker drift"
+perceptiblemente mejor sin introducir su propio artefacto (un breve
+"resbalón" mientras converge).
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

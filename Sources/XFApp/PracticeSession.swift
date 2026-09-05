@@ -202,12 +202,30 @@ public final class PracticeSession: ObservableObject {
     /// siempre en el nuevo ancla — con el enganche cayendo al 49-57% en un
     /// scratch real (muchas transiciones), el error se iba sumando en cada
     /// ciclo en vez de corregirse. Con el desplazamiento fijo, CADA muestra
-    /// enganchada recalcula `platterPosition` direecto desde la posición
+    /// enganchada recalcula `platterPosition` directo desde la posición
     /// absoluta (nunca acumula sesgo), así que recuperar el enganche
-    /// siempre corrige de vuelta a la verdad del vinilo, aunque eso implique
-    /// un salto visible si el tramo sin enganche fue largo — mejor un salto
-    /// puntual que una deriva silenciosa que no para de crecer.
+    /// siempre corrige de vuelta a la verdad del vinilo. F.82 (ADR-086)
+    /// suaviza el salto si el hueco es grande — ver `plausibleJumpThreshold`.
     private var absoluteToPlatterOffset: Double?
+    /// F.82 (ADR-086) — a partir de cuántos SEGUNDOS-NOMINALES de hueco entre
+    /// la posición absoluta y `platterPosition` se considera "grande" (se
+    /// suaviza) en vez de "normal" (se corrige entero). 100 ms es generoso
+    /// frente al hueco esperado entre dos muestras ENGANCHADAS consecutivas
+    /// a la cadencia real de F.77 (~100 Hz, ~10 ms) incluso en un scratch muy
+    /// rápido — así que un hueco así de grande solo aparece tras perder el
+    /// enganche un buen rato, no durante el seguimiento normal.
+    private static let plausibleJumpThresholdSeconds = 0.1
+    /// Fracción del hueco "grande" que se cierra por muestra (geométrico):
+    /// con la cadencia de F.77 (~100 Hz) converge al 95% en ~10 muestras,
+    /// ~100 ms — rápido, pero sin el salto de un solo fotograma.
+    private static let driftCorrectionFraction = 0.25
+
+    /// Convierte el umbral de arriba (segundos-nominales) al espacio de
+    /// `platterPosition`, con la misma conversión que el resto de esta
+    /// función (`/sampleDurationSeconds*scale`).
+    private static func plausibleJumpThreshold(sampleDurationSeconds: Double, scale: Double) -> Double {
+        plausibleJumpThresholdSeconds / sampleDurationSeconds * scale
+    }
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -681,8 +699,12 @@ public final class PracticeSession: ObservableObject {
     /// habiendo deriva y es impracticable"). Sin enganche se sigue con la
     /// integral (F.74), la única referencia que queda para el hueco corto
     /// hasta el próximo enganche — recuperarlo siempre corrige de vuelta a
-    /// la verdad del vinilo, aunque eso implique un salto visible si el
-    /// hueco fue largo: mejor un salto puntual que una deriva silenciosa.
+    /// la verdad del vinilo. F.82 (ADR-086) añade una puerta de
+    /// plausibilidad: un hueco pequeño (el caso normal, enganche continuo)
+    /// se corrige entero; uno grande (tras perder el enganche un buen rato,
+    /// o una lectura rara que se coló) se suaviza en unas pocas muestras en
+    /// vez de teletransportar de golpe — sin xwax tener nada parecido a esto
+    /// (su único filtro es un contador de bits consecutivos, ver ADR-086).
     ///
     /// `velocity` deshace la conversión de `normalizedVelocity` para que,
     /// tras volver a pasar por ella en `onAdvance` (`LivePracticeView`), el
@@ -716,7 +738,23 @@ public final class PracticeSession: ObservableObject {
             // vinilo, en vez de solo parar de derivar desde donde fuera que
             // se quedó la integral.
             if let offset = absoluteToPlatterOffset {
-                platterPosition = offset + absolutePosition / sampleDurationSeconds * scale
+                let target = offset + absolutePosition / sampleDurationSeconds * scale
+                let gap = target - platterPosition
+                // F.82 (ADR-086) — puerta de plausibilidad: un hueco pequeño
+                // (enganche continuo, el caso normal) se corrige entero, sin
+                // suavizar. Un hueco grande (tras un tramo largo sin
+                // enganche, o una lectura rara) se acerca solo una FRACCIÓN
+                // cada muestra en vez de teletransportar de golpe -- converge
+                // a la verdad exacta en unas pocas muestras (~100 ms a
+                // 100 Hz, F.77) sin el salto brusco de un solo fotograma.
+                // Usa `position`/`absolutePosition` (el propio dominio de
+                // segundos-nominales), no el reloj real: así es determinista
+                // y no depende de la cadencia real de muestreo.
+                if abs(gap) <= Self.plausibleJumpThreshold(sampleDurationSeconds: sampleDurationSeconds, scale: scale) {
+                    platterPosition = target
+                } else {
+                    platterPosition += gap * Self.driftCorrectionFraction
+                }
             } else {
                 // primer enganche de la racha: fija el desplazamiento
                 // igualando al `platterPosition` actual, sin mover el plato

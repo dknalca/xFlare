@@ -652,8 +652,11 @@ final class PracticeSessionTests: XCTestCase {
     /// de la posición absoluta real DURANTE un tramo sin enganche (simula
     /// el sesgo del filtro de pitch de xwax); al recuperar el enganche con
     /// la MISMA posición absoluta de antes, `platterPosition` tiene que
-    /// volver EXACTO a donde estaba -- no quedarse desplazado por el sesgo
-    /// que se coló mientras tanto.
+    /// volver a donde estaba -- no quedarse desplazado por el sesgo que se
+    /// coló mientras tanto. F.82 (ADR-086): el hueco de este test es
+    /// "grande" (se coló bastante sesgo), así que la puerta de
+    /// plausibilidad lo suaviza en unas pocas muestras en vez de un salto
+    /// instantáneo -- se comprueba que CONVERGE, no que corrija de golpe.
     func testAlRecuperarElEngancheCorrigeElSesgoAcumuladoSinEl() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         let start = s.platterPosition
@@ -672,11 +675,66 @@ final class PracticeSessionTests: XCTestCase {
                           "sin enganche, la integral SÍ puede desviar el plato")
 
         // se recupera el enganche con la MISMA posición absoluta de antes:
-        // tiene que volver EXACTO al punto de partida, sin importar cuánto
-        // se desvió la integral mientras no había enganche.
+        // el hueco es grande (F.82), así que la primera muestra solo se
+        // acerca -- no vuelve de golpe, pero sí más cerca que antes.
+        let deviated = s.platterPosition
         s.pushRealMotion(position: 999, absolutePosition: 50, velocity: 1.0, sampleDurationSeconds: 2.0)
-        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9,
-                       "recuperar el enganche corrige de vuelta a la verdad del vinilo")
+        XCTAssertLessThan(abs(s.platterPosition - start), abs(deviated - start),
+                          "se acerca a la verdad, no se queda clavado en el sesgo")
+        XCTAssertNotEqual(s.platterPosition, start, accuracy: 1e-9,
+                          "un hueco grande no se corrige de golpe en una sola muestra")
+
+        // unas pocas muestras más con la MISMA posición absoluta (mismo
+        // patrón real: seguir enganchado) convergen a la verdad exacta.
+        for _ in 0..<30 {
+            s.pushRealMotion(position: 999, absolutePosition: 50, velocity: 1.0, sampleDurationSeconds: 2.0)
+        }
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-6,
+                       "converge del todo tras unas pocas muestras enganchadas")
+    }
+
+    // MARK: - F.82 (ADR-086): puerta de plausibilidad
+
+    /// Un hueco por debajo del umbral (100 ms-nominales) es el caso normal
+    /// de enganche continuo -- se corrige entero, sin suavizar. Aquí el
+    /// hueco es de 0,05 s-nominales (la mitad del umbral): corrige de golpe.
+    func testUnHuecoPequenoSeCorrigeEnteroSinSuavizar() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        let start = s.platterPosition
+        s.pushRealMotion(position: 0, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 0, absolutePosition: 49.95, velocity: -1.0, sampleDurationSeconds: 2.0)
+        // 0,05 s de hueco < 0,1 s de umbral -> corrige entero (no una
+        // fracción): vuelve exacto al valor esperado, no solo "más cerca".
+        s.pushRealMotion(position: 0, absolutePosition: 50, velocity: 1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9)
+    }
+
+    /// Un hueco por ENCIMA del umbral se suaviza -- no llega entero en una
+    /// sola muestra, a diferencia del MISMO desplazamiento total entregado
+    /// en pasos pequeños (cada uno por debajo del umbral, así que cada uno
+    /// se corrige entero). Compara dos sesiones gemelas en vez de calcular
+    /// `scale` a mano (privado, no expuesto a tests a propósito).
+    func testUnHuecoGrandeNoLlegaEnteroEnUnaSolaMuestraADiferenciaDePasosPequenos() throws {
+        let bigJump = PracticeSession(scratch: try scratch(), bpm: 90)
+        bigJump.pushRealMotion(position: 0, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        let start = bigJump.platterPosition
+        // 0,5 s de hueco de golpe >> 0,1 s de umbral -> se suaviza.
+        bigJump.pushRealMotion(position: 0, absolutePosition: 49.5, velocity: -1.0, sampleDurationSeconds: 2.0)
+
+        let smallSteps = PracticeSession(scratch: try scratch(), bpm: 90)
+        smallSteps.pushRealMotion(position: 0, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        // el MISMO 0,5 s total, pero en 10 pasos de 0,05 s -- cada uno por
+        // debajo del umbral, así que cada uno se corrige entero: el destino
+        // final es el desplazamiento COMPLETO, sin suavizar.
+        for i in 1...10 {
+            smallSteps.pushRealMotion(position: 0, absolutePosition: 50 - Double(i) * 0.05,
+                                      velocity: -1.0, sampleDurationSeconds: 2.0)
+        }
+        let fullTarget = smallSteps.platterPosition
+
+        XCTAssertNotEqual(bigJump.platterPosition, start, accuracy: 1e-9, "se mueve algo, no se queda clavado")
+        XCTAssertGreaterThan(abs(bigJump.platterPosition - fullTarget), abs(fullTarget - start) * 0.4,
+                             "el salto de golpe se queda bastante lejos del destino completo")
     }
 
     /// Con la posición absoluta SIEMPRE enganchada, `platterPosition` la

@@ -1893,6 +1893,38 @@ en manos de gente.*
       - Pendiente: el autor confirma en la Rane 72 si esto resuelve la
         deriva de verdad, o si el salto correctivo al recuperar el
         enganche se nota demasiado.
+- [x] **F.82** Puerta de plausibilidad antes de una corrección grande de posición absoluta (ADR-086) `XFApp`
+      - El autor preguntó si un scratch agresivo podía disparar "saltos de
+        aguja" con la corrección de F.81, si xwax ya gestiona esto, y si
+        se podía copiar de Serato/Traktor/Mixxx.
+      - Investigado en el vendorizado (`timecoder.c`): xwax resetea su
+        contador de validez en CADA cambio de dirección, así que un
+        scratch (que cambia de dirección constantemente) fuerza
+        re-sincronizar 24 bits cada vez — explica el 49-57 % de enganche
+        medido. Con ese gate de 24 bits, una lectura *incorrecta* que cuele
+        es estadísticamente insignificante — el riesgo real es *ausencia*
+        de lectura, ya gestionada (cae a la integral). xwax no tiene nada
+        más sofisticado (sin métrica de calidad, sin plausibilidad por
+        velocidad). Serato/Traktor cerrados (nada que copiar); Mixxx libre
+        pero copiar código exigiría verificar licencia por fichero antes —
+        más simple implementar la técnica estándar nosotros mismos.
+      - Hecho (2026-09-05, ADR-086): en `pushRealMotion`, si el hueco entre
+        la posición absoluta y `platterPosition` es pequeño (< 0,1 s
+        nominales, generoso frente al hueco esperado entre muestras
+        enganchadas consecutivas a 100 Hz, F.77) se corrige entero, como
+        antes. Si es grande (tras perder el enganche un buen rato) se
+        cierra solo el 25 % por muestra — converge en ~100 ms en vez de
+        teletransportar de golpe. El umbral usa el dominio de
+        segundos-nominales de la propia señal, no el reloj real: sigue
+        siendo determinista en tests.
+      - Tests: 2 nuevos (`testUnHuecoPequenoSeCorrigeEnteroSinSuavizar`,
+        `testUnHuecoGrandeNoLlegaEnteroEnUnaSolaMuestraADiferenciaDePasosPequenos`)
+        + los 2 de F.81 actualizados para comprobar convergencia en vez de
+        corrección instantánea cuando el hueco es grande a propósito.
+        make verify en verde, 797 tests.
+      - Pendiente: el autor confirma en la Rane 72 si el suavizado ayuda
+        sin introducir su propio artefacto (un breve "resbalón" mientras
+        converge).
 
 ---
 
