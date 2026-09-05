@@ -1719,6 +1719,21 @@ en manos de gente.*
         Rane 72 en la mano, no a ciegas. El autor prueba esta build y
         trae la lectura de "Deriva"/"Enganchado"/"Frames perdidos" del
         paso Timecode.
+      - **Corrección el mismo día:** la primera versión del medidor daba
+        "−136567 ms" en la Rane 72 real — un bug del propio cálculo, no
+        deriva de verdad. Comparaba `sample.position` (arranca en 0 al
+        crear el motor) contra la posición absoluta (vive en el reloj del
+        vinilo FÍSICO, un disco de ~712 s — dondequiera que esté la
+        aguja) sin anclar los ceros primero: lo que medía era la posición
+        de la aguja en el disco, no una deriva acumulada. Arreglado con el
+        mismo patrón de ancla que ADR-078:
+        `AppModel.timecodeDrift(integratedNow:absoluteNow:anchor:)`
+        (función `static` pura, extraída para poder testearla sin
+        hardware) fija `(integrada, absoluta)` en el primer enganche y
+        compara los DELTAS desde ahí. 4 tests nuevos — uno reproduce el
+        bug exacto (misma posición absoluta enorme, cero separación real
+        → el resultado tiene que dar ~0). `make verify` en verde, 787
+        tests.
 
 ---
 

@@ -72,4 +72,53 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         XCTAssertNil(m.timecodeDriftMs, "sin motor no hay lecturas que comparar")
         XCTAssertEqual(m.timecodeLockedFraction, 0)
     }
+
+    // MARK: - F.76 (ADR-080): el cálculo puro de la deriva
+
+    /// El primer enganche fija el ancla y no reporta deriva todavía (0 por
+    /// definición: no ha habido tiempo de separarse de nada).
+    func testTimecodeDriftElPrimerEngancheFijaElAnclaEnCero() {
+        let (drift, anchor) = AppModel.timecodeDrift(
+            integratedNow: 0.02, absoluteNow: 136.567, anchor: nil)
+        XCTAssertEqual(drift, 0)
+        XCTAssertEqual(anchor.integrated, 0.02)
+        XCTAssertEqual(anchor.absolute, 136.567)
+    }
+
+    /// Reproduce EXACTAMENTE el bug encontrado con la Rane 72 real: la
+    /// primera versión de esta función (sin ancla, `integrada - absoluta` a
+    /// pelo) daba "-136567 ms" porque comparaba el reloj del motor (arranca
+    /// en 0) contra el reloj del vinilo físico (dondequiera que esté la
+    /// aguja en el disco de ~12 min) sin anclar los ceros primero. Con la
+    /// misma posición absoluta enorme, si la integrada avanza EXACTAMENTE
+    /// igual que la absoluta desde el ancla (sin deriva real de por medio),
+    /// el resultado tiene que ser ~0 -- no la posición del disco.
+    func testTimecodeDriftNoConfundeLaPosicionDelDiscoConDeriva() {
+        let anchor = (integrated: 0.02, absolute: 136.567)
+        // 3 segundos después, las dos avanzaron lo mismo (3 s): CERO deriva.
+        let (drift, _) = AppModel.timecodeDrift(
+            integratedNow: 0.02 + 3.0, absoluteNow: 136.567 + 3.0, anchor: anchor)
+        XCTAssertEqual(drift, 0, accuracy: 1e-9,
+                       "misma posición absoluta enorme, pero SIN separarse -> deriva 0, no -136567 ms")
+    }
+
+    /// Si las dos posiciones SÍ se separan desde el ancla, esa separación (no
+    /// la posición absoluta en sí) es la deriva, en milisegundos.
+    func testTimecodeDriftMideSoloLaSeparacionDesdeElAncla() {
+        let anchor = (integrated: 10.0, absolute: 500.0)
+        // integrada avanza 2.010 s, absoluta avanza 2.000 s -> se separan 10 ms.
+        let (drift, _) = AppModel.timecodeDrift(
+            integratedNow: 10.0 + 2.010, absoluteNow: 500.0 + 2.000, anchor: anchor)
+        XCTAssertEqual(drift, 10.0, accuracy: 1e-6)
+    }
+
+    /// El ancla, una vez fijada, no cambia en llamadas siguientes (se sigue
+    /// devolviendo la MISMA referencia).
+    func testTimecodeDriftElAnclaNoCambiaTrasFijarse() {
+        let anchor = (integrated: 1.0, absolute: 2.0)
+        let (_, sameAnchor) = AppModel.timecodeDrift(
+            integratedNow: 5.0, absoluteNow: 6.0, anchor: anchor)
+        XCTAssertEqual(sameAnchor.integrated, 1.0)
+        XCTAssertEqual(sameAnchor.absolute, 2.0)
+    }
 }

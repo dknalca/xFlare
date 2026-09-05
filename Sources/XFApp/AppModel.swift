@@ -147,12 +147,22 @@ public final class AppModel: ObservableObject {
 
     // MARK: - diagnóstico de deriva ("sticker drift", F.76, ADR-080)
 
-    /// Diferencia, en milisegundos, entre la posición INTEGRADA
+    /// Deriva ACUMULADA, en milisegundos, desde el primer enganche de esta
+    /// captura: cuánto se ha separado la posición INTEGRADA
     /// (`MotionSample.position`, acumula la estimación de velocidad y por
-    /// tanto puede acumular sesgo) y la posición ABSOLUTA que trae el
-    /// bitstream del vinilo ahora mismo (una lectura directa, no una
-    /// integral: no acumula error nunca). `nil` mientras el bitstream no
-    /// está enganchado — no hay con qué comparar en ese instante. Ver
+    /// tanto puede acumular sesgo) de la posición ABSOLUTA que trae el
+    /// bitstream (no acumula error nunca).
+    ///
+    /// OJO — esto NO es `integrada - absoluta` a pelo: la absoluta es la
+    /// posición dentro del vinilo FÍSICO (dondequiera que esté la aguja en
+    /// ese disco de ~12 min), con un cero completamente distinto al de la
+    /// integrada (que arranca en 0 al abrir el motor). Restarlas sin más da
+    /// un número enorme y sin sentido — la posición en el disco, no una
+    /// deriva (primera versión de F.76, corregida el mismo día). Se ancla
+    /// `(integrada, absoluta)` en el PRIMER enganche y luego se comparan
+    /// los DELTAS desde ese ancla: así el punto de partida en el disco no
+    /// importa, solo cuánto se separan las dos velocidades integradas desde
+    /// que hay referencia. `nil` hasta el primer enganche. Ver
     /// `docs/TIMECODE_DRIFT.md`.
     @Published public private(set) var timecodeDriftMs: Double?
     /// Fracción (0...1) de lecturas con el bitstream enganchado desde que
@@ -163,6 +173,38 @@ public final class AppModel: ObservableObject {
     @Published public private(set) var timecodeLockedFraction: Double = 0
     private var timecodeLockedTicks = 0
     private var timecodeTotalTicks = 0
+    /// Ancla del cálculo de deriva de arriba: `(integrada, absoluta)` en el
+    /// primer enganche de la captura en curso. `nil` = todavía sin fijar.
+    private var timecodeDriftAnchor: (integrated: Double, absolute: Double)?
+
+    /// F.76 (ADR-080) — el cálculo puro de la deriva, extraído para poder
+    /// testearlo sin motor real ni CoreAudio (`pollTimecode` sí los necesita).
+    ///
+    /// Primera versión (el mismo día): `integradaAhora - absolutaAhora` a
+    /// pelo. Con la Rane 72 real dio "-136567 ms" — no es un sesgo de
+    /// integración creíble en un minuto de prueba, es la posición del disco:
+    /// `absolutaAhora` vive en el reloj del VINILO FÍSICO (dondequiera que
+    /// esté la aguja en ese disco de ~12 min), `integradaAhora` en el reloj
+    /// de "segundos desde que arrancó el motor" — ceros completamente
+    /// distintos, restarlos sin más no mide nada real.
+    ///
+    /// La cura: ANCLAR `(integrada, absoluta)` la primera vez que hay
+    /// enganche, y comparar después los DELTAS de cada una desde su propio
+    /// ancla. El punto de partida en el disco se cancela solo; lo que queda
+    /// es cuánto se ha separado una velocidad integrada de la otra desde que
+    /// hay referencia — la deriva de verdad.
+    static func timecodeDrift(integratedNow: Double, absoluteNow: Double,
+                              anchor: (integrated: Double, absolute: Double)?)
+        -> (driftMs: Double, anchor: (integrated: Double, absolute: Double)) {
+        guard let anchor else {
+            // primer enganche: no hay deriva que enseñar todavía (0 por
+            // definición), pero SÍ hay que fijar la referencia.
+            return (0, (integratedNow, absoluteNow))
+        }
+        let deltaIntegrated = integratedNow - anchor.integrated
+        let deltaAbsolute = absoluteNow - anchor.absolute
+        return ((deltaIntegrated - deltaAbsolute) * 1000.0, anchor)
+    }
 
     /// Arranca la captura de entrada de verdad para leer el vinilo de timecode
     /// en vivo: para el motor (que hasta ahora solo corría "solo salida", B4.2),
@@ -193,6 +235,7 @@ public final class AppModel: ObservableObject {
         timecodeLockedFraction = 0
         timecodeLockedTicks = 0
         timecodeTotalTicks = 0
+        timecodeDriftAnchor = nil
 
         let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             self?.pollTimecode()
@@ -223,7 +266,11 @@ public final class AppModel: ObservableObject {
         timecodeTotalTicks += 1
         if let lock = source.absoluteLock {
             timecodeLockedTicks += 1
-            timecodeDriftMs = (sample.position - lock.positionSeconds) * 1000.0
+            let (drift, anchor) = Self.timecodeDrift(integratedNow: sample.position,
+                                                     absoluteNow: lock.positionSeconds,
+                                                     anchor: timecodeDriftAnchor)
+            timecodeDriftAnchor = anchor
+            timecodeDriftMs = drift
         }
         timecodeLockedFraction = timecodeTotalTicks > 0
             ? Double(timecodeLockedTicks) / Double(timecodeTotalTicks) : 0

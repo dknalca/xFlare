@@ -3497,6 +3497,28 @@ medirla) es la Fase 2 de `docs/TIMECODE_DRIFT.md`, pendiente de una
 decisión de diseño más profunda (fusión con la velocidad relativa) que
 merece su propio ADR cuando llegue.
 
+**Corrección el mismo día — el cálculo del medidor tenía un bug.** La
+primera versión comparaba `sample.position - lock.positionSeconds` a pelo.
+Probado en la Rane 72 real dio **"−136567 ms"** — un número absurdo para un
+sesgo de integración en menos de un minuto de prueba. Causa: los dos
+relojes tienen ceros distintos y no se puede restarlos sin más.
+`xf_timecoder_position()` (la integral) arranca en 0 al crear el decoder;
+`xf_timecoder_absolute_position()` vive en el reloj del **vinilo físico**
+(un disco de ~712 s en `serato_2a`) y devuelve dondequiera que esté la aguja
+en ESE disco — un valor que no tiene por qué acercarse a 0 nunca. Lo que se
+midió no fue deriva: fue la posición de la aguja en el vinilo.
+
+La cura, exactamente el mismo patrón de ADR-078 (anclar en vez de comparar
+a pelo): `AppModel.timecodeDrift(integratedNow:absoluteNow:anchor:)` fija
+`(integrada, absoluta)` en el primer enganche de la captura y a partir de
+ahí compara los DELTAS de cada una desde su propio ancla — el punto de
+partida en el disco se cancela solo, y lo que queda es cuánto se ha
+separado una velocidad integrada de la otra desde que hay referencia. Se
+extrajo a una función `static` pura precisamente para poder blindarla con
+un test que reproduce el bug exacto (misma posición absoluta enorme, cero
+separación real desde el ancla → el resultado tiene que ser ~0, no
+"−136567"), sin depender de hardware.
+
 ---
 
 ## Plantilla para nuevas entradas

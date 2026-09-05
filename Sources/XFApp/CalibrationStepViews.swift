@@ -169,9 +169,10 @@ struct TimecodeCalibrationStep: View {
                         driftStat("Enganchado", String(format: "%.0f %%", lockedFraction() * 100))
                         driftStat("Frames perdidos", "\(ringDropCount())")
                     }
-                    Text("Compara la posición que ya arrastra el motor (velocidad integrada) "
-                         + "contra la que trae el bitstream del vinilo ahora mismo (no acumula "
-                         + "error). Gira/scratchea el plato un rato para que suba de 0 %.")
+                    Text("Cuánto se ha separado, desde el primer enganche, la posición que "
+                         + "arrastra el motor (velocidad integrada) de la que trae el bitstream "
+                         + "del vinilo (no acumula error). Empieza en 0 al primer enganche; "
+                         + "gira/scratchea el plato un rato para ver si crece.")
                         .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
                 }
             }
