@@ -90,6 +90,13 @@ public final class AppModel: ObservableObject {
     public let sampleEdits = SampleEditStore()
     @Published public var activeProfileId: String? {
         didSet {
+            // F.85 — persiste el cambio (antes solo vivía en memoria). Se
+            // compara contra lo ya guardado para no disparar el `didSet` de
+            // `settings` (persistencia + rebuilds) en la asignación inicial
+            // del init, donde ya coinciden.
+            if let id = activeProfileId, settings.activeProfileId != id {
+                settings.activeProfileId = id
+            }
             rebuildMidiCommandMap()
             rebuildCrossfaderSource()
         }
@@ -381,6 +388,12 @@ public final class AppModel: ObservableObject {
         self.profiles = profiles
         self.settings = settings
         self.content = content
+        // F.85 — la mesa activa se persiste en AppSettings; antes vivía solo
+        // en memoria y cada reinicio de la app la perdía. `didSet` de
+        // `activeProfileId` no salta en esta asignación inicial (igual que
+        // el de `settings`, ver más abajo), así que los rebuilds de después
+        // ya la recogen bien.
+        self.activeProfileId = settings.activeProfileId
 
         // El decodificador MIDI reenvía cada comando al subject al que se
         // suscribe la práctica.

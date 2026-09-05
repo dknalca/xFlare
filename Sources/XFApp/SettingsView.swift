@@ -177,6 +177,20 @@ public struct SettingsView: View {
                              + "la instrumental (+ metrónomo) salen por dos tiras separadas — como dos "
                              + "canales de un mezclador real. \"Combinado\" es el comportamiento de "
                              + "siempre, un único par.")
+                        // F.85: quien pincha con la mano en el plato de la
+                        // DERECHA suele tener el cableado al revés (el par
+                        // que aquí es "instrumental" es, en su mesa, el que
+                        // lleva el scratch). Sin esto, tocaría volver a
+                        // elegir los dos desplegables a mano cada vez.
+                        if settings.instrumentalOutputChannel != 0 {
+                            HStack {
+                                Spacer()
+                                Button("Invertir sample ↔ instrumental") { swapOutputChannels() }
+                                    .xfButton(.bordered)
+                            }
+                            note("Para quien pincha con la mano en el plato derecho: intercambia de "
+                                 + "golpe qué par lleva el scratch y cuál la instrumental.")
+                        }
                     }
 
                     row("Entrada (timecode)") {
@@ -429,6 +443,20 @@ public struct SettingsView: View {
     private func bind<V>(_ keyPath: WritableKeyPath<AppSettings, V>) -> Binding<V> {
         Binding(get: { settings[keyPath: keyPath] },
                 set: { settings[keyPath: keyPath] = $0; onChange(settings) })
+    }
+
+    /// F.85 — intercambia de golpe qué par de canales lleva el scratch y
+    /// cuál la instrumental (para quien pincha con la mano en el plato de
+    /// la DERECHA, con el cableado invertido respecto al default). Un solo
+    /// `onChange` para las dos asignaciones, no dos seguidos (evita
+    /// reconstruir la captura de audio dos veces por un solo gesto).
+    private func swapOutputChannels() {
+        let scratch = settings.outputChannel
+        let instrumental = settings.instrumentalOutputChannel
+        guard instrumental != 0 else { return }
+        settings.outputChannel = instrumental
+        settings.instrumentalOutputChannel = scratch
+        onChange(settings)
     }
 
     /// Fila de un comando MIDI: radio de selección + nombre + campo de texto para

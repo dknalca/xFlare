@@ -21,6 +21,24 @@ final class AppModelTests: XCTestCase {
         XCTAssertEqual(m.home?.cells.count, 12)
     }
 
+    /// F.85 — `activeProfileId` se siembra de `settings.activeProfileId` al
+    /// arrancar (antes arrancaba siempre en `nil`, sin importar lo guardado
+    /// — cada reinicio perdía la mesa activa). Por defecto, la Rane 72.
+    func testActiveProfileIdSeSiembraDeSettingsAlArrancar() throws {
+        let m = try model()
+        XCTAssertEqual(m.activeProfileId, "rane-seventy-two")
+    }
+
+    /// Cambiar `activeProfileId` en caliente (p. ej. desde "Mi mesa") se
+    /// persiste en `settings.activeProfileId` -- si no, sobrevive en
+    /// memoria pero se pierde en el próximo reinicio, el mismo problema que
+    /// motivó F.85.
+    func testCambiarActiveProfileIdLoPersisteEnSettings() throws {
+        let m = try model()
+        m.activeProfileId = "generic-midi"
+        XCTAssertEqual(m.settings.activeProfileId, "generic-midi")
+    }
+
     func testNavegacion() throws {
         let m = try model()
         m.openLibrary()

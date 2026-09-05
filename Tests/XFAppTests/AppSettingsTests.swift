@@ -9,6 +9,17 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(AppSettings(raw: [:]), .defaults)
     }
 
+    /// F.85 — la mesa activa por defecto es la Rane 72 (único hardware de
+    /// referencia, `CLAUDE.md`), y sobrevive a un ida y vuelta por `raw`
+    /// (antes vivía solo en memoria en `AppModel`, se perdía en cada
+    /// reinicio de la app).
+    func testActiveProfileIdPorDefectoEsRane72YSobreviveAlIdaYVuelta() {
+        XCTAssertEqual(AppSettings.defaults.activeProfileId, "rane-seventy-two")
+        var s = AppSettings.defaults
+        s.activeProfileId = "generic-midi"
+        XCTAssertEqual(AppSettings(raw: s.raw).activeProfileId, "generic-midi")
+    }
+
     func testIdaYVuelta() {
         var s = AppSettings.defaults
         s.username = "dj test"

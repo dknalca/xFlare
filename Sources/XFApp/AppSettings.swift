@@ -79,6 +79,14 @@ public struct AppSettings: Equatable, Sendable {
     /// Un valor distinto de `outputChannel` reparte scratch y base por dos
     /// pares de canales separados — dos tiras de mezclador reales.
     public var instrumentalOutputChannel: Int
+    /// F.85 — perfil de mesa activo (`XFProfiles`, "Mi mesa"). Antes vivía
+    /// solo en `AppModel` (`@Published`, en memoria): cada reinicio de la
+    /// app lo perdía y había que volver a elegir la mesa a mano en "Mi
+    /// mesa" — con lo frecuentes que son los reinicios probando cambios,
+    /// una fricción real. Por defecto `"rane-seventy-two"`: el único
+    /// hardware de referencia del proyecto (`CLAUDE.md`), ya verificado
+    /// contra el aparato físico.
+    public var activeProfileId: String
 
     // MARK: - Debug: "tacto" del plato (ventana Ajustes › Debug)
     /// Suavizado (ms) de la velocidad del plato de scratch. Menos = más seco y el
@@ -127,6 +135,7 @@ public struct AppSettings: Equatable, Sendable {
                 outputDeviceUID: String = "", outputChannel: Int = 1,
                 inputDeviceUID: String = "", inputChannel: Int = 1,
                 instrumentalOutputChannel: Int = 0,
+                activeProfileId: String = "rane-seventy-two",
                 scratchSeekTrimMs: Double = 250.0, scratchSeekMaxTrim: Double = 0.015) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
@@ -159,6 +168,7 @@ public struct AppSettings: Equatable, Sendable {
         self.inputDeviceUID = inputDeviceUID
         self.inputChannel = max(1, inputChannel)
         self.instrumentalOutputChannel = max(0, instrumentalOutputChannel)
+        self.activeProfileId = activeProfileId.isEmpty ? "rane-seventy-two" : activeProfileId
         self.scratchSeekTrimMs  = min(1000.0, max(10.0, scratchSeekTrimMs))
         self.scratchSeekMaxTrim = min(0.10,   max(0.0,  scratchSeekMaxTrim))
     }
@@ -191,6 +201,7 @@ public struct AppSettings: Equatable, Sendable {
         static let inputDeviceUID = "audio.inputDeviceUID"
         static let inputChannel = "audio.inputChannel"
         static let instrumentalOutputChannel = "audio.instrumentalOutputChannel"
+        static let activeProfileId = "hardware.activeProfileId"
         static let scratchSeekTrimMs = "debug.scratchSeekTrimMs"
         static let scratchSeekMaxTrim = "debug.scratchSeekMaxTrim"
     }
@@ -240,6 +251,7 @@ public struct AppSettings: Equatable, Sendable {
             inputDeviceUID: raw[Key.inputDeviceUID] ?? d.inputDeviceUID,
             inputChannel: int(Key.inputChannel, d.inputChannel),
             instrumentalOutputChannel: int(Key.instrumentalOutputChannel, d.instrumentalOutputChannel),
+            activeProfileId: raw[Key.activeProfileId] ?? d.activeProfileId,
             scratchSeekTrimMs: dbl(Key.scratchSeekTrimMs, d.scratchSeekTrimMs),
             scratchSeekMaxTrim: dbl(Key.scratchSeekMaxTrim, d.scratchSeekMaxTrim))
     }
@@ -271,6 +283,7 @@ public struct AppSettings: Equatable, Sendable {
             Key.inputDeviceUID: inputDeviceUID,
             Key.inputChannel: String(inputChannel),
             Key.instrumentalOutputChannel: String(instrumentalOutputChannel),
+            Key.activeProfileId: activeProfileId,
             Key.scratchSeekTrimMs: String(scratchSeekTrimMs),
             Key.scratchSeekMaxTrim: String(scratchSeekMaxTrim),
         ]

@@ -3918,6 +3918,62 @@ solo reaplica el mismo `target`, sin efecto).
 
 ---
 
+## ADR-087 — Rane 72 verificada y por defecto; mesa activa persistida; botón de invertir canales
+
+**Fecha:** 2026-09-06 · **Estado:** aceptada
+
+**Contexto.** El autor pidió tres cosas relacionadas: marcar el perfil de
+la Rane 72 como verificado, dejarla "por defecto" con scratch en 1-2 e
+instrumental en 3-4, y un botón para invertir rápido esos dos canales
+(para quien pincha con la mano en el plato de la DERECHA, con el cableado
+al revés del habitual).
+
+Revisando el código salió que `AppModel.activeProfileId` — la mesa activa
+de "Mi mesa" — vivía **solo en memoria** (`@Published`, sin persistir):
+cada reinicio de la app la perdía y había que volver a elegirla a mano.
+Con lo frecuentes que son los reinicios probando cambios en este
+proyecto, era fricción real y probablemente la causa de que, sin verlo,
+distintas sesiones de prueba partieran de "ninguna mesa activa". El
+reparto de canales (1-2 scratch / 3-4 instrumental) para una mesa NUEVA
+ya lo resuelve F.80/ADR-084 automáticamente (elige un par distinto al del
+scratch la primera vez que se calibra un dispositivo sin
+`DeviceCalibration` guardada) — no hacía falta tocar nada ahí.
+
+**Decisión.**
+1. `profiles/rane-seventy-two.conf`: `verified = true`, con una nota
+   explícita de qué está confirmado contra hardware real (timecode deck1,
+   crossfader MIDI, calibración del fader) y qué sigue siendo hipótesis
+   (deck2/return, sin probar con audio real) — el badge dice "verificado"
+   pero el fichero es honesto sobre el alcance.
+2. `AppSettings.activeProfileId: String` (nuevo, default
+   `"rane-seventy-two"`, persistido como el resto de ajustes).
+   `AppModel.activeProfileId` se siembra de `settings.activeProfileId` al
+   arrancar (antes arrancaba siempre en `nil`) y su `didSet` escribe de
+   vuelta en `settings.activeProfileId` — de memoria pura a persistido,
+   con la Rane 72 como default para quien todavía no ha elegido mesa.
+3. Botón "Invertir sample ↔ instrumental" en Ajustes › Hardware
+   (`SettingsView.swapOutputChannels()`): intercambia
+   `outputChannel`/`instrumentalOutputChannel` de golpe, en un solo
+   `onChange` (no dos, para no reconstruir la captura de audio dos veces
+   por un solo gesto). Solo visible cuando ya hay un reparto no-combinado
+   (`instrumentalOutputChannel != 0`) — sin un segundo canal, no hay nada
+   que invertir.
+
+**Alternativas descartadas.** Añadir un campo `output.instrumental.ch` al
+esquema del perfil `.conf` para que el reparto de canales viviera ahí en
+vez de en `AppSettings`/`DeviceCalibration` — se descarta: el perfil
+describe la MESA (misma para cualquier usuario), pero qué par de canales
+usa cada uno depende de su propio cableado de mezclador, que ya varía
+persona a persona (de ahí el propio botón de invertir); es correctamente
+un ajuste de usuario, no del perfil.
+
+**Consecuencias.** La mesa activa sobrevive a reiniciar la app. Quien
+tenga el cableado invertido (mano en el plato derecho) puede corregirlo
+con un clic en vez de re-elegir los dos desplegables. El perfil de la
+Rane 72 pasa a mostrar la insignia de verificado en la UI (ADR-020).
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

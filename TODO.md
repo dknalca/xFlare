@@ -1966,6 +1966,33 @@ en manos de gente.*
         `resyncClock()`, y `setCallResponse(false)` — los 4 puntos de
         reseteo que quedaban sin test explícito.
       - make verify en verde, 803 tests.
+- [x] **F.85** Rane 72 verificada y por defecto; mesa activa persistida; botón de invertir canales (ADR-087) `XFApp` `XFProfiles`
+      - El autor pidió tres cosas: marcar la Rane 72 como verificada,
+        dejarla por defecto con scratch 1-2/instrumental 3-4, y un botón
+        para invertir esos canales rápido ("para los que pinchan con la
+        mano en el plato de la derecha").
+      - `profiles/rane-seventy-two.conf`: `verified = true`, con nota de
+        qué está confirmado (timecode deck1, crossfader MIDI, fader) y qué
+        sigue siendo hipótesis (deck2/return).
+      - Revisando el código salió que `AppModel.activeProfileId` (la mesa
+        de "Mi mesa") vivía SOLO en memoria — cada reinicio de la app la
+        perdía. `AppSettings.activeProfileId: String` (nuevo, default
+        `"rane-seventy-two"`) lo persiste; `AppModel` lo siembra al
+        arrancar y lo escribe de vuelta al cambiar. El reparto 1-2/3-4
+        para una mesa nueva ya lo resolvía F.80 automáticamente — no hacía
+        falta tocar nada ahí.
+      - Botón "Invertir sample ↔ instrumental" en Ajustes › Hardware
+        (`swapOutputChannels()`): intercambia los dos canales de golpe, un
+        solo `onChange`. Solo visible con reparto no-combinado.
+      - Tests: `testActiveProfileIdPorDefectoEsRane72YSobreviveAlIdaYVuelta`
+        (`AppSettingsTests`) + `testActiveProfileIdSeSiembraDeSettingsAlArrancar`/
+        `testCambiarActiveProfileIdLoPersisteEnSettings` (`AppModelTests`).
+        Un bug propio detectado por el primer test antes de hacer verify:
+        se me olvidó añadir la clave nueva al diccionario `raw` — el
+        ida-y-vuelta fallaba silenciosamente. make verify en verde, 806
+        tests.
+      - Pendiente: el autor confirma en la Rane 72 que el botón de
+        invertir funciona como espera.
 
 ---
 
