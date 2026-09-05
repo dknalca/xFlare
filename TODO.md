@@ -1772,6 +1772,41 @@ en manos de gente.*
         xwax durante aceleraciones (diagnóstico B de
         `docs/TIMECODE_DRIFT.md`), que solo se cierra con la Fase 2
         (fusión con la posición absoluta).
+- [x] **F.78** `PracticeSession` ancla la posición real a la absoluta cuando hay enganche (Fase 2 de `docs/TIMECODE_DRIFT.md`) `XFApp`
+      - El autor volvió a probar tras F.77: solo girando el disco —
+        **deriva −4549,1 ms, 99 % enganchado, 74 frames perdidos**. Tras
+        unos scratches — **deriva −6313,4 ms, 57 % enganchado, 74 frames
+        perdidos**. Los frames perdidos son idénticos en las dos
+        lecturas (un coste fijo de arranque, no una fuga — F.77 cerró la
+        fuga real), pero la deriva crece DURANTE el scratch mientras los
+        frames perdidos no se mueven: descarta pérdida de datos y
+        confirma el diagnóstico B — el sesgo del propio filtro de pitch
+        de xwax, peor en aceleraciones rápidas. El autor lo confirmó por
+        su cuenta: "¿Se podría usar la señal de posición del absoluto
+        junto a la señal relativo para corregir posibles
+        deslizamientos?" — exactamente fusión de sensores.
+      - Hecho (2026-09-05, ADR-082): `pushRealMotion` gana
+        `absolutePosition: Double?` (default `nil`, no rompe llamadas
+        existentes) y ancla a `absolutePosition ?? position` — lectura
+        exacta del vinilo cuando hay enganche, integral de respaldo si se
+        pierde. `realMotionUsingAbsolute` recuerda qué fuente ancló el
+        par actual y fuerza un re-anclaje limpio en cuanto cambia la
+        disponibilidad del enganche (mezclar ancla vieja de una fuente
+        con lectura nueva de otra saltaría la posición, el mismo tipo de
+        bug de ADR-080). `AppModel.motionSampleEvents` pasa de
+        `MotionSample` a la tupla `(sample:absolutePositionSeconds:)`
+        (sin tocar el struct sellado `MotionSample`); `LivePracticeView`
+        la desempaqueta hacia `pushRealMotion`.
+      - Tests: los 48 de `PracticeSessionTests` (llaman a la forma
+        antigua de 3 argumentos, siguen pasando por el default `nil`).
+        make verify en verde, 787 tests (sin cambio de conteo — pendiente
+        cubrir con tests nuevos el re-anclaje al cambiar de fuente).
+      - Pendiente: el autor vuelve a probar en la Rane 72 y trae los
+        números nuevos. Si el enganche sigue bajo durante el scratch
+        (57 % en la última prueba), gran parte del tiempo se sigue
+        anclando a la integral sesgada — el siguiente sospechoso sería
+        por qué se pierde tanto el enganche (Fase 3, servo del motor de
+        audio), no la fusión en sí.
 
 ---
 

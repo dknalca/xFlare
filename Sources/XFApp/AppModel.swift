@@ -141,7 +141,19 @@ public final class AppModel: ObservableObject {
     /// con el vinilo real. Un publisher (no un closure único como
     /// `onTimecodeSample`) porque aquí SÍ puede haber más de un suscriptor
     /// potencial sin que uno pise al otro.
-    public let motionSampleEvents = PassthroughSubject<MotionSample, Never>()
+    ///
+    /// F.78 (ADR-082, Fase 2 de `docs/TIMECODE_DRIFT.md`) — además de la
+    /// muestra relativa de siempre, manda `absolutePositionSeconds`: la
+    /// posición del bitstream (`TimecodeMotionSource.absoluteLock`, no
+    /// acumula error nunca) cuando hay enganche, `nil` si no. Medido en la
+    /// Rane 72 real (F.76/F.77): con el ring ya arreglado, la deriva SIGUE
+    /// creciendo durante el scratch mientras los frames perdidos se quedan
+    /// planos — la integral de `xf_timecoder_position()` tiene su propio
+    /// sesgo (el filtro de pitch de xwax, más marcado en aceleraciones
+    /// rápidas), y F.74 solo la anclaba a SÍ MISMA (nunca corregía ese
+    /// sesgo). `PracticeSession.pushRealMotion` usa esto para anclar a la
+    /// posición absoluta cuando está disponible, en vez de a la integral.
+    public let motionSampleEvents = PassthroughSubject<(sample: MotionSample, absolutePositionSeconds: Double?), Never>()
     private var timecodeSource: TimecodeMotionSource?
     /// F.77 (ADR-081) — antes esto era un `Timer` en `RunLoop.main`: el
     /// consumidor del ring de entrada competía con el redibujado de
@@ -322,7 +334,7 @@ public final class AppModel: ObservableObject {
             ? Double(timecodeLockedTicks) / Double(timecodeTotalTicks) : 0
 
         onTimecodeSample?(sample)
-        motionSampleEvents.send(sample)
+        motionSampleEvents.send((sample, lock?.positionSeconds))
     }
 
     /// Para la captura y deja el motor en modo "solo salida" otra vez, listo

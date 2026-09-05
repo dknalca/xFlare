@@ -192,6 +192,15 @@ public final class PracticeSession: ObservableObject {
     /// la señal, en vez de arrastrar un ancla vieja de antes del corte).
     private var realMotionAnchorRevolutions: Double?
     private var realMotionAnchorPlatterPosition: Double?
+    /// F.78 (ADR-082) — qué REFERENCIA ancló el par de arriba: la posición
+    /// ABSOLUTA del bitstream (`true`, no acumula error nunca) o la integral
+    /// de xwax (`false`, F.74 — sí puede acumular sesgo, el filtro de pitch
+    /// de xwax no es perfecto). Si la disponibilidad cambia (se engancha o
+    /// se pierde el enganche) hay que RE-ANCLAR, no seguir restando contra
+    /// una referencia de una fuente distinta — mezclar dos relojes con
+    /// distinto sesgo en el mismo ancla sería peor que un reanclaje puntual
+    /// (mismo criterio que el watchdog de F.70 al cortarse la señal).
+    private var realMotionUsingAbsolute = false
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -308,6 +317,7 @@ public final class PracticeSession: ObservableObject {
         self.timecodeDriving = false
         self.realMotionAnchorRevolutions = nil
         self.realMotionAnchorPlatterPosition = nil
+        self.realMotionUsingAbsolute = false
         self.traceBuffer.removeAll(keepingCapacity: true)
         onAdvance?(0, 0, currentTick)
     }
@@ -362,6 +372,7 @@ public final class PracticeSession: ObservableObject {
             // referencia de antes del corte (eso sí sería "sticker drift").
             realMotionAnchorRevolutions = nil
             realMotionAnchorPlatterPosition = nil
+            realMotionUsingAbsolute = false
         }
 
         // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
@@ -400,6 +411,7 @@ public final class PracticeSession: ObservableObject {
                 timecodeDriving = false
                 realMotionAnchorRevolutions = nil
                 realMotionAnchorPlatterPosition = nil
+                realMotionUsingAbsolute = false
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
@@ -541,6 +553,7 @@ public final class PracticeSession: ObservableObject {
             timecodeDriving = false
             realMotionAnchorRevolutions = nil
             realMotionAnchorPlatterPosition = nil
+            realMotionUsingAbsolute = false
         }
     }
 
@@ -636,22 +649,39 @@ public final class PracticeSession: ObservableObject {
     /// `position` (F.74, ADR-078) es la pieza que faltaba: **segundos-
     /// nominales acumulados** que ya lleva el decoder de verdad
     /// (`xf_timecoder.pos`, `pos += vel · nframes/sr` **por bloque de
-    /// audio**, muchísimo más fino que el sondeo de `AppModel` a 30 Hz que
-    /// entrega estas muestras). Antes `PracticeSession` solo recibía
-    /// `velocity` y RE-INTEGRABA la posición ella misma a 60 Hz, sujetando la
-    /// última velocidad conocida durante toda la ventana entre dos muestras
-    /// (∼33 ms) — un "mantener y extrapolar" que, si el vinilo aceleraba o
-    /// invertía dentro de esa ventana (un scratch rápido cabe entero en
-    /// 33 ms), se separaba poco a poco de dónde estaba el vinilo DE VERDAD:
-    /// el "sticker drift" que reportó el autor. Ahora cada muestra real
-    /// RE-ANCLA `platterPosition` a lo que el decoder dice con un único
-    /// salto desde el ancla (`realMotionAnchorRevolutions`/
-    /// `realMotionAnchorPlatterPosition`), así que el error de interpolar a
-    /// 60 Hz entre dos muestras nunca tiene más de ~33 ms para acumularse
-    /// antes de corregirse — no se encadena. `LivePracticeView.onAdvance` ya
-    /// manda `normalizedPosition` al motor como ancla anti-deriva
-    /// (`engine.setScratchTarget`, ADR-042): esta corrección llega también
-    /// al audio sin tocar una sola línea del motor RT.
+    /// audio**, muchísimo más fino que el sondeo de `AppModel`). Antes
+    /// `PracticeSession` solo recibía `velocity` y RE-INTEGRABA la posición
+    /// ella misma a 60 Hz, sujetando la última velocidad conocida durante
+    /// toda la ventana entre dos muestras — un "mantener y extrapolar" que
+    /// se separaba poco a poco de dónde estaba el vinilo DE VERDAD.
+    ///
+    /// `absolutePosition` (F.78, ADR-082, Fase 2 de `docs/TIMECODE_DRIFT.md`)
+    /// es el siguiente escalón: `position` es una INTEGRAL de la estimación
+    /// de velocidad de xwax, y esa estimación tiene su propio sesgo (el
+    /// filtro de pitch, más marcado en aceleraciones rápidas — medido en la
+    /// Rane 72 real: con F.76/F.77 ya puestos, la deriva seguía creciendo
+    /// durante el scratch aunque los frames perdidos del ring se quedaran
+    /// planos). `absolutePosition` es una lectura DIRECTA del bitstream —
+    /// no acumula error nunca — así que, cuando hay enganche, ancla
+    /// `platterPosition` a ESO en vez de a la integral. `nil` sin enganche
+    /// (aguja levantada, señal sucia, o scratch tan rápido que rompe el
+    /// enganche): entonces se sigue con la integral, la única referencia que
+    /// queda. Si la disponibilidad CAMBIA (se engancha o se pierde) se
+    /// reancla fresco — mezclar dos relojes con sesgos distintos en el mismo
+    /// ancla sería peor que un reanclaje puntual (mismo criterio que el
+    /// watchdog de F.70 al cortarse la señal del todo).
+    ///
+    /// `velocity` deshace la conversión de `normalizedVelocity` para que,
+    /// tras volver a pasar por ella en `onAdvance` (`LivePracticeView`), el
+    /// ratio real llegue **intacto** a `engine.setVelocity` — sirve para el
+    /// tono/velocidad del audio y para interpolar la posición entre dos
+    /// muestras reales (`coastPlatter`, a 60 Hz); esta interpolación nunca
+    /// tiene más de ~10 ms (F.77) para acumular error antes de que la
+    /// siguiente muestra real la corrija — no se encadena.
+    /// `LivePracticeView.onAdvance` ya manda `normalizedPosition` al motor
+    /// como ancla anti-deriva (`engine.setScratchTarget`, ADR-042): esta
+    /// corrección llega también al audio sin tocar una sola línea del motor
+    /// RT.
     ///
     /// Usa su propio `timecodeDriving`/`lastTimecodeAt` (F.70) — NO
     /// `scrubbing`: ese es el de `scrub()` (trackpad), pensado para que al
@@ -660,16 +690,31 @@ public final class PracticeSession: ObservableObject {
     /// muestras más de 80 ms (aguja levantada, dropout — B5.5 ya lo valida a
     /// nivel de señal, o simplemente lo paraste con la mano) el plato se para
     /// EN FIRME y suelta el ancla (se reancla fresco cuando vuelva la señal).
-    public func pushRealMotion(position: Double, velocity: Double, sampleDurationSeconds: Double) {
+    public func pushRealMotion(position: Double, absolutePosition: Double? = nil,
+                               velocity: Double, sampleDurationSeconds: Double) {
         guard !machineDrivesDisc, sampleDurationSeconds > 0 else { return }
         let scale = patternSpan / AudioAsset.scratchPatternTopFraction
+
+        // F.78 — la REFERENCIA de hoy: absoluta si hay enganche (no acumula
+        // error nunca), si no la integral (F.74, puede acumular sesgo).
+        let usingAbsoluteNow = absolutePosition != nil
+        let referenceNow = absolutePosition ?? position
+        if usingAbsoluteNow != realMotionUsingAbsolute {
+            // cambió la fuente respecto a la última muestra: reanclar
+            // fresco, no restar contra un ancla de la fuente vieja.
+            realMotionAnchorRevolutions = nil
+            realMotionAnchorPlatterPosition = nil
+            realMotionUsingAbsolute = usingAbsoluteNow
+        }
+
         if let anchorRevs = realMotionAnchorRevolutions,
            let anchorPos = realMotionAnchorPlatterPosition {
-            platterPosition = anchorPos + (position - anchorRevs) / sampleDurationSeconds * scale
+            platterPosition = anchorPos + (referenceNow - anchorRevs) / sampleDurationSeconds * scale
         } else {
-            // primera muestra real tras (re)empezar a recibir señal: esta
-            // posición ANCLA la referencia, sin mover el plato de golpe.
-            realMotionAnchorRevolutions = position
+            // primera muestra real tras (re)empezar a recibir señal, o tras
+            // cambiar de fuente: esta posición ANCLA la referencia, sin
+            // mover el plato de golpe.
+            realMotionAnchorRevolutions = referenceNow
             realMotionAnchorPlatterPosition = platterPosition
         }
         platterVelocity = velocity / sampleDurationSeconds * scale
@@ -885,6 +930,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
+        realMotionUsingAbsolute = false
         onAdvance?(0, 0, currentTick)
     }
 
@@ -900,6 +946,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
+        realMotionUsingAbsolute = false
         onAdvance?(0, clamped, currentTick)
     }
 
@@ -922,6 +969,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
+        realMotionUsingAbsolute = false
         platterPosition = posLo
         if crPhase != .off { crPhase = .listen }
     }

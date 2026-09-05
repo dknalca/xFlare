@@ -3580,6 +3580,72 @@ absoluta) en vez de solo cerrar esta fuga.
 
 ---
 
+## ADR-082 — `PracticeSession` ancla la posición real a la absoluta cuando hay enganche (Fase 2, fusión)
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Con ADR-081 desplegado, el autor volvió a probar en la Rane 72
+real: solo girando el disco, sin scratchear — **deriva −4549,1 ms, 99 %
+enganchado, 74 frames perdidos**. Tras unos scratches — **deriva −6313,4 ms,
+57 % enganchado, 74 frames perdidos**. La cifra de frames perdidos es
+idéntica en las dos lecturas (74, un coste fijo de arranque, no una fuga
+continua — ADR-081 cerró la fuga real) pero la deriva no solo sigue
+presente: **crece durante el scratch mientras los frames perdidos se
+quedan quietos**. Eso descarta pérdida de datos como causa del resto de la
+deriva y confirma el diagnóstico B de `docs/TIMECODE_DRIFT.md`: el propio
+filtro de pitch de xwax (`timecoder_get_pitch`, un alfa-beta) tiene sesgo
+de estimación, peor durante aceleraciones rápidas — exactamente lo que pasa
+al scratchear. `PracticeSession.pushRealMotion` (F.74/ADR-078) ancla
+siempre a `sample.position`, que es la INTEGRAL de esa velocidad sesgada:
+hereda el sesgo sin remedio. La posición absoluta del bitstream
+(`xf_timecoder_absolute_position`, ya expuesta desde F.76/ADR-080 solo para
+medir) es una lectura directa del vinilo, no una integral — no acumula ese
+sesgo. El autor confirmó por su cuenta la intuición correcta: "¿Se podría
+usar la señal de posición del absoluto junto a la señal relativo para
+corregir posibles deslizamientos?" — exactamente fusión de sensores (como
+INS+GPS: el relativo es continuo pero deriva, el absoluto es exacto pero
+solo está disponible cuando el bitstream engancha).
+
+**Decisión.** `pushRealMotion` recibe un nuevo parámetro opcional
+`absolutePosition: Double?` (con default `nil`, no rompe las llamadas
+existentes) y usa `absolutePosition ?? position` como referencia del ancla
+en vez de `position` a secas — cuando el timecode está enganchado, ancla a
+la lectura exacta; si se pierde el enganche, cae de vuelta a la integral
+(sigue siendo mejor que nada, y es lo que había hasta ahora). Como las dos
+fuentes viven en relojes distintos (el absoluto es la posición del vinilo
+físico, el relativo arranca en 0 al iniciar la sesión), un nuevo campo
+`realMotionUsingAbsolute` recuerda qué fuente ancló el par actual y fuerza
+un re-anclaje limpio (`realMotionAnchorRevolutions = nil`) en cuanto cambia
+la disponibilidad del enganche — mezclar un ancla vieja de una fuente con
+una lectura nueva de la otra dispararía un salto de posición falso, el
+mismo tipo de bug que ADR-080 ya tuvo que corregir una vez. La cadena
+completa: `AppModel.motionSampleEvents` pasa de `MotionSample` a la tupla
+`(sample: MotionSample, absolutePositionSeconds: Double?)` (sin tocar el
+struct `MotionSample`, que es de `XFCapture`, sellado) → `LivePracticeView`
+la desempaqueta y se la pasa a `pushRealMotion`.
+
+**Alternativas descartadas.** Corregir el sesgo del filtro de pitch dentro
+de `xf_timecode.c` — se descarta: exigiría tocar el algoritmo de xwax
+vendorizado o su envoltorio en el hilo RT, con todo el riesgo que implica
+cambiar código probado contra hardware real de varias mesas; la fusión en
+Swift, fuera del hilo RT, consigue el mismo resultado sin ese riesgo.
+Anclar SIEMPRE a la posición absoluta e ignorar la integral — se descarta:
+el bitstream se pierde de forma rutinaria durante un scratch rápido (por
+eso existe el `%` de enganche), y sin la integral como respaldo la
+autopista se congelaría cada vez que el enganche cae.
+
+**Consecuencias.** La posición visual (autopista) y el objetivo del motor
+de audio comparten ahora la misma referencia anti-sesgo cuando hay
+enganche. Pendiente confirmar en la Rane 72 real si la deriva medida por
+F.76 baja durante el scratch con este cambio — si el enganche cae mucho
+durante scratches rápidos (57 % en la última prueba), gran parte del
+tiempo se sigue anclando a la integral sesgada, y el siguiente sospechoso
+sería por qué el enganche se pierde tanto (Fase 3 de
+`docs/TIMECODE_DRIFT.md`, el servo del motor de audio) en vez de la fusión
+en sí.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
