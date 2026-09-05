@@ -1807,6 +1807,34 @@ en manos de gente.*
         anclando a la integral sesgada — el siguiente sospechoso sería
         por qué se pierde tanto el enganche (Fase 3, servo del motor de
         audio), no la fusión en sí.
+- [x] **F.79** Con crossfader de hardware real, la app deja de silenciar el scratch por software (ADR-083) `XFApp`
+      - El autor probó F.78 en la Rane 72 y reportó: "como el sonido lo
+        corta la app y la mesa se comporta raro. Al usar la mesa que
+        corta ella el sonido por hw la app solo debe dibujar el mute pero
+        no debe mutear el sonido."
+      - Causa: `LivePracticeView` aplicaba `setScratchGain(faderClosed ?
+        0 : sampleVol)` siempre que `faderClosed` fuera cierto, sin
+        distinguir el origen — con la Rane 72 (`crossfader.method = midi`,
+        ADR-021) el CC del MAG FOUR solo informa de la posición, pero el
+        AUDIO pasa por el crossfader ANALÓGICO real de la mesa antes de
+        llegar al master: al cerrar el fader físico, la mesa ya corta la
+        señal por hardware, y el software cortaba también — doble corte
+        con curvas distintas, de ahí lo "raro".
+      - Hecho (2026-09-05, ADR-083): `AppModel.hasHardwareCrossfader`
+        (nuevo, `crossfaderSource != nil`) + `LivePracticeView.
+        hardwareCrossfader: Bool` (default `false`) +
+        `mustMuteScratchInSoftware(faderClosed:hardwareCrossfader:
+        machineDrivesFader:)` (función pura, testeada): silencia por
+        software solo sin hardware real, o mientras el FANTASMA lleva el
+        fader (`PracticeSession.machineDrivesFader` — escucha del
+        "repite conmigo"/asistencia "solo mano"), donde no hay fader
+        físico en sincronía. El estado visual/de puntuación
+        (`session.faderClosed`, `HitLevel.miss`) no cambia — solo se
+        dibuja, como pidió el autor.
+      - Tests: 4 nuevos en `LivePracticeViewTests` (nuevo fichero) cubren
+        los 4 casos de la función pura. make verify en verde, 791 tests.
+      - Pendiente: el autor confirma en la Rane 72 que el "raro"
+        desaparece del todo.
 
 ---
 

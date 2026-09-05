@@ -124,6 +124,13 @@ public final class AppModel: ObservableObject {
     /// = midi`. `nil` si el perfil usa otro método o no se ha podido construir.
     /// Se reconstruye cada vez que cambia `activeProfileId`.
     private var crossfaderSource: MidiFaderSource?
+    /// F.79 (ADR-083) — hay un crossfader de HARDWARE real leído para el
+    /// perfil activo (MIDI, ADR-021 — o `audio_return`, mismo caso): el propio
+    /// mezclador corta el audio por su circuito analógico, así que
+    /// `LivePracticeView` no debe silenciar el scratch por software cuando el
+    /// corte lo hace el usuario de verdad con ese fader (solo dibujarlo) —
+    /// hacerlo dos veces, con curvas distintas, sonaba raro en la Rane 72 real.
+    public var hasHardwareCrossfader: Bool { crossfaderSource != nil }
 
     // MARK: - captura de timecode para el scope de calibración (paso 3)
 

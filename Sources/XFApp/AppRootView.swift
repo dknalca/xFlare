@@ -525,6 +525,7 @@ public struct AppRootView: View {
                     motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
                     startRealCapture: { model.startTimecodeCapture() },
                     stopRealCapture: { model.stopTimecodeCapture() },
+                    hardwareCrossfader: model.hasHardwareCrossfader,
                     onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                     onSampleLibraryChanged: { model.settings.sampleLibrary = $0 },
                     cachedAnalysis: { model.analysisCache.result(for: $0, sampleRate: model.engine?.sampleRateHz ?? 48_000) },
@@ -598,6 +599,7 @@ public struct AppRootView: View {
                 motionSamples: model.motionSampleEvents.eraseToAnyPublisher(),
                 startRealCapture: { model.startTimecodeCapture() },
                 stopRealCapture: { model.stopTimecodeCapture() },
+                hardwareCrossfader: model.hasHardwareCrossfader,
                 onMetronomeChanged: { model.settings.metronomeEnabled = $0 },
                 onScore: { session in
                     model.scoreTake(session, exerciseId: exerciseId, variantId: variantId)

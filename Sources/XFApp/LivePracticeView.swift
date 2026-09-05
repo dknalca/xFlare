@@ -219,6 +219,13 @@ public struct LivePracticeView: View {
     private let motionSamples: AnyPublisher<(sample: MotionSample, absolutePositionSeconds: Double?), Never>
     private let startRealCapture: () -> Void
     private let stopRealCapture: () -> Void
+    /// F.79 (ADR-083) — hay un crossfader de HARDWARE real leído para el
+    /// perfil activo (`AppModel.hasHardwareCrossfader`): el propio mezclador
+    /// ya corta el audio por su circuito analógico cuando el usuario cierra
+    /// el fader de verdad, así que el software no debe silenciar también
+    /// (ver `mustMuteScratchInSoftware`). `false` por defecto (ratón/trackpad,
+    /// sin mesa — el comportamiento de siempre).
+    private let hardwareCrossfader: Bool
 
     public init(scratch: Scratch,
                 exerciseName: String,
@@ -248,6 +255,7 @@ public struct LivePracticeView: View {
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 startRealCapture: @escaping () -> Void = {},
                 stopRealCapture: @escaping () -> Void = {},
+                hardwareCrossfader: Bool = false,
                 onMetronomeChanged: @escaping (Bool) -> Void = { _ in },
                 onScore: @escaping (XFSession) -> Void = { _ in },
                 onWarmupScore: @escaping (XFSession, String, String)
@@ -286,6 +294,7 @@ public struct LivePracticeView: View {
         self.motionSamples = motionSamples
         self.startRealCapture = startRealCapture
         self.stopRealCapture = stopRealCapture
+        self.hardwareCrossfader = hardwareCrossfader
         self.onMetronomeChanged = onMetronomeChanged
         self.onScore = onScore
         self.onWarmupScore = onWarmupScore
@@ -305,6 +314,22 @@ public struct LivePracticeView: View {
         _session = StateObject(wrappedValue: PracticeSession(
             scratch: warmupSteps.first?.scratch ?? scratch,
             bpm: AudioAsset.instrumentalNativeBPM))
+    }
+
+    /// F.79 (ADR-083) — decide si el scratch se silencia por SOFTWARE cuando
+    /// el fader está cerrado. Con un crossfader de hardware real (Rane 72,
+    /// MIDI CC del MAG FOUR) el propio mezclador ya corta la señal por su
+    /// circuito analógico: silenciar también aquí lo corta dos veces, con dos
+    /// curvas distintas (analógica vs. la rampa digital del motor), que es lo
+    /// que sonaba raro. Excepción: mientras el FANTASMA lleva el fader
+    /// (`machineDrivesFader` — escucha del "repite conmigo", o asistencia
+    /// "solo mano") no hay ningún fader físico moviéndose en sincronía con el
+    /// patrón, así que ahí SÍ hace falta silenciar por software igual que
+    /// siempre. Sin hardware (ratón/trackpad) también hace falta, siempre.
+    /// `static` y pura para poder testearla sin SwiftUI ni CoreAudio.
+    static func mustMuteScratchInSoftware(faderClosed: Bool, hardwareCrossfader: Bool,
+                                          machineDrivesFader: Bool) -> Bool {
+        faderClosed && (!hardwareCrossfader || machineDrivesFader)
     }
 
     /// Patrón / nombre del ejercicio actual (el mismo salvo en el calentamiento
@@ -418,8 +443,13 @@ public struct LivePracticeView: View {
             faderClosed = closed
             // fader cerrado / mute = calla SOLO el scratch; la instrumental y el
             // metronomo siguen. Vale tanto si lo cierra el usuario (Espacio) como
-            // si lo cierra el fantasma en la fase de escucha.
-            engine?.setScratchGain(closed ? 0 : Float(sampleVol))
+            // si lo cierra el fantasma en la fase de escucha. F.79: con
+            // crossfader de hardware real, el corte de verdad ya lo hizo la
+            // mesa por su circuito analógico -- ver mustMuteScratchInSoftware.
+            let mustMute = Self.mustMuteScratchInSoftware(
+                faderClosed: closed, hardwareCrossfader: hardwareCrossfader,
+                machineDrivesFader: session.machineDrivesFader)
+            engine?.setScratchGain(mustMute ? 0 : Float(sampleVol))
         }
         .onChange(of: session.recArming) { arming in
             // durante la claqueta el metronomo suena aunque el usuario lo tenga
@@ -636,7 +666,13 @@ public struct LivePracticeView: View {
                     ClipMeterView(engine: engine, session: session,
                                   gridShift: gridShift, ppq: scratch.ppq)
                     volSlider("Sample", $sampleVol) { v in
-                        if !faderClosed { engine?.setScratchGain(Float(v)) }
+                        // F.79: si el fader cerrado no se está silenciando por
+                        // software (hardware real cortando ya), el volumen sí
+                        // se aplica -- no hay nada que "reabrir" por accidente.
+                        let mustMute = Self.mustMuteScratchInSoftware(
+                            faderClosed: faderClosed, hardwareCrossfader: hardwareCrossfader,
+                            machineDrivesFader: session.machineDrivesFader)
+                        if !mustMute { engine?.setScratchGain(Float(v)) }
                     }
                     volSlider("Instru", $instruVol) { v in engine?.setInstrumentalGain(Float(v)) }
                     sampleEQ
@@ -1711,7 +1747,10 @@ public struct LivePracticeView: View {
         engine.metronomeEnabled = metroOn
         engine.setInstrumentalGain(Float(instruVol))
         engine.setMasterGain(0.85)
-        engine.setScratchGain(faderClosed ? 0 : Float(sampleVol))
+        let mustMute = Self.mustMuteScratchInSoftware(
+            faderClosed: faderClosed, hardwareCrossfader: hardwareCrossfader,
+            machineDrivesFader: session.machineDrivesFader)
+        engine.setScratchGain(mustMute ? 0 : Float(sampleVol))
         engine.setTransport(bpm: session.bpm, ppq: 480, playing: true)
     }
 

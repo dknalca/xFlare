@@ -3646,6 +3646,59 @@ en sí.
 
 ---
 
+## ADR-083 — Con crossfader de hardware real, la app deja de silenciar el scratch por software (solo lo dibuja)
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Probando F.78 en la Rane 72, el autor reportó: "parece que no
+va mal pero como el sonido lo corta la app y la mesa se comporta raro. Al
+usar la mesa que corta ella el sonido por hw la app solo debe dibujar el
+mute pero no debe mutear el sonido." `LivePracticeView` aplicaba
+`engine.setScratchGain(faderClosed ? 0 : sampleVol)` en tres sitios (el
+`.onChange` de `session.faderClosed`, el guard del slider de volumen del
+sample, y `applyEngineParams()` al abrir la práctica) SIEMPRE que
+`faderClosed` fuera `true` — sin distinguir de dónde viene esa señal. Con
+la Rane 72 (perfil `crossfader.method = midi`, ADR-021), el CC del MAG FOUR
+solo *informa* de la posición del fader — pero el AUDIO del sample sale de
+xFlare por USB hacia el canal 1 de la mesa, pasa por el crossfader
+analógico REAL de la mesa, y de ahí al master. Cuando el usuario cierra el
+fader físico, la mesa ya corta la señal en su circuito analógico; el
+software de xFlare, al ver el mismo CC, cortaba TAMBIÉN por software — dos
+cortes con curvas distintas (la analógica de la mesa, más la rampa digital
+del motor) que interactúan mal y se oyen raro.
+
+**Decisión.** `AppModel.hasHardwareCrossfader` (nuevo, público, `{
+crossfaderSource != nil }`) expone si el perfil activo lee un crossfader de
+verdad. `LivePracticeView` recibe `hardwareCrossfader: Bool` (default
+`false`, no rompe Freestyle/tests) y decide con una función pura y testeada
+sin SwiftUI (`mustMuteScratchInSoftware(faderClosed:hardwareCrossfader:
+machineDrivesFader:)`): silencia por software solo si **no** hay hardware
+real, o si el que lleva el fader ahora mismo es el FANTASMA
+(`PracticeSession.machineDrivesFader` — escucha del "repite conmigo", o
+asistencia "solo mano"), donde no hay ningún fader físico moviéndose en
+sincronía con el patrón y el software sigue siendo la única fuente de
+corte. El estado visual (`session.faderClosed`, el texto "fader
+cerrado"/"abierto", el `HitLevel.miss` de la traza para puntuar clicks) no
+se toca — sigue reflejando la posición real para dibujar y puntuar, tal
+como pidió el autor ("la app solo debe dibujar el mute").
+
+**Alternativas descartadas.** Quitar el software-mute por completo — se
+descarta: sin hardware real (ratón/trackpad, o MIDI de un controlador sin
+crossfader analógico) no hay NADA más que corte el audio, así que seguiría
+sonando con el fader "cerrado" en pantalla. Detectar el corte comparando
+audio de entrada — mucho más complejo y ya hay una señal directa
+(`crossfaderSource != nil`) que dice si el perfil activo tiene un
+crossfader de hardware leído.
+
+**Consecuencias.** El scratch en la Rane 72 real deja de sonar con un doble
+corte durante la práctica normal; sigue funcionando igual sin mesa (ratón)
+y durante la escucha del fantasma. Pendiente confirmar en la Rane 72 que
+el "raro" desaparece del todo — si algo similar persiste, el siguiente
+sospechoso sería el propio contour analógico de la mesa interactuando con
+el volumen/EQ del sample en vez del mute.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown
