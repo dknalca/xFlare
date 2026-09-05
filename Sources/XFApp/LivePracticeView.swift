@@ -198,6 +198,12 @@ public struct LivePracticeView: View {
     private let platterSpeedGate: Double
     private let platterFriction: Double
     private let trackpadSensitivity: Double
+    /// F.75 (ADR-079) — ancla de posición del scratch (ADR-042): cuánto y qué
+    /// tan rápido corrige la deriva entre el audio y la posición ya vista en
+    /// la autopista. Se aplica al abrir la práctica, como el resto del
+    /// "tacto" del plato.
+    private let scratchSeekTrimMs: Double
+    private let scratchSeekMaxTrim: Double
     /// F.65 — vinilo de timecode real moviendo el plato (Freestyle/práctica),
     /// no solo ratón/trackpad. `captureRealTimecode` (decidido por
     /// `AppRootView` según haya o no un dispositivo de ENTRADA configurado,
@@ -231,6 +237,8 @@ public struct LivePracticeView: View {
                 platterSpeedGate: Double = 0.04,   // F.47: taper de coseno + bloqueador de DC
                 platterFriction: Double = 1.8,
                 trackpadSensitivity: Double = 1.0,
+                scratchSeekTrimMs: Double = 250.0,
+                scratchSeekMaxTrim: Double = 0.015,
                 commandEvents: AnyPublisher<PracticeCommandEvent, Never>
                     = Empty(completeImmediately: false).eraseToAnyPublisher(),
                 captureRealTimecode: Bool = false,
@@ -269,6 +277,8 @@ public struct LivePracticeView: View {
         self.platterSpeedGate = platterSpeedGate
         self.platterFriction = platterFriction
         self.trackpadSensitivity = trackpadSensitivity
+        self.scratchSeekTrimMs = scratchSeekTrimMs
+        self.scratchSeekMaxTrim = scratchSeekMaxTrim
         self.commandEvents = commandEvents
         self.captureRealTimecode = captureRealTimecode
         self.motionSamples = motionSamples
@@ -436,6 +446,7 @@ public struct LivePracticeView: View {
             // ajustes de "tacto" del plato (Ajustes › Debug)
             engine?.setScratchGlideMs(platterGlideMs)
             engine?.setScratchSpeedGate(platterSpeedGate)
+            engine?.setScratchSeekTrim(ms: scratchSeekTrimMs, maxTrim: scratchSeekMaxTrim)
             session.frictionPerSecond = platterFriction
             session.scrollSensitivity = trackpadSensitivity
             sensitivity = trackpadSensitivity

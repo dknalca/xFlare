@@ -1645,6 +1645,42 @@ en manos de gente.*
         `make verify` en verde, 776 tests.
       - Pendiente: confirmar "con los ojos" en la Rane 72 real.
 
+- [x] **F.75** El ancla de posición del audio pasa a ser afinable (el trim por defecto puede no dar abasto con timecode real) `CXFAudioCore` `XFApp`
+      - Tras probar F.74 en la Rane 72, el autor reportó que el "sticker
+        drift" seguía: "hay zona que se ve la onda y no suena y conforme se
+        desplaza el sonido luego suena en zonas que no hay onda. La parte
+        del dibujo de la onda debe cuadrar perfecto con el teal".
+      - Causa real: F.74 arregló la autopista (ya fiel al decoder), pero
+        el AUDIO tiene su propio "ancla" separada (`xf_player`'s
+        `target_playhead`, ADR-042) — un trim deliberadamente LENTO Y
+        ACOTADO (~250 ms, tope 0,015 frames/muestra ≈ 1,5 % de pitch),
+        afinado para una fuente RUIDOSA (ratón: una corrección agresiva
+        se oiría como un barrido). Antes de F.74, `PracticeSession`
+        reintegraba la posición con el MISMO tipo de aproximación que el
+        motor RT (velocidad sujeta ~33 ms) — los dos lados compartían el
+        error, así que "parecían" ir sincronizados aunque los dos
+        estuvieran mal respecto al vinilo real. Al arreglar SOLO el lado
+        visual, el motor RT se quedó con su aproximación de siempre: con
+        timecode real (posición EXACTA, no una estimación) ese trim lento
+        puede no dar abasto en un scratch continuo y rápido.
+      - Hecho (2026-09-05, ADR-079): `xf_player_set_seek_trim(ms, max_trim)`
+        (nuevo, mismo patrón que `set_glide_ms`/`set_speed_gate`) +
+        `xf_engine_set_scratch_seek_trim` (guarda + aplica al player en
+        curso, se reaplica al cargar un sample nuevo). `AppSettings` gana
+        `scratchSeekTrimMs`/`scratchSeekMaxTrim`; sección nueva "Ancla de
+        posición (timecode real)" en Ajustes › Debug; `LivePracticeView`
+        lo aplica al abrir la práctica como el resto del "tacto" del
+        plato. Los *defaults* NO cambian (250 ms/0,015) — sin poder
+        verificar por oído, se deja el punto de partida conservador y se
+        expone para que el autor lo afine él mismo en la mesa real.
+      - Tests: 1 en `XFEngineRTTests` (el tope configurable corrige más
+        con un `max_trim` más alto, pero sigue acotado al nuevo tope) + 1
+        en `AppSettingsTests` (ida y vuelta + acotado). `make verify` en
+        verde, 778 tests.
+      - Pendiente: el autor prueba distintos valores de "Tiempo"/"Fuerza"
+        en la Rane 72 real; si encuentra uno que cierra el hueco sin
+        click, ese valor debería volver como el nuevo *default*.
+
 ---
 
 ## Reglas de uso

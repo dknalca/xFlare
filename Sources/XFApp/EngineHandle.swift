@@ -217,6 +217,15 @@ public final class EngineHandle {
     /// aplican al vuelo.
     public func setScratchGlideMs(_ ms: Double) { xf_engine_set_scratch_glide_ms(engine, ms) }
     public func setScratchSpeedGate(_ v: Double) { xf_engine_set_scratch_speed_gate(engine, v) }
+    /// F.75 (ADR-079) — cuánto y qué tan rápido corrige el ancla de posición
+    /// del scratch (`setScratchTarget`/ADR-042) su propia deriva. El default
+    /// es lento a propósito (~250 ms, tope 1,5 % de pitch) para no oírse como
+    /// un barrido con una fuente RUIDOSA (ratón); con timecode real —
+    /// posición fiable, no una estimación— puede hacer falta más rápido si
+    /// el audio se queda atrás del gesto que ya se ve bien en la autopista.
+    public func setScratchSeekTrim(ms: Double, maxTrim: Double) {
+        xf_engine_set_scratch_seek_trim(engine, ms, maxTrim)
+    }
 
     public var sampleRateHz: Double { sampleRate }
 

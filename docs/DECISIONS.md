@@ -3370,6 +3370,67 @@ siguiente corrige de golpe. Cambia la firma pública de
 en la Rane 72 real — pendiente de confirmación del autor, igual que
 ADR-076/077.
 
+## ADR-079 — El ancla de posición del audio (ADR-042) pasa a ser afinable: el trim por defecto puede no dar abasto con timecode real
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Tras ADR-078 (el plato sigue la posición del decoder, no una
+velocidad reintegrada), el autor probó en la Rane 72 y reportó que el
+"sticker drift" seguía presente, pero descrito de otra forma: "hay zona que
+se ve la onda y no suena, y conforme se desplaza el sonido suena en zonas
+que no hay onda — la onda debe cuadrar con el teal". Es decir: la
+DISCREPANCIA ya no está entre la autopista y el vinilo real (eso lo cerró
+ADR-078) — está entre **lo que se VE** (autopista, ya fiel al decoder) y
+**lo que se OYE** (el audio del motor RT).
+
+`LivePracticeView.onAdvance` ya manda la posición corregida al motor como
+ancla anti-deriva (`engine.setScratchTarget` → `xf_player_set_target_playhead`,
+ADR-042). Pero esa ancla es deliberadamente un **trim lento y acotado**: un
+one-pole de ~250 ms con el trim topado a 0,015 frames/muestra (~1,5 % de
+pitch) — "lo justo para corregir deriva sin que se oiga [como un barrido]".
+Ese diseño se afinó para una fuente de posición RUIDOSA (el ratón/trackpad,
+donde una corrección agresiva sí se notaría como un barrido de tono). Con
+**timecode real** la posición que llega es EXACTA (xwax), no una
+estimación — y antes de ADR-078 el propio `PracticeSession` reintegraba la
+posición con el MISMO tipo de aproximación que el motor RT (velocidad
+sujeta ~33 ms entre muestras): los dos lados compartían el mismo error, así
+que "parecían" ir sincronizados aunque los dos estuvieran equivocados
+respecto al vinilo real. Al corregir SOLO el lado visual (ADR-078), el
+motor RT se quedó con su aproximación de siempre — y ahora, comparado
+contra una autopista ya exacta, ese trim lento puede no dar abasto durante
+un scratch continuo y rápido: el hueco entre "dónde dice la pantalla que
+está" y "dónde está de verdad el cabezal de audio" puede no cerrarse nunca
+del todo mientras el gesto no para.
+
+**Decisión.** El trim deja de ser una constante fija de `xf_player_create`:
+`xf_player_set_seek_trim(p, ms, max_trim)` (nuevo, mismo patrón que
+`set_glide_ms`/`set_speed_gate`) y `xf_engine_set_scratch_seek_trim(e, ms,
+max_trim)` (guarda + aplica al player en curso, se reaplica al cargar un
+sample nuevo — igual que el resto del "tacto" del plato). Los *defaults* NO
+cambian (250 ms / 0,015): no hay forma de verificar por oído desde aquí cuál
+es el valor correcto para la Rane 72, así que se deja el mismo punto de
+partida conservador (pensado para no introducir un barrido audible) y se
+expone en **Ajustes › Debug** ("Ancla de posición (timecode real)") para
+que el autor lo afine él mismo en la mesa real, sin depender de otra ronda
+de cambios de código por cada valor a probar.
+
+**Alternativas descartadas.** Adivinar un valor nuevo por defecto más
+agresivo — se descarta: sin poder escuchar el resultado, cambiar el
+default a ciegas arriesga reintroducir el "barrido" que este mismo
+mecanismo existe para evitar (el motivo original de ADR-042). Hacer un
+snap duro (`seekScratch`) en cada muestra real en vez de un trim — se
+descarta: eso SÍ metería un click/discontinuidad audible en cada
+corrección (~30 Hz), que es exactamente lo que el trim lento evita.
+
+**Consecuencias.** El autor puede ahora subir la fuerza/bajar el tiempo del
+ancla directamente desde Ajustes y probar en la Rane 72 sin esperar a otro
+ciclo de cambios; si con un valor más agresivo el hueco se cierra sin
+click, ese hallazgo debería volver como el nuevo *default*. Rango acotado
+en el setter (`ms` en [10, 1000], `max_trim` en [0, 0.10]) para no dejar
+pasar una combinación que convierta la corrección en un barrido evidente.
+Sin verificar todavía "con los oídos" en la Rane 72 real — pendiente de
+confirmación del autor, igual que ADR-076/077/078.
+
 ---
 
 ## Plantilla para nuevas entradas

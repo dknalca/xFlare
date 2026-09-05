@@ -92,6 +92,17 @@ public struct AppSettings: Equatable, Sendable {
     public var platterFriction: Double
     /// Multiplicador de la sensibilidad del trackpad al girar el plato. Def. 1,0.
     public var trackpadSensitivity: Double
+    /// F.75 (ADR-079) — cuánto tarda (ms, one-pole) el ancla de posición del
+    /// scratch (`setScratchTarget`/ADR-042) en corregir su propia deriva. El
+    /// default (250) es lento a propósito para no oírse como un barrido con
+    /// una fuente RUIDOSA (ratón); con timecode real puede hacer falta más
+    /// rápido si el audio se queda atrás del gesto que ya se ve bien en la
+    /// autopista ("sticker drift" en el audio).
+    public var scratchSeekTrimMs: Double
+    /// Tope de esa corrección, en fracción de pitch (0,015 = 1,5 %, el
+    /// default). Más alto = corrige más fuerte por muestra, a costa de que
+    /// una corrección grande se note más como un cambio de tono.
+    public var scratchSeekMaxTrim: Double
 
     // F.04 — arranca en `defaultBufferFrames` (128), no en 512: recorta ~16 ms
     // de latencia de ida+vuelta. Si aparecen overloads, subir a mano en Ajustes
@@ -112,7 +123,8 @@ public struct AppSettings: Equatable, Sendable {
                 instrumentalLibrary: [String] = [], sampleSlots: [String] = [],
                 outputDeviceUID: String = "", outputChannel: Int = 1,
                 inputDeviceUID: String = "", inputChannel: Int = 1,
-                instrumentalOutputChannel: Int = 0) {
+                instrumentalOutputChannel: Int = 0,
+                scratchSeekTrimMs: Double = 250.0, scratchSeekMaxTrim: Double = 0.015) {
         self.username = String(username.prefix(40))
         self.hamster = hamster
         self.metronomeEnabled = metronomeEnabled
@@ -144,6 +156,8 @@ public struct AppSettings: Equatable, Sendable {
         self.inputDeviceUID = inputDeviceUID
         self.inputChannel = max(1, inputChannel)
         self.instrumentalOutputChannel = max(0, instrumentalOutputChannel)
+        self.scratchSeekTrimMs  = min(1000.0, max(10.0, scratchSeekTrimMs))
+        self.scratchSeekMaxTrim = min(0.10,   max(0.0,  scratchSeekMaxTrim))
     }
 
     // MARK: - clave/valor
@@ -174,6 +188,8 @@ public struct AppSettings: Equatable, Sendable {
         static let inputDeviceUID = "audio.inputDeviceUID"
         static let inputChannel = "audio.inputChannel"
         static let instrumentalOutputChannel = "audio.instrumentalOutputChannel"
+        static let scratchSeekTrimMs = "debug.scratchSeekTrimMs"
+        static let scratchSeekMaxTrim = "debug.scratchSeekMaxTrim"
     }
 
     /// `cue=note:1:36;freeze=cc:0:64` -> diccionario.
@@ -220,7 +236,9 @@ public struct AppSettings: Equatable, Sendable {
             outputChannel: int(Key.outputChannel, d.outputChannel),
             inputDeviceUID: raw[Key.inputDeviceUID] ?? d.inputDeviceUID,
             inputChannel: int(Key.inputChannel, d.inputChannel),
-            instrumentalOutputChannel: int(Key.instrumentalOutputChannel, d.instrumentalOutputChannel))
+            instrumentalOutputChannel: int(Key.instrumentalOutputChannel, d.instrumentalOutputChannel),
+            scratchSeekTrimMs: dbl(Key.scratchSeekTrimMs, d.scratchSeekTrimMs),
+            scratchSeekMaxTrim: dbl(Key.scratchSeekMaxTrim, d.scratchSeekMaxTrim))
     }
 
     public var raw: [String: String] {
@@ -250,6 +268,8 @@ public struct AppSettings: Equatable, Sendable {
             Key.inputDeviceUID: inputDeviceUID,
             Key.inputChannel: String(inputChannel),
             Key.instrumentalOutputChannel: String(instrumentalOutputChannel),
+            Key.scratchSeekTrimMs: String(scratchSeekTrimMs),
+            Key.scratchSeekMaxTrim: String(scratchSeekMaxTrim),
         ]
     }
 }

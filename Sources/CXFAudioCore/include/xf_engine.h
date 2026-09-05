@@ -131,6 +131,14 @@ void xf_engine_set_scratch_gain(xf_engine *e, float gain);
 void xf_engine_set_scratch_glide_ms(xf_engine *e, double glide_ms);
 void xf_engine_set_scratch_speed_gate(xf_engine *e, double speed_gate);
 
+/* F.75 (ADR-079) — ancla de posicion del scratch (ADR-042): cuanto tarda en
+ * corregir la deriva del cabezal (`ms`, one-pole, por defecto 250) y cuanto
+ * puede corregir por muestra (`max_trim`, por defecto 0.015 = 1.5% de
+ * pitch, acotado aqui a [0, 0.10]). Con timecode real (posicion FIABLE, no
+ * una estimacion de raton) puede hacer falta mas rapido/fuerte que el
+ * default si el audio se queda atras del gesto visible en la autopista. */
+void xf_engine_set_scratch_seek_trim(xf_engine *e, double ms, double max_trim);
+
 /* EQ de 3 bandas (Lo / Mid / Hi) **solo sobre el sample de scratch** — la base
  * instrumental y el metronomo no se tocan. Ganancias en dB, se acotan a
  * [-24, +12]; 0/0/0 = plano y el motor se salta el filtrado. NO RT-SAFE (disena

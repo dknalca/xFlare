@@ -56,6 +56,14 @@ struct xf_engine {
      * se aplican al player de scratch al cargarlo y al cambiarlos. */
     double          scratch_glide_ms;     /* suavizado de velocidad; menos = mas seco */
     double          scratch_speed_gate;   /* |v| por debajo de la cual no suena */
+    /* F.75 (ADR-079) — ancla de posicion del scratch (ADR-042): cuanto y que
+     * tan rapido corrige `xf_player`'s target_playhead. Por defecto tan lento
+     * (~250 ms, tope 1.5% de pitch) que con un vinilo real -- posicion de
+     * verdad, no una estimacion ruidosa de raton -- puede no dar abasto y
+     * quedarse por detras del gesto ("sticker drift" a nivel de audio,
+     * aunque la autopista ya vaya bien). Tunable desde Ajustes > Debug. */
+    double          scratch_seek_trim_ms;
+    double          scratch_seek_max_trim;
     _Atomic double  out_peak;             /* pico de salida ANTES de limitar, para la UI */
     _Atomic double  scratch_target;       /* frame objetivo del cabezal; <0 = suelto */
 
@@ -148,6 +156,8 @@ xf_engine *xf_engine_create(double sample_rate, uint32_t max_frames) {
     e->scratch_gain_coef = 1.0 - exp(-1.0 / (0.005 * sample_rate));
     e->scratch_glide_ms = 3.0;      /* antes 5; mas seco = el audio sigue mejor al gesto */
     e->scratch_speed_gate = 0.04;   /* F.47: bajado de 0.12 — el taper de coseno + el bloqueador de DC ya quitan el zumbido sin necesitar un umbral tan alto */
+    e->scratch_seek_trim_ms = 250.0;   /* F.75: mismo valor que traia xf_player_create por defecto */
+    e->scratch_seek_max_trim = 0.015;
     xf_eq_init(&e->sample_eq, sample_rate);   /* plano por defecto */
     atomic_store(&e->reported_tick, 0.0);
     atomic_store(&e->metro_offset, 0.0);
@@ -191,6 +201,7 @@ void xf_engine_load_sample(xf_engine *e, const float *sample, int64_t frames) {
         /* el plato casi parado no debe sonar (ni zumbar): puerta por velocidad */
         xf_player_set_speed_gate(np, e->scratch_speed_gate);
         xf_player_set_glide_ms(np, e->scratch_glide_ms);
+        xf_player_set_seek_trim(np, e->scratch_seek_trim_ms, e->scratch_seek_max_trim);
     }
 
     /* el retiro de 2 generaciones ya no puede estar en uso por el hilo RT */
@@ -214,6 +225,23 @@ void xf_engine_set_scratch_speed_gate(xf_engine *e, double gate) {
     e->scratch_speed_gate = gate;
     xf_player *p = atomic_load(&e->player);
     if (p) xf_player_set_speed_gate(p, gate);
+}
+
+/* F.75 (ADR-079) — mismo patron que `_set_scratch_glide_ms`: guarda para que
+ * el PROXIMO `xf_player` (al cargar otro sample) nazca con el mismo ajuste, y
+ * lo aplica YA al player en curso si lo hay. Rango acotado para no dejar
+ * pasar un valor que convierta la correccion en un barrido audible: `ms` muy
+ * bajo + `max_trim` alto es exactamente eso. */
+void xf_engine_set_scratch_seek_trim(xf_engine *e, double ms, double max_trim) {
+    if (!e) return;
+    if (ms < 10.0) ms = 10.0;
+    if (ms > 1000.0) ms = 1000.0;
+    if (max_trim < 0.0) max_trim = 0.0;
+    if (max_trim > 0.10) max_trim = 0.10;
+    e->scratch_seek_trim_ms = ms;
+    e->scratch_seek_max_trim = max_trim;
+    xf_player *p = atomic_load(&e->player);
+    if (p) xf_player_set_seek_trim(p, ms, max_trim);
 }
 
 void xf_engine_set_transport(xf_engine *e, double bpm, int ppq, bool playing) {

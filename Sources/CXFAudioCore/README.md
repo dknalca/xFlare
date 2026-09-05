@@ -62,6 +62,7 @@ double xf_player_velocity(const xf_player *p);                                  
 void   xf_player_set_loop(xf_player *p, bool loop);                                /* NO RT-SAFE — bases en bucle */
 void   xf_player_set_speed_gate(xf_player *p, double gate_velocity);              /* NO RT-SAFE — plato parado no zumba */
 void   xf_player_set_glide_ms(xf_player *p, double ms);                            /* NO RT-SAFE */
+void   xf_player_set_seek_trim(xf_player *p, double ms, double max_trim);          /* NO RT-SAFE — afina el trim de set_target_playhead (F.75, ADR-079) */
 ```
 
 - **Antialiasing:** lectura con **sinc enventanado** (32 taps, Blackman-Harris,

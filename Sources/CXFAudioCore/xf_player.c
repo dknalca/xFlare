@@ -202,6 +202,23 @@ void xf_player_set_speed_gate(xf_player *p, double gate_velocity) {
     if (p) p->speed_gate = gate_velocity > 0.0 ? gate_velocity : 0.0;
 }
 
+/* F.75 (ADR-079) — mismo calculo de one-pole que `xf_player_set_glide_ms`,
+ * aplicado al TRIM del ancla en vez de a la velocidad. `ms <= 0` corrige de
+ * golpe (coef=1): con datos de posicion FIABLES (timecode real, no una
+ * estimacion de raton) puede ser lo que haga falta si el trim lento no da
+ * abasto. `max_trim <= 0` apaga el trim del todo (deja el ancla sin efecto,
+ * como `target_playhead < 0`, pero sin soltarla). */
+void xf_player_set_seek_trim(xf_player *p, double ms, double max_trim) {
+    if (!p) return;
+    if (ms <= 0.0) {
+        p->seek_coef = 1.0;
+    } else {
+        double tau_frames = ms * 0.001 * (double)p->sample_rate;
+        p->seek_coef = 1.0 - exp(-1.0 / tau_frames);
+    }
+    p->seek_max_trim = max_trim > 0.0 ? max_trim : 0.0;
+}
+
 void xf_player_set_playhead(xf_player *p, double frame) {
     if (!p) return;
     if (frame < 0.0) frame = 0.0;

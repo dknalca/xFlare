@@ -85,6 +85,22 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(ext.trackpadSensitivity, 2.0)
     }
 
+    /// F.75 (ADR-079) — ancla de posición del scratch (timecode real).
+    func testAnclaDeScratchIdaYVueltaYAcotada() {
+        var s = AppSettings.defaults
+        s.scratchSeekTrimMs = 80.0
+        s.scratchSeekMaxTrim = 0.04
+        let round = AppSettings(raw: s.raw)
+        XCTAssertEqual(round.scratchSeekTrimMs, 80.0, accuracy: 1e-9)
+        XCTAssertEqual(round.scratchSeekMaxTrim, 0.04, accuracy: 1e-9)
+
+        let ext = AppSettings(raw: [
+            "debug.scratchSeekTrimMs": "99999", "debug.scratchSeekMaxTrim": "-1",
+        ])
+        XCTAssertEqual(ext.scratchSeekTrimMs, 1000.0)
+        XCTAssertEqual(ext.scratchSeekMaxTrim, 0.0)
+    }
+
     func testValoresIlegiblesCaenAlDefault() {
         let s = AppSettings(raw: [
             "audio.bufferFrames": "999",          // no esta en bufferOptions

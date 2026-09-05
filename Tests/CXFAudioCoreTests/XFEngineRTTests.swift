@@ -281,6 +281,30 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertEqual(xf_engine_scratch_playhead(e), m, accuracy: 1.0, "sin ancla no hay trim")
     }
 
+    /// F.75 (ADR-079) — `xf_engine_set_scratch_seek_trim` afina el tope del
+    /// trim en caliente: con timecode real (posicion FIABLE, no una
+    /// estimacion de raton) puede hacer falta corregir mas fuerte que el
+    /// default (~1,5 % de pitch) si el audio se queda atras del gesto. Un
+    /// tope mas alto corrige MAS por bloque frente al mismo hueco lejano —
+    /// pero sigue acotado al NUEVO tope, nunca barre sin limite.
+    func testAnclaSeekTrimEsConfigurable() {
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        let sample = stableSample((0..<96_000).map { Float(sin(Double($0) * 0.01)) * 0.3 })
+        defer { sample.deallocate() }
+        xf_engine_load_sample(e, sample.baseAddress, Int64(sample.count))
+
+        xf_engine_set_scratch_seek_trim(e, 50.0, 0.08)   // mas rapido y mas fuerte que el default
+        xf_engine_set_velocity(e, 0)
+        xf_engine_seek_scratch(e, 0)
+        xf_engine_set_scratch_target(e, 90_000)
+        let before = xf_engine_scratch_playhead(e)
+        _ = render(e, inL: nil, inR: nil, n: 128)
+        let step = xf_engine_scratch_playhead(e) - before
+        XCTAssertGreaterThan(step, 2.1, "con un tope mas alto corrige mas que el default (~1,92 frames/bloque)")
+        XCTAssertLessThanOrEqual(step, 128 * 0.08 + 0.1, "sigue acotado al NUEVO tope, no barre sin limite")
+    }
+
     func testSoftClipYPicoDeSalida() {
         let e = xf_engine_create(sr, 128)!
         defer { xf_engine_destroy(e) }

@@ -99,4 +99,16 @@ void xf_player_set_speed_gate(xf_player *p, double gate_velocity);
  * `0` = sin suavizado (salta). Por defecto 5 ms. */
 void xf_player_set_glide_ms(xf_player *p, double ms);
 
+/* NO RT-SAFE (F.75, ADR-079): afina el TRIM del ancla de `set_target_playhead`
+ * — cuanto tarda en corregir (`ms`, one-pole, por defecto ~250 ms) y cuanto
+ * puede corregir por muestra como maximo (`max_trim`, frames/muestra, por
+ * defecto 0.015 = 1.5% de pitch). Con una fuente de posicion RUIDOSA (raton)
+ * hace falta lento para no oírse como un barrido; con una FIABLE (timecode
+ * real) puede hacer falta mas rapido si el trim por defecto no da abasto y
+ * el audio se queda atras del gesto ("sticker drift" en el audio, aunque la
+ * pantalla ya vaya bien). `ms <= 0` corrige de golpe; `max_trim <= 0` apaga
+ * el trim (dentro de los limites que aplique `xf_engine_set_scratch_seek_trim`
+ * si se llega por ahi). */
+void xf_player_set_seek_trim(xf_player *p, double ms, double max_trim);
+
 #endif /* XF_PLAYER_H */

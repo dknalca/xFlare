@@ -321,6 +321,29 @@ public struct SettingsView: View {
                     }
                     .xfButton(.bordered)
                 }
+
+                section("Ancla de posición (timecode real)") {
+                    note("F.75 — con la mesa conectada, el audio se ancla a la posición "
+                         + "que ya se ve en la autopista (ADR-042) para no separarse del "
+                         + "vinilo real (\"sticker drift\"). El ancla es lenta A PROPÓSITO "
+                         + "para no oírse como un barrido con el ratón; si con timecode "
+                         + "real el sonido se queda atrás del gesto, prueba a bajar el "
+                         + "tiempo o subir la fuerza.")
+                    debugSlider("Tiempo (ms)", bind(\.scratchSeekTrimMs),
+                                in: 10...1000, step: 10, fmt: "%.0f")
+                    note("Cuánto tarda el audio en corregir la deriva hacia la posición "
+                         + "de la autopista. Menos = corrige más rápido.")
+                    debugSlider("Fuerza (fracción de pitch)", bind(\.scratchSeekMaxTrim),
+                                in: 0...0.10, step: 0.005, fmt: "%.3f")
+                    note("Tope de esa corrección por muestra. Más = corrige más fuerte, "
+                         + "a costa de notarse más como un cambio de tono si el hueco es grande.")
+                    Button("Restablecer valores") {
+                        settings.scratchSeekTrimMs = AppSettings.defaults.scratchSeekTrimMs
+                        settings.scratchSeekMaxTrim = AppSettings.defaults.scratchSeekMaxTrim
+                        onChange(settings)
+                    }
+                    .xfButton(.bordered)
+                }
             }
             .frame(maxWidth: 460, alignment: .leading)
             .padding(XFSpacing.xl)
