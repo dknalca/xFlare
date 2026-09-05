@@ -179,6 +179,19 @@ public final class PracticeSession: ObservableObject {
     /// señal real, que es justo lo que no puede pasar aquí.
     private var timecodeDriving = false
     private var lastTimecodeAt: CFTimeInterval = 0
+    /// F.74 (ADR-078) — "ancla" de posición real: `MotionSample.position`
+    /// (segundos-nominales acumulados por el decoder xwax, `xf_timecoder`) en
+    /// el instante en que se fijó esta referencia, junto con el
+    /// `platterPosition` que le correspondía. Cada muestra real siguiente
+    /// recalcula `platterPosition` como `anchorPlatterPosition + (position -
+    /// anchorRevolutions)/duración·escala` — un ÚNICO salto desde el ancla,
+    /// no una cadena de sumas — para que el plato SIEMPRE quede exactamente
+    /// donde el decoder dice que está el vinilo, sin importar cuánto haya
+    /// interpolado `coastPlatter` de por medio entre dos muestras reales.
+    /// `nil` mientras no hay una muestra real reciente (se reancla al volver
+    /// la señal, en vez de arrastrar un ancla vieja de antes del corte).
+    private var realMotionAnchorRevolutions: Double?
+    private var realMotionAnchorPlatterPosition: Double?
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -293,6 +306,8 @@ public final class PracticeSession: ObservableObject {
         self.platterVelocity = 0
         self.scrubbing = false
         self.timecodeDriving = false
+        self.realMotionAnchorRevolutions = nil
+        self.realMotionAnchorPlatterPosition = nil
         self.traceBuffer.removeAll(keepingCapacity: true)
         onAdvance?(0, 0, currentTick)
     }
@@ -342,6 +357,11 @@ public final class PracticeSession: ObservableObject {
         if timecodeDriving, CACurrentMediaTime() - lastTimecodeAt > 0.08 {
             timecodeDriving = false
             platterVelocity = 0
+            // F.74 — suelta el ancla: si la señal vuelve más tarde, se fija
+            // una NUEVA desde la posición de entonces, no se arrastra una
+            // referencia de antes del corte (eso sí sería "sticker drift").
+            realMotionAnchorRevolutions = nil
+            realMotionAnchorPlatterPosition = nil
         }
 
         // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
@@ -378,6 +398,8 @@ public final class PracticeSession: ObservableObject {
                 platterVelocity = 0        // empiezas con el plato quieto
                 scrubbing = false
                 timecodeDriving = false
+                realMotionAnchorRevolutions = nil
+                realMotionAnchorPlatterPosition = nil
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
@@ -517,6 +539,8 @@ public final class PracticeSession: ObservableObject {
             platterVelocity = 0
             scrubbing = false
             timecodeDriving = false
+            realMotionAnchorRevolutions = nil
+            realMotionAnchorPlatterPosition = nil
         }
     }
 
@@ -592,30 +616,63 @@ public final class PracticeSession: ObservableObject {
     /// velocidad de la mano.
     public func endScrub() { scrubbing = false }
 
-    /// F.65 — vinilo de timecode **real** (`MotionSample.velocity`,
-    /// `XFCapture`: 1.0 = 33⅓ rpm nominal hacia delante). A diferencia de
-    /// `scrub`/`scrollBy`/`nudge` (pensados para ratón/trackpad, con su
-    /// propia ganancia "humana"), el DVS ya trae la velocidad exacta: mover
-    /// el vinilo a ritmo normal avanza el sample cargado al mismo ritmo —
-    /// así es el scratch por timecode, el cabezal del sample sigue al vinilo
-    /// 1:1. `sampleDurationSeconds` es la duración del sample de scratch
-    /// cargado en el motor (`scratchFrameCount / sampleRateHz`; la calcula
-    /// quien llama, porque `PracticeSession` no conoce el motor de audio a
-    /// propósito, ver la cabecera del fichero) — deshace la conversión de
-    /// `normalizedVelocity` para que, tras volver a pasar por ella en
-    /// `onAdvance` (`LivePracticeView`), el ratio real llegue **intacto** a
-    /// `engine.setVelocity`. Usa su propio `timecodeDriving`/`lastTimecodeAt`
-    /// (F.70) — NO `scrubbing`: ese es el de `scrub()` (trackpad), pensado
-    /// para que al soltar los dedos vuelva la física de inercia + fricción: la
-    /// sensación humana de un plato de juguete. Aquí no hay tal cosa — el
-    /// plato "es" el vinilo real, así que si el vinilo deja de mandar
+    /// F.65/F.74 — vinilo de timecode **real** (`MotionSample`, `XFCapture`).
+    /// A diferencia de `scrub`/`scrollBy`/`nudge` (pensados para ratón/
+    /// trackpad, con su propia ganancia "humana"), el DVS ya trae velocidad Y
+    /// posición exactas: mover el vinilo a ritmo normal avanza el sample
+    /// cargado al mismo ritmo — así es el scratch por timecode, el cabezal
+    /// del sample sigue al vinilo 1:1. `sampleDurationSeconds` es la
+    /// duración del sample de scratch cargado en el motor
+    /// (`scratchFrameCount / sampleRateHz`; la calcula quien llama, porque
+    /// `PracticeSession` no conoce el motor de audio a propósito, ver la
+    /// cabecera del fichero).
+    ///
+    /// `velocity` deshace la conversión de `normalizedVelocity` para que,
+    /// tras volver a pasar por ella en `onAdvance` (`LivePracticeView`), el
+    /// ratio real llegue **intacto** a `engine.setVelocity` — sirve para el
+    /// tono/velocidad del audio y para interpolar la posición entre dos
+    /// muestras reales (`coastPlatter`, a 60 Hz).
+    ///
+    /// `position` (F.74, ADR-078) es la pieza que faltaba: **segundos-
+    /// nominales acumulados** que ya lleva el decoder de verdad
+    /// (`xf_timecoder.pos`, `pos += vel · nframes/sr` **por bloque de
+    /// audio**, muchísimo más fino que el sondeo de `AppModel` a 30 Hz que
+    /// entrega estas muestras). Antes `PracticeSession` solo recibía
+    /// `velocity` y RE-INTEGRABA la posición ella misma a 60 Hz, sujetando la
+    /// última velocidad conocida durante toda la ventana entre dos muestras
+    /// (∼33 ms) — un "mantener y extrapolar" que, si el vinilo aceleraba o
+    /// invertía dentro de esa ventana (un scratch rápido cabe entero en
+    /// 33 ms), se separaba poco a poco de dónde estaba el vinilo DE VERDAD:
+    /// el "sticker drift" que reportó el autor. Ahora cada muestra real
+    /// RE-ANCLA `platterPosition` a lo que el decoder dice con un único
+    /// salto desde el ancla (`realMotionAnchorRevolutions`/
+    /// `realMotionAnchorPlatterPosition`), así que el error de interpolar a
+    /// 60 Hz entre dos muestras nunca tiene más de ~33 ms para acumularse
+    /// antes de corregirse — no se encadena. `LivePracticeView.onAdvance` ya
+    /// manda `normalizedPosition` al motor como ancla anti-deriva
+    /// (`engine.setScratchTarget`, ADR-042): esta corrección llega también
+    /// al audio sin tocar una sola línea del motor RT.
+    ///
+    /// Usa su propio `timecodeDriving`/`lastTimecodeAt` (F.70) — NO
+    /// `scrubbing`: ese es el de `scrub()` (trackpad), pensado para que al
+    /// soltar los dedos vuelva la física de inercia + fricción. Aquí no hay
+    /// tal cosa — el plato "es" el vinilo real, así que si deja de mandar
     /// muestras más de 80 ms (aguja levantada, dropout — B5.5 ya lo valida a
     /// nivel de señal, o simplemente lo paraste con la mano) el plato se para
-    /// EN FIRME, sin decaimiento sintético de por medio.
-    public func pushRealVelocity(_ ratio: Double, sampleDurationSeconds: Double) {
+    /// EN FIRME y suelta el ancla (se reancla fresco cuando vuelva la señal).
+    public func pushRealMotion(position: Double, velocity: Double, sampleDurationSeconds: Double) {
         guard !machineDrivesDisc, sampleDurationSeconds > 0 else { return }
-        let normVel = ratio / sampleDurationSeconds
-        platterVelocity = normVel * patternSpan / AudioAsset.scratchPatternTopFraction
+        let scale = patternSpan / AudioAsset.scratchPatternTopFraction
+        if let anchorRevs = realMotionAnchorRevolutions,
+           let anchorPos = realMotionAnchorPlatterPosition {
+            platterPosition = anchorPos + (position - anchorRevs) / sampleDurationSeconds * scale
+        } else {
+            // primera muestra real tras (re)empezar a recibir señal: esta
+            // posición ANCLA la referencia, sin mover el plato de golpe.
+            realMotionAnchorRevolutions = position
+            realMotionAnchorPlatterPosition = platterPosition
+        }
+        platterVelocity = velocity / sampleDurationSeconds * scale
         timecodeDriving = true
         lastTimecodeAt = CACurrentMediaTime()
     }
@@ -826,6 +883,8 @@ public final class PracticeSession: ObservableObject {
         platterVelocity = 0
         scrubbing = false
         timecodeDriving = false
+        realMotionAnchorRevolutions = nil
+        realMotionAnchorPlatterPosition = nil
         onAdvance?(0, 0, currentTick)
     }
 
@@ -839,6 +898,8 @@ public final class PracticeSession: ObservableObject {
         platterVelocity = 0
         scrubbing = false
         timecodeDriving = false
+        realMotionAnchorRevolutions = nil
+        realMotionAnchorPlatterPosition = nil
         onAdvance?(0, clamped, currentTick)
     }
 
@@ -859,6 +920,8 @@ public final class PracticeSession: ObservableObject {
         platterVelocity = 0
         scrubbing = false
         timecodeDriving = false
+        realMotionAnchorRevolutions = nil
+        realMotionAnchorPlatterPosition = nil
         platterPosition = posLo
         if crPhase != .off { crPhase = .listen }
     }

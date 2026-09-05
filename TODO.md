@@ -1612,6 +1612,39 @@ en manos de gente.*
         en verde, 774 tests (sin cambios de conteo).
       - Pendiente: confirmar "con los ojos" en la Rane 72 real.
 
+- [x] **F.74** "Sticker drift" — el plato sigue la posición del decoder, no una velocidad reintegrada `XFApp`
+      - Pedido por el autor (sin poder probar en la Rane 72 en el momento):
+        "revisa el código para evitar el sticker drift del vinilo".
+      - Causa real encontrada revisando `PracticeSession.pushRealVelocity`
+        (F.65/F.70): solo recibía `MotionSample.velocity` y reintegraba la
+        posición ella misma a 60 Hz, sujetando la última velocidad conocida
+        entre dos muestras — `AppModel` sondea el decoder a 30 Hz
+        (`pollTimecode`, ~33 ms), así que un scratch rápido que cupiera
+        entero en esa ventana se aproximaba mal. `MotionSample.position`
+        (segundos-nominales acumulados por `xf_timecoder.c` **por bloque de
+        audio**, 1-3 ms — mucho más fino) ya existía y no se usaba para
+        nada: se tiraba la posición exacta del decoder para recalcular una
+        peor a mano.
+      - Hecho (2026-09-05, ADR-078): `pushRealVelocity(_:sampleDurationSeconds:)`
+        pasa a `pushRealMotion(position:velocity:sampleDurationSeconds:)`. Un
+        ancla (`realMotionAnchorRevolutions`/`realMotionAnchorPlatterPosition`),
+        fijada en la primera muestra real de cada racha, hace que cada
+        muestra siguiente recalcule `platterPosition` con un ÚNICO salto
+        desde el ancla — no una cadena de sumas que pudiera acumular error.
+        `coastPlatter` sigue interpolando a 60 Hz entre dos muestras reales
+        (para que la traza no dé saltos), pero cada muestra real CORRIGE esa
+        interpolación: el error nunca tiene más de ~33 ms para acumularse.
+        Al soltar el ancla (corte de señal, F.70) se reancla fresca al
+        volver la señal, sin saltar con una referencia vieja.
+        `LivePracticeView.onAdvance` ya mandaba la posición al motor de
+        audio como ancla anti-deriva (`engine.setScratchTarget`, ADR-042) —
+        la corrección llega también al audio SIN TOCAR el motor RT.
+      - Tests: 9 en `PracticeSessionTests` (renombrados de `pushRealVelocity`
+        a `pushRealMotion`, + 2 nuevos: sigue la posición del decoder sin
+        acumular error, y re-ancla sin saltar tras un corte de señal).
+        `make verify` en verde, 776 tests.
+      - Pendiente: confirmar "con los ojos" en la Rane 72 real.
+
 ---
 
 ## Reglas de uso

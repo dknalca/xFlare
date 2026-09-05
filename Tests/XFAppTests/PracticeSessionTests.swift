@@ -518,47 +518,48 @@ final class PracticeSessionTests: XCTestCase {
         XCTAssertEqual(s.platterVelocity, 0, "y acaba parando del todo")
     }
 
-    // MARK: - F.65: vinilo de timecode real
+    // MARK: - F.65/F.74: vinilo de timecode real
 
     /// `LivePracticeView.onAdvance` hace `engine.setVelocity(normalizedVelocity
-    /// * full/sr)`, y `sampleDurationSeconds` = `full/sr`. Si `pushRealVelocity`
+    /// * full/sr)`, y `sampleDurationSeconds` = `full/sr`. Si `pushRealMotion`
     /// deshace bien la conversión, `normalizedVelocity * sampleDurationSeconds`
     /// tiene que devolver EXACTAMENTE el ratio real (1.0 = 33⅓ rpm nominal,
     /// `MotionSample.velocity`) sin importar la duración del sample cargado.
-    func testPushRealVelocityLlegaIntactoTrasNormalizedVelocity() throws {
+    /// `position` no afecta a la velocidad -- 0 vale para estos tests.
+    func testPushRealMotionLaVelocidadLlegaIntactaTrasNormalizedVelocity() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
-        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.3)
+        s.pushRealMotion(position: 0, velocity: 1.0, sampleDurationSeconds: 2.3)
         XCTAssertEqual(s.normalizedVelocity * 2.3, 1.0, accuracy: 1e-9)
     }
 
-    func testPushRealVelocityEscalaConElRatioYLaDuracionDelSample() throws {
+    func testPushRealMotionLaVelocidadEscalaConElRatioYLaDuracionDelSample() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
-        s.pushRealVelocity(2.0, sampleDurationSeconds: 1.5)
+        s.pushRealMotion(position: 0, velocity: 2.0, sampleDurationSeconds: 1.5)
         XCTAssertEqual(s.normalizedVelocity * 1.5, 2.0, accuracy: 1e-9, "v=2 dobla el ritmo")
-        s.pushRealVelocity(-0.5, sampleDurationSeconds: 1.5)
+        s.pushRealMotion(position: 0, velocity: -0.5, sampleDurationSeconds: 1.5)
         XCTAssertEqual(s.normalizedVelocity * 1.5, -0.5, accuracy: 1e-9, "negativo = hacia atrás")
     }
 
-    func testPushRealVelocityNoFrenaEntreMuestrasComoElScrub() throws {
+    func testPushRealMotionNoFrenaEntreMuestrasComoElScrub() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
-        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 0, velocity: 1.0, sampleDurationSeconds: 2.0)
         let v = s.platterVelocity
         for _ in 0..<5 { s.advance(by: 1.0 / 60.0) }
         XCTAssertEqual(s.platterVelocity, v, accuracy: 1e-9,
                        "como el scrub, sujeta la velocidad mientras llegan muestras (< 80 ms)")
     }
 
-    func testPushRealVelocitySeIgnoraSiLaMaquinaLlevaElDisco() throws {
+    func testPushRealMotionSeIgnoraSiLaMaquinaLlevaElDisco() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         s.setAssist(.fader)
-        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 0, velocity: 1.0, sampleDurationSeconds: 2.0)
         XCTAssertEqual(s.platterVelocity, 0,
                        "igual que scrub/nudge/scrollBy: se ignora si el disco no lo llevas tú")
     }
 
-    func testPushRealVelocityConDuracionCeroNoRevienta() throws {
+    func testPushRealMotionConDuracionCeroNoRevienta() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
-        s.pushRealVelocity(1.0, sampleDurationSeconds: 0)
+        s.pushRealMotion(position: 0, velocity: 1.0, sampleDurationSeconds: 0)
         XCTAssertEqual(s.platterVelocity, 0)
     }
 
@@ -567,9 +568,9 @@ final class PracticeSessionTests: XCTestCase {
     /// (aguja levantada, o lo paraste con la mano) el plato se para EN FIRME:
     /// "el teal" solo se mueve con la señal real, sin decaimiento sintético de
     /// por medio que lo deje deslizando un rato más.
-    func testPushRealVelocitySeParaEnFirmeSiDejaDeLlegarSenal() throws {
+    func testPushRealMotionSeParaEnFirmeSiDejaDeLlegarSenal() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
-        s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 0, velocity: 1.0, sampleDurationSeconds: 2.0)
         XCTAssertNotEqual(s.platterVelocity, 0)
         Thread.sleep(forTimeInterval: 0.12)   // > 80 ms sin nueva muestra real
         s.advance(by: 1.0 / 60.0)
@@ -577,28 +578,69 @@ final class PracticeSessionTests: XCTestCase {
                        "sin señal real, parada en firme -- nada de fricción sintética")
     }
 
-    /// F.70 (ADR-076) — si el vinilo real retrocede más allá del principio del
-    /// sample, la posición YA NO se clava ahí (antes lo hacía, y de paso ponía
-    /// la velocidad a 0): sigue integrando el giro real de más, en "silencio"
-    /// (`normalizedPosition` ya está acotado a 0 aparte). El mismo recorrido
-    /// de vuelta debe llegar EXACTAMENTE al punto de partida — es la
-    /// "referencia" con el vinilo real que se perdía con el clamp viejo.
-    func testPushRealVelocityHaciaAtrasPreservaLaReferenciaAlPrincipio() throws {
+    /// F.74 (ADR-078) — "sticker drift": antes `PracticeSession` solo recibía
+    /// la velocidad y RE-INTEGRABA la posición ella misma a 60 Hz, sujetando
+    /// la última velocidad conocida entre dos muestras reales (~33 ms al
+    /// sondeo de 30 Hz) — una aproximación que se separaba poco a poco de
+    /// dónde estaba el vinilo DE VERDAD. Ahora `pushRealMotion` recibe
+    /// también `position` (segundos-nominales acumulados por el decoder
+    /// xwax) y RE-ANCLA `platterPosition` a ese valor exacto en cada
+    /// muestra. La PRIMERA muestra tras (re)empezar a recibir señal solo fija
+    /// el ancla (no mueve el plato de golpe); a partir de ahí, la posición
+    /// sigue EXACTAMENTE al decoder, sin importar cuánto haya interpolado
+    /// `coastPlatter` de por medio.
+    func testPushRealMotionSigueLaPosicionDelDecoderSinAcumularError() throws {
         let s = PracticeSession(scratch: try scratch(), bpm: 90)
         let start = s.platterPosition
-        for _ in 0..<10 {
-            s.pushRealVelocity(-1.0, sampleDurationSeconds: 2.0)
-            s.advance(by: 1.0 / 60.0)
-        }
-        XCTAssertLessThan(s.platterPosition, start,
-                          "el vinilo puede seguir girando hacia atrás del principio, no se clava")
-        XCTAssertEqual(s.normalizedPosition, 0, "no hay sample que sonar ahí: silencio")
-        for _ in 0..<10 {
-            s.pushRealVelocity(1.0, sampleDurationSeconds: 2.0)
-            s.advance(by: 1.0 / 60.0)
-        }
+
+        s.pushRealMotion(position: 100, velocity: -1.0, sampleDurationSeconds: 2.0)
         XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9,
-                       "el mismo recorrido de vuelta llega EXACTO al punto de partida, sin deriva")
+                       "la primera muestra tras empezar a recibir señal solo ancla")
+
+        s.pushRealMotion(position: 100 - 0.3, velocity: -1.0, sampleDurationSeconds: 2.0)
+        let backPos = s.platterPosition
+        XCTAssertLessThan(backPos, start,
+                          "se mueve según la posición real del decoder, no una velocidad reintegrada")
+
+        // volver EXACTAMENTE a la posición de decoder del ancla -> vuelve
+        // EXACTO al punto de partida, sin importar el camino intermedio
+        // (ninguna cadena de sumas que pueda acumular error).
+        s.pushRealMotion(position: 100, velocity: 1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9,
+                       "vuelve EXACTO al ancla: sin deriva por el camino")
+    }
+
+    /// F.70 (ADR-076) — si el vinilo real retrocede más allá del principio del
+    /// sample, la posición YA NO se clava ahí. `normalizedPosition` sigue
+    /// acotado a 0 aparte (silencio), pero `platterPosition` sigue integrando
+    /// el giro real de más -- comprobado aquí vía la posición del decoder.
+    func testPushRealMotionHaciaAtrasDelPrincipioNoClavaLaPosicion() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        let start = s.platterPosition
+        s.pushRealMotion(position: 0, velocity: -1.0, sampleDurationSeconds: 2.0)   // ancla
+        s.pushRealMotion(position: -5, velocity: -1.0, sampleDurationSeconds: 2.0)  // 5 s-nominales hacia atrás
+        XCTAssertLessThan(s.platterPosition, start,
+                          "sigue el giro real hacia atrás del principio, no se clava en 0")
+        XCTAssertEqual(s.normalizedPosition, 0, "no hay sample que sonar antes del principio: silencio")
+    }
+
+    /// Tras un corte de señal (watchdog de 80 ms, F.70) el ancla se suelta; la
+    /// siguiente muestra real, aunque traiga una posición de decoder muy
+    /// distinta (el vinilo pudo seguir girando durante el corte, o el
+    /// decoder se reinició), tiene que RE-ANCLAR sin saltar el plato --
+    /// exactamente igual que la primera muestra de una sesión.
+    func testTrasUnCorteDeSenalLaSiguienteMuestraReanclaSinSaltar() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealMotion(position: 0, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: -0.5, velocity: -1.0, sampleDurationSeconds: 2.0)
+        let posBeforeCut = s.platterPosition
+
+        Thread.sleep(forTimeInterval: 0.12)
+        s.advance(by: 1.0 / 60.0)   // dispara el watchdog: suelta el ancla
+
+        s.pushRealMotion(position: 9_999, velocity: 0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, posBeforeCut, accuracy: 1e-9,
+                       "re-ancla fresco tras el corte, no salta usando una posición de decoder vieja")
     }
 
     func testElScrubSeIgnoraSiLaMaquinaLlevaElDisco() throws {

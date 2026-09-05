@@ -1510,19 +1510,26 @@ public struct LivePracticeView: View {
         e.setVelocity(session.normalizedVelocity * full / e.sampleRateHz)
     }
 
-    /// F.65 — una muestra real del vinilo de timecode: la convierte al espacio
-    /// del patrón (`PracticeSession.pushRealVelocity`, deshace la conversión
-    /// de `normalizedVelocity` para que el ratio real llegue intacto al
-    /// motor) y la empuja YA, como `pushPlatterVelocity` hace con ratón/
-    /// trackpad. Confianza baja (aguja levantada, señal sucia) se ignora —
-    /// mismo umbral que el paso "Timecode" del asistente — y el plato frena
-    /// solo por la fricción sintética (F.08) en vez de congelarse con la
-    /// última velocidad.
+    /// F.65/F.74 — una muestra real del vinilo de timecode: la convierte al
+    /// espacio del patrón (`PracticeSession.pushRealMotion`, deshace la
+    /// conversión de `normalizedVelocity` para que el ratio real llegue
+    /// intacto al motor) y la empuja YA, como `pushPlatterVelocity` hace con
+    /// ratón/trackpad. Manda `sample.position` ADEMÁS de `sample.velocity`
+    /// (ADR-078): son los segundos-nominales acumulados por el decoder xwax
+    /// (`xf_timecoder.pos`) al ritmo del audio, no del sondeo de `AppModel` a
+    /// 30 Hz que entrega esta muestra — usarlos re-ancla `platterPosition`
+    /// exactamente a lo que el decoder dice en cada muestra, en vez de
+    /// dejar que `PracticeSession` re-integre solo la velocidad y se separe
+    /// poco a poco del vinilo real (el "sticker drift" que reportó el
+    /// autor). Confianza baja (aguja levantada, señal sucia) se ignora —
+    /// mismo umbral que el paso "Timecode" del asistente — y el plato para
+    /// en firme (F.70) en vez de seguir con la última velocidad.
     private func receiveRealMotion(_ sample: MotionSample) {
         guard captureRealTimecode, sample.confidence >= 0.6,
               let e = engine, e.scratchFrameCount > 1 else { return }
         let full = Double(e.scratchFrameCount - 1)
-        session.pushRealVelocity(sample.velocity, sampleDurationSeconds: full / e.sampleRateHz)
+        session.pushRealMotion(position: sample.position, velocity: sample.velocity,
+                               sampleDurationSeconds: full / e.sampleRateHz)
         pushPlatterVelocity()
     }
 

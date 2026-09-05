@@ -3302,6 +3302,74 @@ nuevas salen `nil`, y el perfil sigue siendo el fallback). No verificado
 todavía "con los oídos" en la Rane 72 real — pendiente de confirmación del
 autor, igual que ADR-076.
 
+## ADR-078 — El plato sigue la posición del decoder, no una velocidad reintegrada ("sticker drift")
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** El autor, sin poder probar en la Rane 72 en el momento, pidió
+revisar el código para evitar el "sticker drift" del vinilo — el término
+DVS para cuando la posición que sigue el software se separa poco a poco de
+la posición real del vinilo (como si el punto de referencia pegado al
+centro del disco ya no coincidiera).
+
+Revisando `PracticeSession.pushRealVelocity` (F.65/F.70): recibía **solo**
+`MotionSample.velocity` y volvía a integrar la posición ella misma, en
+`coastPlatter`, a 60 Hz (`platterPosition += platterVelocity * step`). Pero
+`AppModel` sondea el decoder a **30 Hz** (`pollTimecode`, cada ~33 ms) —
+entre dos muestras, `PracticeSession` sujetaba la ÚLTIMA velocidad conocida
+durante toda la ventana, un "mantener y extrapolar" (retenedor de orden
+cero) que ignora cualquier cambio de velocidad real ocurrido dentro de esos
+33 ms (un scratch rápido cabe entero ahí). Mientras tanto, `MotionSample`
+YA trae `position` — "segundos-nominales" acumulados por el propio decoder
+xwax (`xf_timecoder.c`: `pos += vel * nframes/sr`, **por bloque de audio**,
+del orden de 1-3 ms — muchísimo más fino que el sondeo de 30 Hz) — que
+`PracticeSession` ignoraba por completo. Se estaba tirando la posición
+exacta que YA existía para volver a calcular una peor a mano.
+
+**Decisión.** `pushRealVelocity(_:sampleDurationSeconds:)` se convierte en
+`pushRealMotion(position:velocity:sampleDurationSeconds:)`. Un ancla de dos
+variables (`realMotionAnchorRevolutions`/`realMotionAnchorPlatterPosition`)
+fija, en la primera muestra real de una racha, `(position del decoder,
+platterPosition correspondiente)`; cada muestra siguiente recalcula
+`platterPosition = anchorPlatterPosition + (position - anchorRevolutions) /
+sampleDurationSeconds · escala` — un ÚNICO salto desde el ancla, no una
+cadena de sumas (evita que el propio error de redondeo se acumule con el
+tiempo). `coastPlatter` sigue interpolando a 60 Hz con la velocidad entre
+dos muestras reales (para que la traza no dé saltos visibles), pero cada
+muestra real CORRIGE esa interpolación a lo que el decoder dice de verdad
+— el error de interpolar nunca tiene más de ~33 ms para acumularse antes de
+corregirse. Al soltar el ancla (corte de señal, F.70) se limpia del todo;
+la siguiente muestra real reancla fresca, no salta usando una referencia de
+antes del corte.
+
+`LivePracticeView.onAdvance` ya mandaba `normalizedPosition` al motor de
+audio como ancla anti-deriva (`engine.setScratchTarget`, ADR-042, un trim
+acotado en el hilo RT) — la corrección llega también al audio SIN TOCAR
+NINGUNA línea del motor RT: basta con que `platterPosition` sea fiel a la
+posición real para que ese trim ya existente deje de tener nada que
+corregir.
+
+**Alternativas descartadas.** Usar `position` como posición ABSOLUTA
+directa (en vez de solo su DELTA) — se descarta: xFlare usa **modo
+relativo** (CLAUDE.md, glosario) a propósito; el "sample" cargado es un
+efecto corto, no una pista completa sincronizada 1:1 con la posición
+absoluta del vinilo, así que solo el DELTA desde donde arrancó la sesión
+tiene sentido. Corregir también el motor RT (mandarle `position` además de
+`velocity` para que ANCLE su propio cabezal directamente) — se descarta por
+ahora: el mecanismo de `setScratchTarget` ya existente resuelve el mismo
+problema en el lado de audio sin tocar C, y tocar el hilo RT para esto no
+está justificado sin medirlo primero.
+
+**Consecuencias.** La traza visual y el ancla de audio dejan de acumular
+error entre muestras reales; solo pueden desviarse dentro de una ventana de
+~33 ms (el intervalo de sondeo), nunca más allá, porque cada muestra
+siguiente corrige de golpe. Cambia la firma pública de
+`PracticeSession.pushRealVelocity` a `pushRealMotion` — un solo call site
+(`LivePracticeView.receiveRealMotion`) y los tests de
+`PracticeSessionTests` actualizados. Sin verificar todavía "con los ojos"
+en la Rane 72 real — pendiente de confirmación del autor, igual que
+ADR-076/077.
+
 ---
 
 ## Plantilla para nuevas entradas
