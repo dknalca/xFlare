@@ -643,6 +643,55 @@ final class PracticeSessionTests: XCTestCase {
                        "re-ancla fresco tras el corte, no salta usando una posición de decoder vieja")
     }
 
+    // MARK: - F.81 (ADR-085): desplazamiento fijo con la posición absoluta
+
+    /// El caso que motivó F.81: F.78 reanclaba en cada transición
+    /// enganche<->sin enganche, así que cualquier sesgo acumulado por la
+    /// integral durante un tramo SIN enganche quedaba congelado para
+    /// siempre en el nuevo ancla. Aquí `position` (la integral) se separa
+    /// de la posición absoluta real DURANTE un tramo sin enganche (simula
+    /// el sesgo del filtro de pitch de xwax); al recuperar el enganche con
+    /// la MISMA posición absoluta de antes, `platterPosition` tiene que
+    /// volver EXACTO a donde estaba -- no quedarse desplazado por el sesgo
+    /// que se coló mientras tanto.
+    func testAlRecuperarElEngancheCorrigeElSesgoAcumuladoSinEl() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        let start = s.platterPosition
+
+        // enganchado: ancla el desplazamiento fijo.
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9)
+
+        // se pierde el enganche: la primera muestra sin enganche solo ancla
+        // el respaldo (integral), como la primera muestra de una sesión.
+        s.pushRealMotion(position: 105, absolutePosition: nil, velocity: -1.0, sampleDurationSeconds: 2.0)
+        // la SIGUIENTE ya se mueve según la integral -- y esa es la que se
+        // desvía sola, simulando el sesgo del filtro de pitch de xwax.
+        s.pushRealMotion(position: 106, absolutePosition: nil, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertNotEqual(s.platterPosition, start, accuracy: 1e-9,
+                          "sin enganche, la integral SÍ puede desviar el plato")
+
+        // se recupera el enganche con la MISMA posición absoluta de antes:
+        // tiene que volver EXACTO al punto de partida, sin importar cuánto
+        // se desvió la integral mientras no había enganche.
+        s.pushRealMotion(position: 999, absolutePosition: 50, velocity: 1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9,
+                       "recuperar el enganche corrige de vuelta a la verdad del vinilo")
+    }
+
+    /// Con la posición absoluta SIEMPRE enganchada, `platterPosition` la
+    /// sigue 1:1 -- ninguna cadena de sumas que pueda acumular error, igual
+    /// que la integral (F.74) pero con una fuente que no tiene sesgo nunca.
+    func testConEngancheContinuoSigueLaPosicionAbsoluta1a1() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        let start = s.platterPosition
+        s.pushRealMotion(position: 0, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 0, absolutePosition: 49.7, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertLessThan(s.platterPosition, start)
+        s.pushRealMotion(position: 0, absolutePosition: 50, velocity: 1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, start, accuracy: 1e-9, "vuelve EXACTO, sin deriva por el camino")
+    }
+
     func testElScrubSeIgnoraSiLaMaquinaLlevaElDisco() throws {
         let s = PracticeSession(scratch: try scratch("baby"), bpm: 120)
         s.setAssist(.fader)                       // la máquina mueve el disco

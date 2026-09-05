@@ -192,15 +192,22 @@ public final class PracticeSession: ObservableObject {
     /// la señal, en vez de arrastrar un ancla vieja de antes del corte).
     private var realMotionAnchorRevolutions: Double?
     private var realMotionAnchorPlatterPosition: Double?
-    /// F.78 (ADR-082) — qué REFERENCIA ancló el par de arriba: la posición
-    /// ABSOLUTA del bitstream (`true`, no acumula error nunca) o la integral
-    /// de xwax (`false`, F.74 — sí puede acumular sesgo, el filtro de pitch
-    /// de xwax no es perfecto). Si la disponibilidad cambia (se engancha o
-    /// se pierde el enganche) hay que RE-ANCLAR, no seguir restando contra
-    /// una referencia de una fuente distinta — mezclar dos relojes con
-    /// distinto sesgo en el mismo ancla sería peor que un reanclaje puntual
-    /// (mismo criterio que el watchdog de F.70 al cortarse la señal).
-    private var realMotionUsingAbsolute = false
+    /// F.81 (ADR-085) — desplazamiento FIJO entre la posición absoluta del
+    /// bitstream y `platterPosition`, fijado una sola vez (la primera
+    /// muestra enganchada de la racha) y NUNCA reanclado mientras se pierde
+    /// y se recupera el enganche dentro de la misma racha. F.78 (ADR-082)
+    /// reanclaba en cada transición enganche<->sin enganche: eso paraba la
+    /// deriva MIENTRAS seguía enganchado, pero cualquier sesgo acumulado por
+    /// la integral durante un tramo sin enganche quedaba CONGELADO para
+    /// siempre en el nuevo ancla — con el enganche cayendo al 49-57% en un
+    /// scratch real (muchas transiciones), el error se iba sumando en cada
+    /// ciclo en vez de corregirse. Con el desplazamiento fijo, CADA muestra
+    /// enganchada recalcula `platterPosition` direecto desde la posición
+    /// absoluta (nunca acumula sesgo), así que recuperar el enganche
+    /// siempre corrige de vuelta a la verdad del vinilo, aunque eso implique
+    /// un salto visible si el tramo sin enganche fue largo — mejor un salto
+    /// puntual que una deriva silenciosa que no para de crecer.
+    private var absoluteToPlatterOffset: Double?
 
     /// Traza del usuario ya lista para `HighwayView` (ticks absolutos de sesion).
     private var traceBuffer: [TracePoint] = []
@@ -317,7 +324,7 @@ public final class PracticeSession: ObservableObject {
         self.timecodeDriving = false
         self.realMotionAnchorRevolutions = nil
         self.realMotionAnchorPlatterPosition = nil
-        self.realMotionUsingAbsolute = false
+        self.absoluteToPlatterOffset = nil
         self.traceBuffer.removeAll(keepingCapacity: true)
         onAdvance?(0, 0, currentTick)
     }
@@ -372,7 +379,7 @@ public final class PracticeSession: ObservableObject {
             // referencia de antes del corte (eso sí sería "sticker drift").
             realMotionAnchorRevolutions = nil
             realMotionAnchorPlatterPosition = nil
-            realMotionUsingAbsolute = false
+            absoluteToPlatterOffset = nil
         }
 
         // CONGELADO (tecla P): el reloj no avanza y la traza no crece, pero el
@@ -411,7 +418,7 @@ public final class PracticeSession: ObservableObject {
                 timecodeDriving = false
                 realMotionAnchorRevolutions = nil
                 realMotionAnchorPlatterPosition = nil
-                realMotionUsingAbsolute = false
+                absoluteToPlatterOffset = nil
                 // ...y con el fader ABIERTO: durante la escucha el fantasma pudo
                 // dejarlo cerrado (un chirp/transformer acaba en mute) y si no lo
                 // reabrimos aqui tu turno arranca mudo hasta que tocas Espacio.
@@ -553,7 +560,7 @@ public final class PracticeSession: ObservableObject {
             timecodeDriving = false
             realMotionAnchorRevolutions = nil
             realMotionAnchorPlatterPosition = nil
-            realMotionUsingAbsolute = false
+            absoluteToPlatterOffset = nil
         }
     }
 
@@ -662,14 +669,20 @@ public final class PracticeSession: ObservableObject {
     /// Rane 72 real: con F.76/F.77 ya puestos, la deriva seguía creciendo
     /// durante el scratch aunque los frames perdidos del ring se quedaran
     /// planos). `absolutePosition` es una lectura DIRECTA del bitstream —
-    /// no acumula error nunca — así que, cuando hay enganche, ancla
-    /// `platterPosition` a ESO en vez de a la integral. `nil` sin enganche
-    /// (aguja levantada, señal sucia, o scratch tan rápido que rompe el
-    /// enganche): entonces se sigue con la integral, la única referencia que
-    /// queda. Si la disponibilidad CAMBIA (se engancha o se pierde) se
-    /// reancla fresco — mezclar dos relojes con sesgos distintos en el mismo
-    /// ancla sería peor que un reanclaje puntual (mismo criterio que el
-    /// watchdog de F.70 al cortarse la señal del todo).
+    /// no acumula error nunca — así que, cuando hay enganche,
+    /// `platterPosition` se recalcula SIEMPRE desde ahí con un
+    /// `absoluteToPlatterOffset` FIJO (F.81, ADR-085): fijado una sola vez
+    /// (la primera muestra enganchada de la racha) y nunca reanclado por
+    /// perder y recuperar el enganche dentro de la misma racha — a
+    /// diferencia de F.78 (ADR-082), que reanclaba en cada transición y por
+    /// eso congelaba para siempre cualquier sesgo acumulado durante un
+    /// tramo sin enganche (con el enganche cayendo al 49-57 % en un scratch
+    /// real, eso sumaba error en cada ciclo en vez de corregirlo — "sigue
+    /// habiendo deriva y es impracticable"). Sin enganche se sigue con la
+    /// integral (F.74), la única referencia que queda para el hueco corto
+    /// hasta el próximo enganche — recuperarlo siempre corrige de vuelta a
+    /// la verdad del vinilo, aunque eso implique un salto visible si el
+    /// hueco fue largo: mejor un salto puntual que una deriva silenciosa.
     ///
     /// `velocity` deshace la conversión de `normalizedVelocity` para que,
     /// tras volver a pasar por ella en `onAdvance` (`LivePracticeView`), el
@@ -695,26 +708,35 @@ public final class PracticeSession: ObservableObject {
         guard !machineDrivesDisc, sampleDurationSeconds > 0 else { return }
         let scale = patternSpan / AudioAsset.scratchPatternTopFraction
 
-        // F.78 — la REFERENCIA de hoy: absoluta si hay enganche (no acumula
-        // error nunca), si no la integral (F.74, puede acumular sesgo).
-        let usingAbsoluteNow = absolutePosition != nil
-        let referenceNow = absolutePosition ?? position
-        if usingAbsoluteNow != realMotionUsingAbsolute {
-            // cambió la fuente respecto a la última muestra: reanclar
-            // fresco, no restar contra un ancla de la fuente vieja.
+        if let absolutePosition {
+            // F.81 (ADR-085): desplazamiento FIJO, nunca reanclado por
+            // perder/recuperar el enganche -- cada muestra enganchada
+            // recalcula `platterPosition` directo desde la posición
+            // absoluta, así que SIEMPRE corrige de vuelta a la verdad del
+            // vinilo, en vez de solo parar de derivar desde donde fuera que
+            // se quedó la integral.
+            if let offset = absoluteToPlatterOffset {
+                platterPosition = offset + absolutePosition / sampleDurationSeconds * scale
+            } else {
+                // primer enganche de la racha: fija el desplazamiento
+                // igualando al `platterPosition` actual, sin mover el plato
+                // de golpe.
+                absoluteToPlatterOffset = platterPosition - absolutePosition / sampleDurationSeconds * scale
+            }
+            // limpia el ancla de respaldo: si se pierde el enganche después,
+            // debe reanclar desde AQUÍ (ya corregido), no desde un punto
+            // viejo de antes de este bloque.
             realMotionAnchorRevolutions = nil
             realMotionAnchorPlatterPosition = nil
-            realMotionUsingAbsolute = usingAbsoluteNow
-        }
-
-        if let anchorRevs = realMotionAnchorRevolutions,
-           let anchorPos = realMotionAnchorPlatterPosition {
-            platterPosition = anchorPos + (referenceNow - anchorRevs) / sampleDurationSeconds * scale
+        } else if let anchorRevs = realMotionAnchorRevolutions,
+                  let anchorPos = realMotionAnchorPlatterPosition {
+            // sin enganche: sigue con la integral (F.74) desde el último
+            // punto bueno -- solo cubre el hueco corto hasta el próximo
+            // enganche, donde el desplazamiento fijo de arriba vuelve a
+            // mandar y corrige cualquier sesgo acumulado aquí.
+            platterPosition = anchorPos + (position - anchorRevs) / sampleDurationSeconds * scale
         } else {
-            // primera muestra real tras (re)empezar a recibir señal, o tras
-            // cambiar de fuente: esta posición ANCLA la referencia, sin
-            // mover el plato de golpe.
-            realMotionAnchorRevolutions = referenceNow
+            realMotionAnchorRevolutions = position
             realMotionAnchorPlatterPosition = platterPosition
         }
         platterVelocity = velocity / sampleDurationSeconds * scale
@@ -930,7 +952,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
-        realMotionUsingAbsolute = false
+        absoluteToPlatterOffset = nil
         onAdvance?(0, 0, currentTick)
     }
 
@@ -946,7 +968,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
-        realMotionUsingAbsolute = false
+        absoluteToPlatterOffset = nil
         onAdvance?(0, clamped, currentTick)
     }
 
@@ -969,7 +991,7 @@ public final class PracticeSession: ObservableObject {
         timecodeDriving = false
         realMotionAnchorRevolutions = nil
         realMotionAnchorPlatterPosition = nil
-        realMotionUsingAbsolute = false
+        absoluteToPlatterOffset = nil
         platterPosition = posLo
         if crPhase != .off { crPhase = .listen }
     }

@@ -3761,6 +3761,70 @@ Ajustes. Pendiente confirmar los tres en la Rane 72 real.
 
 ---
 
+## ADR-085 — `PracticeSession` fija el desplazamiento con la posición absoluta de una vez, no lo reancla en cada transición
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Tras desplegar F.79/F.80, el autor probó en la Rane 72 y
+reportó, sin rodeos: "Sigue habiendo sticker drift y es impracticable."
+F.78 (ADR-082) había fusionado la posición absoluta con la integral, pero
+con un defecto de diseño: **reanclaba en cada transición** enganche↔sin
+enganche (`realMotionUsingAbsolute` cambiaba, se soltaban
+`realMotionAnchorRevolutions`/`realMotionAnchorPlatterPosition` y se
+fijaban de nuevo desde el `platterPosition` ACTUAL). Eso paraba la deriva
+MIENTRAS seguía enganchado, pero cualquier sesgo que la integral hubiera
+acumulado durante un tramo SIN enganche quedaba **congelado para siempre**
+en el nuevo ancla — nunca se corregía hacia atrás. Con el enganche cayendo
+al 49-57 % durante un scratch real (medido en F.78: muchas transiciones
+por segundo en un scratch rápido), el error se iba SUMANDO en cada ciclo
+de pérdida/recuperación de enganche en vez de corregirse — peor que no
+tener fusión, de ahí "impracticable".
+
+**Decisión.** Sustituir el ancla-que-se-reancla por un **desplazamiento
+fijo** (`absoluteToPlatterOffset: Double?`): se fija UNA sola vez, la
+primera muestra enganchada de la racha (`offset = platterPosition -
+absolutePosition/duración·escala`, sin mover el plato de golpe), y de ahí
+en adelante **cada muestra enganchada** recalcula `platterPosition`
+directo con ese mismo desplazamiento fijo — nunca se reancla por perder y
+recuperar el enganche dentro de la misma racha. El resultado: recuperar el
+enganche siempre corrige `platterPosition` de vuelta a la verdad exacta
+del vinilo, sin importar cuánto se hubiera desviado la integral mientras
+tanto — aunque eso implique un salto visible si el tramo sin enganche fue
+largo. Sin enganche se sigue usando la integral (F.74) con su propio
+ancla-de-respaldo (`realMotionAnchorRevolutions`/
+`realMotionAnchorPlatterPosition`, sin cambios), solo para cubrir el hueco
+corto hasta el próximo enganche — esa parte de F.74 seguía siendo
+correcta, el defecto estaba solo en cómo se INTEGRABA con la absoluta.
+Los mismos puntos de reseteo que antes limpiaban
+`realMotionUsingAbsolute` (init, watchdog de F.70, transición de call &
+response, `setCallResponse(false)`, `jumpToCue`, `jumpTo(sampleFraction:)`,
+`resyncClock`) ahora limpian `absoluteToPlatterOffset` — son eventos que
+cambian `platterPosition` de verdad (cue, resync), así que el
+desplazamiento viejo ya no vale y hay que fijar uno nuevo en el próximo
+enganche.
+
+**Alternativas descartadas.** Suavizar el salto de corrección con una
+rampa en vez de un salto instantáneo — se descarta por ahora: añade un
+parámetro más que afinar a ciegas sin poder medir en la mesa real: un
+salto puntual y correcto es preferible a una deriva silenciosa que
+"suaviza" hacia el error. Corregir el sesgo dentro de `xf_timecode.c`
+(el propio filtro de pitch de xwax) — sigue descartado por lo mismo que en
+ADR-082: tocar el algoritmo vendorizado en el hilo RT es mucho más
+arriesgado que corregir en Swift, fuera del hilo RT.
+
+**Consecuencias.** Elimina la fuente de error identificada (el
+congelamiento del sesgo en cada transición); el "salto correctivo" al
+recuperar el enganche es un cambio de comportamiento deliberado y nuevo —
+pendiente confirmar en la Rane 72 si es imperceptible en la práctica (el
+enganche normalmente se recupera en milisegundos) o si hace falta acotarlo
+de alguna forma. Si la deriva persiste después de esto, el sospechoso deja
+de ser el diseño de la fusión y pasa a ser la Fase 3 de
+`docs/TIMECODE_DRIFT.md` (por qué el enganche se pierde tanto durante un
+scratch rápido) o el propio sesgo del filtro de xwax siendo mayor de lo
+asumido incluso en tramos cortos sin enganche.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

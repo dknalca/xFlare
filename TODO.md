@@ -1862,6 +1862,37 @@ en manos de gente.*
         CoreAudio real, como el resto del asistente. make verify en
         verde, 793 tests.
       - Pendiente: el autor confirma los tres en la Rane 72 real.
+- [x] **F.81** `PracticeSession` fija el desplazamiento con la posición absoluta de una vez, no lo reancla en cada transición (ADR-085) `XFApp`
+      - El autor probó F.79/F.80 y reportó, sin rodeos: "Sigue habiendo
+        sticker drift y es impracticable."
+      - Causa: F.78 reanclaba `platterPosition` en CADA transición
+        enganche↔sin enganche — eso paraba la deriva mientras seguía
+        enganchado, pero cualquier sesgo que la integral acumulara
+        durante un tramo SIN enganche quedaba congelado para siempre en
+        el nuevo ancla, nunca se corregía hacia atrás. Con el enganche
+        cayendo al 49-57 % en un scratch real (muchas transiciones por
+        segundo), el error se sumaba en cada ciclo en vez de corregirse —
+        peor que sin fusión.
+      - Hecho (2026-09-05, ADR-085): `absoluteToPlatterOffset: Double?`
+        (nuevo) sustituye el ancla-que-se-reancla por un desplazamiento
+        FIJO — se fija una sola vez, la primera muestra enganchada de la
+        racha, y de ahí en adelante CADA muestra enganchada recalcula
+        `platterPosition` directo con ese mismo desplazamiento, sin
+        reanclar por perder/recuperar el enganche. Recuperar el enganche
+        ahora siempre corrige de vuelta a la verdad del vinilo (puede dar
+        un salto visible si el tramo sin enganche fue largo — mejor un
+        salto puntual que una deriva silenciosa). Sin enganche sigue la
+        integral (F.74) con su propio ancla de respaldo, sin cambios —
+        solo para el hueco corto hasta el próximo enganche.
+      - Tests: 2 nuevos en `PracticeSessionTests`
+        (`testAlRecuperarElEngancheCorrigeElSesgoAcumuladoSinEl`,
+        `testConEngancheContinuoSigueLaPosicionAbsoluta1a1`) reproducen
+        el escenario exacto del bug (integral desviada sola durante un
+        tramo sin enganche, corrección exacta al recuperarlo). make
+        verify en verde, 795 tests.
+      - Pendiente: el autor confirma en la Rane 72 si esto resuelve la
+        deriva de verdad, o si el salto correctivo al recuperar el
+        enganche se nota demasiado.
 
 ---
 
