@@ -1925,6 +1925,47 @@ en manos de gente.*
       - Pendiente: el autor confirma en la Rane 72 si el suavizado ayuda
         sin introducir su propio artefacto (un breve "resbalón" mientras
         converge).
+- [x] **F.83** Trabajo sin hardware: doc del plan al día + dos tests de regresión (recarga de sample + estrés sintético largo) `XFApp`
+      - El autor preguntó qué se podía hacer sin la Rane 72 delante. Tres
+        cosas: poner al día `docs/TIMECODE_DRIFT.md` (seguía diciendo
+        "propuesta, nada implementado" y no mencionaba F.76-F.82),
+        confirmar por test una revisión de código ya hecha, y un test de
+        estrés sintético que cubra parte de la Fase 4 (fixtures) mientras
+        no hay grabación real.
+      - `docs/TIMECODE_DRIFT.md`: Fases 0/1/2 marcadas hechas (con las
+        features/ADR reales: F.76/F.77/F.78/F.81/F.82, ADR-080/081/082/085/086),
+        Fase 3 (servo de audio) y Fase 4 (fixtures) marcadas pendientes —
+        la 4 sigue necesitando que el autor grabe con la mesa real.
+      - `testRecargarUnSampleLimpiaElDesplazamientoAunqueCambieLaDuracionDelSample`:
+        confirma con un test (no solo lectura de código) que cargar un
+        sample nuevo (`session.jumpToCue()`, ya llamado por
+        `loadScratchSample`) limpia `absoluteToPlatterOffset` — importante
+        porque el sample nuevo casi siempre trae otra
+        `sampleDurationSeconds`; sin el reset, el offset viejo se
+        aplicaría con la duración nueva (unidades mezcladas).
+      - `testSesionLargaConEngancheIntermitenteNoAcumulaDerivaAlLargoPlazo`:
+        paliativo sintético de la Fase 4 (sin fixture real todavía) —
+        simula cientos de muestras alternando enganche/sin-enganche al
+        50% con sesgo sintético, comprueba que la separación final NO
+        crece con la duración de la sesión (compara una tanda corta contra
+        una 10x más larga) — exactamente la propiedad que rompía F.78.
+      - make verify en verde, 799 tests.
+- [x] **F.84** Fase 3 del plan corregida (el servo ya existe, F.42/F.75) + 4 tests más de reseteo del desplazamiento fijo `XFApp`
+      - Revisando `xf_player.c` línea por línea para escribir F.83, salió
+        que la Fase 3 de `docs/TIMECODE_DRIFT.md` ("servo de tasa") **ya
+        está construida** desde F.42/ADR-042, afinable desde F.75/ADR-079:
+        `trim = (target_playhead - playhead) * seek_coef` (acotado a
+        `seek_max_trim`) es exactamente `tasa_efectiva = velocidad + k ·
+        (objetivo − cabezal)`. Corregido el documento: no falta arquitectura,
+        falta solo SUBIR `k` con oído real ahora que el objetivo es exacto
+        (F.81/F.82) — y eso, como todo lo perceptual, necesita la Rane 72.
+      - 4 tests nuevos en `PracticeSessionTests` completan la cobertura de
+        "todo reseteo de posición limpia `absoluteToPlatterOffset`" que
+        F.83 empezó (solo cubría `jumpToCue`): el watchdog de F.70 con
+        enganche absoluto activo, `jumpTo(sampleFraction:)`,
+        `resyncClock()`, y `setCallResponse(false)` — los 4 puntos de
+        reseteo que quedaban sin test explícito.
+      - make verify en verde, 803 tests.
 
 ---
 

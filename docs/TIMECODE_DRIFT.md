@@ -1,10 +1,15 @@
 # Plan: acabar con el "sticker drift"
 
-> Estado: **propuesta**, pendiente de aprobación del autor. Nada de esto está
-> implementado todavía.
-> Fecha: 2026-09-05. Contexto: F.70/F.74/F.75 (ADR-076/078/079) atacaron el
-> síntoma tres veces y el problema sigue. Este documento cambia el enfoque:
-> primero medir, después arreglar la raíz.
+> Estado (actualizado 2026-09-05, misma tarde): **Fases 0, 1 y 2 hechas**,
+> más un cierre de la Fase 2 que el plan original ya anticipaba (punto 4,
+> "detección de salto de aguja"). Fase 3 (servo del audio) y Fase 4
+> (fixtures grabados) **pendientes** — la 4 necesita hardware real, no se
+> puede avanzar más sin él. Detalle abajo, en cada fase.
+>
+> Redacción original: 2026-09-05 por la mañana. Contexto: F.70/F.74/F.75
+> (ADR-076/078/079) atacaron el síntoma tres veces y el problema seguía.
+> Este documento cambió el enfoque: primero medir, después arreglar la
+> raíz — y así se hizo.
 
 ---
 
@@ -197,7 +202,13 @@ La regla de oro que hoy se incumple en tres sitios:
 Cada fase es independientemente verificable y deja el producto en un estado
 mejor que el anterior. **No se pasa de fase sin un número que lo justifique.**
 
-### Fase 0 — Hacer visible la deriva  ·  *sin esto, no seguimos*
+### Fase 0 — Hacer visible la deriva  ·  *sin esto, no seguimos* ✅ HECHA
+
+**F.76 (ADR-080)**, con una corrección el mismo día (el medidor daba
+"−136567 ms" la primera vez — bug del cálculo, no deriva real; ver el
+addendum de ADR-080). El paso Timecode del asistente enseña Deriva/
+Enganchado/Frames perdidos en vivo. Sin el punto 4 (volcado a CSV) — no
+hizo falta: el panel en pantalla bastó para decidir cada fase siguiente.
 
 **No toca el comportamiento del producto.** Solo instrumenta.
 
@@ -217,7 +228,17 @@ partir de ahí dejamos de adivinar.
 
 **Coste estimado:** pequeño. Es el mejor retorno de todo el plan.
 
-### Fase 1 — Cerrar las hemorragias (C, D, E)
+### Fase 1 — Cerrar las hemorragias (C, D, E) ✅ HECHA
+
+**F.77 (ADR-081)**: el ring se drena en su propia cola a 100 Hz, fuera del
+hilo principal — frames perdidos bajó de 977-1433 a un ~74 fijo de
+arranque (confirmado con números reales de la Rane 72). El gate de
+confianza (C) y el watchdog (D) se resolvieron distinto de como los
+planteaba este documento: en vez de "el gate elige estrategia", **F.78
+(ADR-082)** hizo que `PracticeSession` prefiriera directamente la posición
+absoluta cuando hay enganche — ver Fase 2, que en la práctica absorbió
+ambos puntos. `hostTime` correcto (punto 4) sigue sin tocarse — no hizo
+falta para resolver el síntoma, pendiente si aparece necesidad concreta.
 
 Baratas, de bajo riesgo, y probablemente se llevan la mayor parte del problema.
 Se hacen **antes** que la fase 2 porque son sencillas y porque la fase 0 ya
@@ -242,10 +263,21 @@ permite medir cuánto aporta cada una.
    hasta 85 ms tarde y con jitter. Latente hoy, veneno para cualquier cálculo
    temporal futuro.
 
-### Fase 2 — La posición absoluta como verdad  ·  **el arreglo de raíz**
+### Fase 2 — La posición absoluta como verdad  ·  **el arreglo de raíz** ✅ HECHA
 
-⚠️ **Requiere ADR: toca `CXFTimecode`, que está SEALED.** No lo empiezo sin tu
-aprobación explícita (regla del proyecto).
+**F.76/ADR-080** expuso la posición absoluta del wrapper (con el ADR y
+permiso del autor para tocar `CXFTimecode`/`XFCapture` SEALED, aditivo).
+**F.78/ADR-082** hizo el primer intento de usarla para corregir — tenía un
+defecto (reanclaba en cada transición enganche↔sin enganche, congelando el
+sesgo acumulado en los huecos); el autor lo detectó en la Rane 72
+("impracticable") y **F.81/ADR-085** lo corrigió con un desplazamiento
+FIJO en vez de reanclar. El punto 4 de aquí abajo ("detección de salto de
+aguja") se implementó como **F.82/ADR-086**: una puerta de plausibilidad
+que suaviza (no rechaza) una corrección grande en vez de teletransportar
+de golpe — investigado contra el código real de xwax y de Mixxx antes de
+implementarlo (ver ADR-086 para el porqué). Objetivo de deriva acotada:
+**pendiente de confirmar con números reales tras F.82** — el autor todavía
+no ha vuelto a probar en la Rane 72 desde este último cambio.
 
 1. Ampliar el wrapper `xf_timecoder` (sin tocar xwax vendorizado) para exponer
    la posición absoluta ya compensada por `when`:
@@ -269,7 +301,32 @@ aprobación explícita (regla del proyecto).
 la deriva tras 5 minutos de scratch continuo se queda **acotada** (no crece).
 Objetivo: < 5 ms ≈ 1° de vinilo, frente a los 30° y subiendo de hoy.
 
-### Fase 3 — Un solo integrador: el audio esclavo de la misma verdad
+### Fase 3 — Un solo integrador: el audio esclavo de la misma verdad ⏳ PENDIENTE (solo el ajuste, no la arquitectura)
+
+**Corrección (2026-09-06):** revisando `xf_player.c` línea por línea, el
+mecanismo que pide esta fase **ya existe**, construido en F.42/ADR-042 y
+hecho afinable en F.75/ADR-079 — no hay que construir nada nuevo:
+
+```c
+// xf_player.c:301, dentro del render RT
+double trim = (p->target_playhead - p->playhead) * p->seek_coef;
+/* acotado a ±p->seek_max_trim */
+v += trim;   // v = velocidad_timecode + k · (objetivo − cabezal)
+```
+
+Es EXACTAMENTE `tasa_efectiva = velocidad + k · (objetivo − cabezal)` — el
+servo de tasa que describe esta fase, con `k = seek_coef` y el tope de
+`seek_max_trim`, ambos ya tunables desde Ajustes › Debug
+(`scratchSeekTrimMs`/`scratchSeekMaxTrim`, F.75). Lo único que falta es
+**subir el valor de `k`** ahora que el objetivo es exacto (F.81/F.82,
+antes era un `platterPosition` que podía derivar) — el barrido que
+ADR-042 temía solo aparecía porque el objetivo de entonces era malo. Pero
+esto es una decisión de OÍDO en la mesa real (el propio ADR-079 ya dejó
+los valores conservadores a propósito por esto mismo): no se cambia el
+default sin poder escucharlo. Pendiente: el autor prueba valores de
+`scratchSeekTrimMs`/`scratchSeekMaxTrim` más agresivos en la Rane 72 y, si
+encuentra uno que cierra el hueco "se ve la onda y no suena" sin sonar a
+barrido, ese pasa a ser el nuevo default.
 
 Hoy el cabezal de audio (`xf_player`) integra su propia velocidad y solo se
 corrige con un trim lento (ADR-042; F.75 lo hizo afinable). Es el tercer
@@ -289,7 +346,16 @@ solo aparecía porque el objetivo era malo. Basura entra, basura sale.
 Esto es lo que hace que "la onda cuadre perfecto con el teal" sea cierto **por
 construcción**, no por ajuste manual de sliders.
 
-### Fase 4 — Que no vuelva nunca: test de regresión con señal real
+### Fase 4 — Que no vuelva nunca: test de regresión con señal real ⏳ PENDIENTE — necesita hardware
+
+`Fixtures/sessions/` sigue vacío. Como paliativo SIN hardware (2026-09-05)
+se añadió un test sintético de estrés en `PracticeSessionTests`
+(`testSesionLargaConEngancheIntermitenteNoAcumulaDerivaAlLargoPlazo`):
+cientos de muestras alternando enganche/sin-enganche con sesgo sintético
+en la integral, comprobando que la deriva total se queda acotada durante
+toda la sesión simulada — no sustituye a un fixture con ruido/bitstream
+real (eso solo lo puede grabar el autor con la mesa delante), pero cubre
+la lógica de la fusión sin depender de él.
 
 Sin esto, cualquier cambio futuro puede reintroducir la deriva en silencio.
 
@@ -333,20 +399,22 @@ Tres reglas concretas:
 
 ## 7. Orden recomendado y decisiones que necesito de ti
 
-| Fase | Qué | Riesgo | Bloqueos |
+| Fase | Qué | Riesgo | Estado |
 |---|---|---|---|
-| 0 | Instrumentación + medidor de deriva | Ninguno (no toca producto) | — |
-| 1 | Cerrar fugas (confianza, watchdog, ring, hostTime) | Bajo | — |
-| 2 | Posición absoluta como verdad | Medio | **ADR: `CXFTimecode` está SEALED** |
-| 3 | Servo del cabezal de audio | Medio | Depende de la 2 |
-| 4 | Fixtures + test de regresión | Ninguno | **Necesito que grabes el fixture** |
+| 0 | Instrumentación + medidor de deriva | Ninguno (no toca producto) | ✅ F.76/ADR-080 |
+| 1 | Cerrar fugas (confianza, watchdog, ring, hostTime) | Bajo | ✅ F.77/ADR-081 (hostTime sin tocar, no hizo falta) |
+| 2 | Posición absoluta como verdad | Medio | ✅ F.76/F.78/F.81/F.82 (ADR-080/082/085/086) |
+| 3 | Servo del cabezal de audio | Bajo (el mecanismo ya existe, F.42/F.75) | ⏳ Pendiente solo el AJUSTE de `k` — necesita oído real en la Rane 72 |
+| 4 | Fixtures + test de regresión | Ninguno | ⏳ Pendiente — **necesita que grabes el fixture con la Rane 72**; hay un test sintético de estrés como paliativo |
 
-**Recomendación:** hacer **0 y 1 juntas** y medir. Es posible que la fase 1 sola
-(el watchdog + el gate de confianza) se lleve la mayor parte del problema; el
-medidor de la fase 0 lo dirá en una sola sesión de pruebas, sin discusión.
+~~**Recomendación:** hacer **0 y 1 juntas** y medir.~~ Hecho — resultó que 0
+y 1 no bastaron por sí solas (la Fase 2 hizo falta de verdad, el autor lo
+confirmó con números reales: la deriva empeoraba durante el scratch
+mientras los frames perdidos se quedaban planos).
 
-**Lo que necesito que decidas:**
+**Pendiente de decidir:**
 
-1. ¿Empiezo por la fase 0+1?
-2. ¿Autorizas el ADR para tocar `CXFTimecode` (SEALED) en la fase 2?
+1. ¿Merece la pena la Fase 3 (servo de audio) ahora, o esperamos a probar
+   F.81/F.82 en la Rane 72 primero para ver si hace falta?
+2. Grabar el fixture de la Fase 4 en cuanto estés delante de la mesa.
 3. ¿Te encaja grabar el fixture de audio de la fase 4 cuando tengas la mesa?

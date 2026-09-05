@@ -3895,6 +3895,27 @@ Pendiente confirmar en la Rane 72 si el suavizado hace el "sticker drift"
 perceptiblemente mejor sin introducir su propio artefacto (un breve
 "resbalón" mientras converge).
 
+**Addendum (mismo día) — revisión del código real de Mixxx.** A petición
+del autor se revisó `src/vinylcontrol/` de Mixxx (mismo xwax por debajo,
+GPL-2.0-or-later — confirmado en su `LICENSE`, compatible con este
+proyecto vía la cláusula "or later"). Hallazgo principal: su modo
+relativo **no corrige la posición con la absoluta en absoluto** —
+`vinylcontrolxwax.cpp` calcula `m_deltaRelativeDriftAmount` pero no lo
+consume en ningún sitio más que en su propio umbral de reanclaje; solo el
+modo ABSOLUTO llama a `syncPosition()` (needle drop real, deliberado, sin
+suavizar — salto instantáneo de `>= 5 s`). Confirma que xFlare está
+resolviendo un problema más ambicioso del que resuelve ninguno de los tres
+sistemas de referencia (Serato/Traktor cerrados; Mixxx explícitamente no
+lo intenta en modo relativo), no que se nos escapara una técnica ya
+resuelta. Dos ideas inspiradas en su código (`SteadyPitch::resyncDetected`
+— salto en dirección opuesta; `getPositionQuality` — posición
+sospechosamente repetida) se diseñaron en detalle y se descartaron: la
+primera queda subsumida por la puerta de plausibilidad de magnitud de
+arriba; la segunda arriesgaba reintroducir el sesgo que F.81 elimina, para
+protegerse de una lectura duplicada que en la arquitectura de sondeo de
+xFlare (sin cola, F.77) ya es benigna (repetir el mismo `absolutePosition`
+solo reaplica el mismo `target`, sin efecto).
+
 ---
 
 ## Plantilla para nuevas entradas

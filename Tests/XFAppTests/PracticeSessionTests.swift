@@ -643,6 +643,154 @@ final class PracticeSessionTests: XCTestCase {
                        "re-ancla fresco tras el corte, no salta usando una posición de decoder vieja")
     }
 
+    /// Igual que el test de arriba, pero con enganche ABSOLUTO antes del
+    /// corte -- confirma que el watchdog de F.70 también limpia
+    /// `absoluteToPlatterOffset` (F.81), no solo el ancla de respaldo de la
+    /// integral (F.74). Sin esto, un desplazamiento fijo viejo podría
+    /// sobrevivir al corte y mezclarse con una lectura absoluta nueva.
+    func testTrasUnCorteDeSenalConEngancheAbsolutoTambienReanclaSinSaltar() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 100, absolutePosition: 45, velocity: -1.0, sampleDurationSeconds: 2.0)
+        let posBeforeCut = s.platterPosition
+
+        Thread.sleep(forTimeInterval: 0.12)
+        s.advance(by: 1.0 / 60.0)   // dispara el watchdog: suelta el ancla y el desplazamiento
+
+        s.pushRealMotion(position: 0, absolutePosition: 12_345, velocity: 0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, posBeforeCut, accuracy: 1e-9,
+                       "re-ancla fresco tras el corte, no salta usando un desplazamiento fijo viejo")
+    }
+
+    // MARK: - F.84 (paliativo sin hardware): el resto de puntos de reseteo
+    // también limpian el desplazamiento fijo, no solo jumpToCue (F.83) ni el
+    // watchdog (arriba). Si no lo hicieran, la siguiente muestra enganchada
+    // mezclaría un desplazamiento calculado ANTES del reseteo contra la
+    // posición NUEVA -- saltaría de golpe en vez de anclar limpio.
+
+    func testJumpToSampleFractionLimpiaElDesplazamientoFijo() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 100, absolutePosition: 45, velocity: -1.0, sampleDurationSeconds: 2.0)
+
+        s.jumpTo(sampleFraction: 0.5)
+        let afterJump = s.platterPosition
+
+        s.pushRealMotion(position: 0, absolutePosition: 12_345, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, afterJump, accuracy: 1e-9,
+                       "el desplazamiento viejo no sobrevive a un salto de cue A/B")
+    }
+
+    func testResyncClockLimpiaElDesplazamientoFijo() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 100, absolutePosition: 45, velocity: -1.0, sampleDurationSeconds: 2.0)
+
+        s.resyncClock()
+        let afterResync = s.platterPosition
+
+        s.pushRealMotion(position: 0, absolutePosition: 12_345, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, afterResync, accuracy: 1e-9,
+                       "el desplazamiento viejo no sobrevive a un resync del reloj")
+    }
+
+    func testSalirDelRepiteConmigoLimpiaElDesplazamientoFijo() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 100, absolutePosition: 45, velocity: -1.0, sampleDurationSeconds: 2.0)
+
+        s.setCallResponse(false)   // crPhase ya estaba .off, pero limpia igual
+        let afterOff = s.platterPosition
+
+        s.pushRealMotion(position: 0, absolutePosition: 12_345, velocity: -1.0, sampleDurationSeconds: 2.0)
+        XCTAssertEqual(s.platterPosition, afterOff, accuracy: 1e-9,
+                       "el desplazamiento viejo no sobrevive a setCallResponse(false)")
+    }
+
+    /// F.83 — sin hardware delante, esto confirma por código lo que ya se
+    /// vio leyendo `LivePracticeView.loadScratchSample`: cargar un sample
+    /// nuevo llama a `session.jumpToCue()`, que limpia el desplazamiento
+    /// fijo de F.81. Importante porque el sample nuevo casi siempre trae
+    /// una `sampleDurationSeconds` DISTINTA (otro fichero, otra duración) —
+    /// sin limpiar el desplazamiento, la siguiente muestra enganchada
+    /// mezclaría un offset calculado con la duración VIEJA contra la
+    /// duración NUEVA: unidades distintas, corrupción silenciosa.
+    func testRecargarUnSampleLimpiaElDesplazamientoAunqueCambieLaDuracionDelSample() throws {
+        let s = PracticeSession(scratch: try scratch(), bpm: 90)
+        // establece el desplazamiento con la duración "vieja" (2.0 s) y dejar
+        // que se mueva un poco, como en una práctica de verdad.
+        s.pushRealMotion(position: 100, absolutePosition: 50, velocity: -1.0, sampleDurationSeconds: 2.0)
+        s.pushRealMotion(position: 100, absolutePosition: 49.9, velocity: -1.0, sampleDurationSeconds: 2.0)
+
+        // recargar el sample: mismo camino que loadScratchSample.
+        s.jumpToCue()
+        let afterReload = s.platterPosition
+
+        // el sample NUEVO tiene otra duración (5.0 s en vez de 2.0 s). Si el
+        // desplazamiento viejo sobreviviera, esta muestra "enganchada"
+        // saltaría de golpe en vez de solo anclar (primera muestra de la
+        // racha) -- el mismo comportamiento que la primerísima muestra de
+        // una sesión, sin importar qué absolutePosition traiga.
+        s.pushRealMotion(position: 0, absolutePosition: 12_345, velocity: -1.0, sampleDurationSeconds: 5.0)
+        XCTAssertEqual(s.platterPosition, afterReload, accuracy: 1e-9,
+                       "el desplazamiento viejo no sobrevive a la recarga, aunque cambie la duración")
+    }
+
+    // MARK: - F.83 (paliativo sin hardware, Fase 4 de docs/TIMECODE_DRIFT.md)
+
+    /// Sin fixture grabado de verdad (necesita la Rane 72 delante — sigue
+    /// pendiente), esto es un test de estrés SINTÉTICO: simula una sesión
+    /// larga alternando enganche/sin-enganche al 50 % (el peor caso medido
+    /// en la Rane 72 real fue 49 %) con la integral desviándose un poco en
+    /// cada tramo sin enganche — el mismo sesgo del filtro de pitch de xwax
+    /// que motivó F.78/F.81. La propiedad que rompía F.78 (ADR-082): la
+    /// deriva CRECÍA con más transiciones enganche↔sin enganche (el autor lo
+    /// vio como "impracticable" en la Rane 72). Aquí se comprueba que la
+    /// separación final NO crece con la duración de la sesión — compara una
+    /// sesión corta contra la MISMA sesión 10 veces más larga.
+    func testSesionLargaConEngancheIntermitenteNoAcumulaDerivaAlLargoPlazo() throws {
+        // Corre el patrón alternando enganche/sin-enganche `ticks` veces y
+        // devuelve cuánto se separa `real` (con el sesgo intermitente) de
+        // `truth` (una sesión gemela con enganche perfecto, sin sesgo).
+        func finalGap(ticks: Int) throws -> Double {
+            let truth = PracticeSession(scratch: try scratch(), bpm: 90)
+            let real = PracticeSession(scratch: try scratch(), bpm: 90)
+            var trueAbs = 100.0
+            var biasedIntegral = 100.0
+            let v = -1.0
+            let duration = 2.0
+            let step = 0.01   // s-nominales que avanza el vinilo de verdad por muestra
+
+            for i in 0..<ticks {
+                trueAbs += v * step
+                truth.pushRealMotion(position: trueAbs, absolutePosition: trueAbs,
+                                     velocity: v, sampleDurationSeconds: duration)
+                if i % 2 == 0 {
+                    // enganchado: la muestra real también ve la verdad (el
+                    // sesgo solo se acumula SIN enganche).
+                    biasedIntegral = trueAbs
+                    real.pushRealMotion(position: biasedIntegral, absolutePosition: trueAbs,
+                                        velocity: v, sampleDurationSeconds: duration)
+                } else {
+                    // sin enganche: la integral se desvía un poco cada vez.
+                    biasedIntegral += v * step + 0.002
+                    real.pushRealMotion(position: biasedIntegral, absolutePosition: nil,
+                                        velocity: v, sampleDurationSeconds: duration)
+                }
+            }
+            return abs(real.platterPosition - truth.platterPosition)
+        }
+
+        let gapCorta = try finalGap(ticks: 50)
+        let gapLarga = try finalGap(ticks: 500)
+        // si la deriva CRECIERA con la duración de la sesión (el bug de
+        // F.78), gapLarga saldría ~10x gapCorta (10x más transiciones). Con
+        // el desplazamiento fijo (F.81) + la puerta de plausibilidad (F.82),
+        // se queda del mismo orden pase lo que pase la duración.
+        XCTAssertLessThan(gapLarga, gapCorta * 3,
+                          "la deriva no debe crecer con la duración de la sesión")
+    }
+
     // MARK: - F.81 (ADR-085): desplazamiento fijo con la posición absoluta
 
     /// El caso que motivó F.81: F.78 reanclaba en cada transición
