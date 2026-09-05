@@ -136,6 +136,23 @@ public final class CalibrationWizardModel: ObservableObject {
         faderLearning = false
     }
 
+    // MARK: - precarga de una calibración guardada (F.72, ADR-077)
+
+    /// `AppRootView` llama a esto UNA vez por dispositivo resuelto (no en
+    /// cada redibujado — pisaría un ajuste que el usuario esté tocando ahora
+    /// mismo): trae el punto de corte, la histéresis, el hamster y el CC MIDI
+    /// aprendido de la ÚLTIMA calibración guardada para esta mesa, en vez de
+    /// empezar de los valores de fábrica cada vez que se abre el asistente.
+    public func applyLoaded(_ cal: DeviceCalibration) {
+        faderCutIn = min(1, max(0, cal.faderCutIn))
+        faderHysteresis = max(0, cal.faderHysteresis)
+        hamster = cal.hamster
+        if let ch = cal.faderMidiChannel, let cc = cal.faderMidiCC,
+           let lo = cal.faderMidiRawMin, let hi = cal.faderMidiRawMax {
+            reportLearnedFader(channel: ch, cc: cc, rawMin: lo, rawMax: hi)
+        }
+    }
+
     // MARK: - navegación
 
     /// `true` si el paso `s` tiene lo mínimo para pasar al siguiente.
@@ -172,6 +189,11 @@ public final class CalibrationWizardModel: ObservableObject {
             faderCutIn: faderCutIn,
             faderHysteresis: faderHysteresis,
             hamster: hamster,
+            // F.72 (ADR-077): el CC/canal APRENDIDO (F.67), si lo hay, para que
+            // sobreviva a la sesión de calibración -- `nil` si nunca se aprendió
+            // (el perfil sigue siendo el fallback en `rebuildCrossfaderSource`).
+            faderMidiChannel: learnedFaderChannel, faderMidiCC: learnedFaderCC,
+            faderMidiRawMin: learnedFaderMin, faderMidiRawMax: learnedFaderMax,
             updatedAt: now)
     }
 }

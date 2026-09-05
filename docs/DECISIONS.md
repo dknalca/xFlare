@@ -3219,6 +3219,89 @@ que asumiera no-negatividad. Sin verificar todavía "con los oídos" en la
 Rane 72 con un scratch real hacia atrás del principio — pendiente de
 confirmación del autor.
 
+## ADR-077 — La calibración del fader se busca por el UID del dispositivo, no por el perfil; se aprende a persistir el CC MIDI
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** Tras probar ADR-076 en la Rane 72 real, el autor reportó dos
+fallos más: (1) el "teal" (traza del usuario) seguía sin poder bajar del
+principio del sample en pantalla, a pesar de que `PracticeSession` ya
+integraba posiciones negativas; (2) "la calibración no se guarda de una
+sesión a otra" — el punto de corte, la histéresis, el hamster y el CC MIDI
+aprendido del fader vuelven a los valores de fábrica cada vez que se abre el
+asistente o se relanza la app.
+
+**(1) es un bug de RENDER, no de `PracticeSession`.** `PracticeScene.traceY`
+(SpriteKit) mapea la posición del plato a una Y de pantalla con
+`min(4.0, max(-0.1, n))` — hacia arriba deja **4** unidades de margen antes
+de que el `SKCropNode` recorte la traza fuera de pantalla; hacia abajo solo
+dejaba **0,1** (una tolerancia de redondeo de cuando `PracticeSession`
+clavaba la posición a `posLo` y nunca hacía falta más margen). Con el suelo
+ya quitado (ADR-076) la traza se quedaba "pegada" a un pelín por debajo del
+principio en vez de seguir bajando y desaparecer, la asimetría exacta que
+reportó el autor. Arreglado a `max(-4.0, n)`, simétrico con el de arriba.
+
+**(2) tenía DOS causas, ninguna en el fichero de ajustes.**
+`AppSettings`/`SettingsStore` (canal de entrada/salida, buffer…) ya persiste
+bien — la comprobación de campo por campo lo confirma. Lo que se pierde es
+la calibración del FADER (`XFPersistence.DeviceCalibration`), y no porque
+falte guardarla:
+
+- `CalibrationWizardModel.result()` guarda con `deviceKey` = el UID del
+  dispositivo de salida (o su nombre, si no hay UID) — el diseño previsto
+  (`DeviceCalibration.deviceKey`: "el UID del dispositivo de audio").
+- `AppModel.rebuildCrossfaderSource()` LEÍA con `deviceKey: activeProfileId`
+  — el id del perfil `.conf` (p. ej. `"rane-seventy-two"`), un concepto
+  distinto (dos mesas físicas podrían compartir perfil). Dos claves
+  distintas para el mismo registro: la calibración guardada nunca se
+  encontraba al leer, aunque estuviera perfectamente en el fichero SQLite.
+- Además, nada volcaba una calibración guardada DE VUELTA al asistente al
+  entrar en Calibración: cada visita partía de `CalibrationWizardModel` con
+  sus valores de fábrica (`faderCutIn = 0.5`, etc.), así que aunque la
+  lectura hubiera funcionado, la UI del asistente en sí no lo habría
+  reflejado.
+- El CC/canal MIDI **aprendido** (F.67) no tenía ni columna: vivía solo en
+  memoria, en `CalibrationWizardModel`, documentado como pendiente desde esa
+  misma tarea.
+
+**Decisión.**
+- `AppRootView.applyCalibrationSelection()` fija `calibrationModel.deviceKey`
+  al UID del dispositivo de salida resuelto (la misma fuente que
+  `AppSettings.outputDeviceUID`) — así `result()` YA NO cae al nombre.
+- `AppModel.rebuildCrossfaderSource()` busca la calibración por
+  `settings.outputDeviceUID`, no por `activeProfileId`; se relanza también
+  cuando cambia `outputDeviceUID` (antes solo con el perfil).
+- `AppRootView` precarga el asistente (`CalibrationWizardModel.applyLoaded`)
+  con la calibración ya guardada para ese `deviceKey`, una vez por
+  dispositivo resuelto (no en cada redibujado, para no pisar un ajuste en
+  curso).
+- `XFPersistence` (SEALED — con permiso explícito del autor): migración
+  **v2** (nunca se toca v1) añade cuatro columnas NULLABLE a
+  `deviceCalibration` — `faderMidiChannel`/`faderMidiCC`/`faderMidiRawMin`/
+  `faderMidiRawMax`. Una calibración `v1` sin aprender queda con las cuatro a
+  NULL, sin perder nada. `rebuildCrossfaderSource()` usa el CC/canal
+  aprendido (si existe) en vez del que declare el perfil — mismo criterio
+  que ya usaba `AppRootView.rebuildFaderConfig()` dentro del propio
+  asistente; ahora llega también a la práctica real.
+
+**Alternativas descartadas.** Cambiar `deviceKey` a ser SIEMPRE
+`activeProfileId` (en vez de arreglar la lectura) — se descarta: el propio
+esquema documenta `deviceKey` como identidad de HARDWARE, no de perfil, y
+dos mesas del mismo modelo (incluso la misma mesa con el perfil reeditado)
+tienen que poder guardar calibraciones distintas. Guardar el CC aprendido en
+`AppSettings` en vez de una migración de `XFPersistence` — se descarta:
+`DeviceCalibration` ya es "la calibración de ESTA mesa" por diseño; duplicar
+el concepto en dos sitios sería peor que una migración aditiva de cuatro
+columnas nullable.
+
+**Consecuencias.** El punto de corte, la histéresis, el hamster y el CC MIDI
+aprendido sobreviven a cerrar la app y a volver a entrar en Calibración,
+para el dispositivo con el que se calibraron. Una `DeviceCalibration`
+guardada ANTES de esta migración sigue leyéndose sin más (las columnas
+nuevas salen `nil`, y el perfil sigue siendo el fallback). No verificado
+todavía "con los oídos" en la Rane 72 real — pendiente de confirmación del
+autor, igual que ADR-076.
+
 ---
 
 ## Plantilla para nuevas entradas

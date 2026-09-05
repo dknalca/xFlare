@@ -40,6 +40,12 @@ public struct AppRootView: View {
     @State private var faderLearner = MidiFaderLearner()
     @State private var faderBinarizer: FaderBinarizer?
     @State private var faderConfig: MidiCrossfaderConfig?
+    /// F.72 (ADR-077) — para qué `deviceKey` ya se precargó una calibración
+    /// guardada (`CalibrationWizardModel.applyLoaded`). Sin esto, cada
+    /// `applyCalibrationSelection()` (dispara con cualquier cambio de canal)
+    /// volvería a pisar cutIn/histéresis/CC aprendido con lo guardado,
+    /// borrando un ajuste que el usuario esté tocando ahora mismo.
+    @State private var calibrationLoadedDeviceKey: String?
 
     public init(model: AppModel) {
         self.model = model
@@ -179,6 +185,27 @@ public struct AppRootView: View {
         guard let outDevice = calibrationDevices.first(where: {
             $0.name == calibrationModel.outputDeviceName && $0.outputChannels > 0
         }) else { return }
+        // F.72 (ADR-077) — la calibración se GUARDA bajo esta clave
+        // (`CalibrationWizardModel.result()`), pero hasta ahora nadie la
+        // fijaba: se quedaba en "" y `result()` caía al NOMBRE del
+        // dispositivo — mientras que quien la LEE de vuelta
+        // (`AppModel.rebuildCrossfaderSource`) buscaba por el UID. Dos claves
+        // distintas para el mismo registro = la calibración guardada nunca se
+        // encontraba, "no se guarda de una sesión a otra" aunque sí estuviera
+        // en el fichero. Fijarla aquí, al UID del dispositivo de salida
+        // resuelto (la misma fuente de verdad que `AppSettings.outputDeviceUID`),
+        // cierra el círculo.
+        if calibrationModel.deviceKey != outDevice.uid { calibrationModel.deviceKey = outDevice.uid }
+        if let pid = model.activeProfileId, calibrationModel.profileId != pid { calibrationModel.profileId = pid }
+        // Precarga el paso Fader con lo que ya se guardó para ESTA mesa, una
+        // sola vez por `deviceKey` resuelto (no en cada cambio de canal, o
+        // pisaría un ajuste en curso).
+        if calibrationLoadedDeviceKey != outDevice.uid {
+            calibrationLoadedDeviceKey = outDevice.uid
+            if let saved = try? model.db.calibration(deviceKey: outDevice.uid) {
+                calibrationModel.applyLoaded(saved)
+            }
+        }
         let outPairs = AudioDeviceList.outputChannelPairs(for: outDevice)
         let outFirst = AudioDeviceList.resolvedChannel(current: calibrationModel.outputChannelFirst, in: outPairs)
         // Solo escribe/reinicia si algo CAMBIA de verdad: fijar el mismo par

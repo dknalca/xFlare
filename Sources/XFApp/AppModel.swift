@@ -56,6 +56,14 @@ public final class AppModel: ObservableObject {
             Self.persist(settings)
             rebuildMidiCommandMap()
             applyAudioDevicePreferences()
+            // F.72 (ADR-077): la calibración guardada (cutIn/histéresis/hamster)
+            // se busca por `outputDeviceUID` (ver `rebuildCrossfaderSource`) — si
+            // cambia el dispositivo de salida (p. ej. el asistente de
+            // Calibración lo fija al entrar), hay que releerla YA, no esperar a
+            // que cambie el perfil. Comparado contra `oldValue` para no
+            // reconstruir el crossfader en CADA cambio de ajuste (un slider de
+            // Debug no tiene nada que ver con esto).
+            if oldValue.outputDeviceUID != settings.outputDeviceUID { rebuildCrossfaderSource() }
             // pre-analiza las instrumentales nuevas para que carguen al instante.
             analysisCache.analyzeAll(settings.instrumentalLibrary,
                                      sampleRate: engine?.sampleRateHz ?? 48_000)
@@ -267,18 +275,43 @@ public final class AppModel: ObservableObject {
     /// Si todavía no hay calibración (lo normal hoy: el asistente no cablea
     /// ese paso, B4.2), se cae al `cut_in.left` del perfil como arranque
     /// razonable, no a un valor inventado aquí.
+    ///
+    /// F.72 (ADR-077) — la calibración se busca por el **UID del dispositivo
+    /// de salida** (`AppSettings.outputDeviceUID`), NO por `activeProfileId`:
+    /// `deviceKey` identifica la MESA física (`DeviceCalibration.deviceKey`,
+    /// "el UID del dispositivo de audio"), y el asistente (`CalibrationWizardModel.
+    /// result()`) ya guarda con esa clave (`AppRootView.applyCalibrationSelection`).
+    /// Buscar por `activeProfileId` (el perfil `.conf`, un concepto distinto —
+    /// dos mesas podrían compartir perfil) nunca coincidía con lo guardado:
+    /// la calibración parecía "no guardarse de una sesión a otra".
     private func rebuildCrossfaderSource() {
         crossfaderSource?.stop()
         crossfaderSource = nil
         guard let id = activeProfileId, let profile = profiles.profile(id: id),
-              let config = try? MidiCrossfaderConfig(from: profile) else { return }
+              let profileConfig = try? MidiCrossfaderConfig(from: profile) else { return }
 
-        let saved = try? db.calibration(deviceKey: id)
+        let saved = settings.outputDeviceUID.isEmpty ? nil
+            : try? db.calibration(deviceKey: settings.outputDeviceUID)
         let cutIn = Float(saved?.faderCutIn ?? profile.crossfader.cutInLeft ?? 0.5)
         let hysteresis = Float(saved?.faderHysteresis ?? profile.crossfader.hysteresis ?? 0.05)
         let hamster = saved?.hamster ?? profile.crossfader.reverseDefault ?? false
         let binarizer = FaderBinarizer(cutIn: min(1, max(0, cutIn)),
                                        hysteresis: max(0, hysteresis), hamster: hamster)
+
+        // F.72 (ADR-077) — si el asistente aprendió un CC/canal para este
+        // dispositivo (`MidiFaderLearner`/F.67) y quedó guardado, manda sobre
+        // el que declare el perfil: el perfil puede no traerlo, o traer uno
+        // equivocado (B5.5 ya enseñó a no fiarse del papel). Mismo criterio
+        // que `AppRootView.rebuildFaderConfig()` usa DENTRO del asistente;
+        // esto lo lleva también a la práctica real, no solo a la calibración.
+        let config: MidiCrossfaderConfig
+        if let ch = saved?.faderMidiChannel, let cc = saved?.faderMidiCC,
+           let lo = saved?.faderMidiRawMin, let hi = saved?.faderMidiRawMax {
+            config = MidiCrossfaderConfig(channel: ch, cc: cc, rawMin: lo, rawMax: hi,
+                                          invert: profileConfig.invert)
+        } else {
+            config = profileConfig
+        }
 
         let source = MidiFaderSource(config: config, binarizer: binarizer)
         source.onChange = { [weak self] sample in

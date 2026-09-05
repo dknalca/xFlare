@@ -22,6 +22,7 @@ enum Schema {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         registerV1(in: &migrator)
+        registerV2(in: &migrator)
         return migrator
     }
 
@@ -157,6 +158,27 @@ enum Schema {
             try db.create(table: "setting") { t in
                 t.column("key", .text).primaryKey()
                 t.column("value", .text).notNull()
+            }
+        }
+    }
+
+    // MARK: - v2 · CC MIDI del fader aprendido (F.70/F.72, ADR-077)
+
+    /// El asistente de calibración puede APRENDER a qué canal/CC responde el
+    /// crossfader de la mesa (F.67, `MidiFaderLearner`) en vez de fiarse de lo
+    /// que declare el perfil `.conf` (puede faltar, o estar mal — B5.5). Antes
+    /// de esta migración ese aprendizaje solo vivía en la sesión del asistente
+    /// (`CalibrationWizardModel`, en memoria): al cerrar la app, o simplemente
+    /// al volver a entrar en Calibración, había que repetirlo. Columnas
+    /// NULLABLE — una calibración `v1` sin aprender queda con las cuatro a
+    /// NULL, sin perder nada de lo que ya tenía.
+    private static func registerV2(in migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v2") { db in
+            try db.alter(table: "deviceCalibration") { t in
+                t.add(column: "faderMidiChannel", .integer)
+                t.add(column: "faderMidiCC", .integer)
+                t.add(column: "faderMidiRawMin", .integer)
+                t.add(column: "faderMidiRawMax", .integer)
             }
         }
     }

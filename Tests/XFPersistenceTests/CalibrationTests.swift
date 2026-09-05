@@ -52,4 +52,31 @@ final class CalibrationTests: XCTestCase {
         try db.saveCalibration(c)
         XCTAssertNil(try db.calibration(deviceKey: "dev")?.latencyMs)
     }
+
+    // MARK: - v2 · CC MIDI del fader aprendido (F.72, ADR-077)
+
+    func testElCCMidiAprendidoSeGuardaYSeLee() throws {
+        let db = try XFDatabase.inMemory()
+        var c = cal("dev")
+        c.faderMidiChannel = 3
+        c.faderMidiCC = 24
+        c.faderMidiRawMin = 2
+        c.faderMidiRawMax = 125
+        try db.saveCalibration(c)
+        let back = try XCTUnwrap(db.calibration(deviceKey: "dev"))
+        XCTAssertEqual(back.faderMidiChannel, 3)
+        XCTAssertEqual(back.faderMidiCC, 24)
+        XCTAssertEqual(back.faderMidiRawMin, 2)
+        XCTAssertEqual(back.faderMidiRawMax, 125)
+    }
+
+    func testSinAprenderElCCMidiQuedaNulo() throws {
+        let db = try XFDatabase.inMemory()
+        try db.saveCalibration(cal("dev"))   // el helper no fija los campos MIDI
+        let back = try XCTUnwrap(db.calibration(deviceKey: "dev"))
+        XCTAssertNil(back.faderMidiChannel)
+        XCTAssertNil(back.faderMidiCC)
+        XCTAssertNil(back.faderMidiRawMin)
+        XCTAssertNil(back.faderMidiRawMax)
+    }
 }

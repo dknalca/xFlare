@@ -4,6 +4,7 @@ import Combine
 @testable import XFApp
 import XFCapture
 import XFProfiles
+import XFPersistence
 
 /// F.61 — el crossfader por MIDI (ADR-021) va de "el perfil lo declara" a
 /// "de verdad llega a la práctica". `AppModel.midiMonitor.onMessage` es el
@@ -57,13 +58,13 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
     hysteresis = 0.1
     """
 
-    private func model() throws -> AppModel {
+    private func model(db: XFDatabase? = nil) throws -> AppModel {
         let catalog = try CatalogLoader.load(from: RepoContentLoader())
         let profiles = ProfileStore(bundled: [
             ("test-midi-mesa.conf", Self.midiProfileText),
             ("test-audio-mesa.conf", Self.audioReturnProfileText),
         ], user: [])
-        return AppModel(catalog: catalog, db: try .inMemory(), profiles: profiles)
+        return AppModel(catalog: catalog, db: try db ?? .inMemory(), profiles: profiles)
     }
 
     /// CC8/canal16: byte de status 0xBF (Control Change, canal 16 = nibble 0xF).
@@ -186,5 +187,67 @@ final class AppModelMidiCrossfaderTests: XCTestCase {
         XCTAssertEqual(got[1].0, s)
         XCTAssertEqual(got[1].1, d1)
         XCTAssertEqual(got[1].2, d2)
+    }
+
+    // MARK: - F.72 (ADR-077): la calibración guardada se lee por el UID del
+    // dispositivo de salida, no por `activeProfileId` (dos mesas podrían
+    // compartir perfil; el UID es lo que de verdad identifica el hardware).
+
+    func testLaCalibracionSeLeePorElUidDeSalidaNoPorElIdDePerfil() throws {
+        let db = try XFDatabase.inMemory()
+        // decoy: guardada bajo el ID DE PERFIL (la clave vieja, incorrecta) --
+        // cutIn muy alto: con value=63 (~0.5) el fader quedaría CERRADO.
+        try db.saveCalibration(DeviceCalibration(
+            deviceKey: "test-midi-mesa", profileId: "test-midi-mesa",
+            faderCutIn: 0.9, faderHysteresis: 0.05, hamster: false, updatedAt: Date()))
+        // la de verdad: guardada bajo el UID de salida -- cutIn muy bajo: con
+        // el mismo value=63 el fader queda ABIERTO. Los dos valores discriminan
+        // cuál de las dos claves lee `rebuildCrossfaderSource`.
+        try db.saveCalibration(DeviceCalibration(
+            deviceKey: "test-uid", profileId: "test-midi-mesa",
+            faderCutIn: 0.05, faderHysteresis: 0.05, hamster: false, updatedAt: Date()))
+
+        let m = try model(db: db)
+        m.settings.outputDeviceUID = "test-uid"
+        m.activeProfileId = "test-midi-mesa"
+
+        var got: [PracticeCommandEvent] = []
+        let c = m.practiceCommandEvents.sink { got.append($0) }
+        defer { c.cancel() }
+
+        let (s, d1, d2) = ccByte(63)   // ~0.496
+        m.midiMonitor.onMessage?(s, d1, d2)
+        flushMain()
+
+        XCTAssertEqual(got, [.faderClosed(false)],
+                       "usa el cutIn de la calibración guardada bajo el UID, no bajo el id de perfil")
+    }
+
+    func testElCcMidiAprendidoGuardadoSustituyeAlDelPerfil() throws {
+        let db = try XFDatabase.inMemory()
+        // el perfil declara canal 16 / CC 8; lo APRENDIDO (guardado) es otro.
+        try db.saveCalibration(DeviceCalibration(
+            deviceKey: "test-uid", profileId: "test-midi-mesa",
+            faderCutIn: 0.5, faderHysteresis: 0.05, hamster: false,
+            faderMidiChannel: 5, faderMidiCC: 50, faderMidiRawMin: 0, faderMidiRawMax: 127,
+            updatedAt: Date()))
+
+        let m = try model(db: db)
+        m.settings.outputDeviceUID = "test-uid"
+        m.activeProfileId = "test-midi-mesa"
+
+        var got: [PracticeCommandEvent] = []
+        let c = m.practiceCommandEvents.sink { got.append($0) }
+        defer { c.cancel() }
+
+        // CC/canal APRENDIDO (5/50): sí dispara.
+        m.midiMonitor.onMessage?(0xB0 | 4, 50, 120)
+        // CC/canal del PERFIL (16/8): ya no debería hacer nada.
+        let (oldS, oldD1, oldD2) = ccByte(120)
+        m.midiMonitor.onMessage?(oldS, oldD1, oldD2)
+        flushMain()
+
+        XCTAssertEqual(got, [.faderClosed(false)],
+                       "solo el CC/canal aprendido dispara; el declarado por el perfil ya no")
     }
 }

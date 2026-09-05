@@ -474,13 +474,23 @@ final class PracticeScene: SKScene {
     /// auto-generada cae EXACTAMENTE sobre la gris. Si el plato se pasa del pico
     /// del patron (`n > 1`) la traza SIGUE subiendo -> a `n = 1/amplitud` llega
     /// al borde y de ahi para arriba se sale (lo recorta el `SKCropNode`).
+    ///
+    /// F.70 (ADR-076) — hacia ABAJO tiene que pasar EXACTAMENTE lo mismo: con
+    /// timecode real el plato ya puede seguir bajando de `n=0` (silencio antes
+    /// del principio del sample, `PracticeSession.posLoFloor`), y la traza
+    /// tiene que seguir bajando con el, y desaparecer por el `SKCropNode`
+    /// igual que arriba. Antes de F.70 el limite de abajo era `-0.1` (una
+    /// tolerancia de redondeo: el plato entonces SIEMPRE se clavaba en `n=0`,
+    /// asi que nunca hacia falta mas margen) — con el suelo ya quitado se
+    /// quedaba "pegado" a poca distancia del principio en vez de seguir
+    /// bajando y salirse, la asimetria que reportó el autor.
     private func traceY(_ position: Double) -> CGFloat {
         guard let layout else { return geometry.curveBand.bottom }
         let (yb, yt) = geometry.curveBand
         let lo = layout.positionRange.lowerBound
         let span = max(1e-9, layout.positionRange.upperBound - lo)
         let n = (position - lo) / span
-        return yb + CGFloat(min(4.0, max(-0.1, n)) * Double(patternAmplitude)) * (yt - yb)
+        return yb + CGFloat(min(4.0, max(-4.0, n)) * Double(patternAmplitude)) * (yt - yb)
     }
 
     /// Dibuja la traza del usuario. Los tramos con el fader cerrado (`.miss`) se

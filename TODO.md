@@ -1559,6 +1559,42 @@ en manos de gente.*
       - Hecho (2026-09-05): botón que re-enumera `AudioDeviceList.all()` y
         vuelve a aplicar la selección, sin salir del asistente.
 
+- [x] **F.72** La calibración del fader se guarda de una sesión a otra; el teal ya baja también en pantalla `XFPersistence` `XFApp`
+      - Reportado por el autor probando F.70/F.71 en la Rane 72: (1) el
+        picker de instrumental (F.71) resultó ser build vieja, resuelto solo
+        relanzando; (2) "la calibración no se guarda de una vez a otra"; (3)
+        "el teal sigue sin poder pasar de abajo" pese a F.70.
+      - (3), causa real: `PracticeScene.traceY` (SpriteKit) recortaba la
+        posición normalizada a `max(-0.1, n)` — una tolerancia de redondeo de
+        cuando `PracticeSession` clavaba la posición a 0; con ese clamp ya
+        quitado (F.70) se quedaba "pegada" cerca del principio en vez de
+        seguir bajando. Arreglado a `max(-4.0, n)`, simétrico con el
+        `min(4.0, n)` de arriba.
+      - (2), causa real (dos partes, ninguna en `AppSettings` — eso ya
+        persistía bien): `CalibrationWizardModel.result()` guarda con
+        `deviceKey` = UID del dispositivo de salida, pero
+        `AppModel.rebuildCrossfaderSource()` LEÍA con `deviceKey:
+        activeProfileId` (el perfil `.conf`, otra clave) — la calibración
+        guardada nunca se encontraba al leer. Además nadie precargaba el
+        asistente con lo ya guardado al volver a entrar.
+      - Hecho (2026-09-05, ADR-077, permiso del autor para tocar
+        `XFPersistence` sellado): `rebuildCrossfaderSource()` busca por
+        `settings.outputDeviceUID` (se relanza también si ese UID cambia);
+        `AppRootView.applyCalibrationSelection()` fija
+        `calibrationModel.deviceKey` al UID resuelto y precarga el
+        asistente (`CalibrationWizardModel.applyLoaded`) una vez por
+        dispositivo. Migración `v2` en `XFPersistence` (v1 intacta): 4
+        columnas NULLABLE en `deviceCalibration` para el CC MIDI
+        **aprendido** (F.67), que antes solo vivía en memoria durante la
+        sesión — `rebuildCrossfaderSource` ahora también lo usa sobre el del
+        perfil.
+      - Tests: 2 en `CalibrationTests` (XFPersistence) + 4 en
+        `CalibrationWizardTests` + 2 en `AppModelMidiCrossfaderTests`
+        (discriminan explícitamente "lee por UID, no por perfil" y "el CC
+        aprendido manda sobre el del perfil"). `make verify` en verde, 774
+        tests.
+      - Pendiente: confirmar "con los oídos" en la Rane 72 real.
+
 ---
 
 ## Reglas de uso

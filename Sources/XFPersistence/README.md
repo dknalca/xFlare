@@ -108,7 +108,11 @@ func deleteCalibration(deviceKey: String) throws
 ```
 
 `deviceKey` = UID del dispositivo de audio o nombre del puerto MIDI. `profileId`
-es el perfil de `XFProfiles`.
+es el perfil de `XFProfiles`. **`v2` (2026-09-05, F.72, ADR-077):**
+`faderMidiChannel`/`faderMidiCC`/`faderMidiRawMin`/`faderMidiRawMax`
+(`Int?`, los cuatro `nil` si no se ha aprendido) — el CC MIDI del crossfader
+que el asistente de calibración APRENDE observando el tráfico real (F.67),
+en vez de fiarse de lo que declare el perfil `.conf`.
 
 ## Ejemplo de uso
 

@@ -158,4 +158,54 @@ final class CalibrationWizardTests: XCTestCase {
         ready(m)
         XCTAssertEqual(m.result()?.deviceKey, "Rane 72 Out")
     }
+
+    func testResultadoIncluyeElCcAprendidoSiLoHay() {
+        let m = CalibrationWizardModel(deviceKey: "UID-RANE72")
+        // aprender RESETEA cutsDetected (F.67): tiene que ir antes de los
+        // cortes que dejan el paso Fader listo, si no `ready(m)` de después
+        // los pisa a 0 otra vez y el resultado sale nil.
+        m.reportLearnedFader(channel: 3, cc: 24, rawMin: 2, rawMax: 125)
+        ready(m)
+        let cal = try! XCTUnwrap(m.result())
+        XCTAssertEqual(cal.faderMidiChannel, 3)
+        XCTAssertEqual(cal.faderMidiCC, 24)
+        XCTAssertEqual(cal.faderMidiRawMin, 2)
+        XCTAssertEqual(cal.faderMidiRawMax, 125)
+    }
+
+    func testResultadoSinAprenderNoTraeCcMidi() {
+        let m = CalibrationWizardModel(deviceKey: "UID-RANE72")
+        ready(m)
+        let cal = try! XCTUnwrap(m.result())
+        XCTAssertNil(cal.faderMidiChannel)
+        XCTAssertNil(cal.faderMidiCC)
+    }
+
+    // MARK: - precarga de una calibración guardada (F.72, ADR-077)
+
+    func testApplyLoadedTraeCutInHisteresisYHamster() {
+        let m = CalibrationWizardModel()
+        let saved = DeviceCalibration(deviceKey: "dev", profileId: "rane-seventy-two",
+                                      faderCutIn: 0.61, faderHysteresis: 0.12, hamster: true,
+                                      updatedAt: Date())
+        m.applyLoaded(saved)
+        XCTAssertEqual(m.faderCutIn, 0.61, accuracy: 1e-9)
+        XCTAssertEqual(m.faderHysteresis, 0.12, accuracy: 1e-9)
+        XCTAssertTrue(m.hamster)
+        XCTAssertNil(m.learnedFaderCC, "sin CC guardado, no inventa uno")
+    }
+
+    func testApplyLoadedTraeElCcMidiAprendidoSiLoHay() {
+        let m = CalibrationWizardModel()
+        let saved = DeviceCalibration(deviceKey: "dev", profileId: "rane-seventy-two",
+                                      faderCutIn: 0.5, faderHysteresis: 0.08, hamster: false,
+                                      faderMidiChannel: 3, faderMidiCC: 24,
+                                      faderMidiRawMin: 2, faderMidiRawMax: 125,
+                                      updatedAt: Date())
+        m.applyLoaded(saved)
+        XCTAssertEqual(m.learnedFaderChannel, 3)
+        XCTAssertEqual(m.learnedFaderCC, 24)
+        XCTAssertEqual(m.learnedFaderMin, 2)
+        XCTAssertEqual(m.learnedFaderMax, 125)
+    }
 }
