@@ -151,4 +151,38 @@ final class CXFTimecodeTests: XCTestCase {
         xf_timecoder_reset_position(tc)
         XCTAssertEqual(xf_timecoder_position(tc), 0.0)
     }
+
+    // MARK: - F.76 (ADR-080): posición absoluta del bitstream
+
+    /// Esta suite sintetiza solo las dos portadoras en cuadratura (velocidad +
+    /// dirección); el bitstream LFSR de verdad (el que codifica la posición
+    /// absoluta) NO se sintetiza aquí (nota de cabecera del fichero) — haría
+    /// falta el generador de `serato_2a` bit a bit, que xwax no expone para
+    /// pruebas. Con esta señal el enganche NUNCA debe darse por bueno: es
+    /// justo lo que hay que garantizar para que el medidor de deriva (F.76)
+    /// no se trague un "enganchado" falso y calcule una deriva inventada.
+    /// La validación de que SÍ engancha con un vinilo real ya la hizo B5.5
+    /// (`docs/TIMECODE.md`: "engancho bitstream: SI").
+    func testPosicionAbsolutaNoEnganchaSinBitstreamDeVerdad() {
+        let tc = xf_timecoder_create("serato_2a", 48_000)!
+        defer { xf_timecoder_destroy(tc) }
+        feed(tc, signal(carrierHz: 1000, secondaryPhaseDeg: 90, seconds: 2.0))
+        XCTAssertFalse(xf_timecoder_locked(tc),
+                       "cuadratura sin LFSR no debe darse nunca por enganchada")
+        var age: Double = -1
+        let pos = xf_timecoder_absolute_position(tc, &age)
+        XCTAssertEqual(pos, -1.0, "sin enganche, -1.0")
+        XCTAssertEqual(age, 0.0, "cuando no engancha, `when` no se toca (se deja a 0)")
+    }
+
+    /// `when` (nil) y el puntero nulo no revientan.
+    func testPosicionAbsolutaAceptaPunterosNulos() {
+        XCTAssertFalse(xf_timecoder_locked(nil))
+        XCTAssertEqual(xf_timecoder_absolute_position(nil, nil), -1.0)
+
+        let tc = xf_timecoder_create("serato_2a", 48_000)!
+        defer { xf_timecoder_destroy(tc) }
+        feed(tc, signal(carrierHz: 1000, secondaryPhaseDeg: 90, seconds: 1.0))
+        XCTAssertEqual(xf_timecoder_absolute_position(tc, nil), -1.0, "when nil no revienta")
+    }
 }

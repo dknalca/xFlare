@@ -117,34 +117,71 @@ struct AudioCalibrationStep: View {
 struct TimecodeCalibrationStep: View {
     @ObservedObject var model: CalibrationWizardModel
     let scopeReadings: () -> [ScopeReading]
+    /// F.76 (ADR-080) — diagnóstico de "sticker drift", ver
+    /// `docs/TIMECODE_DRIFT.md`. `driftMs` es la diferencia entre la
+    /// posición integrada (puede acumular sesgo) y la absoluta del
+    /// bitstream (no acumula nunca); `nil` mientras no hay enganche con qué
+    /// comparar. `lockedFraction` es cuánto tiempo ha estado enganchado
+    /// desde que empezó esta captura — un scratch agresivo desengancha a
+    /// menudo, así que un número bajo no es un fallo por sí solo.
+    /// `ringDropCount` son frames de audio del vinilo perdidos en silencio
+    /// porque el sondeo (30 Hz, hilo principal) no drenó a tiempo.
+    let driftMs: () -> Double?
+    let lockedFraction: () -> Double
+    let ringDropCount: () -> UInt64
 
     var body: some View {
         XFCard {
-            HStack(alignment: .top, spacing: XFSpacing.lg) {
-                ScopeView(geometry: ScopeGeometry(size: CGSize(width: 160, height: 160)),
-                          readings: scopeReadings)
-                    .frame(width: 160, height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: XFRadius.card))
+            VStack(alignment: .leading, spacing: XFSpacing.md) {
+                HStack(alignment: .top, spacing: XFSpacing.lg) {
+                    ScopeView(geometry: ScopeGeometry(size: CGSize(width: 160, height: 160)),
+                              readings: scopeReadings)
+                        .frame(width: 160, height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: XFRadius.card))
 
-                VStack(alignment: .leading, spacing: XFSpacing.sm) {
-                    Text("Calidad de señal").foregroundColor(XFColor.textMuted)
-                    ProgressView(value: model.signalConfidence)
-                        .frame(width: 220)
-                    Text(model.signalConfidence >= model.timecodeConfidenceGate
-                         ? "Señal buena." : "Gira el plato; la aguja tiene que enganchar.")
-                        .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+                    VStack(alignment: .leading, spacing: XFSpacing.sm) {
+                        Text("Calidad de señal").foregroundColor(XFColor.textMuted)
+                        ProgressView(value: model.signalConfidence)
+                            .frame(width: 220)
+                        Text(model.signalConfidence >= model.timecodeConfidenceGate
+                             ? "Señal buena." : "Gira el plato; la aguja tiene que enganchar.")
+                            .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
 
-                    Divider().background(XFColor.stroke)
+                        Divider().background(XFColor.stroke)
 
-                    Text("Dirección detectada: \(model.detectedForwards ? "adelante" : "hacia atrás")")
-                        .font(XFFont.body(13))
-                    Toggle("Corto en reverse (hamster)", isOn: $model.hamster)
-                        .toggleStyle(.checkbox)
+                        Text("Dirección detectada: \(model.detectedForwards ? "adelante" : "hacia atrás")")
+                            .font(XFFont.body(13))
+                        Toggle("Corto en reverse (hamster)", isOn: $model.hamster)
+                            .toggleStyle(.checkbox)
 
-                    Text("Vinilo Serato (2ª ed.). Otros formatos (Traktor, MixVibes) — pendiente.")
+                        Text("Vinilo Serato (2ª ed.). Otros formatos (Traktor, MixVibes) — pendiente.")
+                            .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+                    }
+                }
+
+                Divider().background(XFColor.stroke)
+
+                VStack(alignment: .leading, spacing: XFSpacing.xs) {
+                    Text("DIAGNÓSTICO DE DERIVA (F.76)")
+                        .font(XFFont.body(9)).kerning(0.6).foregroundColor(XFColor.textMuted)
+                    HStack(spacing: XFSpacing.lg) {
+                        driftStat("Deriva", driftMs().map { String(format: "%+.1f ms", $0) } ?? "—")
+                        driftStat("Enganchado", String(format: "%.0f %%", lockedFraction() * 100))
+                        driftStat("Frames perdidos", "\(ringDropCount())")
+                    }
+                    Text("Compara la posición que ya arrastra el motor (velocidad integrada) "
+                         + "contra la que trae el bitstream del vinilo ahora mismo (no acumula "
+                         + "error). Gira/scratchea el plato un rato para que suba de 0 %.")
                         .font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
                 }
             }
+        }
+    }
+
+    private func driftStat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(XFFont.body(10)).foregroundColor(XFColor.textMuted)
+            Text(value).font(XFFont.mono(14))
         }
     }
 }

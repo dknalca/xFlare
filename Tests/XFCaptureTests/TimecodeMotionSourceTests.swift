@@ -152,6 +152,23 @@ final class TimecodeMotionSourceTests: XCTestCase {
         XCTAssertNil(src.latest())
     }
 
+    /// F.76 (ADR-080) — diagnóstico de deriva. La cuadratura sintética de
+    /// esta suite no trae el LFSR de verdad (nota de cabecera del fichero),
+    /// así que el bitstream nunca debe darse por enganchado: es justo lo
+    /// que hay que garantizar para que el medidor de deriva no se trague un
+    /// "enganchado" falso y calcule una deriva inventada.
+    func testAbsoluteLockNilSinArrancarYSinBitstreamDeVerdad() throws {
+        let src = TimecodeMotionSource()
+        XCTAssertNil(src.absoluteLock, "sin arrancar, nil")
+
+        try src.start()
+        XCTAssertNil(src.absoluteLock, "recién arrancado, sin señal todavía")
+
+        feed(src, signal(carrierHz: 1000, secondaryPhaseDeg: 90, seconds: 2.0))
+        XCTAssertNil(src.absoluteLock,
+                    "cuadratura sin LFSR no debe darse nunca por enganchada")
+    }
+
     func testResetPosition() throws {
         let src = TimecodeMotionSource()
         try src.start()

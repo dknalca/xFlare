@@ -232,6 +232,11 @@ public final class EngineHandle {
     public var tick: Double { xf_engine_tick(engine) }
     public var overloadCount: UInt64 { xf_engine_overload_count(engine) }
     public var renderErrorCount: UInt64 { xf_engine_render_error_count(engine) }
+    /// F.76 (ADR-080) — frames de timecode real perdidos en silencio porque
+    /// `AppModel.pollTimecode` (30 Hz, hilo principal) no drenó el ring a
+    /// tiempo. Existía el contador en el motor desde siempre; no tenía
+    /// getter — nadie lo había leído nunca.
+    public var inputRingDropCount: UInt64 { xf_engine_input_ring_drop_count(engine) }
     /// Pico de salida antes de limitar. > 1 = la mezcla clipea.
     public var outputPeak: Double { xf_engine_output_peak(engine) }
 

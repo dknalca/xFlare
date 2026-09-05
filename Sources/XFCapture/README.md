@@ -37,6 +37,10 @@ tiene identidad (`AnyObject`) — un puerto MIDI, un fichero, un timecoder.
   signo/`dir`; levantar la aguja hace caer la confianza sin colgarse)
   confirmados. El canal correcto en una interfaz multicanal no es el que
   parece — el conector no adivina, hay que decírselo (`AudioDeviceList`, XFApp).
+  **`absoluteLock` (F.76, ADR-080):** posición ABSOLUTA del bitstream ahora
+  mismo (segundos nominales, no una integral) + antigüedad; `nil` sin
+  enganche. Diagnóstico de "sticker drift" (`docs/TIMECODE_DRIFT.md`), no
+  forma parte de `MotionSample` (que sigue siendo puramente relativo).
 - **`KeyboardMotionSource`** — un baby scratch con el teclado, para desarrollar
   sin mesa (CLAUDE.md §3.5: el teclado es solo para eso).
 - **`ReplayMotionSource`** — reproduce un `.xfsession` grabado, determinista
@@ -102,7 +106,7 @@ traduce un mensaje a asignación para "MIDI Learn" (Ajustes).
 
 ## Tests
 
-90 tests. Protocolos, teclado, `TimecodeMotionSource` (con y sin señal real —
+91 tests. Protocolos, teclado, `TimecodeMotionSource` (con y sin señal real —
 B5.2-B5.5), `MidiFaderSource`/`MidiCrossfaderConfig` (parseo, filtrado por
 canal, binarización, troceo de `MIDIPacketList` con running status/SysEx),
 `MidiFaderLearner` (F.67), `AudioReturnFaderSource` (Goertzel sintético),

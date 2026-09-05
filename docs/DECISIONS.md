@@ -3431,6 +3431,72 @@ pasar una combinación que convierta la corrección en un barrido evidente.
 Sin verificar todavía "con los oídos" en la Rane 72 real — pendiente de
 confirmación del autor, igual que ADR-076/077/078.
 
+## ADR-080 — El decoder expone la posición ABSOLUTA del bitstream, para medir (y más adelante corregir) la deriva
+
+**Fecha:** 2026-09-05 · **Estado:** aceptada
+
+**Contexto.** ADR-076/078/079 atacaron el "sticker drift" tres veces por
+síntoma, sin poder medirlo. El autor pidió un plan; el diagnóstico
+(`docs/TIMECODE_DRIFT.md`) encontró que el vinilo de timecode lleva grabado
+un **bitstream de posición absoluta** que xwax ya decodifica
+(`timecoder_get_position`, en `vendor/xwax/timecoder.c`) — y que
+`xf_timecode.c` **lo tira**: solo mira si el resultado es `>= 0` para la
+confianza, descarta el valor. Lo que sí se usa
+(`xf_timecoder_position()`) es una **integral** de la estimación de
+velocidad, que puede acumular sesgo sin límite. El bitstream absoluto, en
+cambio, es una lectura directa: su error no se acumula nunca.
+
+**Aclaración de diseño:** esto **no** es "modo absoluto" (ADR-004/005 sigue
+vigente — el punto de arranque del sample lo decide el usuario, no el
+disco). Es usar el bitstream como **regla de medir cuánto se ha movido el
+disco**, no como referencia de "dónde debería estar el sample". Exactamente
+lo que hacen Serato/Traktor internamente para no derivar en modo relativo.
+
+**Decisión.** `CXFTimecode` (SEALED, con permiso explícito del autor) gana
+dos funciones puramente aditivas, sin tocar ninguna existente:
+
+```c
+double xf_timecoder_absolute_position(const xf_timecoder *tc, double *when);
+bool   xf_timecoder_locked(const xf_timecoder *tc);
+```
+
+`xf_timecoder_absolute_position` devuelve **segundos nominales** — la MISMA
+unidad que `xf_timecoder_position()` (la integral), calculado dividiendo el
+entero crudo de xwax por `resolution` (bits/segundo a velocidad nominal,
+distinto por formato: 1000 en `serato_2a`, 1300/2000 en otros) dentro del
+propio wrapper, para que quien llama pueda restar directamente sin conocer
+esa constante. `-1.0` si el bitstream no está enganchado. `when` da los
+segundos desde la última lectura fiable.
+
+`XFCapture` (SEALED, mismo permiso — es la continuación natural de la misma
+exposición, un nivel más arriba) gana `TimecodeMotionSource.absoluteLock:
+(positionSeconds: Double, ageSeconds: Double)?`, aditivo, sin tocar
+`MotionSample` (que sigue siendo puramente relativo).
+
+`AppModel` (no sellado) calcula `timecodeDriftMs` (= posición integrada −
+posición absoluta, en ms) y `timecodeLockedFraction` en cada
+`pollTimecode()`, y el paso "Timecode" del asistente de calibración los
+enseña junto al scope — con `xf_engine_input_ring_drop_count` (F.76,
+contador que ya existía en el motor RT desde siempre pero nunca tuvo
+getter: los frames de timecode que el ring de entrada pierde en silencio si
+el sondeo a 30 Hz del hilo principal no drena a tiempo).
+
+**Alternativas descartadas.** Sintetizar el LFSR en las suites de test
+existentes (`CXFTimecodeTests`/`TimecodeMotionSourceTests`, que solo usan
+cuadratura) para poder probar el enganche real — se descarta por ahora: el
+generador bit a bit de `serato_2a` no lo expone xwax para pruebas, y B5.5 ya
+validó el enganche con vinilo real; los tests nuevos verifican en su lugar
+que la señal sintética (sin LFSR) **nunca** se da por enganchada — la
+garantía que evita que el medidor de deriva se trague un "enganchado" falso.
+
+**Consecuencias.** Por primera vez se puede leer un número real de deriva
+en la app (antes de esto, cero visibilidad — de ahí las tres rondas a
+ciegas). No cambia ningún comportamiento existente: es puramente
+instrumentación. Corregir la deriva usando este valor (en vez de solo
+medirla) es la Fase 2 de `docs/TIMECODE_DRIFT.md`, pendiente de una
+decisión de diseño más profunda (fusión con la velocidad relativa) que
+merece su propio ADR cuando llegue.
+
 ---
 
 ## Plantilla para nuevas entradas

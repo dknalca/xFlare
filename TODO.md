@@ -1681,6 +1681,45 @@ en manos de gente.*
         en la Rane 72 real; si encuentra uno que cierra el hueco sin
         click, ese valor debería volver como el nuevo *default*.
 
+- [x] **F.76** Medidor de deriva del vinilo (Fase 0 de `docs/TIMECODE_DRIFT.md`) `CXFTimecode` `XFCapture` `CXFAudioCore` `XFApp`
+      - El autor pidió un PLAN para acabar con el "sticker drift" de una
+        vez (tres rondas — F.70/F.74/F.75 — atacándolo por síntoma, sin
+        poder medirlo nunca). Plan completo en `docs/TIMECODE_DRIFT.md`,
+        confirmado por el autor: fase 0 (instrumentar) + fase 1 (cerrar
+        fugas) primero, con permiso para el ADR de la fase 2 (tocar
+        `CXFTimecode`, sellado) cuando llegue.
+      - Diagnóstico (con fichero y línea, no hipótesis): el vinilo lleva
+        grabado un bitstream de posición ABSOLUTA que xwax ya decodifica
+        (`timecoder_get_position`) — `xf_timecode.c:98` lo llama y **tira
+        el valor**, solo mira si es `>= 0` para la confianza. Lo que sí se
+        usa (`xf_timecoder_position()`) es una INTEGRAL de la estimación
+        de velocidad, que puede acumular sesgo sin límite. Además: el ring
+        de entrada pierde frames en silencio si el sondeo a 30 Hz del
+        hilo principal no drena a tiempo, y el contador de esas pérdidas
+        (`input_ring_drops`) existía desde siempre sin getter — nadie lo
+        había leído nunca.
+      - Hecho (2026-09-05, ADR-080, permiso del autor para tocar
+        `CXFTimecode`/`XFCapture` sellados — aditivo, sin tocar nada
+        existente): `xf_timecoder_absolute_position`/`xf_timecoder_locked`
+        (segundos nominales, misma unidad que la integral, para restar
+        directo) + `TimecodeMotionSource.absoluteLock` +
+        `xf_engine_input_ring_drop_count` (getter nuevo del contador que
+        ya existía). `AppModel.timecodeDriftMs`/`timecodeLockedFraction`
+        se calculan en `pollTimecode()` y se enseñan en el paso Timecode
+        del asistente junto al scope, con los frames perdidos del ring.
+      - Tests: 2 en `CXFTimecodeTests` + 1 en `TimecodeMotionSourceTests`
+        (confirman que la cuadratura sintética, sin LFSR real, nunca se
+        da por enganchada — B5.5 ya validó el enganche con vinilo real) +
+        1 en `XFEngineRTTests` (el ring cuenta lo que pierde sin drenar) +
+        1 en `AppModelTimecodeCaptureTests`. `make verify` en verde, 783
+        tests.
+      - Pendiente (Fase 1, aprobada): cerrar las fugas ya diagnosticadas
+        en `docs/TIMECODE_DRIFT.md` (gate de confianza, watchdog, ring
+        fuera del hilo principal) — se hace con números reales de la
+        Rane 72 en la mano, no a ciegas. El autor prueba esta build y
+        trae la lectura de "Deriva"/"Enganchado"/"Frames perdidos" del
+        paso Timecode.
+
 ---
 
 ## Reglas de uso

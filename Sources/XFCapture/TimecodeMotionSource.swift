@@ -94,6 +94,22 @@ public final class TimecodeMotionSource: MotionSource {
 
     public func latest() -> MotionSample? { current }
 
+    /// F.76 (ADR-080) — diagnóstico de deriva, no forma parte de `MotionSample`
+    /// (que sigue siendo puramente relativo): posición ABSOLUTA que trae el
+    /// bitstream del vinilo ahora mismo, en SEGUNDOS NOMINALES — la MISMA
+    /// unidad que `latest()?.position` (que SÍ es una integral y SÍ puede
+    /// acumular error), así que se pueden restar directamente para medir
+    /// cuánto se ha separado. `nil` si el bitstream no está enganchado ahora
+    /// mismo (aguja levantada, señal sucia, o los primeros bits tras
+    /// enganchar). `ageSeconds` crece mientras no llega una lectura nueva.
+    public var absoluteLock: (positionSeconds: Double, ageSeconds: Double)? {
+        guard let decoder else { return nil }
+        var age: Double = 0
+        let pos = xf_timecoder_absolute_position(decoder, &age)
+        guard pos >= 0 else { return nil }
+        return (pos, age)
+    }
+
     // MARK: - alimentacion
 
     /// Entrega un bloque de PCM **estereo intercalado de 16 bits** (L,R,L,R...)

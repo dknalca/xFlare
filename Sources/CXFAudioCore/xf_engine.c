@@ -387,6 +387,14 @@ uint64_t xf_engine_overload_count(const xf_engine *e) {
 uint64_t xf_engine_render_error_count(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->render_errors) : 0;
 }
+/* F.76 (ADR-080) — el contador existia desde que se escribio el ring de
+ * entrada (linea 464 de este fichero) pero no tenia getter: se incrementaba
+ * y nadie lo leia nunca. Sin esto, un tiron del hilo principal que tarde
+ * >~85 ms en drenar el ring pierde frames de timecode EN SILENCIO -- una de
+ * las fugas de "sticker drift" que no se podia ni medir. */
+uint64_t xf_engine_input_ring_drop_count(const xf_engine *e) {
+    return e ? atomic_load(&((xf_engine *)e)->input_ring_drops) : 0;
+}
 double xf_engine_output_peak(const xf_engine *e) {
     return e ? atomic_load(&((xf_engine *)e)->out_peak) : 0.0;
 }

@@ -174,6 +174,12 @@ double xf_engine_instrumental_playhead(const xf_engine *e);
 /* Diagnostico (atomicas): overloads del dispositivo y fallos de `AudioUnitRender`. */
 uint64_t xf_engine_overload_count(const xf_engine *e);
 uint64_t xf_engine_render_error_count(const xf_engine *e);
+/* F.76 (ADR-080) — veces que el callback RT no pudo escribir todo el bloque
+ * de entrada en el ring hacia el timecode (el consumidor -- un Timer a 30 Hz
+ * en el hilo principal, `AppModel.pollTimecode` -- no lo ha drenado a
+ * tiempo): frames de vinilo real perdidos en silencio. Acumulado desde que
+ * se creo el motor, sin reset (como los dos de arriba). */
+uint64_t xf_engine_input_ring_drop_count(const xf_engine *e);
 
 /* Pico de la salida (0..~) **antes** de limitar, con decaimiento lento. Para el
  * medidor de nivel de la UI: si pasa de 1,0, la mezcla estaba clipeando. */

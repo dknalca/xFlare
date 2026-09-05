@@ -58,4 +58,18 @@ final class AppModelTimecodeCaptureTests: XCTestCase {
         m.startTimecodeCapture()
         XCTAssertEqual(calls, 0, "sin motor no hay nada que capturar ni que publicar")
     }
+
+    /// F.76 (ADR-080) — diagnóstico de deriva: arranca "sin dato" (no hay
+    /// nada con qué comparar todavía) y sin motor se queda así, como el
+    /// resto de este fichero. El cálculo real (`pollTimecode`, con
+    /// `TimecodeMotionSource.absoluteLock` de verdad) necesita CoreAudio con
+    /// un dispositivo delante, igual que el resto de esta suite.
+    func testDiagnosticoDeDerivaArrancaSinDatoYSinMotorSeQuedaAsi() throws {
+        let m = try modelSinMotor()
+        XCTAssertNil(m.timecodeDriftMs)
+        XCTAssertEqual(m.timecodeLockedFraction, 0)
+        m.startTimecodeCapture()
+        XCTAssertNil(m.timecodeDriftMs, "sin motor no hay lecturas que comparar")
+        XCTAssertEqual(m.timecodeLockedFraction, 0)
+    }
 }

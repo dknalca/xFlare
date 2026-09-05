@@ -122,6 +122,30 @@ double xf_timecoder_velocity(const xf_timecoder *x)   { return x ? x->vel : 0.0;
 double xf_timecoder_position(const xf_timecoder *x)   { return x ? x->pos : 0.0; }
 float  xf_timecoder_confidence(const xf_timecoder *x) { return x ? x->conf : 0.0f; }
 
+/* F.76 (ADR-080). `timecoder_get_position` es una lectura pura (no muta
+ * estado real: solo mira `bitstream`/`valid_counter`, ya actualizados por
+ * `process_chunk`); el cast quita el `const` para llamar a xwax, que no es
+ * const-correcto en esta firma. El entero crudo (bits desde el arranque del
+ * LFSR) se divide aqui por `resolution` (bits/segundo a velocidad nominal,
+ * `x->def->resolution` -- el mismo campo que usa `timecoder_get_resolution`
+ * dentro de xwax) para devolver SEGUNDOS NOMINALES, la misma unidad que
+ * `xf_timecoder_position()`: quien llama puede restar directamente sin tener
+ * que conocer la resolucion de cada formato de vinilo. */
+double xf_timecoder_absolute_position(const xf_timecoder *x, double *when) {
+    double w = 0.0;
+    double result = -1.0;
+    if (x) {
+        int r = timecoder_get_position((struct timecoder *)&x->tc, &w);
+        if (r >= 0) result = (double)r / (double)x->def->resolution;
+    }
+    if (when) *when = w;
+    return result;
+}
+
+bool xf_timecoder_locked(const xf_timecoder *x) {
+    return xf_timecoder_absolute_position(x, NULL) >= 0;
+}
+
 bool xf_timecoder_forwards(const xf_timecoder *x) {
     return x ? x->tc.forwards : true;
 }

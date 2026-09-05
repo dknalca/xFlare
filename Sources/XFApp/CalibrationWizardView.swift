@@ -28,6 +28,11 @@ public struct CalibrationWizardView: View {
     /// foto vieja (p. ej. menos pares de salida de los que hay de verdad) sin
     /// ningún cambio de pantalla que la refresque sola.
     private let onRefreshDevices: () -> Void
+    /// F.76 (ADR-080) — diagnóstico de deriva del paso Timecode, ver
+    /// `TimecodeCalibrationStep`.
+    private let driftMs: () -> Double?
+    private let lockedFraction: () -> Double
+    private let ringDropCount: () -> UInt64
 
     public init(model: CalibrationWizardModel,
                 inputDevices: [AudioDeviceList.Device] = [],
@@ -36,6 +41,9 @@ public struct CalibrationWizardView: View {
                 onStartFaderLearn: @escaping () -> Void = {},
                 onFinishFaderLearn: @escaping () -> Void = {},
                 onRefreshDevices: @escaping () -> Void = {},
+                driftMs: @escaping () -> Double? = { nil },
+                lockedFraction: @escaping () -> Double = { 0 },
+                ringDropCount: @escaping () -> UInt64 = { 0 },
                 onFinish: @escaping (DeviceCalibration) -> Void = { _ in }) {
         self.model = model
         self.inputDevices = inputDevices
@@ -44,6 +52,9 @@ public struct CalibrationWizardView: View {
         self.onStartFaderLearn = onStartFaderLearn
         self.onFinishFaderLearn = onFinishFaderLearn
         self.onRefreshDevices = onRefreshDevices
+        self.driftMs = driftMs
+        self.lockedFraction = lockedFraction
+        self.ringDropCount = ringDropCount
         self.onFinish = onFinish
     }
 
@@ -101,7 +112,9 @@ public struct CalibrationWizardView: View {
             AudioCalibrationStep(model: model, inputDevices: inputDevices, outputDevices: outputDevices,
                                  onRefreshDevices: onRefreshDevices)
         case .timecode:
-            TimecodeCalibrationStep(model: model, scopeReadings: scopeReadings)
+            TimecodeCalibrationStep(model: model, scopeReadings: scopeReadings,
+                                    driftMs: driftMs, lockedFraction: lockedFraction,
+                                    ringDropCount: ringDropCount)
         case .fader:
             FaderCalibrationStep(model: model, onStartLearn: onStartFaderLearn,
                                  onFinishLearn: onFinishFaderLearn)

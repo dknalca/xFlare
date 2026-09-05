@@ -41,6 +41,29 @@ double xf_timecoder_velocity(const xf_timecoder *tc);
  * de referencia". Es relativa: arranca en 0 y se puede resetear. */
 double xf_timecoder_position(const xf_timecoder *tc);
 
+/* RT-SAFE (F.76, ADR-080) — posicion ABSOLUTA que trae el bitstream del
+ * vinilo AHORA MISMO, en SEGUNDOS NOMINALES (la MISMA unidad que
+ * `xf_timecoder_position()`, asi que se pueden restar directamente para medir
+ * la deriva: el entero crudo de xwax ya viene dividido aqui por la
+ * resolucion del formato, que varia por formato -- 1000 en "serato_2a",
+ * 1300/2000 en otros -- para no obligar a quien llama a conocer esa
+ * constante). No es una integral: no acumula error nunca, es una lectura
+ * directa del disco. Devuelve -1.0 si el bitstream no esta enganchado (aguja
+ * levantada, señal sucia, o los primeros ~VALID_BITS tras enganchar). `when`
+ * (si no es NULL) se rellena con los segundos transcurridos desde la ULTIMA
+ * lectura fiable -- crece mientras no llega una nueva, vuelve a ~0 en cuanto
+ * llega. Uso previsto: medir (y, mas adelante, corregir) la deriva de
+ * `xf_timecoder_position()`, que SI es una integral y SI puede acumular
+ * sesgo. Esto NO cambia el modo relativo (ADR-004/005): el punto de arranque
+ * del sample lo sigue decidiendo el usuario; esto solo mide cuanto ha girado
+ * el disco de verdad, con una regla que no se puede torcer con el tiempo. */
+double xf_timecoder_absolute_position(const xf_timecoder *tc, double *when);
+
+/* RT-SAFE (F.76, ADR-080): true si el bitstream esta enganchado ahora mismo
+ * (mismo criterio que usa `xf_timecoder_absolute_position` para no devolver
+ * -1). Atajo para no tener que mirar el signo del entero. */
+bool xf_timecoder_locked(const xf_timecoder *tc);
+
 /* RT-SAFE: confianza de la lectura, 0..1. Cae a ~0 al levantar la aguja
  * (silencio) o con senal sucia. */
 float xf_timecoder_confidence(const xf_timecoder *tc);

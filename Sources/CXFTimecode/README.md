@@ -3,8 +3,12 @@
 **Capa 0 · C · depende de CXFAudioCore · SEALED (2026-09-04)**
 
 Leer el vinilo de timecode. xwax vendorizado **intacto** + un wrapper propio en
-**modo relativo** (ADR-004/005): sólo velocidad y dirección, nunca posición
-absoluta de la aguja.
+**modo relativo** (ADR-004/005): el punto de arranque del sample lo decide
+siempre el usuario, nunca la posición de la aguja. F.76 (ADR-080) expone
+además la posición ABSOLUTA que trae el bitstream — no para pilotar el
+sample (eso seguiría siendo modo absoluto), sino como regla de medir sin
+acumular error cuánto se ha movido el disco de verdad, y así diagnosticar
+(y más adelante corregir) la deriva de la posición relativa integrada.
 
 ## Vendorizado (B5.1)
 
@@ -28,6 +32,13 @@ bool   xf_timecoder_forwards(const xf_timecoder *);
 
 void   xf_timecoder_set_reversed(xf_timecoder *, bool);  /* hamster / reverse (ADR-008) */
 void   xf_timecoder_reset_position(xf_timecoder *);
+
+/* F.76 (ADR-080) — diagnóstico de deriva, no forma parte del "modo relativo"
+ * de arriba: posición ABSOLUTA del bitstream ahora mismo, en las MISMAS
+ * unidades (segundos nominales) que xf_timecoder_position(), para poder
+ * restarlas y medir cuánto se ha separado la integral del disco real. */
+double xf_timecoder_absolute_position(const xf_timecoder *, double *when);  /* -1.0 si no engancha */
+bool   xf_timecoder_locked(const xf_timecoder *);
 ```
 
 `def_name`: formatos de xwax — `"serato_2a"` (por defecto), `"serato_2b"`,
@@ -57,6 +68,14 @@ void   xf_timecoder_reset_position(xf_timecoder *);
   dispara la velocidad. `submit` con 0 frames no revienta.
 
 7 tests.
+
+- **F.76 (ADR-080)** posición absoluta del bitstream, para medir (y más
+  adelante corregir) la deriva de la posición relativa integrada — ver
+  `docs/TIMECODE_DRIFT.md`. Con la cuadratura sintética de esta suite (sin
+  el LFSR real) nunca debe darse por enganchada; 2 tests nuevos lo
+  confirman.
+
+9 tests.
 
 - **B5.5** validado con vinilo Serato CV02 **real** sobre la Rane 72
   (`spike/b5-timecode/tcprobe`, no señal sintética): 60 s a 33⅓ estable → `vel`

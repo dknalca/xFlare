@@ -305,6 +305,24 @@ final class XFEngineRTTests: XCTestCase {
         XCTAssertLessThanOrEqual(step, 128 * 0.08 + 0.1, "sigue acotado al NUEVO tope, no barre sin limite")
     }
 
+    /// F.76 (ADR-080) — el contador existía desde que se escribe el ring de
+    /// entrada, pero no tenía getter: nadie lo había leído nunca. Sin drenar
+    /// el ring (32 bloques de capacidad), el bloque 33 tiene que perderse y
+    /// contarse — la fuga de timecode real que hasta ahora era invisible.
+    func testElRingDeEntradaCuentaLosFramesQuePierde() {
+        let e = xf_engine_create(sr, 128)!
+        defer { xf_engine_destroy(e) }
+        XCTAssertEqual(xf_engine_input_ring_drop_count(e), 0, "arranca en 0")
+
+        let inL = [Float](repeating: 0.1, count: 128)
+        let inR = [Float](repeating: -0.1, count: 128)
+        // capacidad = 32 bloques de 128 frames sin drenar; de sobra pasado
+        // eso, algo tiene que haberse perdido.
+        for _ in 0..<40 { _ = render(e, inL: inL, inR: inR, n: 128) }
+        XCTAssertGreaterThan(xf_engine_input_ring_drop_count(e), 0,
+                            "el consumidor no ha drenado nada -> el ring se llena y pierde frames")
+    }
+
     func testSoftClipYPicoDeSalida() {
         let e = xf_engine_create(sr, 128)!
         defer { xf_engine_destroy(e) }

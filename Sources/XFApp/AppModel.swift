@@ -145,6 +145,25 @@ public final class AppModel: ObservableObject {
     private var timecodeSource: TimecodeMotionSource?
     private var timecodeTimer: Timer?
 
+    // MARK: - diagnóstico de deriva ("sticker drift", F.76, ADR-080)
+
+    /// Diferencia, en milisegundos, entre la posición INTEGRADA
+    /// (`MotionSample.position`, acumula la estimación de velocidad y por
+    /// tanto puede acumular sesgo) y la posición ABSOLUTA que trae el
+    /// bitstream del vinilo ahora mismo (una lectura directa, no una
+    /// integral: no acumula error nunca). `nil` mientras el bitstream no
+    /// está enganchado — no hay con qué comparar en ese instante. Ver
+    /// `docs/TIMECODE_DRIFT.md`.
+    @Published public private(set) var timecodeDriftMs: Double?
+    /// Fracción (0...1) de lecturas con el bitstream enganchado desde que
+    /// arrancó esta captura. Un scratch agresivo desengancha el bitstream a
+    /// menudo — un número bajo aquí no es un fallo, es información: mientras
+    /// no engancha, `timecodeDriftMs` no se actualiza (se queda con el
+    /// último valor conocido).
+    @Published public private(set) var timecodeLockedFraction: Double = 0
+    private var timecodeLockedTicks = 0
+    private var timecodeTotalTicks = 0
+
     /// Arranca la captura de entrada de verdad para leer el vinilo de timecode
     /// en vivo: para el motor (que hasta ahora solo corría "solo salida", B4.2),
     /// lo reabre con la entrada activada (canal de `AppSettings`, F.60) y drena
@@ -170,6 +189,10 @@ public final class AppModel: ObservableObject {
         }
         timecodeSource = source
         scopeReadings = []
+        timecodeDriftMs = nil
+        timecodeLockedFraction = 0
+        timecodeLockedTicks = 0
+        timecodeTotalTicks = 0
 
         let t = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] _ in
             self?.pollTimecode()
@@ -191,6 +214,20 @@ public final class AppModel: ObservableObject {
                                           confidence: Double(sample.confidence)))
         // ~8s de rastro a 30 Hz; el scope solo dibuja el tramo reciente.
         if scopeReadings.count > 240 { scopeReadings.removeFirst(scopeReadings.count - 240) }
+
+        // F.76 (ADR-080): comparar la posición integrada contra la absoluta
+        // SOLO cuando hay bitstream enganchado ahora mismo -- sin eso no hay
+        // con qué comparar, y `timecodeDriftMs` se queda con el último valor
+        // (no se pone a 0: eso escondería la deriva real detrás de un
+        // "sin dato" que parece "sin problema").
+        timecodeTotalTicks += 1
+        if let lock = source.absoluteLock {
+            timecodeLockedTicks += 1
+            timecodeDriftMs = (sample.position - lock.positionSeconds) * 1000.0
+        }
+        timecodeLockedFraction = timecodeTotalTicks > 0
+            ? Double(timecodeLockedTicks) / Double(timecodeTotalTicks) : 0
+
         onTimecodeSample?(sample)
         motionSampleEvents.send(sample)
     }

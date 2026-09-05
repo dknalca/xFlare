@@ -473,6 +473,9 @@ public struct AppRootView: View {
                 onStartFaderLearn: startFaderLearn,
                 onFinishFaderLearn: finishFaderLearn,
                 onRefreshDevices: refreshCalibrationDevices,
+                driftMs: { model.timecodeDriftMs },
+                lockedFraction: { model.timecodeLockedFraction },
+                ringDropCount: { model.engine?.inputRingDropCount ?? 0 },
                 onFinish: { cal in
                     try? model.db.saveCalibration(cal)
                     model.goHome()
