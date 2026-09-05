@@ -3974,6 +3974,59 @@ Rane 72 pasa a mostrar la insignia de verificado en la UI (ADR-020).
 
 ---
 
+## ADR-088 — Pasada de UI en Calibración y Ajustes (agrupar, no rediseñar)
+
+**Fecha:** 2026-09-06 · **Estado:** aceptada
+
+**Contexto.** El autor pidió "mejora la UI" sin más detalle. Sin captura
+de pantalla ni forma de ver la app corriendo, un rediseño a ciegas es
+arriesgado — se preguntó alcance y tipo de mejora; la respuesta fue "todo"
+(las tres pantallas más tocadas esta sesión — Calibración, Ajustes,
+Práctica — y los cuatro tipos: orden, claridad de lo nuevo, consistencia,
+lo que se me ocurriera). Dado el riesgo real de editar a ciegas una
+pantalla tan densa como `LivePracticeView` (SpriteKit + SwiftUI,
+~2000 líneas, sin ningún test de render), esta pasada se acota a
+Calibración y Ajustes — más pequeñas, con al menos un test de render que
+detecta un `body` roto, y con los elementos más nuevos de la sesión (el
+diagnóstico de deriva, el indicador de fader en vivo, el picker de
+buffer, el botón de invertir) que nunca tuvieron una pasada de
+agrupación.
+
+**Decisión.**
+1. `AudioCalibrationStep` (paso 1 del asistente): los controles sueltos
+   pasan a tres secciones con la misma etiqueta visual que ya usaba el
+   diagnóstico de deriva del paso 2 (`Text(...).font(9).kerning(0.6)`,
+   ahora `sectionLabel(_:)`, reutilizada en los tres pasos por primera
+   vez) — ENTRADA (TIMECODE) / SALIDA / RENDIMIENTO, separadas por
+   `Divider()`. Los rótulos de los pickers de dispositivo se acortan a
+   "Dispositivo" (la sección ya dice qué es) para no repetir la palabra.
+2. `FaderCalibrationStep`: el indicador en vivo "fader abierto/cerrado"
+   (F.80) vivía en su propia fila, separado del contador de cortes al que
+   da contexto — pasa a la MISMA fila que el contador, con un separador
+   fino entre los dos ("lo que pasa ahora" + "cuánto llevas" como un solo
+   bloque de información).
+3. `SettingsView` (Ajustes › Hardware): el botón "Invertir sample ↔
+   instrumental" (F.85) vivía en su propia fila con su propia nota,
+   debajo del picker al que afecta — pasa a vivir EN la misma fila que
+   ese picker (más compacto: "Invertir" en vez del texto largo), con la
+   nota fusionada en la ya existente del picker.
+
+**Alternativas descartadas.** Tocar `LivePracticeView` en esta misma
+pasada — se descarta explícitamente por el riesgo de editar a ciegas la
+pantalla más grande y sin tests de render del proyecto; queda como
+candidato para una pasada aparte, más cuidadosa, si el autor la pide tras
+ver cómo queda esto.
+
+**Consecuencias.** Los tres pasos del asistente comparten ahora el mismo
+lenguaje de secciones (antes solo el paso Timecode lo tenía). Dos
+controles nuevos de esta sesión (indicador de fader, botón de invertir)
+quedan agrupados con la información a la que pertenecen en vez de sueltos
+en su propia fila. Nada de esto cambia comportamiento — solo agrupación y
+densidad; sin poder verlo corriendo, pendiente que el autor confirme que
+se lee bien.
+
+---
+
 ## Plantilla para nuevas entradas
 
 ```markdown

@@ -1993,6 +1993,28 @@ en manos de gente.*
         tests.
       - Pendiente: el autor confirma en la Rane 72 que el botón de
         invertir funciona como espera.
+- [x] **F.86** Pasada de UI en Calibración y Ajustes: agrupar, no rediseñar (ADR-088) `XFApp`
+      - El autor pidió "mejora la UI" sin más detalle; preguntado el
+        alcance, contestó "todo" (Calibración/Ajustes/Práctica, los 4
+        tipos de mejora). Sin captura de pantalla ni forma de ver la app
+        corriendo, se acotó a Calibración y Ajustes — más pequeñas, con
+        test de render, y con los elementos más nuevos de la sesión que
+        nunca tuvieron una pasada de agrupación.
+      - `AudioCalibrationStep`: tres secciones (ENTRADA/SALIDA/RENDIMIENTO)
+        con la misma etiqueta visual que ya usaba el diagnóstico de
+        deriva del paso Timecode (`sectionLabel`, reutilizada por primera
+        vez en los tres pasos), separadas por `Divider()`.
+      - `FaderCalibrationStep`: el indicador "fader abierto/cerrado" (F.80)
+        pasa de su propia fila a la MISMA fila que el contador de cortes.
+      - `SettingsView`: el botón "Invertir" (F.85) pasa de su propia fila
+        a la misma fila que el picker "Canal de la instrumental".
+      - `LivePracticeView` queda fuera a propósito — demasiado grande y
+        sin tests de render para tocarla a ciegas; candidata a una pasada
+        aparte si el autor la pide tras ver esto.
+      - make verify en verde, 806 tests (sin cambio de conteo — cambios
+        puramente de agrupación, sin tests nuevos).
+      - Pendiente: el autor confirma que se lee bien en la Rane 72/pantalla
+        real.
 
 ---
 

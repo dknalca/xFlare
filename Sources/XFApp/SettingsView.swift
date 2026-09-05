@@ -167,30 +167,30 @@ public struct SettingsView: View {
                             .labelsHidden().frame(width: 240)
                         }
                         row("Canal de la instrumental") {
-                            Picker("", selection: bind(\.instrumentalOutputChannel)) {
-                                Text("Combinado (con el scratch)").tag(0)
-                                ForEach(outputPairs) { p in Text(p.label).tag(p.first) }
+                            HStack(spacing: XFSpacing.xs) {
+                                Picker("", selection: bind(\.instrumentalOutputChannel)) {
+                                    Text("Combinado (con el scratch)").tag(0)
+                                    ForEach(outputPairs) { p in Text(p.label).tag(p.first) }
+                                }
+                                .labelsHidden().frame(width: 200)
+                                // F.85: quien pincha con la mano en el plato
+                                // de la DERECHA suele tener el cableado al
+                                // revés (el par que aquí es "instrumental"
+                                // es, en su mesa, el que lleva el scratch) —
+                                // sin esto, tocaría re-elegir los dos
+                                // desplegables a mano. Junto al picker que
+                                // afecta, no en una fila aparte.
+                                if settings.instrumentalOutputChannel != 0 {
+                                    Button("Invertir") { swapOutputChannels() }
+                                        .xfButton(.bordered)
+                                }
                             }
-                            .labelsHidden().frame(width: 240)
                         }
                         note("F.68: si eliges un par distinto al de \"Canal de salida\", el scratch y "
                              + "la instrumental (+ metrónomo) salen por dos tiras separadas — como dos "
                              + "canales de un mezclador real. \"Combinado\" es el comportamiento de "
-                             + "siempre, un único par.")
-                        // F.85: quien pincha con la mano en el plato de la
-                        // DERECHA suele tener el cableado al revés (el par
-                        // que aquí es "instrumental" es, en su mesa, el que
-                        // lleva el scratch). Sin esto, tocaría volver a
-                        // elegir los dos desplegables a mano cada vez.
-                        if settings.instrumentalOutputChannel != 0 {
-                            HStack {
-                                Spacer()
-                                Button("Invertir sample ↔ instrumental") { swapOutputChannels() }
-                                    .xfButton(.bordered)
-                            }
-                            note("Para quien pincha con la mano en el plato derecho: intercambia de "
-                                 + "golpe qué par lleva el scratch y cuál la instrumental.")
-                        }
+                             + "siempre, un único par. \"Invertir\" es para quien pincha con la mano en "
+                             + "el plato derecho (cableado al revés).")
                     }
 
                     row("Entrada (timecode)") {

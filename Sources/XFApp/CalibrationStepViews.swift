@@ -22,59 +22,83 @@ struct AudioCalibrationStep: View {
     var body: some View {
         XFCard {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
-                HStack {
-                    Spacer()
-                    Button("Refrescar dispositivos") { onRefreshDevices() }
-                        .xfButton(.bordered)
-                }
-                devicePicker("Entrada (timecode)", devices: inputDevices,
-                             selection: $model.inputDeviceName)
-                if let inDevice = inputDevices.first(where: { $0.name == model.inputDeviceName }) {
-                    let pairs = AudioDeviceList.inputChannelPairs(for: inDevice)
-                    if pairs.count > 1 {
-                        channelPicker("Canal del timecode", pairs: pairs,
-                                     selection: $model.inputChannelFirst)
-                    }
-                }
-                devicePicker("Salida", devices: outputDevices,
-                             selection: $model.outputDeviceName)
-                if let outDevice = outputDevices.first(where: { $0.name == model.outputDeviceName }) {
-                    let pairs = AudioDeviceList.outputChannelPairs(for: outDevice)
-                    if pairs.count > 1 {
-                        channelPicker("Canal de salida", pairs: pairs,
-                                     selection: $model.outputChannelFirst)
-                        // F.68 (ADR-075): mismo dispositivo, un PAR distinto
-                        // para la base — dos tiras de mezclador separadas en
-                        // vez de una mezcla combinada. Necesita al menos dos
-                        // pares para tener sentido (si no, no hay "distinto"
-                        // que elegir).
-                        instrumentalChannelPicker(pairs: pairs)
-                    }
-                }
-                HStack {
-                    Text("Buffer").foregroundColor(XFColor.textMuted)
-                    // F.80: mismas opciones que Ajustes › Hardware (32…2048),
-                    // no solo 64/128 — para aislar un crepiteo hace falta
-                    // poder subir bastante más, y para apurar la latencia en
-                    // la máquina de referencia, poder bajar de 64 también.
-                    Picker("", selection: $model.bufferFrames) {
-                        ForEach(AppSettings.bufferOptions, id: \.self) { n in
-                            Text("\(n) frames").tag(n)
-                        }
-                    }
-                    .labelsHidden()
-                    .frame(width: 160)
-                }
-                Text("64 frames = 1,33 ms a 48 kHz. Sube si oyes cortes, baja para menos latencia.")
-                    .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
-                if inputDevices.first(where: { $0.name == model.inputDeviceName })
-                    .map({ AudioDeviceList.inputChannelPairs(for: $0).count > 1 }) == true {
+                entradaSection
+                Divider().background(XFColor.stroke)
+                salidaSection
+                Divider().background(XFColor.stroke)
+                rendimientoSection
+            }
+        }
+    }
+
+    private var entradaSection: some View {
+        VStack(alignment: .leading, spacing: XFSpacing.md) {
+            HStack {
+                sectionLabel("ENTRADA (TIMECODE)")
+                Spacer()
+                Button("Refrescar dispositivos") { onRefreshDevices() }
+                    .xfButton(.bordered)
+            }
+            devicePicker("Dispositivo", devices: inputDevices, selection: $model.inputDeviceName)
+            if let inDevice = inputDevices.first(where: { $0.name == model.inputDeviceName }) {
+                let pairs = AudioDeviceList.inputChannelPairs(for: inDevice)
+                if pairs.count > 1 {
+                    channelPicker("Canal del timecode", pairs: pairs,
+                                 selection: $model.inputChannelFirst)
                     Text("En una interfaz multicanal el canal 1 casi nunca es el que lleva el "
                          + "timecode — elige la pareja correcta arriba en vez de a ciegas.")
                         .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
                 }
             }
         }
+    }
+
+    private var salidaSection: some View {
+        VStack(alignment: .leading, spacing: XFSpacing.md) {
+            sectionLabel("SALIDA")
+            devicePicker("Dispositivo", devices: outputDevices, selection: $model.outputDeviceName)
+            if let outDevice = outputDevices.first(where: { $0.name == model.outputDeviceName }) {
+                let pairs = AudioDeviceList.outputChannelPairs(for: outDevice)
+                if pairs.count > 1 {
+                    channelPicker("Canal de salida", pairs: pairs,
+                                 selection: $model.outputChannelFirst)
+                    // F.68 (ADR-075): mismo dispositivo, un PAR distinto para
+                    // la base — dos tiras de mezclador separadas en vez de
+                    // una mezcla combinada. Necesita al menos dos pares para
+                    // tener sentido (si no, no hay "distinto" que elegir).
+                    instrumentalChannelPicker(pairs: pairs)
+                }
+            }
+        }
+    }
+
+    private var rendimientoSection: some View {
+        VStack(alignment: .leading, spacing: XFSpacing.md) {
+            sectionLabel("RENDIMIENTO")
+            HStack {
+                Text("Buffer").foregroundColor(XFColor.textMuted)
+                    .frame(width: 160, alignment: .leading)
+                // F.80: mismas opciones que Ajustes › Hardware (32…2048), no
+                // solo 64/128 — para aislar un crepiteo hace falta poder
+                // subir bastante más, y para apurar la latencia en la
+                // máquina de referencia, poder bajar de 64 también.
+                Picker("", selection: $model.bufferFrames) {
+                    ForEach(AppSettings.bufferOptions, id: \.self) { n in
+                        Text("\(n) frames").tag(n)
+                    }
+                }
+                .labelsHidden()
+                .frame(width: 160)
+            }
+            Text("64 frames = 1,33 ms a 48 kHz. Sube si oyes cortes, baja para menos latencia.")
+                .font(XFFont.body(12)).foregroundColor(XFColor.textMuted)
+        }
+    }
+
+    /// Mismo lenguaje visual que "DIAGNÓSTICO DE DERIVA" del paso Timecode
+    /// — para que los tres pasos del asistente agrupen igual.
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text).font(XFFont.body(9)).kerning(0.6).foregroundColor(XFColor.textMuted)
     }
 
     private func devicePicker(_ title: String, devices: [AudioDeviceList.Device],
@@ -208,19 +232,20 @@ struct FaderCalibrationStep: View {
             VStack(alignment: .leading, spacing: XFSpacing.md) {
                 faderLearnSection
 
-                // F.80: estado EN VIVO del fader (mismo lenguaje visual que
-                // "fader cerrado/abierto" de la práctica) — antes solo se
-                // veía el contador de cortes saltar en incrementos, sin nada
-                // que reaccionara al segundo con el movimiento real.
-                HStack(spacing: XFSpacing.xs) {
-                    Circle()
-                        .fill(model.faderIsOpen ? XFColor.accent : XFColor.textMuted)
-                        .frame(width: 8, height: 8)
-                    Text(model.faderIsOpen ? "fader abierto" : "fader cerrado")
-                        .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
-                }
-
-                HStack(spacing: XFSpacing.sm) {
+                // F.80/F.86: estado EN VIVO del fader (mismo lenguaje visual
+                // que "fader cerrado/abierto" de la práctica) junto al
+                // contador — antes el círculo vivía en su propia fila,
+                // separado de la cifra a la que da contexto; ahora es un
+                // solo bloque "lo que pasa ahora + cuánto llevas".
+                HStack(spacing: XFSpacing.md) {
+                    HStack(spacing: XFSpacing.xs) {
+                        Circle()
+                            .fill(model.faderIsOpen ? XFColor.accent : XFColor.textMuted)
+                            .frame(width: 8, height: 8)
+                        Text(model.faderIsOpen ? "fader abierto" : "fader cerrado")
+                            .font(XFFont.body(11)).foregroundColor(XFColor.textMuted)
+                    }
+                    Divider().frame(height: 16).background(XFColor.stroke)
                     Text("\(min(model.cutsDetected, model.faderCutsNeeded)) / \(model.faderCutsNeeded) cortes")
                         .font(XFFont.mono(22))
                     if model.cutsDetected > 0 {
