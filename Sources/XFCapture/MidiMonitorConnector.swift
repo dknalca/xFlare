@@ -5,12 +5,16 @@ import Foundation
 
 /// Monitor **genérico** de CoreMIDI: se engancha a todas las fuentes MIDI y
 /// entrega cada mensaje ya troceado (status/data1/data2) a un bloque. Lo usa el
-/// "MIDI Learn" de Ajustes: mientras está abierto, escucha; al llegar un
-/// mensaje con el campo armado, esa nota/CC pasa a ser la asignación.
+/// "MIDI Learn" de Ajustes (mientras está abierto, escucha; al llegar un
+/// mensaje con el campo armado, esa nota/CC pasa a ser la asignación) Y,
+/// durante toda la sesión real (`AppModel.midiMonitor`, F.61), reparte cada
+/// mensaje a `MidiCommandSource` y a `MidiFaderSource` a la vez — es EL
+/// conector CoreMIDI de producción, no uno específico del crossfader (ese,
+/// `MidiFaderConnector`, se planeó pero nunca llegó a usarse y se borró).
 ///
-/// Mismo patrón que `MidiFaderConnector` (que es específico del crossfader):
-/// **sin tests**, es solo la conexión con el sistema. El troceo del flujo
-/// (running status, SysEx, tiempo real) está probado en `MidiFaderSource`.
+/// **Sin tests propios**: es solo la conexión con el sistema (confirmada con
+/// hardware real, ADR-021/F.61). El troceo del flujo (running status, SysEx,
+/// tiempo real) está probado en `MidiFaderSource`.
 public final class MidiMonitorConnector {
 
     /// Se llama (en el hilo de CoreMIDI) por cada mensaje de canal recibido.

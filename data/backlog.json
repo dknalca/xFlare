@@ -473,8 +473,8 @@
           "title": "SELLAR XFCapture",
           "module": "XFCapture",
           "acceptance": "-",
-          "status": "todo",
-          "note": "bloqueado por B6.3 (timecode) y B6.4/B6.4b (conectores). Hecho: protocolos, teclado, binarizador, .xfsession+replay, decodificacion HID. 32 tests."
+          "status": "done",
+          "note": "Hecho (2026-09-05). Bloqueaba B6.3 (timecode) -- cerrado con vinilo real en B5.5 -- y B6.4/B6.4b (conectores CoreMIDI/IOHIDManager/audio). El crossfader por MIDI ya estaba confirmado con la Rane 72 real (ADR-021 corregida, F.61), pero no via MidiFaderConnector (el conector dedicado planeado al principio), sino via MidiMonitorConnector (generico, un cliente CoreMIDI para toda la sesion) que reparte a MidiFaderSource Y a MidiCommandSource. Comprobado que MidiFaderConnector nunca se instanciaba en la app (codigo muerto de antes de F.61) -- se borra MidiFaderConnector.swift y se corrigen los comentarios que seguian apuntando a el. audio_return (AudioReturnFaderSource) y HID (HIDFaderConnector) quedan como respaldos documentados sin confirmar con hardware real (ADR-021) -- no bloquean sellar el metodo primario, que si esta validado extremo a extremo. Sources/XFCapture/README.md nuevo, docs/MODULE_STATUS.md -> SEALED. make seal M=XFCapture: 90 tests, verde."
         }
       ]
     },
@@ -881,9 +881,9 @@
           "id": "B12a.0",
           "title": "Empaquetar data/ y profiles/ como recursos del bundle; BundleContentLoader en la app",
           "module": "XFApp",
-          "status": "wip",
+          "status": "done",
           "acceptance": "la app arranca y monta el catalogo desde el .app, sin el repo delante; RepoContentLoader queda solo para tests y swift run",
-          "note": "2026-09-02: BundleContentLoader + make app copia data/ y profiles/ a Contents/Resources/ y firma ad-hoc; make dmg empaqueta. Falta: smoke test lanzando la app desde /Applications sin el repo delante (accion manual)."
+          "note": "Hecho. Smoke test original 2026-09-03: xFlare.app copiada a /Applications y lanzada desde ahi, arranca y monta el catalogo entero (BundleContentLoader gana sobre RepoContentLoader), navegacion OK. Fix de copyright 2026-09-03: make app REL=1 ya no empaqueta Audio/ (samples con copyright). Segunda confirmacion 2026-09-05: make app + copiado a un directorio fuera del repo (no /Applications) y lanzado desde ahi -> arranca, sigue corriendo sin errores en stdout ni en el log del sistema. El criterio ya estaba satisfecho desde 2026-09-03; solo faltaba marcar la tarea como hecha."
         },
         {
           "id": "B12a.1",

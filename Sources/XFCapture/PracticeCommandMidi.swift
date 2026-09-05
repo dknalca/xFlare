@@ -165,8 +165,8 @@ public struct MidiBinding: Equatable, Sendable, Codable {
 }
 
 /// Tabla de asignaciones + decodificador **puro**: dado un mensaje MIDI, ¿qué
-/// evento de comando? El conector CoreMIDI (`MidiFaderConnector`, hardware) lo
-/// alimenta con `ingest`; aquí solo se decide.
+/// evento de comando? El conector CoreMIDI (`MidiMonitorConnector`, hardware)
+/// lo alimenta con `ingest`; aquí solo se decide.
 public struct MidiCommandMap: Equatable, Sendable {
 
     public var bindings: [PracticeCommand: MidiBinding]
@@ -217,7 +217,7 @@ public struct MidiCommandMap: Equatable, Sendable {
 }
 
 /// Fuente de **comandos** por MIDI. Como `MidiFaderSource`: la conexión CoreMIDI
-/// vive en `MidiFaderConnector` (hardware); aquí se alimenta por fuera con
+/// vive en `MidiMonitorConnector` (hardware); aquí se alimenta por fuera con
 /// `ingest` y se prueba sin mesa.
 public final class MidiCommandSource {
 

@@ -244,8 +244,28 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 - [x] **B6.6** Formato .xfsession: grabar y reproducir + ReplaySource `XFCapture`
       - Criterio: una sesion grabada se reproduce bit a bit igual
       - Hecho: `XFSession` (JSON Lines: cabecera de calibración + muestras). Los floats se guardan como **cadena** (`"\(x)"`) para ida y vuelta exacta — el `JSONEncoder` de esta toolchain no re-parsea el mismo bit en un `Double` (problema de ADR-028). `ReplayMotionSource` / `ReplayFaderSource` conforman los protocolos y avanzan con `seek(toHostTime:)` (reloj de audio, determinista). Ida y vuelta value-equal + re-encode estable. `clockMap` reconstruye el `ClockMap` de la toma. 15 tests.
-- [ ] **B6.7** **SELLAR XFCapture** `XFCapture`
-      - Bloqueado por B6.3 (timecode), B6.4/B6.4b (conectores CoreMIDI / IOHIDManager / audio). Hecho ya: protocolos (B6.1), teclado (B6.2), binarizador (B6.5), .xfsession + replay (B6.6), decodificación HID. 32 tests.
+- [x] **B6.7** **SELLAR XFCapture** `XFCapture`
+      - Bloqueaba B6.3 (timecode) — cerrado con vinilo real en B5.5 — y B6.4/B6.4b
+        (conectores CoreMIDI/IOHIDManager/audio). Al revisar el bloqueador real
+        (2026-09-05): el crossfader por MIDI **ya está confirmado con la Rane 72
+        real** (ADR-021 corregida, F.61) — pero no a través de `MidiFaderConnector`
+        (el conector dedicado que se planeó al principio), sino de
+        `MidiMonitorConnector` (genérico, un cliente CoreMIDI para toda la sesión),
+        que reparte a `MidiFaderSource` Y a `MidiCommandSource` a la vez. Comprobado
+        que `MidiFaderConnector` **nunca se instanciaba en la app** (`grep` sin
+        resultados fuera de su propio fichero) — quedó como código muerto de antes
+        de F.61, con comentarios en `MidiFaderSource`/`PracticeCommandMidi` que
+        seguían apuntando a él. Se borra `MidiFaderConnector.swift` y se corrigen
+        los comentarios (apuntan a `MidiMonitorConnector`, el que de verdad corre).
+        `audio_return` (`AudioReturnFaderSource`) y HID (`HIDFaderConnector`) quedan
+        como **respaldos documentados sin confirmar con hardware real** (ADR-021):
+        no bloquean sellar el método primario, que sí está validado extremo a
+        extremo.
+      - **Hecho (2026-09-05):** `Sources/XFCapture/README.md` nuevo,
+        `docs/MODULE_STATUS.md` → SEALED. `make seal M=XFCapture`: 90 tests,
+        verde. Sellado con las mismas condiciones que otros módulos (CXFTimecode,
+        XFPersistence…): el método/camino primario validado con hardware real,
+        los respaldos documentados como pendientes sin bloquear.
 
 ## B7 — XFDesign + XFRender
 
@@ -456,7 +476,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
 
 ### B12a — DMG sin notarizar para GitHub Releases
 
-- [~] **B12a.0** Empaquetar recursos en el bundle `XFApp`
+- [x] **B12a.0** Empaquetar recursos en el bundle `XFApp`
       - `data/` y `profiles/` dejan de leerse del repo (`RepoContentLoader` via
         `#filePath`) y pasan a recursos del bundle. En la app: `BundleContentLoader`.
         `RepoContentLoader` queda solo para tests y `swift run`.
@@ -478,6 +498,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · **SELLAR** = congel
       - **Fix de copyright (2026-09-03):** `make app REL=1` **ya NO empaqueta
         `Audio/`** (samples con copyright, `CLAUDE.md` §12). El DMG de Releases va
         sin sonido de fábrica; el usuario carga los suyos ("Cargar sample…").
+      - **Segunda confirmación (2026-09-05):** `make app` + copiado a un directorio
+        fuera del repo (no `/Applications`, un temporal) y lanzado desde ahí →
+        arranca, sigue corriendo varios segundos sin errores en stdout ni en el
+        log del sistema. El criterio de aceptación ("arranca y monta el catálogo
+        sin el repo delante") ya estaba satisfecho desde el smoke test de
+        2026-09-03; solo faltaba marcar la tarea — el flag se había quedado en
+        `[~]` en `data/backlog.json` pese a que la nota ya decía "Smoke test
+        hecho".
 - [x] **B12a.1** `Info.plist` del `.app`
       - Hecho: `make app` escribe el `Info.plist` con `NSMicrophoneUsageDescription`
         ("xFlare necesita la entrada de audio para leer el vinilo de control"),

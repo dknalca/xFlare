@@ -8,7 +8,7 @@ import Combine
 /// El grueso de esto (`xf_engine_start` con entrada real, `drainInput`,
 /// `TimecodeMotionSource.submit`) depende de CoreAudio con un dispositivo de
 /// verdad delante — como el resto del host de audio (`xf_engine_start`
-/// mismo, `MidiFaderConnector`…), **no tiene tests de comportamiento real,
+/// mismo, `MidiMonitorConnector`…), **no tiene tests de comportamiento real,
 /// necesita hardware**. Lo que sí se puede — y debe — probar sin mesa es que
 /// nada revienta cuando no hay motor.
 final class AppModelTimecodeCaptureTests: XCTestCase {

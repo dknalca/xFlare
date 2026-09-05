@@ -4,9 +4,12 @@ import XFPrimitives
 
 /// Fuente de fader por **MIDI CC**. Misma estructura que `HIDFaderSource`: la
 /// conexion con CoreMIDI (crear el cliente/puerto, andar el `MIDIPacketList`) es
-/// hardware y vive en `MidiFaderConnector`; aqui la fuente se **alimenta por
-/// fuera** con `ingest(...)`, asi la decodificacion y la binarizacion se prueban
-/// sin mesa.
+/// hardware y vive en `MidiMonitorConnector` (2026-09-04, F.61: un solo cliente
+/// CoreMIDI para toda la sesion reparte cada mensaje a esta fuente Y a
+/// `MidiCommandSource`; el `MidiFaderConnector` dedicado que se penso al
+/// principio nunca llego a usarse y se borro); aqui la fuente se **alimenta
+/// por fuera** con `ingest(...)`, asi la decodificacion y la binarizacion se
+/// prueban sin mesa.
 public final class MidiFaderSource: FaderSource {
 
     public let config: MidiCrossfaderConfig
@@ -63,7 +66,7 @@ public final class MidiFaderSource: FaderSource {
 
     /// Trocea un flujo de bytes MIDI en mensajes de canal completos, respetando
     /// el **status en ejecucion** (running status) y saltando SysEx y los bytes
-    /// de tiempo real. Lo usa `MidiFaderConnector` al andar el `MIDIPacketList`.
+    /// de tiempo real. Lo usa `MidiMonitorConnector` al andar el `MIDIPacketList`.
     /// Para mensajes de un solo dato (`0xC_`, `0xD_`), `data2` va a 0.
     public static func messages(from bytes: [UInt8]) -> [(status: UInt8, data1: UInt8, data2: UInt8)] {
         var out: [(UInt8, UInt8, UInt8)] = []

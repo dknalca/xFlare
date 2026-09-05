@@ -4,9 +4,9 @@
 // Binarizacion del fader con el cut-in calibrado. No hace analisis ni UI.
 // Depende de XFPrimitives, XFClock, CXFTimecode, XFProfiles.
 //
-// Estado: protocolos de frontera (B6.1) y formato `.xfsession` + fuentes de
-// replay (B6.6) hechos. Las fuentes de hardware (MIDI, timecode, retorno de
-// audio) y el modo teclado llegan cuando haya mesa delante.
+// SEALED (2026-09-05). Confirmado con hardware real (Rane 72): timecode
+// (B5.5) y crossfader por MIDI (ADR-021 corregida, F.61). Los respaldos
+// (audio_return, HID) siguen sin confirmar con hardware real -- ver README.md.
 
 /// Espacio de nombres y version del contrato publico de XFCapture.
 public enum XFCapture {

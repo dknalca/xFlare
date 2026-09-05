@@ -196,22 +196,29 @@ corregido. `make seal M=CXFTimecode` hecho, `README.md` del módulo y
 
 ### Paso 7 — B6.4 / B6.4b / B6.7 · sellar `XFCapture`
 
-Los conectores CoreMIDI (`MidiFaderConnector`) e IOHIDManager
-(`HIDFaderConnector`) están escritos pero **sin tests: necesitan el aparato**.
-La decodificación sí está probada.
+**MIDI, ya confirmado con el aparato real (2026-09-05):** `MidiMonitorConnector`
+(CoreMIDI clásico, un solo cliente para toda la sesión, F.61) alimenta
+`MidiFaderSource` en producción — no un `MidiFaderConnector` dedicado, que se
+planeó al principio pero nunca llegó a instanciarse en la app y se borró como
+código muerto. Con el aparato real: 15313/15317 mensajes CC8/canal16 limpios
+en una captura aislada de 5 min (ADR-021 corregida), y F.61 confirmó que el
+mismo `MidiMonitorConnector` reparte correctamente comandos discretos Y
+crossfader en la práctica real. `profiles/rane-seventy-two.conf` ya declara
+`method = midi`. El IOHIDManager (`HIDFaderConnector`) sigue **sin tests: solo
+hace falta si una mesa que de verdad no exponga MIDI lo necesita** — no
+bloquea sellar el método primario.
 
-- **MIDI (ahora el método primario, corrige ADR-021 el 2026-09-03):** se
-  confirmó con el aparato que el crossfader SÍ manda CC8/canal16 (15313/15317
-  mensajes limpios en una captura aislada de 5 min). `profiles/rane-seventy-two.conf`
-  ya declara `method = midi`. Queda probar `MidiFaderConnector` real (hoy solo
-  probado con `ingest(bytes:)` sintético) y confirmar en el asistente de
-  calibración los extremos del barrido (0/127 en los topes) y `midi.invert`.
 - **audio_return (respaldo):** `AudioReturnFaderSource` (B6.4b) queda como
   método de reserva para mesas que de verdad no expongan el crossfader por
   MIDI — no hace falta para la Rane 72, pero el código no se retira.
-- **HID (respaldo 2):** lee el descriptor HID del aparato
+- **HID (respaldo 2, sin usar todavía):** lee el descriptor HID del aparato
   (`hidutil list` / `ioreg -p IOUSB`), rellena el bloque `hid.*` **comentado**
-  de `profiles/rane-seventy-two.conf` y prueba `HIDFaderConnector`.
+  de `profiles/rane-seventy-two.conf` y prueba `HIDFaderConnector` — solo si
+  una mesa futura lo necesita de verdad.
+- Pendiente, no bloqueante: confirmar en el asistente de calibración los
+  extremos exactos del barrido (0/127 en los topes) y `midi.invert` — el
+  asistente ya lo aprende con "Aprender MIDI del fader" (F.67), falta
+  persistirlo para la práctica real (`DeviceCalibration`, XFPersistence).
 - Smoke test de `TimecodeMotionSource` con el vinilo (solapa con el paso 6).
 
 **Anota:** `verified = true` en `profiles/rane-seventy-two.conf` cuando los
